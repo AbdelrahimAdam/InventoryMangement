@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "devCommand": "npm run serve",
+  "installCommand": "npm install"
+}
