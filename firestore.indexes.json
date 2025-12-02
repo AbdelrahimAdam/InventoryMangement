@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "المخزن_id", "order": "ASCENDING" },
+        { "fieldPath": "الكود", "order": "ASCENDING" },
+        { "fieldPath": "اللون", "order": "ASCENDING" },
+        { "fieldPath": "الاسم", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "المخزن_id", "order": "ASCENDING" },
+        { "fieldPath": "الكميه_المتبقيه", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "timestamp", "order": "DESCENDING" },
+        { "fieldPath": "from_warehouse", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}
