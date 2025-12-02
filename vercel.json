@@ -1,4 +1,4 @@
 {
-  "buildCommand": "chmod +x node_modules/.bin/vue-cli-service && CI= npm run build",
+  "buildCommand": "CI= node ./node_modules/@vue/cli-service/bin/vue-cli-service.js build",
   "outputDirectory": "dist"
 }
