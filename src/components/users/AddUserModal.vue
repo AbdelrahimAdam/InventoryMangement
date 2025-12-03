@@ -1,246 +1,1077 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md rtl">
-      <!-- Header -->
-      <div class="px-6 py-4 border-b border-gray-200">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900">إضافة مستخدم جديد</h3>
-          <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl rtl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
+          {{ user ? 'تعديل المستخدم' : 'إضافة مستخدم جديد' }}
+        </h2>
+        <button 
+          @click="$emit('close')"
+          class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
+        >
+          <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
 
-      <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
-        <!-- Name -->
-        <div>
-          <label for="name" class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
-          <input
-            id="name"
-            v-model="form.name"
-            type="text"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="أدخل الاسم الكامل"
-          >
-        </div>
-
-        <!-- Email -->
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="example@company.com"
-          >
-        </div>
-
-        <!-- Password -->
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
-          <input
-            id="password"
-            v-model="form.password"
-            type="password"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="كلمة المرور المؤقتة"
-          >
-        </div>
-
-        <!-- Role -->
-        <div>
-          <label for="role" class="block text-sm font-medium text-gray-700 mb-1">الدور</label>
-          <select
-            id="role"
-            v-model="form.role"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">اختر الدور</option>
-            <option value="company_manager">مدير الشركة</option>
-            <option value="warehouse_manager">مدير المخازن</option>
-          </select>
-        </div>
-
-        <!-- Phone -->
-        <div>
-          <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
-          <input
-            id="phone"
-            v-model="form.phone"
-            type="tel"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="01XXXXXXXXX"
-          >
-        </div>
-
-        <!-- Status -->
-        <div>
-          <label class="flex items-center space-x-2 space-x-reverse">
+      <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
+        <!-- Basic Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              الاسم الكامل <span class="text-red-500">*</span>
+            </label>
             <input
-              v-model="form.isActive"
-              type="checkbox"
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            >
-            <span class="text-sm text-gray-700">حساب نشط</span>
+              type="text"
+              required
+              v-model="formData.name"
+              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="أدخل الاسم الكامل"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              البريد الإلكتروني <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              required
+              v-model="formData.email"
+              :readonly="!!user"
+              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="example@company.com"
+              :class="{ 'bg-gray-100 dark:bg-gray-800': !!user }"
+            />
+          </div>
+        </div>
+
+        <!-- Phone and Status -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              رقم الهاتف
+            </label>
+            <input
+              type="tel"
+              v-model="formData.phone"
+              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="01XXXXXXXXX"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">حالة الحساب</label>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="formData.is_active" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+              <span class="mr-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ formData.is_active ? 'نشط' : 'غير نشط' }}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Role Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            الدور <span class="text-red-500">*</span>
           </label>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label 
+              v-for="role in availableRoles" 
+              :key="role.value"
+              class="relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors duration-200"
+              :class="{
+                'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20': formData.role === role.value,
+                'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700': formData.role !== role.value
+              }"
+            >
+              <input
+                type="radio"
+                :value="role.value"
+                v-model="formData.role"
+                :disabled="user?.role === 'superadmin'"
+                class="sr-only"
+              />
+              <div class="flex w-full items-center justify-between">
+                <div class="flex items-center">
+                  <div class="text-sm">
+                    <div class="font-medium text-gray-900 dark:text-white">{{ role.name }}</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ role.description }}</div>
+                  </div>
+                </div>
+                <svg v-if="formData.role === role.value" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            </label>
+          </div>
+          <p v-if="user?.role === 'superadmin'" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            لا يمكن تغيير دور المشرف العام
+          </p>
+        </div>
+
+        <!-- Warehouse Access Control -->
+        <div v-if="formData.role === 'warehouse_manager'">
+          <div class="flex justify-between items-center mb-3">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              المخازن المسموحة <span class="text-red-500">*</span>
+            </label>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="toggleAllWarehouses"
+                class="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              >
+                {{ formData.allowed_warehouses.length === allWarehouses.length ? 'إلغاء الكل' : 'اختيار الكل' }}
+              </button>
+              <button
+                type="button"
+                @click="manageWarehouses"
+                class="text-sm px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors duration-200 flex items-center gap-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                إدارة المخازن
+              </button>
+            </div>
+          </div>
+          
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            اختر المخازن التي يمكن للمستخدم الوصول إليها. سيتمكن المستخدم من إجراء جميع العمليات في المخازن المختارة.
+          </p>
+
+          <!-- Loading State -->
+          <div v-if="loadingWarehouses" class="text-center py-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">جاري تحميل المخازن...</p>
+          </div>
+
+          <!-- Warehouses Grid -->
+          <div v-else class="space-y-3">
+            <!-- Primary Warehouses -->
+            <div v-if="primaryWarehouses.length > 0">
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المخازن الرئيسية</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label 
+                  v-for="warehouse in primaryWarehouses" 
+                  :key="warehouse.id"
+                  class="relative flex items-start p-3 border rounded-lg transition-colors duration-200 group"
+                  :class="{
+                    'border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20': formData.allowed_warehouses.includes(warehouse.id),
+                    'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600': !formData.allowed_warehouses.includes(warehouse.id)
+                  }"
+                >
+                  <div class="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      :value="warehouse.id"
+                      v-model="formData.allowed_warehouses"
+                      class="h-4 w-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
+                    />
+                  </div>
+                  <div class="mr-3 text-sm flex-1">
+                    <div class="flex justify-between items-start">
+                      <div>
+                        <div class="font-medium text-gray-900 dark:text-white">{{ warehouse.name_ar }}</div>
+                        <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ warehouse.name_en }}</div>
+                      </div>
+                      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          @click.stop="editWarehouse(warehouse)"
+                          class="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                          title="تعديل"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <span>السعة: {{ warehouse.capacity || 'غير محددة' }}</span>
+                      <span>•</span>
+                      <span>الموقع: {{ warehouse.location || 'غير محدد' }}</span>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Dispatch Warehouses -->
+            <div v-if="dispatchWarehouses.length > 0">
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">مواقع الصرف</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label 
+                  v-for="warehouse in dispatchWarehouses" 
+                  :key="warehouse.id"
+                  class="relative flex items-start p-3 border rounded-lg transition-colors duration-200"
+                  :class="{
+                    'border-purple-300 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20': formData.allowed_warehouses.includes(warehouse.id),
+                    'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600': !formData.allowed_warehouses.includes(warehouse.id)
+                  }"
+                >
+                  <div class="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      :value="warehouse.id"
+                      v-model="formData.allowed_warehouses"
+                      class="h-4 w-4 text-purple-600 dark:text-purple-400 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400"
+                    />
+                  </div>
+                  <div class="mr-3 text-sm">
+                    <div class="font-medium text-gray-900 dark:text-white">{{ warehouse.name_ar }}</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ warehouse.description || warehouse.name_en }}</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Warehouse Access Summary -->
+            <div v-if="formData.allowed_warehouses.length > 0" 
+                 class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-sm text-green-700 dark:text-green-300">
+                  تم اختيار {{ formData.allowed_warehouses.length }} مخزن
+                </span>
+              </div>
+              <div class="mt-2 text-xs text-green-600 dark:text-green-400">
+                <span>المخازن المختارة:</span>
+                <span class="mr-2 font-medium">
+                  {{ getSelectedWarehouseNames().join('، ') }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Warehouses Message -->
+          <div v-if="!loadingWarehouses && allWarehouses.length === 0" class="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد مخازن</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">ابدأ بإضافة مخازن جديدة للنظام.</p>
+            <div class="mt-4">
+              <button
+                type="button"
+                @click="addNewWarehouse"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+              >
+                <svg class="ml-2 -mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                إضافة مخزن جديد
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Permissions Management -->
+        <div v-if="formData.role">
+          <div class="flex justify-between items-center mb-3">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              إدارة الصلاحيات
+            </label>
+            <button
+              type="button"
+              @click="toggleAllPermissions"
+              class="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+            >
+              {{ allPermissionsSelected ? 'إلغاء الكل' : 'اختيار الكل' }}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-for="permissionGroup in permissionGroups" :key="permissionGroup.category">
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ permissionGroup.label }}</h4>
+              <div class="space-y-2">
+                <label 
+                  v-for="permission in permissionGroup.permissions" 
+                  :key="permission.value"
+                  class="flex items-center p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                  :class="{
+                    'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20': formData.permissions.includes(permission.value),
+                    'border-gray-200 dark:border-gray-700': !formData.permissions.includes(permission.value)
+                  }"
+                >
+                  <input
+                    type="checkbox"
+                    :value="permission.value"
+                    v-model="formData.permissions"
+                    class="h-4 w-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
+                  />
+                  <div class="mr-3 text-sm">
+                    <div class="font-medium text-gray-700 dark:text-gray-300">{{ permission.name }}</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ permission.description }}</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Permission Sets -->
+          <div class="mt-4 flex gap-2 flex-wrap">
+            <button
+              type="button"
+              @click="applyPermissionSet('view_only')"
+              class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+            >
+              صلاحيات مشاهدة فقط
+            </button>
+            <button
+              type="button"
+              @click="applyPermissionSet('basic_operations')"
+              class="px-3 py-1 text-sm border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200"
+            >
+              عمليات أساسية
+            </button>
+            <button
+              type="button"
+              @click="applyPermissionSet('full_access')"
+              class="px-3 py-1 text-sm border border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200"
+            >
+              صلاحيات كاملة
+            </button>
+            <button
+              type="button"
+              @click="applyPermissionSet('warehouse_manager')"
+              class="px-3 py-1 text-sm border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
+            >
+              مدير مخازن نموذجي
+            </button>
+          </div>
+        </div>
+
+        <!-- Password (only for new users) -->
+        <div v-if="!user" class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              كلمة المرور <span class="text-red-500">*</span>
+            </label>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="togglePasswordVisibility"
+                class="text-sm px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
+              >
+                {{ showPassword ? 'إخفاء' : 'إظهار' }}
+              </button>
+              <button
+                type="button"
+                @click="generateStrongPassword"
+                class="text-sm px-2 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              >
+                توليد قوي
+              </button>
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <input
+              :type="showPassword ? 'text' : 'password'"
+              required
+              v-model="formData.password"
+              class="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="كلمة المرور المؤقتة"
+            />
+            <button
+              type="button"
+              @click="generatePassword"
+              class="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
+            >
+              توليد عشوائي
+            </button>
+          </div>
+          
+          <!-- Password Strength Indicator -->
+          <div class="mt-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500 dark:text-gray-400">قوة كلمة المرور:</span>
+              <span class="text-xs font-medium" :class="passwordStrength.color">
+                {{ passwordStrength.label }}
+              </span>
+            </div>
+            <div class="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                class="h-full transition-all duration-300" 
+                :class="passwordStrength.color"
+                :style="{ width: passwordStrength.percentage + '%' }"
+              ></div>
+            </div>
+          </div>
+          
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            يجب أن تكون كلمة المرور 8 أحرف على الأقل وتحتوي على حروف وأرقام
+          </p>
+          
+          <!-- Temporary Password Display -->
+          <div v-if="formData.password" class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+              <span class="text-sm font-medium text-yellow-800 dark:text-yellow-300">كلمة المرور المؤقتة</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 font-mono text-sm bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
+                {{ formData.password }}
+              </code>
+              <button
+                type="button"
+                @click="copyPassword"
+                class="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                title="نسخ"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+              </button>
+            </div>
+            <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-2">
+              سيتم إرسال هذه الكلمة إلى المستخدم. يجب عليه تغييرها عند أول دخول.
+            </p>
+          </div>
+        </div>
+
+        <!-- User Summary -->
+        <div v-if="formData.role" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-3">ملخص المستخدم:</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400 mb-1">الدور والصلاحيات</div>
+              <div class="text-sm text-blue-700 dark:text-blue-300">
+                {{ getRoleDisplay(formData.role) }}
+              </div>
+              <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                {{ formData.permissions.length }} صلاحية محددة
+              </div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400 mb-1">الوصول إلى المخازن</div>
+              <div class="text-sm text-blue-700 dark:text-blue-300">
+                {{ formData.allowed_warehouses.length }} مخزن
+              </div>
+              <div v-if="formData.allowed_warehouses.length > 0" class="mt-1 text-xs text-blue-600 dark:text-blue-400 truncate">
+                {{ getSelectedWarehouseNames().slice(0, 2).join('، ') }}
+                <span v-if="formData.allowed_warehouses.length > 2">وآخرون</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Validation Errors -->
+        <div v-if="validationErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+          <h4 class="text-sm font-medium text-red-800 dark:text-red-300 mb-2">خطأ في التحقق:</h4>
+          <ul class="text-sm text-red-700 dark:text-red-300 list-disc pr-5 space-y-1">
+            <li v-for="error in validationErrors" :key="error">{{ error }}</li>
+          </ul>
         </div>
 
         <!-- Error Message -->
-        <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p class="text-sm text-red-600">{{ error }}</p>
+        <div v-if="errorMessage" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-sm text-red-700 dark:text-red-300">{{ errorMessage }}</p>
+          </div>
         </div>
 
-        <!-- Actions -->
-        <div class="flex space-x-3 space-x-reverse pt-4">
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
             @click="$emit('close')"
-            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            class="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 font-medium"
           >
             إلغاء
           </button>
           <button
             type="submit"
-            :disabled="loading"
-            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            :disabled="loading || !isFormValid"
+            class="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium flex items-center justify-center gap-2"
           >
-            <span v-if="loading">جاري الإضافة...</span>
-            <span v-else>إضافة المستخدم</span>
+            <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            {{ loading ? 'جاري الحفظ...' : (user ? 'تحديث المستخدم' : 'إضافة مستخدم') }}
           </button>
         </div>
       </form>
     </div>
   </div>
+
+  <!-- Warehouse Management Modal -->
+  <WarehouseModal
+    v-if="showWarehouseModal"
+    :warehouse="editingWarehouse"
+    @close="closeWarehouseModal"
+    @save="handleWarehouseSave"
+  />
 </template>
 
 <script>
-import { ref, reactive, watch } from 'vue'
-import { useStore } from 'vuex'
+import { ref, computed, watch, onMounted } from 'vue';
+import { useStore } from 'vuex';
+import { auth, db } from '@/firebase/config';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import WarehouseModal from '@/components/WarehouseModal.vue';
 
 export default {
-  name: 'AddUserModal',
+  name: 'UserManagementModal',
+  components: {
+    WarehouseModal
+  },
   props: {
     isOpen: {
       type: Boolean,
-      default: false
+      required: true
+    },
+    user: {
+      type: Object,
+      default: null
     }
   },
-  emits: ['close', 'success'],
+  emits: ['close', 'save', 'warehouse-updated'],
   setup(props, { emit }) {
-    const store = useStore()
+    const store = useStore();
     
-    const loading = ref(false)
-    const error = ref('')
+    const loading = ref(false);
+    const loadingWarehouses = ref(false);
+    const errorMessage = ref('');
+    const validationErrors = ref([]);
+    const showPassword = ref(false);
+    const showWarehouseModal = ref(false);
+    const editingWarehouse = ref(null);
     
-    const form = reactive({
+    const formData = ref({
       name: '',
       email: '',
-      password: '',
-      role: '',
+      role: 'company_manager',
+      is_active: true,
       phone: '',
-      isActive: true
-    })
+      allowed_warehouses: [],
+      permissions: [],
+      password: ''
+    });
 
-    // Reset form when modal opens/closes
-    watch(() => props.isOpen, (newVal) => {
-      if (newVal) {
-        resetForm()
+    const availableRoles = ref([
+      {
+        value: 'superadmin',
+        name: 'المشرف العام',
+        description: 'صلاحيات كاملة على النظام'
+      },
+      {
+        value: 'warehouse_manager',
+        name: 'مدير المخازن',
+        description: 'إدارة المخزون والحركات في المخازن المحددة'
+      },
+      {
+        value: 'company_manager',
+        name: 'مدير الشركة',
+        description: 'عرض التقارير والبيانات (قراءة فقط)'
       }
-    })
+    ]);
 
-    const resetForm = () => {
-      Object.assign(form, {
-        name: '',
-        email: '',
-        password: '',
-        role: '',
-        phone: '',
-        isActive: true
-      })
-      error.value = ''
-    }
+    const permissionGroups = ref([
+      {
+        category: 'inventory',
+        label: 'إدارة المخزون',
+        permissions: [
+          { value: 'manage_inventory', name: 'إدارة المخزون', description: 'إضافة وتعديل المخزون' },
+          { value: 'create_transfers', name: 'إنشاء التحويلات', description: 'نقل المخزون بين المخازن' },
+          { value: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للخارج' },
+          { value: 'update_items', name: 'تحديث الأصناف', description: 'تعديل بيانات الأصناف' },
+          { value: 'delete_items', name: 'حذف الأصناف', description: 'إزالة الأصناف من النظام' }
+        ]
+      },
+      {
+        category: 'reports',
+        label: 'التقارير والمتابعة',
+        permissions: [
+          { value: 'view_reports', name: 'عرض التقارير', description: 'مشاهدة تقارير المخزون' },
+          { value: 'export_data', name: 'تصدير البيانات', description: 'تصدير البيانات إلى Excel' },
+          { value: 'view_analytics', name: 'عرض التحليلات', description: 'مشاهدة الإحصائيات والتحليلات' }
+        ]
+      },
+      {
+        category: 'system',
+        label: 'إدارة النظام',
+        permissions: [
+          { value: 'manage_warehouses', name: 'إدارة المخازن', description: 'إضافة وتعديل المخازن' },
+          { value: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل المستخدمين' },
+          { value: 'system_settings', name: 'إعدادات النظام', description: 'تعديل إعدادات النظام' }
+        ]
+      },
+      {
+        category: 'advanced',
+        label: 'صلاحيات متقدمة',
+        permissions: [
+          { value: 'audit_logs', name: 'سجلات المراجعة', description: 'مشاهدة سجلات النظام' },
+          { value: 'backup_restore', name: 'النسخ الاحتياطي', description: 'النسخ والاستعادة' },
+          { value: 'full_access', name: 'وصول كامل', description: 'جميع الصلاحيات بدون قيود' }
+        ]
+      }
+    ]);
+
+    // Computed properties
+    const allWarehouses = computed(() => {
+      return store.state.warehouses || [];
+    });
+
+    const primaryWarehouses = computed(() => {
+      return allWarehouses.value.filter(w => w.type === 'primary');
+    });
+
+    const dispatchWarehouses = computed(() => {
+      return allWarehouses.value.filter(w => w.type === 'dispatch');
+    });
+
+    const allPermissionsSelected = computed(() => {
+      const allPermissions = permissionGroups.value.flatMap(group => 
+        group.permissions.map(p => p.value)
+      );
+      return allPermissions.every(permission => 
+        formData.value.permissions.includes(permission)
+      );
+    });
+
+    const passwordStrength = computed(() => {
+      const password = formData.value.password || '';
+      let score = 0;
+      
+      if (password.length >= 8) score += 1;
+      if (/[A-Z]/.test(password)) score += 1;
+      if (/[a-z]/.test(password)) score += 1;
+      if (/\d/.test(password)) score += 1;
+      if (/[^A-Za-z0-9]/.test(password)) score += 1;
+      
+      const percentage = (score / 5) * 100;
+      
+      if (score <= 1) return { label: 'ضعيفة', color: 'bg-red-500', percentage };
+      if (score <= 3) return { label: 'متوسطة', color: 'bg-yellow-500', percentage };
+      return { label: 'قوية', color: 'bg-green-500', percentage };
+    });
+
+    const isFormValid = computed(() => {
+      validationErrors.value = [];
+
+      if (!formData.value.name.trim()) {
+        validationErrors.value.push('الاسم الكامل مطلوب');
+      }
+
+      if (!formData.value.email.trim()) {
+        validationErrors.value.push('البريد الإلكتروني مطلوب');
+      } else if (!isValidEmail(formData.value.email)) {
+        validationErrors.value.push('صيغة البريد الإلكتروني غير صحيحة');
+      }
+
+      if (!formData.value.role) {
+        validationErrors.value.push('الدور مطلوب');
+      }
+
+      if (!props.user && !formData.value.password) {
+        validationErrors.value.push('كلمة المرور مطلوبة');
+      } else if (!props.user && formData.value.password.length < 8) {
+        validationErrors.value.push('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      }
+
+      if (formData.value.role === 'warehouse_manager' && formData.value.allowed_warehouses.length === 0) {
+        validationErrors.value.push('يجب اختيار مخزن واحد على الأقل لمدير المخازن');
+      }
+
+      if (formData.value.phone && !isValidPhone(formData.value.phone)) {
+        validationErrors.value.push('رقم الهاتف غير صحيح');
+      }
+
+      // Check if user has basic permissions for their role
+      if (formData.value.role === 'warehouse_manager' && formData.value.permissions.length === 0) {
+        validationErrors.value.push('يجب تحديد صلاحيات على الأقل لمدير المخازن');
+      }
+
+      return validationErrors.value.length === 0;
+    });
+
+    // Helper functions
+    const isValidEmail = (email) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    };
+
+    const isValidPhone = (phone) => {
+      const phoneRegex = /^01[0-9]{9}$/;
+      return phoneRegex.test(phone);
+    };
+
+    const getRoleDisplay = (role) => {
+      const roleMap = {
+        superadmin: 'المشرف العام',
+        warehouse_manager: 'مدير المخازن',
+        company_manager: 'مدير الشركة'
+      };
+      return roleMap[role] || role;
+    };
+
+    const getSelectedWarehouseNames = () => {
+      return formData.value.allowed_warehouses
+        .map(warehouseId => {
+          const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
+          return warehouse ? warehouse.name_ar : warehouseId;
+        });
+    };
 
     const generatePassword = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
-      let password = ''
-      for (let i = 0; i < 12; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length))
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let password = '';
+      for (let i = 0; i < 10; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
       }
-      form.password = password
-    }
+      formData.value.password = password;
+    };
+
+    const generateStrongPassword = () => {
+      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+      const numbers = '0123456789';
+      const symbols = '!@#$%^&*';
+      
+      let password = '';
+      
+      // Ensure at least one of each type
+      password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+      password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+      password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+      
+      // Fill the rest
+      const allChars = uppercase + lowercase + numbers + symbols;
+      for (let i = 4; i < 12; i++) {
+        password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+      }
+      
+      // Shuffle the password
+      formData.value.password = password.split('').sort(() => Math.random() - 0.5).join('');
+    };
+
+    const togglePasswordVisibility = () => {
+      showPassword.value = !showPassword.value;
+    };
+
+    const copyPassword = async () => {
+      try {
+        await navigator.clipboard.writeText(formData.value.password);
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم نسخ كلمة المرور'
+        });
+      } catch (err) {
+        console.error('Failed to copy password:', err);
+      }
+    };
+
+    const toggleAllWarehouses = () => {
+      if (formData.value.allowed_warehouses.length === allWarehouses.value.length) {
+        formData.value.allowed_warehouses = [];
+      } else {
+        formData.value.allowed_warehouses = allWarehouses.value.map(w => w.id);
+      }
+    };
+
+    const toggleAllPermissions = () => {
+      if (allPermissionsSelected.value) {
+        formData.value.permissions = [];
+      } else {
+        const allPermissions = permissionGroups.value.flatMap(group => 
+          group.permissions.map(p => p.value)
+        );
+        formData.value.permissions = [...allPermissions];
+      }
+    };
+
+    const applyPermissionSet = (setName) => {
+      const permissionSets = {
+        view_only: ['view_reports', 'export_data'],
+        basic_operations: ['manage_inventory', 'create_transfers', 'dispatch_items', 'view_reports'],
+        full_access: ['full_access'],
+        warehouse_manager: ['manage_inventory', 'create_transfers', 'dispatch_items', 'update_items', 'view_reports', 'export_data']
+      };
+      
+      formData.value.permissions = permissionSets[setName] || [];
+    };
+
+    const manageWarehouses = () => {
+      // Emit event to parent to show warehouse management
+      emit('warehouse-updated');
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: 'يمكنك إدارة المخازن من قائمة المخازن في الشريط الجانبي'
+      });
+    };
+
+    const addNewWarehouse = () => {
+      editingWarehouse.value = null;
+      showWarehouseModal.value = true;
+    };
+
+    const editWarehouse = (warehouse) => {
+      editingWarehouse.value = warehouse;
+      showWarehouseModal.value = true;
+    };
+
+    const closeWarehouseModal = () => {
+      showWarehouseModal.value = false;
+      editingWarehouse.value = null;
+    };
+
+    const handleWarehouseSave = async (warehouseData) => {
+      try {
+        // Reload warehouses after save
+        await store.dispatch('loadWarehouses');
+        
+        // If the warehouse was added to allowed_warehouses, update the form
+        if (formData.value.allowed_warehouses.includes(warehouseData.id)) {
+          const index = formData.value.allowed_warehouses.indexOf(warehouseData.id);
+          if (index > -1) {
+            formData.value.allowed_warehouses[index] = warehouseData.id;
+          }
+        }
+        
+        closeWarehouseModal();
+      } catch (error) {
+        console.error('Error handling warehouse save:', error);
+      }
+    };
+
+    const resetForm = () => {
+      formData.value = {
+        name: '',
+        email: '',
+        role: 'company_manager',
+        is_active: true,
+        phone: '',
+        allowed_warehouses: [],
+        permissions: [],
+        password: ''
+      };
+      errorMessage.value = '';
+      validationErrors.value = [];
+      showPassword.value = false;
+    };
+
+    // Load warehouses if not already loaded
+    const ensureWarehousesLoaded = async () => {
+      if (allWarehouses.value.length === 0) {
+        loadingWarehouses.value = true;
+        try {
+          await store.dispatch('loadWarehouses');
+        } catch (error) {
+          console.error('Error loading warehouses:', error);
+          errorMessage.value = 'خطأ في تحميل المخازن';
+        } finally {
+          loadingWarehouses.value = false;
+        }
+      }
+    };
 
     const handleSubmit = async () => {
-      if (!form.name || !form.email || !form.password || !form.role) {
-        error.value = 'جميع الحقول المطلوبة يجب ملؤها'
-        return
-      }
+      if (!isFormValid.value) return;
 
-      if (form.password.length < 6) {
-        error.value = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
-        return
-      }
-
-      loading.value = true
-      error.value = ''
+      loading.value = true;
+      errorMessage.value = '';
 
       try {
-        // Simulate API call - replace with actual Firebase Auth creation
+        // Prepare user data
         const userData = {
-          id: Date.now().toString(),
-          name: form.name,
-          email: form.email,
-          role: form.role,
-          phone: form.phone,
-          isActive: form.isActive,
-          createdAt: new Date().toISOString(),
-          createdBy: store.state.user?.uid || 'system'
+          name: formData.value.name.trim(),
+          email: formData.value.email.trim(),
+          role: formData.value.role,
+          is_active: formData.value.is_active,
+          phone: formData.value.phone.trim(),
+          allowed_warehouses: formData.value.role === 'warehouse_manager' 
+            ? formData.value.allowed_warehouses 
+            : [],
+          permissions: formData.value.permissions,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        let result;
+        
+        if (props.user) {
+          // UPDATE EXISTING USER
+          userData.created_at = props.user.created_at;
+          userData.id = props.user.id;
+          
+          result = await store.dispatch('updateUser', {
+            userId: props.user.id,
+            userData: userData
+          });
+          
+          if (!result.success) {
+            throw new Error(result.error || 'فشل في تحديث المستخدم');
+          }
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم تحديث المستخدم بنجاح'
+          });
+          
+        } else {
+          // CREATE NEW USER
+          // Create Firebase Auth user first
+          const firebaseUser = await createUserWithEmailAndPassword(
+            auth,
+            userData.email,
+            formData.value.password
+          );
+          
+          // Add user ID to data
+          userData.id = firebaseUser.uid;
+          userData.created_by = store.state.user?.uid;
+          
+          // Save user profile to Firestore
+          await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+          
+          // Store the password for display
+          const resultData = {
+            ...userData,
+            temporary_password: formData.value.password
+          };
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم إضافة المستخدم "${userData.name}" بنجاح`
+          });
+          
+          result = { success: true, data: resultData };
         }
 
-        // Dispatch to Vuex store
-        await store.dispatch('addUser', userData)
+        // Emit save event with result data
+        emit('save', result.data || userData);
         
-        emit('success')
-        emit('close')
+        // Close modal
+        emit('close');
         
-        // Show success message (you might want to use a toast notification here)
-        console.log('User added successfully:', userData)
+      } catch (error) {
+        console.error('Error in form submission:', error);
         
-      } catch (err) {
-        console.error('Error adding user:', err)
-        error.value = 'فشل في إضافة المستخدم. يرجى المحاولة مرة أخرى.'
+        let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
+        
+        // Translate Firebase errors
+        if (error.code === 'auth/email-already-in-use') {
+          errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
+        } else if (error.code === 'auth/weak-password') {
+          errorMsg = 'كلمة المرور ضعيفة';
+        }
+        
+        errorMessage.value = errorMsg;
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: errorMsg
+        });
       } finally {
-        loading.value = false
+        loading.value = false;
       }
-    }
+    };
 
-    // Generate initial password when component mounts
-    generatePassword()
+    watch(() => props.isOpen, async (newVal) => {
+      if (newVal) {
+        resetForm();
+        
+        if (!props.user) {
+          generateStrongPassword();
+          // Set default permissions based on role
+          applyPermissionSet('warehouse_manager');
+        }
+        
+        await ensureWarehousesLoaded();
+        
+        if (props.user) {
+          // Edit mode - populate form with user data
+          formData.value = {
+            name: props.user.name || '',
+            email: props.user.email || '',
+            role: props.user.role || 'company_manager',
+            is_active: props.user.is_active !== false,
+            phone: props.user.phone || '',
+            allowed_warehouses: props.user.allowed_warehouses || [],
+            permissions: props.user.permissions || []
+          };
+          
+          // Don't show password for existing users
+          delete formData.value.password;
+        }
+      }
+    });
+
+    watch(() => formData.value.role, (newRole) => {
+      // Reset allowed_warehouses when role changes away from warehouse_manager
+      if (newRole !== 'warehouse_manager') {
+        formData.value.allowed_warehouses = [];
+      }
+      
+      // Apply default permission sets based on role
+      if (newRole === 'company_manager') {
+        applyPermissionSet('view_only');
+      } else if (newRole === 'warehouse_manager') {
+        applyPermissionSet('warehouse_manager');
+      } else if (newRole === 'superadmin') {
+        applyPermissionSet('full_access');
+      }
+    });
+
+    onMounted(async () => {
+      await ensureWarehousesLoaded();
+    });
 
     return {
-      form,
       loading,
-      error,
-      handleSubmit,
-      generatePassword
-    }
+      loadingWarehouses,
+      errorMessage,
+      validationErrors,
+      showPassword,
+      showWarehouseModal,
+      editingWarehouse,
+      formData,
+      availableRoles,
+      permissionGroups,
+      allWarehouses,
+      primaryWarehouses,
+      dispatchWarehouses,
+      allPermissionsSelected,
+      passwordStrength,
+      isFormValid,
+      getRoleDisplay,
+      getSelectedWarehouseNames,
+      generatePassword,
+      generateStrongPassword,
+      togglePasswordVisibility,
+      copyPassword,
+      toggleAllWarehouses,
+      toggleAllPermissions,
+      applyPermissionSet,
+      manageWarehouses,
+      addNewWarehouse,
+      editWarehouse,
+      closeWarehouseModal,
+      handleWarehouseSave,
+      handleSubmit
+    };
   }
-}
+};
 </script>
-
-<style scoped>
-.rtl {
-  direction: rtl;
-}
-
-.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
-}
-</style>

@@ -1,4 +1,19 @@
 {
-  "buildCommand": "CI= npm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "devCommand": "npm run serve",
+  "installCommand": "npm ci",
+  "framework": "vue",
+  "nodeVersion": "18.x",
+  "regions": ["dub1"],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/dist/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/dist/index.html"
+    }
+  ]
 }

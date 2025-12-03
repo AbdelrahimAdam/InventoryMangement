@@ -4,6 +4,15 @@ import { useStore } from 'vuex';
 
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/Login.vue'),
+    meta: { 
+      requiresGuest: true,
+      layout: 'empty'
+    }
+  },
+  {
     path: '/',
     name: 'Dashboard',
     component: () => import('@/views/Dashboard.vue'),
@@ -13,10 +22,22 @@ const routes = [
     }
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: () => import('@/views/Login.vue'),
-    meta: { requiresGuest: true }
+    path: '/warehouses',
+    name: 'Warehouses',
+    component: () => import('@/views/Warehouses.vue'),
+    meta: { 
+      requiresAuth: true,
+      allowedRoles: ['superadmin']
+    }
+  },
+  {
+    path: '/users',
+    name: 'Users',
+    component: () => import('@/views/Users.vue'),
+    meta: { 
+      requiresAuth: true,
+      allowedRoles: ['superadmin']
+    }
   },
   {
     path: '/inventory',
@@ -110,15 +131,6 @@ const routes = [
     }
   },
   {
-    path: '/users',
-    name: 'Users',
-    component: () => import('@/views/Users.vue'),
-    meta: { 
-      requiresAuth: true,
-      allowedRoles: ['superadmin']
-    }
-  },
-  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/Profile.vue'),
@@ -149,7 +161,8 @@ const routes = [
           </div>
         </div>
       `
-    }
+    },
+    meta: { layout: 'empty' }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -168,7 +181,8 @@ const routes = [
           </div>
         </div>
       `
-    }
+    },
+    meta: { layout: 'empty' }
   }
 ];
 
@@ -177,53 +191,87 @@ const router = createRouter({
   routes
 });
 
+// Helper function to check if user can access route
+const canAccessRoute = (userRole, routeMeta) => {
+  if (!routeMeta.allowedRoles) return true;
+  
+  // Check if user role is allowed
+  if (!routeMeta.allowedRoles.includes(userRole)) {
+    return false;
+  }
+  
+  // Check specific permissions if they exist
+  if (routeMeta.permissions) {
+    const permission = routeMeta.permissions[userRole];
+    if (permission === 'none') {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+// Check warehouse manager access
+const canWarehouseManagerAccess = (userProfile, routeName) => {
+  if (userProfile?.role !== 'warehouse_manager') return true;
+  
+  const allowedWarehouses = userProfile?.allowed_warehouses || [];
+  
+  // For inventory management routes, check if user has any warehouses assigned
+  if (routeName?.includes('Inventory') && allowedWarehouses.length === 0) {
+    return false;
+  }
+  
+  return true;
+};
+
 router.beforeEach((to, from, next) => {
   const store = useStore();
   const user = store.state.user;
   const userProfile = store.state.userProfile;
   
+  // Track if we're navigating after logout
+  const isAfterLogout = from.name === null || from.name === undefined;
+  
+  // Handle post-logout navigation
+  if (isAfterLogout && to.path === '/login') {
+    next();
+    return;
+  }
+  
   // Check if route requires authentication
   if (to.meta.requiresAuth && !user) {
-    next('/login');
+    if (to.path !== '/login') {
+      next('/login');
+    } else {
+      next();
+    }
     return;
   }
   
-  // Check if route requires guest (like login page) and user is logged in
+  // Handle requiresGuest
   if (to.meta.requiresGuest && user) {
-    next('/');
+    if (to.path === '/login') {
+      next('/');
+    } else {
+      next('/');
+    }
     return;
   }
   
-  // If user exists and route has role restrictions
-  if (user && to.meta.allowedRoles) {
-    const userRole = userProfile?.role;
+  // If user exists, check role-based access
+  if (user && userProfile) {
+    const userRole = userProfile.role;
     
-    if (!userRole) {
-      next('/unauthorized');
-      return;
-    }
-    
-    // Check if user role is allowed
-    if (!to.meta.allowedRoles.includes(userRole)) {
-      next('/unauthorized');
-      return;
-    }
-    
-    // Check specific permissions
-    if (to.meta.permissions) {
-      const permission = to.meta.permissions[userRole];
-      if (permission === 'none') {
+    // Check if route has role restrictions
+    if (to.meta.allowedRoles) {
+      if (!canAccessRoute(userRole, to.meta)) {
         next('/unauthorized');
         return;
       }
-    }
-    
-    // Special checks for warehouse managers
-    if (userRole === 'warehouse_manager') {
-      const allowedWarehouses = userProfile?.allowed_warehouses || [];
       
-      // For inventory management routes, check if user has any warehouses assigned
-      if (to.name?.includes('Inventory') && allowedWarehouses.length === 0) {
+      // Special checks for warehouse managers
+      if (!canWarehouseManagerAccess(userProfile, to.name)) {
         next('/unauthorized');
         return;
       }
@@ -231,6 +279,15 @@ router.beforeEach((to, from, next) => {
   }
   
   next();
+});
+
+// Add navigation error handler to prevent redirect loops
+router.onError((error) => {
+  console.error('Router error:', error);
+  
+  if (error.message.includes('redirected')) {
+    window.location.href = '/login';
+  }
 });
 
 export default router;
