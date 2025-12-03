@@ -1,5 +1,9 @@
 
-<template>
+
+                     
+                             
+                        
+    <template>
   <div class="flex-1 overflow-hidden flex flex-col">
     <!-- Desktop Header Only (hidden on mobile) -->
     <header class="hidden lg:block bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
@@ -29,7 +33,7 @@
               :title="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
             >
               <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11 &hyphen;2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
               </svg>
               <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
@@ -40,6 +44,7 @@
             <button 
               @click="showNotifications"
               class="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              aria-label="الإشعارات"
             >
               <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -146,14 +151,12 @@
               </svg>
               عرض التقارير
             </span>
-
             <span v-if="canManageWarehouses" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
               </svg>
               إدارة المخازن
             </span>
- 
           </div>
         </div>
       </div>
@@ -197,11 +200,7 @@
                 </div>
 
                 <!-- Quick Actions Sidebar Component -->
-
                 <div v-if="canModifyItems || canManageWarehouses" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-
-                <div v-if="canModifyItems" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-
                   <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
                     <svg class="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -211,7 +210,6 @@
                   <div class="space-y-2">
                     <button 
                       v-if="canModifyItems"
-
                       @click="openAddItemModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors duration-200 group"
                     >
@@ -229,10 +227,7 @@
                     </button>
 
                     <button 
-
                       v-if="canModifyItems"
-
-
                       @click="openTransferModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200 group"
                     >
@@ -250,10 +245,7 @@
                     </button>
 
                     <button 
-
                       v-if="canModifyItems"
-
-
                       @click="openDispatchModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors duration-200 group"
                     >
@@ -269,7 +261,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                       </svg>
                     </button>
-
 
                     <!-- Add User Button for Super Admin -->
                     <button 
@@ -308,7 +299,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                       </svg>
                     </button>
-
                   </div>
                 </div>
 
@@ -333,14 +323,11 @@
                           <span class="text-xs text-yellow-600 dark:text-yellow-300 font-medium">{{ warehouse.name_ar.charAt(0) }}</span>
                         </div>
                         <span class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ warehouse.name_ar }}</span>
-
                         <span v-if="warehouse.is_main" class="mr-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">رئيسي</span>
-
                       </div>
                       <span v-if="selectedWarehouse === warehouse.id" class="h-2 w-2 rounded-full bg-yellow-500"></span>
                     </button>
                   </div>
-
                   <button 
                     v-if="canManageWarehouses"
                     @click="$router.push('/warehouses')"
@@ -351,17 +338,13 @@
                     </svg>
                     إدارة المخازن
                   </button>
-
                 </div>
               </div>
             </div>
           </aside>
           
           <!-- Main Content Area -->
-
           <main class="w-full lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
-          <main class="lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
-
             <!-- Content with proper scrolling -->
             <div class="h-full overflow-y-auto pb-16 lg:pb-0">
               <!-- Dynamic Content based on route -->
@@ -599,7 +582,7 @@ import UserModal from '@/components/users/UserModal.vue';
 import AddUserModal from '@/components/users/AddUserModal.vue';
 
 // Import Warehouse Modal
-import WarehouseModal from '@/components/WarehouseModal.vue';
+import WarehouseModal from '@/components/warehouses/WarehouseModal.vue';
 
 // Import User Management components
 import Users from '@/views/Users.vue';
@@ -1184,10 +1167,6 @@ export default {
     onUnmounted(() => {
       window.removeEventListener('open-add-item-modal', () => {});
       window.removeEventListener('open-add-warehouse-modal', () => {});
-
-    onUnmounted(() => {
-      window.removeEventListener('open-add-item-modal', () => {});
-
     });
 
     return {
@@ -1336,4 +1315,28 @@ aside ::-webkit-scrollbar-thumb {
     padding-bottom: 70px;
   }
 }
-</style>
+</style>                    
+                        
+   
+        
+    
+   
+       
+      
+      
+         
+        
+    
+      
+
+    
+       
+    
+
+    
+      
+      
+      
+
+ 
+
