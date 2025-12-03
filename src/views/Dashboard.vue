@@ -1,9 +1,4 @@
-
-
-                     
-                             
-                        
-    <template>
+  <template>
   <div class="flex-1 overflow-hidden flex flex-col">
     <!-- Desktop Header Only (hidden on mobile) -->
     <header class="hidden lg:block bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
