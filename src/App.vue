@@ -280,8 +280,6 @@
                   إعدادات الحساب
                 </router-link>
 
-=======
-
                 <button 
                   @click="logout"
                   class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
@@ -294,7 +292,6 @@
               </div>
             </div>
           </header>
-<<<<<<< HEAD
 
           <!-- Mobile Stats Bar -->
           <div v-if="dashboardStats && $route.path === '/'" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -380,7 +377,7 @@
           </div>
         </div>
       </template>
-=======
+
         </div>
 
         <!-- Main Content Area -->
@@ -446,7 +443,7 @@
       <template v-else>
         <router-view />
       </template>
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
     </div>
   </div>
 </template>
@@ -454,28 +451,20 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-<<<<<<< HEAD
 import { useRoute, useRouter } from 'vue-router';
 import { debounce } from 'lodash';
-=======
 import { useRoute } from 'vue-router';
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
 
 export default {
   name: 'App',
   setup() {
     const store = useStore();
     const route = useRoute();
-<<<<<<< HEAD
-    const router = useRouter();
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
-    
+    const router = useRouter();   
     const initializing = ref(true);
     const mobileMenuOpen = ref(false);
     const profileMenuOpen = ref(false);
     const isDarkMode = ref(false);
-<<<<<<< HEAD
     const mobileSearchTerm = ref('');
 
     // Check authentication status
@@ -694,7 +683,6 @@ export default {
       }
     });
 
-=======
     const notificationCount = ref(3); // Example count
 
     // Check authentication status
@@ -804,7 +792,6 @@ export default {
       }
     });
 
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
     // Close mobile menu when route changes
     watch(() => route.path, () => {
       mobileMenuOpen.value = false;
@@ -814,7 +801,6 @@ export default {
     return {
       initializing,
       isAuthenticated,
-<<<<<<< HEAD
       isPublicRoute,
       showBottomNav,
       mobileMenuOpen,
@@ -843,7 +829,6 @@ export default {
       handleMobileSearch,
       handleMobileSearchEnter,
       formatNumber,
-=======
       mobileMenuOpen,
       profileMenuOpen,
       isDarkMode,
@@ -855,7 +840,6 @@ export default {
       toggleMobileMenu,
       toggleProfileMenu,
       openAddItemModal,
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
       logout
     };
   }
@@ -893,7 +877,6 @@ a:focus-visible {
 
 /* Smooth transitions */
 * {
-<<<<<<< HEAD
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -954,7 +937,6 @@ body:has(.mobile-menu-open) {
 button:active,
 [role="button"]:active {
   transform: scale(0.98);
-=======
   font-family: 'Tajawal', Arial, sans-serif;
   box-sizing: border-box;
 }
@@ -1003,7 +985,6 @@ html, body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
 }
 
 .dark ::-webkit-scrollbar-track {
