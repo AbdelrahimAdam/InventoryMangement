@@ -9,7 +9,7 @@
     </div>
 
     <!-- Main app content -->
-<<<<<<< HEAD
+
     <div v-else class="h-screen flex flex-col">
       <!-- Check if current route is public (login, unauthorized, notfound) -->
       <template v-if="isPublicRoute">
@@ -24,13 +24,13 @@
         <!-- MOBILE ONLY: Header and Navigation -->
         <div class="lg:hidden">
           <!-- Mobile Header -->
-=======
+
     <div v-else class="flex flex-col min-h-screen">
       <!-- If user is authenticated, show the authenticated layout -->
       <template v-if="isAuthenticated">
         <!-- Fixed Header for Mobile -->
         <div class="lg:hidden fixed top-0 left-0 right-0 z-50">
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
           <header class="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
             <div class="px-4 py-3">
               <div class="flex items-center justify-between">
@@ -39,10 +39,9 @@
                   <button 
                     @click="toggleMobileMenu"
                     class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-<<<<<<< HEAD
+
                     aria-label="فتح القائمة"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                   >
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -50,11 +49,10 @@
                     </svg>
                   </button>
                   
-<<<<<<< HEAD
                   <router-link to="/" class="flex items-center space-x-2 space-x-reverse" @click="mobileMenuOpen = false">
-=======
+
                   <router-link to="/" class="flex items-center space-x-2 space-x-reverse">
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                     <div class="h-8 w-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
                       <span class="text-white font-bold text-sm">م</span>
                     </div>
@@ -70,10 +68,9 @@
                   <button 
                     @click="toggleDarkMode"
                     class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-<<<<<<< HEAD
+
                     :aria-label="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                   >
                     <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
@@ -84,13 +81,12 @@
                   </button>
 
                   <button 
-<<<<<<< HEAD
                     @click="showNotifications"
                     class="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
                     aria-label="الإشعارات"
-=======
+
                     class="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                   >
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -105,7 +101,7 @@
 
             <!-- Mobile Menu Dropdown -->
             <div v-if="mobileMenuOpen" class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
-<<<<<<< HEAD
+
               <!-- Search Bar -->
               <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <div class="relative">
@@ -146,18 +142,18 @@
 
               <!-- Navigation Links -->
               <div class="px-4 py-3 space-y-1">
-=======
+
               <div class="px-4 py-3 space-y-2">
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                 <router-link 
                   to="/" 
                   @click="mobileMenuOpen = false"
                   class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200"
                   :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'}"
-<<<<<<< HEAD
+
                   aria-current="page"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
+
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -165,7 +161,6 @@
                   لوحة التحكم
                 </router-link>
 
-<<<<<<< HEAD
                 <!-- Warehouse Management Link (Superadmin) -->
                 <router-link 
                   v-if="canManageWarehouses"
@@ -181,8 +176,7 @@
                 </router-link>
 
                 <!-- User Management Link (Superadmin) -->
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                 <router-link 
                   v-if="canManageUsers"
                   to="/users" 
@@ -196,7 +190,6 @@
                   إدارة المستخدمين
                 </router-link>
 
-<<<<<<< HEAD
                 <!-- Quick Actions -->
                 <div v-if="canModifyItems" class="pt-2 pb-1 px-3">
                   <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
@@ -248,8 +241,7 @@
                 </div>
 
                 <!-- Other Navigation Links -->
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                 <router-link 
                   to="/transactions" 
                   @click="mobileMenuOpen = false"
@@ -275,7 +267,6 @@
                   التقارير
                 </router-link>
 
-<<<<<<< HEAD
                 <router-link 
                   to="/profile" 
                   @click="mobileMenuOpen = false"
@@ -290,7 +281,7 @@
                 </router-link>
 
 =======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                 <button 
                   @click="logout"
                   class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
