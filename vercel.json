@@ -4,7 +4,6 @@
   "devCommand": "npm run serve",
   "installCommand": "npm ci",
   "framework": "vue",
-  "nodeVersion": "18.x",
   "regions": ["dub1"],
   "routes": [
     {
