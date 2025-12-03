@@ -199,7 +199,7 @@
                 <!-- Quick Actions Sidebar Component -->
 
                 <div v-if="canModifyItems || canManageWarehouses" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-=======
+
                 <div v-if="canModifyItems" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
 
                   <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
@@ -360,7 +360,6 @@
           <!-- Main Content Area -->
 
           <main class="w-full lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
-=======
           <main class="lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
 
             <!-- Content with proper scrolling -->
