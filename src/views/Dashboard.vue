@@ -145,15 +145,14 @@
               </svg>
               عرض التقارير
             </span>
-<<<<<<< HEAD
+
             <span v-if="canManageWarehouses" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
               </svg>
               إدارة المخازن
             </span>
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+ 
           </div>
         </div>
       </div>
@@ -197,11 +196,11 @@
                 </div>
 
                 <!-- Quick Actions Sidebar Component -->
-<<<<<<< HEAD
+
                 <div v-if="canModifyItems || canManageWarehouses" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
 =======
                 <div v-if="canModifyItems" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                   <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
                     <svg class="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -210,10 +209,9 @@
                   </h3>
                   <div class="space-y-2">
                     <button 
-<<<<<<< HEAD
                       v-if="canModifyItems"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
+ 905b43bd07eb185bca5925f39022d36231718d4c
                       @click="openAddItemModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors duration-200 group"
                     >
@@ -231,10 +229,10 @@
                     </button>
 
                     <button 
-<<<<<<< HEAD
+
                       v-if="canModifyItems"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
+
                       @click="openTransferModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200 group"
                     >
@@ -252,10 +250,10 @@
                     </button>
 
                     <button 
-<<<<<<< HEAD
+
                       v-if="canModifyItems"
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
+
                       @click="openDispatchModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors duration-200 group"
                     >
@@ -271,7 +269,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                       </svg>
                     </button>
-<<<<<<< HEAD
+
 
                     <!-- Add User Button for Super Admin -->
                     <button 
@@ -310,8 +308,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                       </svg>
                     </button>
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                   </div>
                 </div>
 
@@ -336,15 +333,14 @@
                           <span class="text-xs text-yellow-600 dark:text-yellow-300 font-medium">{{ warehouse.name_ar.charAt(0) }}</span>
                         </div>
                         <span class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ warehouse.name_ar }}</span>
-<<<<<<< HEAD
+
                         <span v-if="warehouse.is_main" class="mr-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">رئيسي</span>
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                       </div>
                       <span v-if="selectedWarehouse === warehouse.id" class="h-2 w-2 rounded-full bg-yellow-500"></span>
                     </button>
                   </div>
-<<<<<<< HEAD
+
                   <button 
                     v-if="canManageWarehouses"
                     @click="$router.push('/warehouses')"
@@ -355,19 +351,18 @@
                     </svg>
                     إدارة المخازن
                   </button>
-=======
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
                 </div>
               </div>
             </div>
           </aside>
           
           <!-- Main Content Area -->
-<<<<<<< HEAD
+
           <main class="w-full lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
 =======
           <main class="lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
             <!-- Content with proper scrolling -->
             <div class="h-full overflow-y-auto pb-16 lg:pb-0">
               <!-- Dynamic Content based on route -->
@@ -1180,7 +1175,6 @@ export default {
       openAddItemModal();
     });
 
-<<<<<<< HEAD
     // Listen for add warehouse modal event
     window.addEventListener('open-add-warehouse-modal', () => {
       if (canManageWarehouses.value) {
@@ -1191,10 +1185,10 @@ export default {
     onUnmounted(() => {
       window.removeEventListener('open-add-item-modal', () => {});
       window.removeEventListener('open-add-warehouse-modal', () => {});
-=======
+
     onUnmounted(() => {
       window.removeEventListener('open-add-item-modal', () => {});
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
+
     });
 
     return {
