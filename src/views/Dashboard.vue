@@ -1,4 +1,4 @@
-  <template>
+<template>
   <div class="flex-1 overflow-hidden flex flex-col">
     <!-- Desktop Header Only (hidden on mobile) -->
     <header class="hidden lg:block bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
@@ -161,7 +161,7 @@
     <div class="flex-1 overflow-hidden">
       <div class="max-w-full mx-auto h-full px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
         <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
-          <!-- Sidebar (Desktop only) - COMPLETE WITH ALL COMPONENTS -->
+          <!-- Sidebar (Desktop only) -->
           <aside class="hidden lg:block lg:w-1/4 xl:w-1/5">
             <div class="sticky top-6 h-[calc(100vh-9rem)] overflow-y-auto">
               <div class="space-y-6 pb-6">
@@ -579,10 +579,6 @@ import AddUserModal from '@/components/users/AddUserModal.vue';
 // Import Warehouse Modal
 import WarehouseModal from '@/components/warehouses/WarehouseModal.vue';
 
-// Import User Management components
-import Users from '@/views/Users.vue';
-import Warehouses from '@/views/Warehouses.vue';
-
 // Import services
 import UserService from '@/services/UserService';
 
@@ -598,9 +594,7 @@ export default {
     InventoryTable,
     UserModal,
     AddUserModal,
-    WarehouseModal,
-    Users,
-    Warehouses
+    WarehouseModal
   },
   setup() {
     const store = useStore();
@@ -1310,11 +1304,7 @@ aside ::-webkit-scrollbar-thumb {
     padding-bottom: 70px;
   }
 }
-</style>                    
-                        
-   
-        
-    
+</style>
    
        
       
