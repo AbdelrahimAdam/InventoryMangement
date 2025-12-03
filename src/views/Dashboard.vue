@@ -1,3 +1,4 @@
+
 <template>
   <div class="flex-1 overflow-hidden flex flex-col">
     <!-- Desktop Header Only (hidden on mobile) -->
@@ -211,7 +212,6 @@
                     <button 
                       v-if="canModifyItems"
 
- 905b43bd07eb185bca5925f39022d36231718d4c
                       @click="openAddItemModal"
                       class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors duration-200 group"
                     >
