@@ -1,8 +1,7 @@
 {
-  "buildCommand": "npm run build:vercel",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "npm run serve",
-<<<<<<< HEAD
   "installCommand": "npm ci",
   "framework": "vue",
   "nodeVersion": "18.x",
@@ -17,7 +16,4 @@
       "dest": "/dist/index.html"
     }
   ]
-=======
-  "installCommand": "npm install"
->>>>>>> 905b43bd07eb185bca5925f39022d36231718d4c
 }
