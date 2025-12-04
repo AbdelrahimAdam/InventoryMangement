@@ -7,7 +7,6 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "postinstall": "chmod +x node_modules/.bin/* 2>/dev/null || true",
     "deploy": "npm run build && firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy:firestore": "firebase deploy --only firestore",
