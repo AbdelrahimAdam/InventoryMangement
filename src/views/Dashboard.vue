@@ -577,7 +577,7 @@ import UserModal from '@/components/users/UserModal.vue';
 import AddUserModal from '@/components/users/AddUserModal.vue';
 
 // Import Warehouse Modal
-import WarehouseModal from '@/components/warehouses/WarehouseModal.vue';
+import WarehouseModal from '@/components/WarehouseModal.vue';
 
 // Import services
 import UserService from '@/services/UserService';
