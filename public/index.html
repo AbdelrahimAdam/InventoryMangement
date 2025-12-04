@@ -1,18 +1,96 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico" />
+
     <title>نظام إدارة مخزون العطور - منظمة مونوفيا</title>
-    <meta name="description" content="نظام متكامل لإدارة مخزون العطور مع دعم اللغة العربية والتحكم الصارم في الصلاحيات">
+    <meta
+      name="description"
+      content="نظام متكامل لإدارة مخزون العطور مع دعم كامل للعربية وواجهة محسّنة للإنتاج."
+    />
+
+    <!-- Disable virtual scrolling bounce on mobile -->
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Stops unwanted virtual scrolling */
+        overscroll-behavior: none;
+        background: #f7f7f7;
+        font-family: sans-serif;
+      }
+      #app {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Download popup */
+      .download-popup {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        left: 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+        padding: 18px;
+        display: none;
+        z-index: 9999;
+        text-align: center;
+      }
+      .download-popup button {
+        background: #007bff;
+        color: white;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        margin-top: 10px;
+        cursor: pointer;
+        width: 100%;
+        font-size: 16px;
+      }
+    </style>
   </head>
+
   <body>
     <noscript>
-      <strong>نعتذر، لكن نظام إدارة المخزون لا يعمل بدون تفعيل الجافاسكريبت. يرجى تفعيلها للمتابعة.</strong>
+      <strong>نعتذر، هذا النظام يحتاج إلى تفعيل الجافاسكريبت للعمل بشكل صحيح.</strong>
     </noscript>
+
     <div id="app"></div>
-    <!-- built files will be auto injected -->
+
+    <!-- Auto Download Suggestion -->
+    <div id="downloadBox" class="download-popup">
+      <h3>حمّل تطبيق نظام المخزون</h3>
+      <p>استخدم النظام بسهولة من جوالك بدون إنترنت.</p>
+      <button onclick="downloadApp()">تحميل التطبيق</button>
+    </div>
+
+    <script>
+      // Show download popup after 2 seconds
+      window.onload = function () {
+        setTimeout(() => {
+          document.getElementById("downloadBox").style.display = "block";
+        }, 2000);
+      };
+
+      // Replace with your actual APK or PWA URL
+      function downloadApp() {
+        window.location.href = "/app-download.apk";
+      }
+    </script>
+
+    <!-- built files will be auto injected by Vue CLI -->
   </body>
 </html>
