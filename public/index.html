@@ -1,74 +1,107 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0a7cff" />
+<head>
+  <meta charset="utf-8" />
 
-    <title>نظام إدارة مخزون العطور</title>
+  <!-- Mobile + Desktop viewport with proper scrolling -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
 
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        overflow: hidden;
-        overscroll-behavior: none;
-        background: #f7f7f7;
-      }
+  <meta name="theme-color" content="#0a7cff" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="<%= BASE_URL %>favicon.ico" />
 
+  <title>نظام إدارة مخزون العطور - منظمة مونوفيا</title>
+  <meta name="description"
+        content="نظام متكامل لإدارة مخزون العطور مع دعم اللغة العربية والتحكم الصارم في الصلاحيات">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #f7f7f7;
+      -webkit-overflow-scrolling: touch; /* FIX: mobile dropdown scrolling */
+    }
+
+    /* Allow the entire app to scroll normally */
+    body {
+      overflow-y: auto;
+    }
+
+    #app {
+      min-height: 100vh;
+    }
+
+    /* Install button */
+    #installBtn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      left: 20px;
+      background: #0a7cff;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 16px;
+      display: none;
+      cursor: pointer;
+      z-index: 9999;
+      text-align: center;
+    }
+
+    /* Prevent layout shift under keyboard */
+    @media (max-height: 600px) {
       #installBtn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        left: 20px;
-        background: #0a7cff;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 16px;
-        display: none;
-        cursor: pointer;
-        z-index: 9999;
+        bottom: 10px;
       }
-    </style>
-  </head>
+    }
+  </style>
+</head>
 
-  <body>
-    <div id="app"></div>
+<body>
 
-    <button id="installBtn">تثبيت التطبيق</button>
+  <noscript>
+    <strong>الرجاء تفعيل الجافاسكريبت لعمل النظام بشكل صحيح.</strong>
+  </noscript>
 
-    <script>
-      let deferredPrompt;
+  <div id="app"></div>
 
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
+  <!-- PWA Install Button -->
+  <button id="installBtn">تثبيت التطبيق</button>
 
-        document.getElementById("installBtn").style.display = "block";
-      });
+  <!-- Modern, safe PWA install logic -->
+  <script>
+    let deferredPrompt;
 
-      document.getElementById("installBtn").addEventListener("click", async () => {
-        document.getElementById("installBtn").style.display = "none";
-        deferredPrompt.prompt();
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
 
-        const result = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-      });
-    </script>
+      document.getElementById("installBtn").style.display = "block";
+    });
 
-    <!-- Service Worker -->
-    <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/service-worker.js");
-      }
-    </script>
+    document.getElementById("installBtn").addEventListener("click", async () => {
+      if (!deferredPrompt) return;
 
-    <!-- Vue CLI auto build injection -->
-  </body>
+      document.getElementById("installBtn").style.display = "none";
+      deferredPrompt.prompt();
+
+      const result = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+  </script>
+
+  <!-- Register Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/service-worker.js");
+    }
+  </script>
+
+  <!-- Vue CLI Auto Inject -->
+</body>
+
 </html>
