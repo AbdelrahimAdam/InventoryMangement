@@ -2,7 +2,7 @@ const { defineConfig } = require('@vue/cli-service');
 
 module.exports = defineConfig({
   transpileDependencies: true,
-  
+
   // PWA configuration
   pwa: {
     name: 'نظام إدارة مخزون العطور',
@@ -10,24 +10,19 @@ module.exports = defineConfig({
     msTileColor: '#000000',
     appleMobileWebAppCapable: 'yes',
     appleMobileWebAppStatusBarStyle: 'black',
-    
+
     // Configure workbox plugin
     workboxPluginMode: 'InjectManifest',
     workboxOptions: {
-      // swSrc is required in InjectManifest mode.
       swSrc: 'src/service-worker.js',
-      // ...other Workbox options...
     }
   },
 
   // CSS configuration
   css: {
     loaderOptions: {
-      css: {
-        // options here will be passed to css-loader
-      },
+      css: {},
       postcss: {
-        // options here will be passed to postcss-loader
         postcssOptions: {
           plugins: [
             require('tailwindcss'),
@@ -48,7 +43,10 @@ module.exports = defineConfig({
 
   // Production configuration
   productionSourceMap: false,
-  
+
+  // Set the output directory explicitly for Vercel
+  outputDir: 'dist',
+
   // Configure Webpack
   configureWebpack: {
     optimization: {
