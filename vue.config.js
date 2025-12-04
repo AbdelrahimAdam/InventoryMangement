@@ -10,8 +10,6 @@ module.exports = defineConfig({
     msTileColor: '#000000',
     appleMobileWebAppCapable: 'yes',
     appleMobileWebAppStatusBarStyle: 'black',
-
-    // Configure workbox plugin
     workboxPluginMode: 'InjectManifest',
     workboxOptions: {
       swSrc: 'src/service-worker.js',
@@ -44,7 +42,7 @@ module.exports = defineConfig({
   // Production configuration
   productionSourceMap: false,
 
-  // Set the output directory explicitly for Vercel
+  // Explicit output folder for Vercel
   outputDir: 'dist',
 
   // Configure Webpack
