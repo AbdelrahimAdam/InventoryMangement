@@ -1,6 +1,9 @@
 const { defineConfig } = require('@vue/cli-service');
 
 module.exports = defineConfig({
+  publicPath: '/',         // REQUIRED for Vercel
+  outputDir: 'dist',       // Vercel detects this
+
   transpileDependencies: true,
 
   // PWA configuration
@@ -10,9 +13,11 @@ module.exports = defineConfig({
     msTileColor: '#000000',
     appleMobileWebAppCapable: 'yes',
     appleMobileWebAppStatusBarStyle: 'black',
-    workboxPluginMode: 'InjectManifest',
+
+    // SAFE MODE (InjectManifest causes white screen if SW has any error)
+    workboxPluginMode: 'GenerateSW',
     workboxOptions: {
-      swSrc: 'src/service-worker.js',
+      // default options
     }
   },
 
@@ -39,13 +44,9 @@ module.exports = defineConfig({
     open: true
   },
 
-  // Production configuration
   productionSourceMap: false,
 
-  // Explicit output folder for Vercel
-  outputDir: 'dist',
-
-  // Configure Webpack
+  // Webpack optimizations
   configureWebpack: {
     optimization: {
       splitChunks: {
