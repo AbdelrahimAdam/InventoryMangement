@@ -1,5 +1,5 @@
 <template>
-  <div id="app" dir="rtl" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 transition-all duration-300">
+  <div id="app" dir="rtl" class="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950 transition-all duration-300">
     <!-- Show loading while initializing -->
     <div v-if="initializing" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
@@ -17,7 +17,7 @@
           <router-view />
         </div>
       </template>
-      
+
       <!-- Authenticated layout -->
       <template v-else>
         <!-- Mobile Header (only on mobile) -->
@@ -37,7 +37,7 @@
                     <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-                
+
                 <router-link 
                   to="/" 
                   class="flex items-center gap-2" 
@@ -91,10 +91,10 @@
         </header>
 
         <!-- Desktop Sidebar (only on desktop) -->
-        <aside v-else class="fixed right-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-lg z-40">
+        <aside v-else class="fixed right-0 top-0 bottom-0 w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-l border-gray-200/50 dark:border-gray-700/50 shadow-2xl z-40">
           <div class="h-full flex flex-col">
             <!-- Logo -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
               <router-link to="/" class="flex items-center gap-3">
                 <div class="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
                   <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +109,7 @@
             </div>
 
             <!-- User Profile -->
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
               <div class="flex items-center">
                 <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center ml-3 shadow-md">
                   <span class="text-white font-bold text-sm">
@@ -130,7 +130,7 @@
                 class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -146,7 +146,7 @@
                 class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/inventory',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/inventory'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/inventory'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -162,7 +162,7 @@
                 class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/transactions',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/transactions'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -173,46 +173,108 @@
                 <span class="text-sm font-medium">الحركات</span>
               </router-link>
 
-              <router-link 
-                v-if="canManageUsers"
-                to="/users" 
-                class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/users',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المستخدمين</span>
-              </router-link>
+              <!-- Superadmin Menu Items -->
+              <div v-if="userRole === 'superadmin'">
+                <router-link 
+                  to="/users" 
+                  class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المستخدمين</span>
+                </router-link>
 
-              <router-link 
-                v-if="canManageWarehouses"
-                to="/warehouses" 
-                class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/warehouses',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المخازن</span>
-              </router-link>
+                <button 
+                  @click="openAddUserModal"
+                  class="w-full flex items-center px-3 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-blue-500/5 hover:text-blue-600 dark:hover:text-blue-400"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">إضافة مستخدم</span>
+                </button>
+
+                <router-link 
+                  to="/warehouses" 
+                  class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المخازن</span>
+                </router-link>
+
+                <button 
+                  @click="openAddWarehouseModal"
+                  class="w-full flex items-center px-3 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-purple-500/5 hover:text-purple-600 dark:hover:text-purple-400"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">إضافة مخزن</span>
+                </button>
+              </div>
+
+              <!-- Regular Users Menu Items -->
+              <template v-else>
+                <router-link 
+                  v-if="canManageUsers"
+                  to="/users" 
+                  class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المستخدمين</span>
+                </router-link>
+
+                <router-link 
+                  v-if="canManageWarehouses"
+                  to="/warehouses" 
+                  class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المخازن</span>
+                </router-link>
+              </template>
 
               <router-link 
                 to="/profile" 
                 class="flex items-center px-3 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/profile',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/profile'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -226,7 +288,7 @@
             </nav>
 
             <!-- Logout Button -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="p-4 border-t border-gray-200/50 dark:border-gray-700/50">
               <button 
                 @click="logout"
                 class="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-br from-red-500 to-pink-500 text-white rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -277,7 +339,7 @@
                 class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -294,7 +356,7 @@
                 class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/inventory',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/inventory'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/inventory'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -311,7 +373,7 @@
                 class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/transactions',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/transactions'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -322,41 +384,105 @@
                 <span class="text-sm font-medium">الحركات</span>
               </router-link>
 
-              <router-link 
-                v-if="canManageUsers"
-                to="/users" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/users',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المستخدمين</span>
-              </router-link>
+              <!-- Superadmin Menu Items in Mobile -->
+              <div v-if="userRole === 'superadmin'" class="space-y-1">
+                <router-link 
+                  to="/users" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المستخدمين</span>
+                </router-link>
 
-              <router-link 
-                v-if="canManageWarehouses"
-                to="/warehouses" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/warehouses',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المخازن</span>
-              </router-link>
+                <button 
+                  @click="openAddUserModal"
+                  class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-blue-500/5 hover:text-blue-600 dark:hover:text-blue-400"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">إضافة مستخدم</span>
+                </button>
+
+                <router-link 
+                  to="/warehouses" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المخازن</span>
+                </router-link>
+
+                <button 
+                  @click="openAddWarehouseModal"
+                  class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-purple-500/5 hover:text-purple-600 dark:hover:text-purple-400"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">إضافة مخزن</span>
+                </button>
+              </div>
+
+              <!-- Regular Users Menu Items in Mobile -->
+              <template v-else>
+                <router-link 
+                  v-if="canManageUsers"
+                  to="/users" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المستخدمين</span>
+                </router-link>
+
+                <router-link 
+                  v-if="canManageWarehouses"
+                  to="/warehouses" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
+                  :class="{
+                    'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
+                  }"
+                >
+                  <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium">المخازن</span>
+                </router-link>
+              </template>
 
               <router-link 
                 to="/profile" 
@@ -364,7 +490,7 @@
                 class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
                 :class="{
                   'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/profile',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/profile'
                 }"
               >
                 <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
@@ -494,6 +620,14 @@
         </div>
       </template>
     </div>
+
+    <!-- User Management Modal -->
+    <UserManagementModal
+      v-if="showUserModal"
+      :is-open="showUserModal"
+      @close="closeUserModal"
+      @save="handleUserSave"
+    />
   </div>
 </template>
 
@@ -501,9 +635,13 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
+import UserManagementModal from '@/components/UserManagementModal.vue';
 
 export default {
   name: 'App',
+  components: {
+    UserManagementModal
+  },
   
   setup() {
     const store = useStore();
@@ -515,6 +653,7 @@ export default {
     const mobileMenuOpen = ref(false);
     const isDarkMode = ref(false);
     const isMobile = ref(false);
+    const showUserModal = ref(false);
     
     // Computed
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
@@ -593,6 +732,29 @@ export default {
       window.dispatchEvent(new CustomEvent('open-add-item-modal'));
     };
     
+    const openAddUserModal = () => {
+      showUserModal.value = true;
+      closeAllMenus();
+    };
+    
+    const openAddWarehouseModal = () => {
+      window.dispatchEvent(new CustomEvent('open-add-warehouse-modal'));
+      closeAllMenus();
+    };
+    
+    const closeUserModal = () => {
+      showUserModal.value = false;
+    };
+    
+    const handleUserSave = (userData) => {
+      console.log('User saved:', userData);
+      // You can dispatch an action to update the user list
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم حفظ المستخدم بنجاح'
+      });
+    };
+    
     const logout = async () => {
       try {
         closeAllMenus();
@@ -647,6 +809,7 @@ export default {
       mobileMenuOpen,
       isDarkMode,
       isMobile,
+      showUserModal,
       
       // Computed
       isAuthenticated,
@@ -667,6 +830,10 @@ export default {
       closeAllMenus,
       handleNotifications,
       openAddItemModal,
+      openAddUserModal,
+      openAddWarehouseModal,
+      closeUserModal,
+      handleUserSave,
       logout
     };
   }
@@ -750,5 +917,30 @@ export default {
   .no-print {
     display: none !important;
   }
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Background animations */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradient 15s ease infinite;
 }
 </style>
