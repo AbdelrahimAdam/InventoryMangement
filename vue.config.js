@@ -1,25 +1,25 @@
 const { defineConfig } = require('@vue/cli-service');
 
 module.exports = defineConfig({
-  publicPath: '/',         // REQUIRED for Vercel
-  outputDir: 'dist',       // Vercel detects this
-
+  publicPath: process.env.NODE_ENV === 'production' ? '/' : '/',
+  outputDir: 'dist',
+  
   transpileDependencies: true,
 
-  // PWA configuration
-  pwa: {
-    name: 'نظام إدارة مخزون العطور',
-    themeColor: '#4f46e5',
-    msTileColor: '#000000',
-    appleMobileWebAppCapable: 'yes',
-    appleMobileWebAppStatusBarStyle: 'black',
-
-    // SAFE MODE (InjectManifest causes white screen if SW has any error)
-    workboxPluginMode: 'GenerateSW',
-    workboxOptions: {
-      // default options
-    }
-  },
+  // PWA configuration - DISABLED FOR VERCEL
+  // pwa: {
+  //   name: 'نظام إدارة مخزون العطور',
+  //   themeColor: '#4f46e5',
+  //   msTileColor: '#000000',
+  //   appleMobileWebAppCapable: 'yes',
+  //   appleMobileWebAppStatusBarStyle: 'black',
+  //   workboxPluginMode: 'GenerateSW',
+  //   workboxOptions: {
+  //     skipWaiting: true,
+  //     clientsClaim: true,
+  //     cleanupOutdatedCaches: true,
+  //   }
+  // },
 
   // CSS configuration
   css: {
@@ -60,5 +60,14 @@ module.exports = defineConfig({
         },
       },
     },
+  },
+
+  // Chain webpack for better optimization
+  chainWebpack: config => {
+    config.optimization.minimize(true);
+    
+    // Remove PWA plugin for Vercel
+    config.plugins.delete('pwa');
+    config.plugins.delete('workbox');
   }
 });
