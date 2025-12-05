@@ -20,10 +20,10 @@
       
       <!-- Authenticated layout -->
       <template v-else>
-        <!-- Mobile Header and Navigation -->
+        <!-- MOBILE ONLY: Header and Navigation -->
         <div class="lg:hidden">
           <!-- Mobile Header -->
-          <header class="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700 safe-area-top">
+          <header class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700 safe-area-top">
             <div class="px-4 py-3">
               <div class="flex items-center justify-between">
                 <!-- Left: Menu button and logo -->
@@ -91,259 +91,259 @@
               </div>
             </div>
 
-            <!-- Mobile Menu Overlay -->
-            <div 
-              v-if="mobileMenuOpen" 
-              class="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity duration-300"
-              @click="closeAllMenus"
-              aria-hidden="true"
-            ></div>
-
-            <!-- Mobile Menu Drawer -->
-            <div 
-              v-if="mobileMenuOpen"
-              id="mobile-menu"
-              class="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out"
-              :class="mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'"
-              role="dialog"
-              aria-modal="true"
-              aria-label="القائمة الرئيسية"
-            >
-              <div class="h-full flex flex-col overflow-y-auto">
-                <!-- Search Bar -->
-                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                  <div class="relative">
-                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                      </svg>
-                    </div>
-                    <input
-                      ref="mobileSearchInput"
-                      type="text"
-                      v-model="mobileSearchTerm"
-                      @input="handleMobileSearch"
-                      @keyup.enter="handleMobileSearchEnter"
-                      placeholder="ابحث عن صنف..."
-                      class="block w-full pr-10 pl-3 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                      aria-label="بحث عن صنف"
-                    />
-                  </div>
+            <!-- Mobile Stats Bar (only on dashboard) -->
+            <div v-if="dashboardStats && $route.path === '/'" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3">
+              <div class="flex overflow-x-auto scrollbar-hide gap-4">
+                <div class="flex-shrink-0 text-center">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الأصناف</div>
+                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.totalItems || 0 }}</div>
                 </div>
-
-                <!-- User Profile Info -->
-                <div class="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-                  <div class="flex items-center">
-                    <div class="h-12 w-12 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
-                      <span class="text-white font-medium text-base">
-                        {{ getUserInitials(userProfile?.name || userProfile?.email) }}
-                      </span>
-                    </div>
-                    <div class="text-right flex-1 min-w-0">
-                      <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ userProfile?.email }}</p>
-                    </div>
-                    <span 
-                      :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold', roleBadgeClass]"
-                      aria-label="دور المستخدم"
-                    >
-                      {{ getRoleName(userRole) }}
-                    </span>
-                  </div>
+                <div class="flex-shrink-0 text-center">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</div>
+                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalQuantity) || 0 }}</div>
                 </div>
-
-                <!-- Navigation Links -->
-                <nav class="flex-1 px-4 py-3 space-y-1 overflow-y-auto" aria-label="روابط التنقل">
-                  <router-link 
-                    to="/" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
-                    }"
-                    :aria-current="$route.path === '/' ? 'page' : null"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                    </svg>
-                    لوحة التحكم
-                  </router-link>
-
-                  <!-- Warehouse Management Link (Superadmin) -->
-                  <router-link 
-                    v-if="canManageWarehouses"
-                    to="/warehouses" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'
-                    }"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                    إدارة المخازن
-                  </router-link>
-
-                  <!-- User Management Link (Superadmin) -->
-                  <router-link 
-                    v-if="canManageUsers"
-                    to="/users" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'
-                    }"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    إدارة المستخدمين
-                  </router-link>
-
-                  <!-- Quick Actions Section -->
-                  <div v-if="canModifyItems" class="pt-4 pb-2">
-                    <div class="px-3 mb-2">
-                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        إجراءات سريعة
-                      </p>
-                    </div>
-                    <div class="space-y-1">
-                      <button 
-                        @click="openAddItemModal"
-                        class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                        aria-label="إضافة صنف جديد"
-                      >
-                        <svg class="w-5 h-5 ml-3 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        <span class="text-yellow-600 dark:text-yellow-400">إضافة صنف جديد</span>
-                      </button>
-
-                      <button 
-                        @click="openTransferModal"
-                        class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-green-50 dark:hover:bg-green-900/20"
-                        aria-label="نقل بين المخازن"
-                      >
-                        <svg class="w-5 h-5 ml-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                        <span class="text-green-600 dark:text-green-400">نقل بين المخازن</span>
-                      </button>
-
-                      <button 
-                        @click="openDispatchModal"
-                        class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                        aria-label="صرف إلى خارجي"
-                      >
-                        <svg class="w-5 h-5 ml-3 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        <span class="text-orange-600 dark:text-orange-400">صرف إلى خارجي</span>
-                      </button>
-
-                      <!-- Add Warehouse Button for Super Admin -->
-                      <button 
-                        v-if="canManageWarehouses"
-                        @click="openAddWarehouseModal"
-                        class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        aria-label="إضافة مخزن جديد"
-                      >
-                        <svg class="w-5 h-5 ml-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        <span class="text-blue-600 dark:text-blue-400">إضافة مخزن جديد</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Other Navigation Links -->
-                  <router-link 
-                    to="/transactions" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
-                    }"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    سجل الحركات
-                  </router-link>
-
-                  <router-link 
-                    v-if="canViewReports"
-                    to="/reports" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/reports'
-                    }"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a22 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    التقارير
-                  </router-link>
-
-                  <router-link 
-                    to="/profile" 
-                    @click="closeAllMenus"
-                    class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                    :class="{
-                      'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile',
-                      'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'
-                    }"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    إعدادات الحساب
-                  </router-link>
-                </nav>
-
-                <!-- Logout Button -->
-                <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                  <button 
-                    @click="logout"
-                    class="w-full flex items-center justify-center px-3 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 touch-target"
-                    aria-label="تسجيل خروج"
-                  >
-                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                    </svg>
-                    تسجيل خروج
-                  </button>
+                <div class="flex-shrink-0 text-center">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">قليلة</div>
+                  <div class="text-sm font-bold text-red-600 dark:text-red-400">{{ dashboardStats.lowStockItems || 0 }}</div>
+                </div>
+                <div class="flex-shrink-0 text-center">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الحركات</div>
+                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.recentTransactions || 0 }}</div>
                 </div>
               </div>
             </div>
           </header>
 
-          <!-- Mobile Stats Bar -->
-          <div v-if="dashboardStats && $route.path === '/'" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-            <div class="flex overflow-x-auto scrollbar-hide px-4 py-3 gap-4">
-              <div class="flex-shrink-0 text-center">
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الأصناف</div>
-                <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.totalItems || 0 }}</div>
+          <!-- Mobile Menu Overlay -->
+          <div 
+            v-if="mobileMenuOpen" 
+            class="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity duration-300"
+            @click="closeAllMenus"
+            aria-hidden="true"
+          ></div>
+
+          <!-- Mobile Menu Drawer -->
+          <div 
+            v-if="mobileMenuOpen"
+            id="mobile-menu"
+            class="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out"
+            :class="mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'"
+            role="dialog"
+            aria-modal="true"
+            aria-label="القائمة الرئيسية"
+          >
+            <div class="h-full flex flex-col overflow-y-auto pt-[var(--header-height)]">
+              <!-- Search Bar -->
+              <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                <div class="relative">
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  <input
+                    ref="mobileSearchInput"
+                    type="text"
+                    v-model="mobileSearchTerm"
+                    @input="handleMobileSearch"
+                    @keyup.enter="handleMobileSearchEnter"
+                    placeholder="ابحث عن صنف..."
+                    class="block w-full pr-10 pl-3 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                    aria-label="بحث عن صنف"
+                  />
+                </div>
               </div>
-              <div class="flex-shrink-0 text-center">
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</div>
-                <div class="text-sm font-bold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalQuantity) || 0 }}</div>
+
+              <!-- User Profile Info -->
+              <div class="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center">
+                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
+                    <span class="text-white font-medium text-base">
+                      {{ getUserInitials(userProfile?.name || userProfile?.email) }}
+                    </span>
+                  </div>
+                  <div class="text-right flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ userProfile?.email }}</p>
+                  </div>
+                  <span 
+                    :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold', roleBadgeClass]"
+                    aria-label="دور المستخدم"
+                  >
+                    {{ getRoleName(userRole) }}
+                  </span>
+                </div>
               </div>
-              <div class="flex-shrink-0 text-center">
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">قليلة</div>
-                <div class="text-sm font-bold text-red-600 dark:text-red-400">{{ dashboardStats.lowStockItems || 0 }}</div>
-              </div>
-              <div class="flex-shrink-0 text-center">
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الحركات</div>
-                <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.recentTransactions || 0 }}</div>
+
+              <!-- Navigation Links -->
+              <nav class="flex-1 px-4 py-3 space-y-1 overflow-y-auto" aria-label="روابط التنقل">
+                <router-link 
+                  to="/" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
+                  }"
+                  :aria-current="$route.path === '/' ? 'page' : null"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                  </svg>
+                  لوحة التحكم
+                </router-link>
+
+                <!-- Warehouse Management Link (Superadmin) -->
+                <router-link 
+                  v-if="canManageWarehouses"
+                  to="/warehouses" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'
+                  }"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                  </svg>
+                  إدارة المخازن
+                </router-link>
+
+                <!-- User Management Link (Superadmin) -->
+                <router-link 
+                  v-if="canManageUsers"
+                  to="/users" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'
+                  }"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  </svg>
+                  إدارة المستخدمين
+                </router-link>
+
+                <!-- Quick Actions Section -->
+                <div v-if="canModifyItems" class="pt-4 pb-2">
+                  <div class="px-3 mb-2">
+                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      إجراءات سريعة
+                    </p>
+                  </div>
+                  <div class="space-y-1">
+                    <button 
+                      @click="openAddItemModal"
+                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      aria-label="إضافة صنف جديد"
+                    >
+                      <svg class="w-5 h-5 ml-3 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <span class="text-yellow-600 dark:text-yellow-400">إضافة صنف جديد</span>
+                    </button>
+
+                    <button 
+                      @click="openTransferModal"
+                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-green-50 dark:hover:bg-green-900/20"
+                      aria-label="نقل بين المخازن"
+                    >
+                      <svg class="w-5 h-5 ml-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                      <span class="text-green-600 dark:text-green-400">نقل بين المخازن</span>
+                    </button>
+
+                    <button 
+                      @click="openDispatchModal"
+                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      aria-label="صرف إلى خارجي"
+                    >
+                      <svg class="w-5 h-5 ml-3 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                      </svg>
+                      <span class="text-orange-600 dark:text-orange-400">صرف إلى خارجي</span>
+                    </button>
+
+                    <!-- Add Warehouse Button for Super Admin -->
+                    <button 
+                      v-if="canManageWarehouses"
+                      @click="openAddWarehouseModal"
+                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      aria-label="إضافة مخزن جديد"
+                    >
+                      <svg class="w-5 h-5 ml-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <span class="text-blue-600 dark:text-blue-400">إضافة مخزن جديد</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Other Navigation Links -->
+                <router-link 
+                  to="/transactions" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
+                  }"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                  سجل الحركات
+                </router-link>
+
+                <router-link 
+                  v-if="canViewReports"
+                  to="/reports" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/reports'
+                  }"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a22 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                  </svg>
+                  التقارير
+                </router-link>
+
+                <router-link 
+                  to="/profile" 
+                  @click="closeAllMenus"
+                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  :class="{
+                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'
+                  }"
+                >
+                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                  إعدادات الحساب
+                </router-link>
+              </nav>
+
+              <!-- Logout Button -->
+              <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button 
+                  @click="logout"
+                  class="w-full flex items-center justify-center px-3 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 touch-target"
+                  aria-label="تسجيل خروج"
+                >
+                  <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
+                  تسجيل خروج
+                </button>
               </div>
             </div>
           </div>
@@ -353,7 +353,7 @@
         <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Router view -->
           <div 
-            class="flex-1 overflow-y-auto" 
+            class="flex-1 overflow-y-auto"
             :class="{
               'pt-[70px] lg:pt-0': isAuthenticated && $route.path !== '/login',
               'pb-[70px] lg:pb-0': showBottomNav
@@ -562,11 +562,15 @@ export default {
       mobileMenuOpen.value = !mobileMenuOpen.value;
       profileMenuOpen.value = false;
       
+      // Update body class for scroll prevention
       if (mobileMenuOpen.value) {
+        document.body.classList.add('menu-open');
         await nextTick();
         if (mobileSearchInput.value) {
           mobileSearchInput.value.focus();
         }
+      } else {
+        document.body.classList.remove('menu-open');
       }
     };
 
@@ -634,6 +638,15 @@ export default {
       }
     };
 
+    // Calculate header height for CSS variable
+    const updateHeaderHeight = () => {
+      const header = document.querySelector('header');
+      if (header) {
+        const height = header.offsetHeight;
+        document.documentElement.style.setProperty('--header-height', `${height}px`);
+      }
+    };
+
     // Lifecycle
     onMounted(async () => {
       try {
@@ -647,6 +660,10 @@ export default {
         
         // Initialize dark mode
         initializeDarkMode();
+        
+        // Update header height on mount and resize
+        updateHeaderHeight();
+        window.addEventListener('resize', updateHeaderHeight);
         
         // Listen for system theme changes
         const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -669,25 +686,6 @@ export default {
           if (e.key === 'Escape') {
             closeAllMenus();
           }
-          
-          // Close menu on outside click simulation
-          if (e.key === 'Tab' && mobileMenuOpen.value) {
-            setTimeout(() => {
-              const focusableElements = document.querySelectorAll(
-                '#mobile-menu button, #mobile-menu a, #mobile-menu input'
-              );
-              const firstElement = focusableElements[0];
-              const lastElement = focusableElements[focusableElements.length - 1];
-              
-              if (document.activeElement === lastElement && !e.shiftKey) {
-                e.preventDefault();
-                firstElement?.focus();
-              } else if (document.activeElement === firstElement && e.shiftKey) {
-                e.preventDefault();
-                lastElement?.focus();
-              }
-            }, 0);
-          }
         };
         
         document.addEventListener('keydown', handleKeyDown);
@@ -696,6 +694,8 @@ export default {
         return () => {
           darkModeMediaQuery.removeEventListener('change', handleThemeChange);
           document.removeEventListener('keydown', handleKeyDown);
+          window.removeEventListener('resize', updateHeaderHeight);
+          document.body.classList.remove('menu-open');
         };
         
       } catch (error) {
@@ -717,6 +717,15 @@ export default {
     watch(isAuthenticated, (newVal) => {
       if (!newVal && !isPublicRoute.value) {
         router.push('/login');
+      }
+    });
+
+    // Watch menu state to prevent body scroll
+    watch(mobileMenuOpen, (newVal) => {
+      if (newVal) {
+        document.body.classList.add('menu-open');
+      } else {
+        document.body.classList.remove('menu-open');
       }
     });
 
@@ -771,6 +780,7 @@ export default {
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --header-height: 70px; /* Default, updated by JS */
 }
 
 /* Safe area padding */
@@ -921,11 +931,41 @@ button:active,
 .dark ::selection {
   background-color: rgba(245, 158, 11, 0.5);
 }
-</style>
-  
 
-   
-   
+/* Fixed positioning for mobile layout */
+.fixed-header-content {
+  position: fixed;
+  top: var(--header-height, 70px);
+  left: 0;
+  right: 0;
+  bottom: var(--bottom-nav-height, 70px);
+  overflow-y: auto;
+}
+
+/* Ensure content doesn't hide behind fixed elements */
+.content-area {
+  padding-top: var(--header-height, 70px);
+  padding-bottom: var(--bottom-nav-height, 70px);
+}
+
+/* Z-index layering */
+.z-header {
+  z-index: 50;
+}
+
+.z-menu {
+  z-index: 40;
+}
+
+.z-overlay {
+  z-index: 30;
+}
+
+.z-content {
+  z-index: 10;
+}
+</style>
+
        
 
      
