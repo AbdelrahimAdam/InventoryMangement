@@ -635,12 +635,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
-import UserManagementModal from '@/components/UserManagementModal.vue';
+import UserManagementModal from '@/components/users/UserManagement.vue';
 
 export default {
   name: 'App',
   components: {
-    UserManagementModal
+    UserManagement
   },
   
   setup() {
