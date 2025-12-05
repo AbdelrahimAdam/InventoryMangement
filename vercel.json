@@ -25,7 +25,8 @@
   "framework": "vue",
   "env": {
     "NODE_ENV": "production",
-    "VUE_APP_MODE": "production"
+    "VUE_APP_MODE": "production",
+    "NODE_VERSION": "22"
   },
   "github": {
     "silent": true
