@@ -1,10 +1,10 @@
 <template>
-  <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+  <div id="app" dir="rtl" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 transition-all duration-300">
     <!-- Show loading while initializing -->
     <div v-if="initializing" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
-        <p class="mt-4 text-gray-600 dark:text-gray-400">جاري التحميل...</p>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 mx-auto"></div>
+        <p class="mt-4 text-gray-600 dark:text-gray-400 font-medium">جاري التحميل...</p>
       </div>
     </div>
 
@@ -22,22 +22,22 @@
       <template v-else>
         <!-- MOBILE ONLY: Header and Navigation -->
         <div class="lg:hidden">
-          <!-- Mobile Header -->
-          <header class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700 safe-area-top">
+          <!-- Mobile Header - Clean & Compact -->
+          <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-b border-gray-200/50 dark:border-gray-700/50 safe-area-top shadow-sm">
             <div class="px-4 py-3">
               <div class="flex items-center justify-between">
                 <!-- Left: Menu button and logo -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                   <button 
                     @click="toggleMobileMenu"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 touch-target"
+                    class="p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 touch-target shadow-sm hover:shadow"
                     :aria-label="mobileMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'"
                     :aria-expanded="mobileMenuOpen"
                     aria-controls="mobile-menu"
                   >
-                    <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                   
@@ -47,68 +47,48 @@
                     @click="closeAllMenus"
                     aria-label="الرئيسية"
                   >
-                    <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
-                      <span class="text-white font-bold text-base">م</span>
+                    <div class="h-9 w-9 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+                      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
                     </div>
                     <div class="text-right">
-                      <h1 class="text-sm font-bold text-gray-900 dark:text-white leading-tight">نظام المخزون</h1>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">مونوفيا</p>
+                      <h1 class="text-sm font-bold text-gray-900 dark:text-white leading-tight">نظام إدارة المخازن</h1>
+                      <p class="text-[11px] text-blue-500 dark:text-blue-400 font-medium">الإصدار الذهبي</p>
                     </div>
                   </router-link>
                 </div>
 
                 <!-- Right: Dark mode and Notifications -->
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
                   <button 
                     @click="toggleDarkMode"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 touch-target"
+                    class="p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 touch-target shadow-sm hover:shadow"
                     :aria-label="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
                   >
-                    <svg v-if="isDarkMode" class="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-if="isDarkMode" class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
                     </svg>
-                    <svg v-else class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-else class="w-4 h-4 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
                     </svg>
                   </button>
 
                   <button 
                     @click="handleNotifications"
-                    class="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 touch-target"
+                    class="relative p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 touch-target shadow-sm hover:shadow"
                     aria-label="الإشعارات"
                   >
-                    <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0.538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0.538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
                     <span 
                       v-if="notificationCount > 0" 
-                      class="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800"
+                      class="absolute -top-1 -right-1 h-4 w-4 bg-gradient-to-br from-red-500 to-pink-500 text-white text-[10px] rounded-full flex items-center justify-center border border-white dark:border-gray-900 font-bold"
                     >
                       {{ notificationCount > 9 ? '9+' : notificationCount }}
                     </span>
                   </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Mobile Stats Bar (only on dashboard) -->
-            <div v-if="dashboardStats && $route.path === '/'" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3">
-              <div class="flex overflow-x-auto scrollbar-hide gap-4">
-                <div class="flex-shrink-0 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الأصناف</div>
-                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.totalItems || 0 }}</div>
-                </div>
-                <div class="flex-shrink-0 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</div>
-                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalQuantity) || 0 }}</div>
-                </div>
-                <div class="flex-shrink-0 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">قليلة</div>
-                  <div class="text-sm font-bold text-red-600 dark:text-red-400">{{ dashboardStats.lowStockItems || 0 }}</div>
-                </div>
-                <div class="flex-shrink-0 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الحركات</div>
-                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ dashboardStats.recentTransactions || 0 }}</div>
                 </div>
               </div>
             </div>
@@ -117,28 +97,49 @@
           <!-- Mobile Menu Overlay -->
           <div 
             v-if="mobileMenuOpen" 
-            class="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity duration-300"
+            class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-all duration-300"
             @click="closeAllMenus"
             aria-hidden="true"
           ></div>
 
-          <!-- Mobile Menu Drawer -->
+          <!-- Mobile Menu Drawer - Apple Style -->
           <div 
             v-if="mobileMenuOpen"
             id="mobile-menu"
-            class="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out"
+            class="fixed inset-y-0 right-0 z-50 w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl transform transition-all duration-300 ease-out"
             :class="mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'"
             role="dialog"
             aria-modal="true"
             aria-label="القائمة الرئيسية"
           >
-            <div class="h-full flex flex-col overflow-y-auto pt-[var(--header-height)]">
+            <div class="h-full flex flex-col overflow-hidden">
+              <!-- User Profile Header -->
+              <div class="px-6 py-5 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800/50 dark:to-gray-900/50">
+                <div class="flex items-center">
+                  <div class="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg ml-3">
+                    <span class="text-white font-bold text-base">
+                      {{ getUserInitials(userProfile?.name || userProfile?.email) }}
+                    </span>
+                  </div>
+                  <div class="text-right flex-1 min-w-0">
+                    <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
+                    <p class="text-xs text-blue-500 dark:text-blue-400 font-medium truncate">{{ userProfile?.email }}</p>
+                  </div>
+                  <span 
+                    :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm', roleBadgeClass]"
+                    aria-label="دور المستخدم"
+                  >
+                    {{ getRoleName(userRole) }}
+                  </span>
+                </div>
+              </div>
+
               <!-- Search Bar -->
-              <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <div class="px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/50">
                 <div class="relative">
                   <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    <svg class="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                   </div>
                   <input
@@ -147,200 +148,219 @@
                     v-model="mobileSearchTerm"
                     @input="handleMobileSearch"
                     @keyup.enter="handleMobileSearchEnter"
-                    placeholder="ابحث عن صنف..."
-                    class="block w-full pr-10 pl-3 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                    aria-label="بحث عن صنف"
+                    placeholder="ابحث عن صنف، مخزن، أو مستخدم..."
+                    class="block w-full pr-10 pl-3 py-2.5 text-sm border border-blue-200 dark:border-blue-800/50 rounded-xl bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-blue-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-200"
+                    aria-label="بحث"
                   />
                 </div>
               </div>
 
-              <!-- User Profile Info -->
-              <div class="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-                <div class="flex items-center">
-                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
-                    <span class="text-white font-medium text-base">
-                      {{ getUserInitials(userProfile?.name || userProfile?.email) }}
-                    </span>
-                  </div>
-                  <div class="text-right flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ userProfile?.email }}</p>
-                  </div>
-                  <span 
-                    :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold', roleBadgeClass]"
-                    aria-label="دور المستخدم"
-                  >
-                    {{ getRoleName(userRole) }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Navigation Links -->
-              <nav class="flex-1 px-4 py-3 space-y-1 overflow-y-auto" aria-label="روابط التنقل">
+              <!-- Navigation Links - Apple Style -->
+              <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto" aria-label="روابط التنقل">
                 <router-link 
                   to="/" 
                   @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
+                  class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
                   :class="{
-                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
+                    'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/',
+                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/'
                   }"
                   :aria-current="$route.path === '/' ? 'page' : null"
                 >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                  </svg>
-                  لوحة التحكم
-                </router-link>
-
-                <!-- Warehouse Management Link (Superadmin) -->
-                <router-link 
-                  v-if="canManageWarehouses"
-                  to="/warehouses" 
-                  @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                  :class="{
-                    'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'
-                  }"
-                >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                  إدارة المخازن
-                </router-link>
-
-                <!-- User Management Link (Superadmin) -->
-                <router-link 
-                  v-if="canManageUsers"
-                  to="/users" 
-                  @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                  :class="{
-                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'
-                  }"
-                >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                  إدارة المستخدمين
+                  <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                  </div>
+                  <div class="text-right flex-1">
+                    <p class="text-sm font-medium">لوحة التحكم</p>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">نظرة عامة على النظام</p>
+                  </div>
                 </router-link>
 
                 <!-- Quick Actions Section -->
-                <div v-if="canModifyItems" class="pt-4 pb-2">
-                  <div class="px-3 mb-2">
-                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      إجراءات سريعة
-                    </p>
-                  </div>
-                  <div class="space-y-1">
+                <div class="px-4 pt-2">
+                  <p class="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider mb-3">
+                    ⚡ إجراءات سريعة
+                  </p>
+                  <div class="grid grid-cols-2 gap-2 px-2">
                     <button 
                       @click="openAddItemModal"
-                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      class="flex flex-col items-center p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800/50 dark:to-gray-900/50 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800/50 border border-blue-200/50 dark:border-blue-800/50 transition-all duration-200 touch-target shadow-sm hover:shadow group"
                       aria-label="إضافة صنف جديد"
                     >
-                      <svg class="w-5 h-5 ml-3 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                      </svg>
-                      <span class="text-yellow-600 dark:text-yellow-400">إضافة صنف جديد</span>
+                      <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow transition-all duration-200">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
+                        </svg>
+                      </div>
+                      <span class="text-xs font-medium text-gray-700 dark:text-gray-300">إضافة صنف</span>
                     </button>
 
                     <button 
                       @click="openTransferModal"
-                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-green-50 dark:hover:bg-green-900/20"
+                      class="flex flex-col items-center p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800/50 dark:to-gray-900/50 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800/50 border border-blue-200/50 dark:border-blue-800/50 transition-all duration-200 touch-target shadow-sm hover:shadow group"
                       aria-label="نقل بين المخازن"
                     >
-                      <svg class="w-5 h-5 ml-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                      </svg>
-                      <span class="text-green-600 dark:text-green-400">نقل بين المخازن</span>
+                      <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow transition-all duration-200">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                      </div>
+                      <span class="text-xs font-medium text-gray-700 dark:text-gray-300">نقل مخزون</span>
                     </button>
 
                     <button 
                       @click="openDispatchModal"
-                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      class="flex flex-col items-center p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800/50 dark:to-gray-900/50 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800/50 border border-blue-200/50 dark:border-blue-800/50 transition-all duration-200 touch-target shadow-sm hover:shadow group"
                       aria-label="صرف إلى خارجي"
                     >
-                      <svg class="w-5 h-5 ml-3 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                      </svg>
-                      <span class="text-orange-600 dark:text-orange-400">صرف إلى خارجي</span>
+                      <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow transition-all duration-200">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                      </div>
+                      <span class="text-xs font-medium text-gray-700 dark:text-gray-300">صرف خارجي</span>
                     </button>
 
-                    <!-- Add Warehouse Button for Super Admin -->
                     <button 
                       v-if="canManageWarehouses"
                       @click="openAddWarehouseModal"
-                      class="w-full flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      class="flex flex-col items-center p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800/50 dark:to-gray-900/50 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800/50 border border-blue-200/50 dark:border-blue-800/50 transition-all duration-200 touch-target shadow-sm hover:shadow group"
                       aria-label="إضافة مخزن جديد"
                     >
-                      <svg class="w-5 h-5 ml-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                      </svg>
-                      <span class="text-blue-600 dark:text-blue-400">إضافة مخزن جديد</span>
+                      <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow transition-all duration-200">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                      </div>
+                      <span class="text-xs font-medium text-gray-700 dark:text-gray-300">إضافة مخزن</span>
                     </button>
                   </div>
                 </div>
 
-                <!-- Other Navigation Links -->
-                <router-link 
-                  to="/transactions" 
-                  @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                  :class="{
-                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
-                  }"
-                >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                  </svg>
-                  سجل الحركات
-                </router-link>
+                <!-- Main Navigation -->
+                <div class="px-4 pt-4">
+                  <p class="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider mb-3">
+                    📂 التنقل الرئيسي
+                  </p>
+                  <div class="space-y-1">
+                    <router-link 
+                      to="/transactions" 
+                      @click="closeAllMenus"
+                      class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
+                      :class="{
+                        'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/transactions',
+                        'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/transactions'
+                      }"
+                    >
+                      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                      </div>
+                      <div class="text-right flex-1">
+                        <p class="text-sm font-medium">سجل الحركات</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">تاريخ كامل لعمليات المخزون</p>
+                      </div>
+                    </router-link>
 
-                <router-link 
-                  v-if="canViewReports"
-                  to="/reports" 
-                  @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                  :class="{
-                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/reports'
-                  }"
-                >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a22 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                  </svg>
-                  التقارير
-                </router-link>
+                    <router-link 
+                      v-if="canViewReports"
+                      to="/reports" 
+                      @click="closeAllMenus"
+                      class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
+                      :class="{
+                        'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/reports',
+                        'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/reports'
+                      }"
+                    >
+                      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a22 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                      </div>
+                      <div class="text-right flex-1">
+                        <p class="text-sm font-medium">التقارير</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">تحليلات وإحصائيات المخزون</p>
+                      </div>
+                    </router-link>
 
-                <router-link 
-                  to="/profile" 
-                  @click="closeAllMenus"
-                  class="flex items-center px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 touch-target"
-                  :class="{
-                    'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile',
-                    'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'
-                  }"
-                >
-                  <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  </svg>
-                  إعدادات الحساب
-                </router-link>
+                    <router-link 
+                      v-if="canManageWarehouses"
+                      to="/warehouses" 
+                      @click="closeAllMenus"
+                      class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
+                      :class="{
+                        'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/warehouses',
+                        'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/warehouses'
+                      }"
+                    >
+                      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                      </div>
+                      <div class="text-right flex-1">
+                        <p class="text-sm font-medium">إدارة المخازن</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">تحكم كامل في المخازن</p>
+                      </div>
+                    </router-link>
+
+                    <router-link 
+                      v-if="canManageUsers"
+                      to="/users" 
+                      @click="closeAllMenus"
+                      class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
+                      :class="{
+                        'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/users',
+                        'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/users'
+                      }"
+                    >
+                      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        </svg>
+                      </div>
+                      <div class="text-right flex-1">
+                        <p class="text-sm font-medium">إدارة المستخدمين</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">إدارة صلاحيات وصول المستخدمين</p>
+                      </div>
+                    </router-link>
+
+                    <router-link 
+                      to="/profile" 
+                      @click="closeAllMenus"
+                      class="flex items-center px-4 py-3 rounded-xl mx-2 transition-all duration-200 group touch-target"
+                      :class="{
+                        'bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-200/50 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 shadow-sm': $route.path === '/profile',
+                        'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:shadow-sm': $route.path !== '/profile'
+                      }"
+                    >
+                      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3 group-hover:from-blue-500/30 group-hover:to-blue-500/20 transition-all duration-200">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </div>
+                      <div class="text-right flex-1">
+                        <p class="text-sm font-medium">إعدادات الحساب</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">تخصيص حسابك الشخصي</p>
+                      </div>
+                    </router-link>
+                  </div>
+                </div>
               </nav>
 
               <!-- Logout Button -->
-              <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+              <div class="p-4 border-t border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50">
                 <button 
                   @click="logout"
-                  class="w-full flex items-center justify-center px-3 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 touch-target"
+                  class="w-full flex items-center justify-center px-4 py-3 rounded-xl text-sm font-medium text-white bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 transition-all duration-200 touch-target shadow-md hover:shadow-lg active:scale-[0.98]"
                   aria-label="تسجيل خروج"
                 >
-                  <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                   </svg>
                   تسجيل خروج
                 </button>
@@ -351,84 +371,105 @@
 
         <!-- Main Content Area -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <!-- Router view -->
+          <!-- Router view with proper spacing -->
           <div 
-            class="flex-1 overflow-y-auto"
+            ref="contentArea"
+            class="flex-1 overflow-y-auto smooth-scroll"
             :class="{
-              'pt-[70px] lg:pt-0': isAuthenticated && $route.path !== '/login',
-              'pb-[70px] lg:pb-0': showBottomNav
+              'pt-16 lg:pt-0': isAuthenticated && $route.path !== '/login',
+              'pb-20 lg:pb-0': showBottomNav
             }"
           >
             <router-view />
           </div>
 
-          <!-- Mobile Bottom Navigation -->
+          <!-- Mobile Bottom Navigation - Clean & Modern -->
           <nav 
             v-if="isAuthenticated && showBottomNav" 
-            class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 safe-area-bottom"
+            class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 safe-area-bottom shadow-lg"
             aria-label="التنقل السفلي"
           >
             <div class="flex justify-around p-2">
               <router-link
                 to="/" 
-                class="flex flex-col items-center p-3 flex-1 transition-colors duration-200 touch-target rounded-lg"
+                class="flex flex-col items-center p-2 flex-1 transition-all duration-200 touch-target rounded-xl"
                 :class="{
-                  'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': $route.path === '/',
-                  'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'
+                  'text-blue-600 dark:text-blue-400': $route.path === '/',
+                  'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/'
                 }"
                 @click="closeAllMenus"
                 :aria-current="$route.path === '/' ? 'page' : null"
               >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-                <span class="text-xs mt-1">الرئيسية</span>
+                <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
+                  :class="{
+                    'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 shadow-sm': $route.path === '/',
+                    'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/'
+                  }"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                  </svg>
+                </div>
+                <span class="text-[10px] font-medium mt-1">الرئيسية</span>
               </router-link>
 
               <button 
                 v-if="canModifyItems"
                 @click="openAddItemModal" 
-                class="flex flex-col items-center p-3 flex-1 transition-colors duration-200 touch-target rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                class="flex flex-col items-center p-2 flex-1 transition-all duration-200 touch-target rounded-xl group"
                 aria-label="إضافة صنف جديد"
               >
-                <div class="relative">
-                  <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
                   </svg>
                 </div>
-                <span class="text-xs mt-1 text-yellow-600 dark:text-yellow-400">إضافة</span>
+                <span class="text-[10px] font-medium mt-1 text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400">إضافة</span>
               </button>
 
               <router-link 
-                to="/transactions" 
-                class="flex flex-col items-center p-3 flex-1 transition-colors duration-200 touch-target rounded-lg"
+                to="/inventory" 
+                class="flex flex-col items-center p-2 flex-1 transition-all duration-200 touch-target rounded-xl"
                 :class="{
-                  'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': $route.path === '/transactions',
-                  'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'
+                  'text-blue-600 dark:text-blue-400': $route.path === '/inventory',
+                  'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/inventory'
                 }"
                 @click="closeAllMenus"
               >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                <span class="text-xs mt-1">الحركات</span>
+                <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
+                  :class="{
+                    'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 shadow-sm': $route.path === '/inventory',
+                    'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/inventory'
+                  }"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                  </svg>
+                </div>
+                <span class="text-[10px] font-medium mt-1">المخزون</span>
               </router-link>
 
-              <button 
-                @click="toggleProfileMenu"
-                class="flex flex-col items-center p-3 flex-1 transition-colors duration-200 touch-target rounded-lg"
+              <router-link 
+                to="/transactions" 
+                class="flex flex-col items-center p-2 flex-1 transition-all duration-200 touch-target rounded-xl"
                 :class="{
-                  'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': profileMenuOpen,
-                  'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': !profileMenuOpen
+                  'text-blue-600 dark:text-blue-400': $route.path === '/transactions',
+                  'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/transactions'
                 }"
-                :aria-label="profileMenuOpen ? 'إغلاق قائمة الحساب' : 'فتح قائمة الحساب'"
-                :aria-expanded="profileMenuOpen"
+                @click="closeAllMenus"
               >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <span class="text-xs mt-1">حسابي</span>
-              </button>
+                <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
+                  :class="{
+                    'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 shadow-sm': $route.path === '/transactions',
+                    'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/transactions'
+                  }"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                </div>
+                <span class="text-[10px] font-medium mt-1">الحركات</span>
+              </router-link>
             </div>
           </nav>
         </div>
@@ -458,6 +499,7 @@ export default {
     const isDarkMode = ref(false);
     const mobileSearchTerm = ref('');
     const mobileSearchInput = ref(null);
+    const contentArea = ref(null);
     
     // Computed
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
@@ -514,23 +556,26 @@ export default {
     };
 
     const getUserInitials = (name) => {
-      if (!name) return '؟';
+      if (!name) return 'مخ';
       return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     };
 
     const roleBadgeClass = computed(() => {
       const classes = {
-        superadmin: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white',
-        warehouse_manager: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
-        company_manager: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+        superadmin: 'bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-sm',
+        warehouse_manager: 'bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-sm',
+        company_manager: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-sm'
       };
-      return classes[userRole.value] || 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+      return classes[userRole.value] || 'bg-gradient-to-br from-gray-500 to-gray-600 text-white shadow-sm';
     });
 
-    // Dark mode
+    // Dark mode with smooth transitions
     const initializeDarkMode = () => {
       const savedTheme = localStorage.getItem('theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Add transition class temporarily
+      document.documentElement.classList.add('theme-transition');
       
       if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
         isDarkMode.value = true;
@@ -539,9 +584,17 @@ export default {
         isDarkMode.value = false;
         document.documentElement.classList.remove('dark');
       }
+      
+      // Remove transition class after animation
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, 300);
     };
 
     const toggleDarkMode = () => {
+      // Add transition class
+      document.documentElement.classList.add('theme-transition');
+      
       isDarkMode.value = !isDarkMode.value;
       if (isDarkMode.value) {
         document.documentElement.classList.add('dark');
@@ -550,9 +603,14 @@ export default {
         document.documentElement.classList.remove('dark');
         localStorage.setItem('theme', 'light');
       }
+      
+      // Remove transition class after animation
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, 300);
     };
 
-    // Menu handlers
+    // Menu handlers with smooth animations
     const closeAllMenus = () => {
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
@@ -567,16 +625,13 @@ export default {
         document.body.classList.add('menu-open');
         await nextTick();
         if (mobileSearchInput.value) {
-          mobileSearchInput.value.focus();
+          setTimeout(() => {
+            mobileSearchInput.value.focus();
+          }, 300);
         }
       } else {
         document.body.classList.remove('menu-open');
       }
-    };
-
-    const toggleProfileMenu = () => {
-      profileMenuOpen.value = !profileMenuOpen.value;
-      mobileMenuOpen.value = false;
     };
 
     const handleNotifications = () => {
@@ -638,12 +693,16 @@ export default {
       }
     };
 
-    // Calculate header height for CSS variable
-    const updateHeaderHeight = () => {
-      const header = document.querySelector('header');
-      if (header) {
-        const height = header.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', `${height}px`);
+    // Initialize smooth scroll for content area
+    const initializeSmoothScroll = () => {
+      if (contentArea.value) {
+        contentArea.value.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          contentArea.value.scrollTo({
+            top: contentArea.value.scrollTop + e.deltaY,
+            behavior: 'smooth'
+          });
+        }, { passive: false });
       }
     };
 
@@ -658,17 +717,18 @@ export default {
           await store.dispatch('loadWarehouses');
         }
         
-        // Initialize dark mode
+        // Initialize dark mode with smooth transition
         initializeDarkMode();
         
-        // Update header height on mount and resize
-        updateHeaderHeight();
-        window.addEventListener('resize', updateHeaderHeight);
+        // Initialize smooth scroll
+        await nextTick();
+        initializeSmoothScroll();
         
         // Listen for system theme changes
         const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         const handleThemeChange = (e) => {
           if (!localStorage.getItem('theme')) {
+            document.documentElement.classList.add('theme-transition');
             if (e.matches) {
               document.documentElement.classList.add('dark');
               isDarkMode.value = true;
@@ -676,6 +736,9 @@ export default {
               document.documentElement.classList.remove('dark');
               isDarkMode.value = false;
             }
+            setTimeout(() => {
+              document.documentElement.classList.remove('theme-transition');
+            }, 300);
           }
         };
         
@@ -694,7 +757,6 @@ export default {
         return () => {
           darkModeMediaQuery.removeEventListener('change', handleThemeChange);
           document.removeEventListener('keydown', handleKeyDown);
-          window.removeEventListener('resize', updateHeaderHeight);
           document.body.classList.remove('menu-open');
         };
         
@@ -737,6 +799,7 @@ export default {
       isDarkMode,
       mobileSearchTerm,
       mobileSearchInput,
+      contentArea,
       
       // Computed
       isAuthenticated,
@@ -758,7 +821,6 @@ export default {
       toggleDarkMode,
       closeAllMenus,
       toggleMobileMenu,
-      toggleProfileMenu,
       handleNotifications,
       openAddItemModal,
       openTransferModal,
@@ -778,9 +840,8 @@ export default {
 :root {
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-inset-left: env(safe-area-inset-left, 0px);
-  --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  --header-height: 70px; /* Default, updated by JS */
+  --header-height: 64px;
+  --bottom-nav-height: 64px;
 }
 
 /* Safe area padding */
@@ -798,37 +859,52 @@ export default {
   min-width: 44px;
 }
 
-@media (min-width: 1024px) {
-  .touch-target {
-    min-height: 32px;
-    min-width: 32px;
-  }
+/* Smooth scrolling */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.smooth-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.smooth-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.smooth-scroll::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 3px;
+}
+
+.smooth-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
+}
+
+.dark .smooth-scroll::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.3);
+}
+
+.dark .smooth-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 165, 250, 0.5);
 }
 
 /* Focus styles for accessibility */
 :focus-visible {
-  outline: 2px solid #f59e0b;
+  outline: 2px solid rgba(59, 130, 246, 0.5);
   outline-offset: 2px;
-  border-radius: 0.375rem;
+  border-radius: 0.75rem;
 }
 
 /* Smooth transitions */
 * {
-  transition: background-color 0.2s ease, 
-              border-color 0.2s ease, 
-              color 0.2s ease,
-              transform 0.2s ease,
-              opacity 0.2s ease;
-}
-
-/* Hide scrollbar but keep functionality */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Prevent body scroll when menu is open */
@@ -839,21 +915,55 @@ body.menu-open {
   height: 100%;
 }
 
-/* Mobile menu animation */
-.menu-slide-enter-active,
-.menu-slide-leave-active {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Apple-like animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.menu-slide-enter-from,
-.menu-slide-leave-to {
-  transform: translateX(100%);
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+/* Theme transition */
+.theme-transition * {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Button active state */
 button:active,
-[role="button"]:active {
-  transform: scale(0.98);
+[role="button"]:active,
+a:active {
+  transform: scale(0.96);
+}
+
+/* Glass morphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Responsive typography */
@@ -867,16 +977,26 @@ button:active,
     font-size: 0.75rem;
     line-height: 1rem;
   }
+  
+  .text-\[11px\] {
+    font-size: 0.6875rem;
+    line-height: 0.875rem;
+  }
+  
+  .text-\[10px\] {
+    font-size: 0.625rem;
+    line-height: 0.75rem;
+  }
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-  .bg-yellow-50 {
-    background-color: #fff8e1;
+  .bg-blue-50 {
+    background-color: #eff6ff;
   }
   
-  .dark .bg-yellow-900\/20 {
-    background-color: rgba(120, 53, 15, 0.3);
+  .dark .bg-gray-900\/95 {
+    background-color: rgba(3, 7, 18, 0.95);
   }
 }
 
@@ -889,6 +1009,10 @@ button:active,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  
+  .smooth-scroll {
+    scroll-behavior: auto;
+  }
 }
 
 /* Print styles */
@@ -897,15 +1021,6 @@ button:active,
   .fixed {
     display: none !important;
   }
-}
-
-/* Dark mode specific styles */
-.dark .scrollbar-hide::-webkit-scrollbar-track {
-  background: #374151;
-}
-
-.dark .scrollbar-hide::-webkit-scrollbar-thumb {
-  background: #4b5563;
 }
 
 /* Improved focus for RTL */
@@ -924,58 +1039,97 @@ button:active,
 
 /* Selection styles */
 ::selection {
-  background-color: rgba(245, 158, 11, 0.3);
+  background-color: rgba(59, 130, 246, 0.3);
   color: inherit;
 }
 
 .dark ::selection {
-  background-color: rgba(245, 158, 11, 0.5);
+  background-color: rgba(96, 165, 250, 0.5);
 }
 
-/* Fixed positioning for mobile layout */
-.fixed-header-content {
-  position: fixed;
-  top: var(--header-height, 70px);
-  left: 0;
+/* Custom scrollbar for menu */
+#mobile-menu div[class*="overflow-y-auto"]::-webkit-scrollbar {
+  width: 4px;
+}
+
+#mobile-menu div[class*="overflow-y-auto"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#mobile-menu div[class*="overflow-y-auto"]::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 2px;
+}
+
+.dark #mobile-menu div[class*="overflow-y-auto"]::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.2);
+}
+
+/* Hover effects for links */
+.router-link-active {
+  position: relative;
+}
+
+.router-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
   right: 0;
-  bottom: var(--bottom-nav-height, 70px);
-  overflow-y: auto;
+  width: 20px;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 2px;
 }
 
-/* Ensure content doesn't hide behind fixed elements */
-.content-area {
-  padding-top: var(--header-height, 70px);
-  padding-bottom: var(--bottom-nav-height, 70px);
+/* Loading animation for buttons */
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-/* Z-index layering */
-.z-header {
-  z-index: 50;
+/* Custom animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
-.z-menu {
-  z-index: 40;
+.pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.z-overlay {
-  z-index: 30;
+/* Floating action button effect */
+.fab-effect {
+  box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39);
 }
 
-.z-content {
-  z-index: 10;
+.dark .fab-effect {
+  box-shadow: 0 4px 14px 0 rgba(96, 165, 250, 0.39);
+}
+
+/* Card hover effects */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.dark .hover-lift:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Text gradient animation */
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 </style>
-
-       
-
-     
-             
-
-
-
-
-
-
-
-
-
