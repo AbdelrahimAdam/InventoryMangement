@@ -52,11 +52,23 @@
       text-align: center;
     }
 
+    /* Hide URL bar for PWA */
+    @media all and (display-mode: standalone) {
+      body {
+        overscroll-behavior-y: none;
+      }
+    }
+
     /* Prevent layout shift under keyboard */
     @media (max-height: 600px) {
       #installBtn {
         bottom: 10px;
       }
+    }
+
+    /* Hide browser UI elements for PWA */
+    @media (display-mode: standalone) or (display-mode: minimal-ui) {
+      /* Additional styles for PWA mode */
     }
   </style>
 </head>
@@ -91,6 +103,14 @@
 
       const result = await deferredPrompt.userChoice;
       deferredPrompt = null;
+    });
+
+    // Hide browser UI when app is installed
+    window.addEventListener('load', () => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        // App is running in standalone mode (installed)
+        console.log('Running in standalone PWA mode');
+      }
     });
   </script>
 
