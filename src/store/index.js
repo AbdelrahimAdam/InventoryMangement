@@ -80,7 +80,9 @@ export default createStore({
     unsubscribeWarehouses: null,
     // Recent transactions cache
     recentTransactions: [],
-    recentTransactionsLoading: false
+    recentTransactionsLoading: false,
+    // Composite index check
+    requiresCompositeIndex: false
   },
   mutations: {
     SET_USER(state, user) {
@@ -200,6 +202,10 @@ export default createStore({
       if (state.recentTransactions.length > 50) {
         state.recentTransactions = state.recentTransactions.slice(0, 50);
       }
+    },
+    // Composite index mutation
+    SET_REQUIRES_COMPOSITE_INDEX(state, value) {
+      state.requiresCompositeIndex = value;
     }
   },
   actions: {
@@ -265,6 +271,7 @@ export default createStore({
             commit('SET_ITEM_HISTORY', []);
             commit('SET_RECENT_TRANSACTIONS', []);
             commit('SET_WAREHOUSES_LOADED', false);
+            commit('SET_REQUIRES_COMPOSITE_INDEX', false);
 
             // Clean up subscriptions
             commit('CLEAR_UNSUBSCRIBERS');
@@ -408,6 +415,7 @@ export default createStore({
         commit('SET_AUTH_ERROR', null);
         commit('SET_OPERATION_ERROR', null);
         commit('SET_WAREHOUSES_LOADED', false);
+        commit('SET_REQUIRES_COMPOSITE_INDEX', false);
 
         // Clean up subscriptions
         commit('CLEAR_UNSUBSCRIBERS');
@@ -471,63 +479,13 @@ export default createStore({
       console.log('Subscribing to warehouses...');
 
       try {
-        let warehousesQuery;
+        // SIMPLIFIED: All authenticated users can read all warehouses
+        // Store will filter based on user role
+        const warehousesQuery = query(
+          collection(db, 'warehouses'),
+          orderBy('name_ar')
+        );
 
-        // Role-based warehouse filtering
-        if (state.userProfile.role === 'superadmin') {
-          // Superadmin sees all warehouses
-          warehousesQuery = query(collection(db, 'warehouses'), orderBy('name_ar'));
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          // Warehouse managers see only their assigned warehouses AND dispatch warehouses
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0) {
-            // Get assigned warehouses (max 10 due to Firestore 'in' query limit)
-            const assignedWarehouses = allowedWarehouses.slice(0, 10);
-
-            // Query for assigned warehouses
-            const assignedQuery = query(
-              collection(db, 'warehouses'),
-              where('id', 'in', assignedWarehouses)
-            );
-
-            // Also get all dispatch warehouses for warehouse managers
-            const dispatchQuery = query(
-              collection(db, 'warehouses'),
-              where('type', '==', 'dispatch')
-            );
-
-            // Execute both queries
-            const [assignedSnapshot, dispatchSnapshot] = await Promise.all([
-              getDocs(assignedQuery),
-              getDocs(dispatchQuery)
-            ]);
-
-            const warehouses = [
-              ...assignedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-              ...dispatchSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            ];
-
-            // Remove duplicates
-            const uniqueWarehouses = Array.from(new Map(warehouses.map(w => [w.id, w])).values());
-            commit('SET_WAREHOUSES', uniqueWarehouses);
-            return;
-          } else {
-            // If no assigned warehouses, show only dispatch warehouses
-            warehousesQuery = query(
-              collection(db, 'warehouses'),
-              where('type', '==', 'dispatch')
-            );
-          }
-        } else if (state.userProfile.role === 'company_manager') {
-          // Company managers see all warehouses (read-only)
-          warehousesQuery = query(collection(db, 'warehouses'), orderBy('name_ar'));
-        } else {
-          // Default: show empty
-          commit('SET_WAREHOUSES', []);
-          return;
-        }
-
-        // Set up real-time subscription
         const unsubscribe = onSnapshot(warehousesQuery, (snapshot) => {
           console.log('Warehouses snapshot received:', snapshot.size, 'warehouses');
 
@@ -1119,8 +1077,8 @@ export default createStore({
       }
     },
 
-    // Subscribe to inventory - UPDATED VERSION WITH FIXED QUERY FOR WAREHOUSE MANAGERS
-    subscribeToInventory({ commit, state, dispatch }) {
+    // Subscribe to inventory - UPDATED FOR NEW RULES
+    async subscribeToInventory({ commit, state, dispatch }) {
       // Clean up existing subscription first
       if (state.unsubscribeInventory) {
         state.unsubscribeInventory();
@@ -1138,13 +1096,21 @@ export default createStore({
         let itemsQuery;
         const itemsRef = collection(db, 'items');
 
-        // Role-based query construction - FIXED FOR WAREHOUSE MANAGERS
+        // Role-based query construction - SIMPLIFIED
         if (state.userProfile.role === 'superadmin') {
           // Superadmin sees all items
-          itemsQuery = query(itemsRef, orderBy('warehouse_id'), orderBy('name'));
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name')
+          );
         } else if (state.userProfile.role === 'company_manager' || state.userProfile.role === 'user') {
           // Company managers and regular users see all items (read-only)
-          itemsQuery = query(itemsRef, orderBy('warehouse_id'), orderBy('name'));
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name')
+          );
         } else if (state.userProfile.role === 'warehouse_manager') {
           // Warehouse managers see only items in their allowed warehouses
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -1158,21 +1124,42 @@ export default createStore({
 
           // If 'all' is in allowed warehouses, show all items
           if (allowedWarehouses.includes('all')) {
-            itemsQuery = query(itemsRef, orderBy('warehouse_id'), orderBy('name'));
-          } else if (allowedWarehouses.length <= 10) {
-            // Use 'in' query if 10 or fewer warehouses (Firestore limit)
-            // IMPORTANT: This requires a composite index on (warehouse_id, name)
             itemsQuery = query(
               itemsRef,
-              where('warehouse_id', 'in', allowedWarehouses),
               orderBy('warehouse_id'),
               orderBy('name')
             );
+          } else if (allowedWarehouses.length <= 10) {
+            // Use 'in' query if 10 or fewer warehouses (Firestore limit)
+            try {
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', 'in', allowedWarehouses),
+                orderBy('warehouse_id'),
+                orderBy('name')
+              );
+            } catch (error) {
+              // If composite index error, use client-side filtering
+              if (error.code === 'failed-precondition') {
+                console.warn('Composite index required. Using client-side filtering.');
+                commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+                itemsQuery = query(
+                  itemsRef,
+                  orderBy('warehouse_id'),
+                  orderBy('name')
+                );
+              } else {
+                throw error;
+              }
+            }
           } else {
             // If more than 10 warehouses, use client-side filtering
-            // Note: This is less efficient but works within Firestore limits
             console.log('More than 10 warehouses - using client-side filtering');
-            itemsQuery = query(itemsRef, orderBy('warehouse_id'), orderBy('name'));
+            itemsQuery = query(
+              itemsRef,
+              orderBy('warehouse_id'),
+              orderBy('name')
+            );
           }
         } else {
           // Other roles (if any) - no access
@@ -1192,18 +1179,17 @@ export default createStore({
             });
           });
 
-          // For warehouse managers with >10 warehouses, apply client-side filtering if needed
+          // Apply client-side filtering if needed
           let filteredInventory = inventory;
           if (state.userProfile.role === 'warehouse_manager') {
             const allowedWarehouses = state.userProfile.allowed_warehouses || [];
             if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-              // If we fetched all items (due to >10 warehouses), filter client-side
-              if (allowedWarehouses.length > 10) {
+              // If we fetched all items (due to >10 warehouses or missing index), filter client-side
+              if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
                 filteredInventory = inventory.filter(item => 
                   allowedWarehouses.includes(item.warehouse_id)
                 );
               }
-              // If we used 'in' query (<=10 warehouses), no client-side filtering needed
             }
           }
 
@@ -1213,8 +1199,15 @@ export default createStore({
         }, (error) => {
           console.error('Error in inventory subscription:', error);
           
-          // Handle permission denied errors specifically
-          if (error.code === 'permission-denied') {
+          // Handle specific errors
+          if (error.code === 'failed-precondition') {
+            commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+            dispatch('showNotification', {
+              type: 'warning',
+              title: 'تحذير الفهرس',
+              message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
+            });
+          } else if (error.code === 'permission-denied') {
             dispatch('showNotification', {
               type: 'error',
               message: 'ليس لديك صلاحية لعرض المخزون'
@@ -1257,7 +1250,7 @@ export default createStore({
       console.log('Subscribing to transactions...');
 
       try {
-        // Direct query without test - let it fail gracefully
+        // All authenticated users can read transactions
         const transactionsQuery = query(
           collection(db, 'transactions'),
           orderBy('timestamp', 'desc')
@@ -1469,6 +1462,14 @@ export default createStore({
           item_location: itemData.item_location?.trim() || '',
           notes: itemData.notes?.trim() || ''
         };
+
+        // Validate warehouse access for warehouse managers
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (!allowedWarehouses.includes(cleanedData.warehouse_id)) {
+            throw new Error('ليس لديك صلاحية لإضافة أصناف في هذا المخزن');
+          }
+        }
 
         // Validate quantities based on mode
         if (isAddingCartons) {
@@ -1703,6 +1704,14 @@ export default createStore({
           throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
         }
 
+        // Validate warehouse access for warehouse managers
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (!allowedWarehouses.includes(itemData.warehouse_id)) {
+            throw new Error('ليس لديك صلاحية لإضافة أصناف في هذا المخزن');
+          }
+        }
+
         // Validate quantities
         const totalQuantity = InventoryService.calculateTotalQuantity(
           itemData.cartons_count,
@@ -1786,6 +1795,14 @@ export default createStore({
         }
         if (!state.user?.uid) {
           throw new Error('معرف المستخدم غير متوفر');
+        }
+
+        // Validate warehouse access for warehouse managers
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (!allowedWarehouses.includes(transferData.from_warehouse_id)) {
+            throw new Error('ليس لديك صلاحية للنقل من هذا المخزن');
+          }
         }
 
         const result = await InventoryService.transferItem(transferData, state.user.uid);
@@ -1912,6 +1929,9 @@ export default createStore({
     // Recent transactions getter
     recentTransactions: state => state.recentTransactions,
     recentTransactionsLoading: state => state.recentTransactionsLoading,
+
+    // Composite index status
+    requiresCompositeIndex: state => state.requiresCompositeIndex,
 
     isAuthenticated: state => !!state.user,
     userRole: state => state.userProfile?.role,
