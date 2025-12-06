@@ -1,58 +1,19 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-
-  <!-- Mobile + Desktop viewport with proper scrolling -->
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-
-  <meta name="theme-color" content="#0a7cff" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="icon" href="<%= BASE_URL %>favicon.ico" />
-
-  <title>نظام إدارة مخزون العطور - منظمة مونوفيا</title>
-  <meta name="description"
-        content="نظام متكامل لإدارة مخزون العطور مع دعم اللغة العربية والتحكم الصارم في الصلاحيات">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your App</title>
 
   <style>
-    html, body {
+    body {
+      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      height: 100%;
-      background: #f7f7f7;
-      -webkit-overflow-scrolling: touch; /* FIX: mobile dropdown scrolling */
-    }
-
-    /* Allow the entire app to scroll normally */
-    body {
-      overflow-y: auto;
-    }
-
-    #app {
-      min-height: 100vh;
-    }
-
-    /* Install button */
-    #installBtn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      left: 20px;
-      background: #0a7cff;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 12px;
-      font-size: 16px;
-      display: none;
-      cursor: pointer;
-      z-index: 9999;
       text-align: center;
     }
 
-    /* Hide URL bar for PWA */
+    /* Hide URL bar for standalone apps (safe even without a PWA) */
     @media all and (display-mode: standalone) {
       body {
         overscroll-behavior-y: none;
@@ -66,62 +27,28 @@
       }
     }
 
-    /* Hide browser UI elements for PWA */
-    @media (display-mode: standalone) or (display-mode: minimal-ui) {
-      /* Additional styles for PWA mode */
+    /* Extra styles if app is launched standalone */
+    @media (display-mode: standalone), (display-mode: minimal-ui) {
+      /* Additional PWA mode styles (safe even without PWA) */
     }
   </style>
 </head>
 
 <body>
 
-  <noscript>
-    <strong>الرجاء تفعيل الجافاسكريبت لعمل النظام بشكل صحيح.</strong>
-  </noscript>
+  <h1>Your App</h1>
+  <p>This is a cleaned HTML version without PWA or JS bundle files.</p>
 
-  <div id="app"></div>
-
-  <!-- PWA Install Button -->
-  <button id="installBtn">تثبيت التطبيق</button>
-
-  <!-- Modern, safe PWA install logic -->
   <script>
-    let deferredPrompt;
-
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-
-      document.getElementById("installBtn").style.display = "block";
-    });
-
-    document.getElementById("installBtn").addEventListener("click", async () => {
-      if (!deferredPrompt) return;
-
-      document.getElementById("installBtn").style.display = "none";
-      deferredPrompt.prompt();
-
-      const result = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-    });
-
-    // Hide browser UI when app is installed
+    // Safe: checks standalone mode (won’t break if not a PWA)
     window.addEventListener('load', () => {
       if (window.matchMedia('(display-mode: standalone)').matches) {
-        // App is running in standalone mode (installed)
-        console.log('Running in standalone PWA mode');
+        console.log('Running in standalone mode');
       }
     });
   </script>
 
-  <!-- Register Service Worker -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/service-worker.js");
-    }
-  </script>
-
-  <!-- Vue CLI Auto Inject -->
 </body>
-
 </html>
+
+
