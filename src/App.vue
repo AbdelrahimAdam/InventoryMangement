@@ -622,7 +622,7 @@
     </div>
 
     <!-- User Management Modal -->
-    <UserManagementModal
+    <UserManagement
       v-if="showUserModal"
       :is-open="showUserModal"
       @close="closeUserModal"
@@ -640,7 +640,7 @@ import AddUserModal from '@/components/users/AddUserModal.vue';
 export default {
   name: 'App',
   components: {
-    UserManagementModal
+    UserManagement
   },
   
   setup() {
