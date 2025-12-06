@@ -1,306 +1,405 @@
 <template>
-  <div class="space-y-6 fade-in">
-    <!-- Welcome Section -->
-    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg overflow-hidden">
-      <div class="px-6 py-8">
-        <div class="flex flex-col md:flex-row items-center justify-between">
-          <div class="text-white">
-            <h2 class="text-2xl font-bold mb-2">مرحباً بك، المشرف العام!</h2>
-            <p class="opacity-90">لديك صلاحيات كاملة للتحكم في جميع أجزاء النظام.</p>
-          </div>
-          <div class="mt-4 md:mt-0">
-            <div class="flex items-center space-x-4 space-x-reverse">
-              <div class="text-right">
-                <p class="text-sm text-white opacity-90">إجمالي المستخدمين</p>
-                <p class="text-2xl font-bold text-white">{{ usersCount }}</p>
-              </div>
-              <div class="h-10 w-px bg-white/20"></div>
-              <div class="text-right">
-                <p class="text-sm text-white opacity-90">المخازن النشطة</p>
-                <p class="text-2xl font-bold text-white">{{ activeWarehousesCount }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+  <div class="sky-background">
+    <!-- Animated Background Elements -->
+    <div class="clouds">
+      <div class="cloud cloud-1"></div>
+      <div class="cloud cloud-2"></div>
+      <div class="cloud cloud-3"></div>
+    </div>
+
+    <div class="celestial-body" :class="{ 'moon-mode': isDarkMode }">
+      <div class="sun" v-if="!isDarkMode"></div>
+      <div class="moon" v-else>
+        <div class="moon-crater"></div>
+        <div class="moon-crater small"></div>
+        <div class="moon-crater"></div>
       </div>
     </div>
 
-    <!-- Quick Actions Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <router-link 
-        to="/users"
-        class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="h-12 w-12 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-            <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-            </svg>
-          </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">{{ usersCount }} مستخدم</span>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">إدارة المستخدمين</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">إنشاء وتعديل المستخدمين، تعيين الأدوار والصلاحيات</p>
-        <span class="inline-flex items-center text-sm text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-          الدخول إلى لوحة التحكم
-          <svg class="w-4 h-4 mr-2 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </span>
-      </router-link>
-
-      <router-link 
-        to="/inventory"
-        class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md hover:border-green-300 dark:hover:border-green-700 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
-            <svg class="h-6 w-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-            </svg>
-          </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">{{ totalItems }} صنف</span>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">إدارة المخزون</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">عرض وتعديل جميع الأصناف في جميع المخازن</p>
-        <span class="inline-flex items-center text-sm text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300">
-          عرض المخزون الكامل
-          <svg class="w-4 h-4 mr-2 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </span>
-      </router-link>
-
-      <router-link 
-        to="/transactions"
-        class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-            <svg class="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-            </svg>
-          </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">{{ todayTransactions }} حركة اليوم</span>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">سجل الحركات</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">مراقبة جميع عمليات النقل والإضافة والصرف</p>
-        <span class="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
-          عرض السجل الكامل
-          <svg class="w-4 h-4 mr-2 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </span>
-      </router-link>
-
-      <button 
-        @click="showQuickAddModal = true"
-        class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200 text-right"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-            <svg class="h-6 w-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-          </div>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">إضافة فورية</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">إضافة صنف جديد أو مستخدم أو حركة بسرعة</p>
-        <span class="inline-flex items-center text-sm text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300">
-          بدء الإضافة
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-          </svg>
-        </span>
-      </button>
+    <div v-if="isDarkMode" class="stars">
+      <div v-for="n in 50" :key="n" class="star" :style="{
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 5}s`,
+        animationDuration: `${1 + Math.random() * 2}s`
+      }"></div>
     </div>
 
-    <!-- System Overview -->
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">نظرة عامة على النظام</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">إحصائيات وأداء النظام</p>
-      </div>
-      <div class="p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- System Health -->
-          <div class="lg:col-span-2">
-            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">صحة النظام</h4>
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <div class="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
-                    <svg class="h-5 w-5 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">قاعدة البيانات</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">متصل وجاهز</p>
-                  </div>
-                </div>
-                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">ممتاز</span>
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
-                    <svg class="h-5 w-5 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">الأمان</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">مستوى أمان عالي</p>
-                  </div>
-                </div>
-                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">آمن</span>
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <div class="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mr-3">
-                    <svg class="h-5 w-5 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">الذاكرة</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">استخدام ذاكرة معقول</p>
-                  </div>
-                </div>
-                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">85%</span>
-              </div>
+    <!-- Main Content -->
+    <div class="dashboard-container">
+      <!-- Desktop Header -->
+      <header class="glass-header">
+        <div class="header-content">
+          <!-- Logo -->
+          <router-link to="/" class="logo-container">
+            <div class="logo-icon">
+              <span class="logo-text">م</span>
             </div>
-          </div>
-
-          <!-- Recent Activities -->
-          <div>
-            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">أحدث الأنشطة</h4>
-            <div class="space-y-3">
-              <div v-for="activity in recentActivities" :key="activity.id" class="flex items-start">
-                <div :class="['h-8 w-8 rounded-full flex items-center justify-center mr-2', getActivityColor(activity.type)]">
-                  <component :is="getActivityIcon(activity.type)" class="h-4 w-4 text-white" />
-                </div>
-                <div class="flex-1">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ activity.description }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatTimeAgo(activity.timestamp) }}</p>
-                </div>
-              </div>
+            <div class="logo-text-container">
+              <h1 class="logo-title">لوحة التحكم الرئيسية</h1>
+              <p class="logo-subtitle">نظام إدارة المخزون المتكامل</p>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </router-link>
 
-    <!-- Critical Alerts -->
-    <div v-if="criticalAlerts.length > 0" class="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl shadow-sm">
-      <div class="px-6 py-4 border-b border-red-100 dark:border-red-800">
-        <div class="flex items-center">
-          <svg class="h-5 w-5 text-red-500 dark:text-red-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-          </svg>
-          <h3 class="text-lg font-semibold text-red-800 dark:text-red-200">تنبيهات مهمة</h3>
-          <span class="mr-3 text-xs font-medium px-2 py-1 rounded-full bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-            {{ criticalAlerts.length }}
-          </span>
-        </div>
-      </div>
-      <div class="p-6">
-        <div class="space-y-3">
-          <div v-for="alert in criticalAlerts" :key="alert.id" class="flex items-start">
-            <div class="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center mr-3">
-              <svg class="h-4 w-4 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+          <!-- User Controls -->
+          <div class="user-controls">
+            <!-- Theme Toggle -->
+            <button @click="toggleDarkMode" class="theme-toggle">
+              <svg v-if="isDarkMode" class="sun-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5" fill="currentColor"/>
+                <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2"/>
+                <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2"/>
+                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/>
+                <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2"/>
+                <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
               </svg>
+              <svg v-else class="moon-icon" viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <!-- Notifications -->
+            <div class="notifications-container">
+              <button @click="toggleNotifications" class="notifications-btn" :class="{ 'has-notifications': notificationCount > 0 }">
+                <svg class="bell-icon" viewBox="0 0 24 24">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" 
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span v-if="notificationCount > 0" class="notification-badge">
+                  {{ notificationCount > 9 ? '9+' : notificationCount }}
+                </span>
+              </button>
             </div>
-            <div class="flex-1">
-              <p class="text-sm font-medium text-red-800 dark:text-red-200">{{ alert.message }}</p>
-              <div class="flex items-center mt-1">
-                <span class="text-xs text-red-600 dark:text-red-400">{{ formatTimeAgo(alert.timestamp) }}</span>
-                <button @click="resolveAlert(alert.id)" class="mr-3 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
-                  تم الحل
-                </button>
-              </div>
+
+            <!-- User Profile -->
+            <div class="user-profile-container">
+              <button @click="toggleUserMenu" class="user-profile-btn">
+                <div class="user-avatar" :style="{ background: userAvatarColor }">
+                  {{ getUserInitials(userName) }}
+                </div>
+                <div class="user-info">
+                  <p class="user-name">{{ userName }}</p>
+                  <p class="user-role">{{ getRoleName(userRole) }}</p>
+                </div>
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </header>
 
-    <!-- Quick Actions Modal -->
-    <div v-if="showQuickAddModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md rtl">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">إضافة فورية</h3>
-            <button @click="showQuickAddModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-              <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      <!-- Welcome Banner -->
+      <div class="welcome-banner">
+        <div class="welcome-content">
+          <div class="welcome-text">
+            <h2>مرحباً، {{ userName }}! 👋</h2>
+            <p>هذه نظرة عامة على أداء نظام المخزون</p>
+          </div>
+          <div class="welcome-stats">
+            <div class="stat-item">
+              <span class="stat-label">آخر تحديث</span>
+              <span class="stat-value">{{ formatTime(lastUpdate) }}</span>
+            </div>
+            <button @click="refreshData" class="refresh-btn" :disabled="loading">
+              <svg :class="{'animate-spin': loading}" class="refresh-icon" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
+              تحديث البيانات
             </button>
           </div>
         </div>
-        <div class="p-6 space-y-4">
-          <button 
-            @click="openAddUser"
-            class="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-          >
-            <div class="flex items-center">
-              <div class="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mr-3">
-                <svg class="h-5 w-5 text-indigo-600 dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-              </div>
-              <div class="text-right">
-                <p class="font-medium text-gray-900 dark:text-white">إضافة مستخدم جديد</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إنشاء حساب جديد وتعيين الصلاحيات</p>
-              </div>
-            </div>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
+      </div>
 
-          <button 
-            @click="openAddItem"
-            class="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-          >
-            <div class="flex items-center">
-              <div class="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
-                <svg class="h-5 w-5 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+      <!-- Main Dashboard Content -->
+      <div class="main-dashboard-content">
+        <!-- Stats Grid - 4 Modern Cards -->
+        <div class="stats-grid">
+          <!-- Total Items Card -->
+          <div class="stat-card" @mouseenter="hoverCard('total')" @mouseleave="resetCard">
+            <div class="stat-icon-wrapper" :class="{ 'hovered': hoveredCard === 'total' }">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
                 </svg>
               </div>
-              <div class="text-right">
-                <p class="font-medium text-gray-900 dark:text-white">إضافة صنف جديد</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إضافة صنف إلى المخزون</p>
-              </div>
             </div>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
+            <div class="stat-content">
+              <div class="stat-header">
+                <h3 class="stat-title">إجمالي الأصناف</h3>
+                <span class="stat-change" :class="statsChange.totalItems >= 0 ? 'positive' : 'negative'">
+                  <svg v-if="statsChange.totalItems >= 0" class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="18 15 12 9 6 15" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <svg v-else class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  {{ Math.abs(statsChange.totalItems) }}%
+                </span>
+              </div>
+              <p class="stat-value">{{ formatNumber(dashboardStats.totalItems) }}</p>
+              <p class="stat-description">صنف في النظام</p>
+            </div>
+            <div class="stat-sparkline">
+              <div class="sparkline-bar" v-for="(value, index) in sparklineData.total" 
+                   :key="index" :style="{ height: `${value}%` }"></div>
+            </div>
+          </div>
 
-          <button 
-            @click="openAddTransaction"
-            class="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-          >
-            <div class="flex items-center">
-              <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
-                <svg class="h-5 w-5 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+          <!-- Total Quantity Card -->
+          <div class="stat-card" @mouseenter="hoverCard('quantity')" @mouseleave="resetCard">
+            <div class="stat-icon-wrapper" :class="{ 'hovered': hoveredCard === 'quantity' }">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
                 </svg>
               </div>
-              <div class="text-right">
-                <p class="font-medium text-gray-900 dark:text-white">تسجيل حركة</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">نقل أو صرف أصناف</p>
+            </div>
+            <div class="stat-content">
+              <div class="stat-header">
+                <h3 class="stat-title">إجمالي الكمية</h3>
+                <span class="stat-change" :class="statsChange.totalQuantity >= 0 ? 'positive' : 'negative'">
+                  <svg v-if="statsChange.totalQuantity >= 0" class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="18 15 12 9 6 15" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <svg v-else class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  {{ Math.abs(statsChange.totalQuantity) }}%
+                </span>
+              </div>
+              <p class="stat-value">{{ formatNumber(dashboardStats.totalQuantity) }}</p>
+              <p class="stat-description">وحدة متاحة</p>
+            </div>
+            <div class="stat-sparkline">
+              <div class="sparkline-bar" v-for="(value, index) in sparklineData.quantity" 
+                   :key="index" :style="{ height: `${value}%` }"></div>
+            </div>
+          </div>
+
+          <!-- Low Stock Card -->
+          <div class="stat-card warning" @mouseenter="hoverCard('low')" @mouseleave="resetCard">
+            <div class="stat-icon-wrapper" :class="{ 'hovered': hoveredCard === 'low' }">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
               </div>
             </div>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            <div class="stat-content">
+              <div class="stat-header">
+                <h3 class="stat-title">أصناف منخفضة</h3>
+                <span class="stat-change" :class="statsChange.lowStockItems >= 0 ? 'negative' : 'positive'">
+                  <svg v-if="statsChange.lowStockItems >= 0" class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <svg v-else class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="18 15 12 9 6 15" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  {{ Math.abs(statsChange.lowStockItems) }}
+                </span>
+              </div>
+              <p class="stat-value">{{ formatNumber(dashboardStats.lowStockItems) }}</p>
+              <p class="stat-description">أقل من 10 وحدات</p>
+            </div>
+            <div class="stat-sparkline">
+              <div class="sparkline-bar" v-for="(value, index) in sparklineData.low" 
+                   :key="index" :style="{ height: `${value}%` }"></div>
+            </div>
+          </div>
+
+          <!-- Recent Activity Card -->
+          <div class="stat-card" @mouseenter="hoverCard('activity')" @mouseleave="resetCard">
+            <div class="stat-icon-wrapper" :class="{ 'hovered': hoveredCard === 'activity' }">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+            </div>
+            <div class="stat-content">
+              <div class="stat-header">
+                <h3 class="stat-title">الحركات اليوم</h3>
+                <span class="stat-change" :class="statsChange.recentTransactions >= 0 ? 'positive' : 'negative'">
+                  <svg v-if="statsChange.recentTransactions >= 0" class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="18 15 12 9 6 15" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <svg v-else class="change-icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  {{ Math.abs(statsChange.recentTransactions) }}%
+                </span>
+              </div>
+              <p class="stat-value">{{ formatNumber(dashboardStats.recentTransactions) }}</p>
+              <p class="stat-description">عملية خلال 24 ساعة</p>
+            </div>
+            <div class="stat-sparkline">
+              <div class="sparkline-bar" v-for="(value, index) in sparklineData.activity" 
+                   :key="index" :style="{ height: `${value}%` }"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts and Data Section -->
+        <div class="dashboard-section">
+          <!-- Recent Transactions -->
+          <div class="section-card">
+            <div class="section-header">
+              <h3>آخر الحركات</h3>
+              <router-link to="/transactions" class="view-all-link">عرض الكل</router-link>
+            </div>
+            <div class="transactions-list">
+              <div v-if="recentTransactionsLoading" class="loading-state">
+                <div class="spinner"></div>
+                <p>جاري تحميل الحركات...</p>
+              </div>
+              <div v-else-if="recentTransactions.length === 0" class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 24 24">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <p>لا توجد حركات حديثة</p>
+              </div>
+              <div v-else class="transactions-items">
+                <div v-for="transaction in recentTransactions.slice(0, 5)" :key="transaction.id" 
+                     class="transaction-item">
+                  <div class="transaction-type" :class="transaction.type">
+                    <div class="type-icon">
+                      <svg v-if="transaction.type === 'add'" viewBox="0 0 24 24">
+                        <path d="M12 4v16m8-8H4" fill="none" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      <svg v-else-if="transaction.type === 'transfer'" viewBox="0 0 24 24">
+                        <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" fill="none" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12" fill="none" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                    </div>
+                    <span class="type-label">{{ getTransactionLabel(transaction.type) }}</span>
+                  </div>
+                  <div class="transaction-details">
+                    <p class="item-name">{{ transaction.item_name || 'غير معروف' }}</p>
+                    <p class="item-code">{{ transaction.item_code }}</p>
+                  </div>
+                  <div class="transaction-info">
+                    <p class="quantity">{{ transaction.quantity }} وحدة</p>
+                    <p class="time">{{ formatTime(transaction.timestamp) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warehouse Distribution -->
+          <div class="section-card">
+            <div class="section-header">
+              <h3>توزيع المخزون</h3>
+              <div class="legend">
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #f59e0b"></span>
+                  <span class="legend-label">نشط</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #3b82f6"></span>
+                  <span class="legend-label">متوسط</span>
+                </div>
+              </div>
+            </div>
+            <div class="warehouse-distribution">
+              <div v-for="warehouse in warehouseStats" :key="warehouse.id" class="warehouse-bar">
+                <div class="warehouse-info">
+                  <span class="warehouse-name">{{ warehouse.name }}</span>
+                  <span class="warehouse-stats">{{ warehouse.items }} أصناف</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ 
+                    width: `${warehouse.fillPercentage}%`,
+                    background: warehouse.fillPercentage >= 80 ? '#f59e0b' : '#3b82f6'
+                  }"></div>
+                </div>
+                <div class="warehouse-quantity">{{ formatNumber(warehouse.quantity) }} وحدة</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions-section">
+          <h3>إجراءات سريعة</h3>
+          <div class="action-buttons">
+            <button v-if="canModifyItems" @click="openAddItemModal" class="action-btn primary">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 4v16m8-8H4" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <span>إضافة صنف جديد</span>
+            </button>
+
+            <button v-if="canModifyItems" @click="openTransferModal" class="action-btn secondary">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <span>نقل بين المخازن</span>
+            </button>
+
+            <button v-if="canModifyItems && canDispatch" @click="openDispatchModal" class="action-btn warning">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <span>صرف إلى خارجي</span>
+            </button>
+
+            <button @click="exportReport" class="action-btn info">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <span>تصدير تقرير</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mobile Bottom Navigation -->
+        <div class="mobile-nav" v-if="isMobile">
+          <router-link to="/dashboard" class="nav-item active">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
             </svg>
-          </button>
+            <span>الرئيسية</span>
+          </router-link>
+          
+          <router-link to="/inventory" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+            </svg>
+            <span>المخزون</span>
+          </router-link>
+          
+          <router-link to="/transactions" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span>الحركات</span>
+          </router-link>
+          
+          <router-link to="/profile" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span>الحساب</span>
+          </router-link>
         </div>
       </div>
     </div>
@@ -308,220 +407,1446 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
-// Activity Icons Components
-const AddUserIcon = {
-  template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>`
-};
-
-const AddItemIcon = {
-  template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>`
-};
-
-const TransferIcon = {
-  template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>`
-};
-
-const AlertIcon = {
-  template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>`
-};
-
 export default {
-  name: 'SuperadminDashboard',
-  components: {
-    AddUserIcon,
-    AddItemIcon,
-    TransferIcon,
-    AlertIcon
-  },
+  name: 'AnalyticsDashboard',
+  
   setup() {
     const store = useStore();
     const router = useRouter();
     
-    const showQuickAddModal = ref(false);
-
+    // State
+    const isDarkMode = ref(false);
+    const loading = ref(false);
+    const hoveredCard = ref(null);
+    const lastUpdate = ref(new Date());
+    
     // Computed properties
-    const usersCount = computed(() => {
-      return store.state.inventory?.length || 0; // Mock data - replace with actual users count
+    const userRole = computed(() => store.getters.userRole);
+    const userName = computed(() => store.getters.userName);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const recentTransactions = computed(() => store.state.recentTransactions);
+    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading);
+    
+    const canModifyItems = computed(() => store.getters.canEdit);
+    const canDispatch = computed(() => store.getters.canDispatch);
+    
+    // Mock sparkline data
+    const sparklineData = ref({
+      total: [30, 45, 35, 50, 40, 55, 60],
+      quantity: [40, 35, 45, 50, 55, 60, 65],
+      low: [20, 25, 30, 35, 40, 45, 50],
+      activity: [10, 15, 12, 18, 20, 22, 25]
     });
-
-    const activeWarehousesCount = computed(() => {
-      return store.state.warehouses?.filter(w => w.type === 'primary').length || 0;
+    
+    // Mock stats change
+    const statsChange = ref({
+      totalItems: 12,
+      totalQuantity: 8,
+      lowStockItems: -3,
+      recentTransactions: 15
     });
-
-    const totalItems = computed(() => {
-      return store.state.inventory?.length || 0;
+    
+    // Mock warehouse stats
+    const warehouseStats = computed(() => {
+      const warehouses = store.state.warehouses || [];
+      return warehouses.slice(0, 4).map(warehouse => ({
+        id: warehouse.id,
+        name: warehouse.name_ar || warehouse.name,
+        items: Math.floor(Math.random() * 50) + 20,
+        quantity: Math.floor(Math.random() * 1000) + 500,
+        fillPercentage: Math.floor(Math.random() * 30) + 50
+      }));
     });
-
-    const todayTransactions = computed(() => {
-      return store.state.transactions?.filter(t => {
-        const date = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-        return date.toDateString() === new Date().toDateString();
-      }).length || 0;
+    
+    const notificationCount = computed(() => {
+      return store.getters.dashboardStats?.lowStockItems || 0;
     });
-
-    // Mock data - replace with actual data from store
-    const recentActivities = computed(() => [
-      { id: 1, type: 'add_user', description: 'تم إضافة مستخدم جديد: مدير مخزن جديد', timestamp: new Date(Date.now() - 3600000) },
-      { id: 2, type: 'add_item', description: 'تم إضافة 50 كرتون من عطر فلورا', timestamp: new Date(Date.now() - 7200000) },
-      { id: 3, type: 'transfer', description: 'نقل 100 قطعة من مخزن الشيخ إلى مخزن الترعة', timestamp: new Date(Date.now() - 10800000) },
-      { id: 4, type: 'alert', description: 'تنبيه: مخزون عطر نايت منخفض', timestamp: new Date(Date.now() - 14400000) }
-    ]);
-
-    const criticalAlerts = computed(() => [
-      { id: 1, type: 'low_stock', message: '3 أصناف عندها كميات منخفضة جداً', timestamp: new Date(Date.now() - 3600000) },
-      { id: 2, type: 'inactive_user', message: 'مستخدم لم يسجل دخول منذ 30 يوم', timestamp: new Date(Date.now() - 7200000) }
-    ]);
-
-    // Helper functions
-    const getActivityColor = (type) => {
+    
+    const userAvatarColor = computed(() => {
       const colors = {
-        add_user: 'bg-indigo-500',
-        add_item: 'bg-green-500',
-        transfer: 'bg-blue-500',
-        alert: 'bg-red-500'
+        superadmin: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+        warehouse_manager: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+        company_manager: 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
       };
-      return colors[type] || 'bg-gray-500';
+      return colors[userRole.value] || 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+    });
+    
+    // Check if mobile
+    const isMobile = computed(() => window.innerWidth < 768);
+    
+    // Methods
+    const toggleDarkMode = () => {
+      isDarkMode.value = !isDarkMode.value;
+      document.documentElement.classList.toggle('dark', isDarkMode.value);
+      localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
     };
-
-    const getActivityIcon = (type) => {
-      const icons = {
-        add_user: 'AddUserIcon',
-        add_item: 'AddItemIcon',
-        transfer: 'TransferIcon',
-        alert: 'AlertIcon'
+    
+    const toggleUserMenu = () => {
+      // Implement user menu toggle
+    };
+    
+    const toggleNotifications = () => {
+      // Implement notifications toggle
+    };
+    
+    const hoverCard = (card) => {
+      hoveredCard.value = card;
+    };
+    
+    const resetCard = () => {
+      hoveredCard.value = null;
+    };
+    
+    const refreshData = async () => {
+      loading.value = true;
+      try {
+        await store.dispatch('getRecentTransactions');
+        lastUpdate.value = new Date();
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const formatNumber = (num) => {
+      return new Intl.NumberFormat('ar-EG').format(num);
+    };
+    
+    const formatTime = (date) => {
+      if (!date) return '';
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    };
+    
+    const getRoleName = (role) => {
+      const names = {
+        superadmin: 'المشرف العام',
+        warehouse_manager: 'مدير المخازن',
+        company_manager: 'مدير الشركة'
       };
-      return icons[type] || 'AlertIcon';
+      return names[role] || role;
     };
-
-    const formatTimeAgo = (timestamp) => {
-      const now = new Date();
-      const diff = now - timestamp;
-      
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-      
-      if (minutes < 60) return `قبل ${minutes} دقيقة`;
-      if (hours < 24) return `قبل ${hours} ساعة`;
-      return `قبل ${days} يوم`;
+    
+    const getUserInitials = (name) => {
+      if (!name) return '??';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     };
-
-    const openAddUser = () => {
-      showQuickAddModal.value = false;
-      router.push('/users/add');
+    
+    const getTransactionLabel = (type) => {
+      const labels = {
+        add: 'إضافة',
+        transfer: 'نقل',
+        dispatch: 'صرف'
+      };
+      return labels[type] || type;
     };
-
-    const openAddItem = () => {
-      showQuickAddModal.value = false;
-      router.push('/inventory/add');
+    
+    const openAddItemModal = () => {
+      // Implement modal opening
     };
-
-    const openAddTransaction = () => {
-      showQuickAddModal.value = false;
-      router.push('/transactions/add');
+    
+    const openTransferModal = () => {
+      // Implement modal opening
     };
-
-    const resolveAlert = (alertId) => {
-      console.log('Resolving alert:', alertId);
-      // Implement alert resolution logic
+    
+    const openDispatchModal = () => {
+      // Implement modal opening
     };
-
-    const exportSystemReport = () => {
-      console.log('Exporting system report...');
+    
+    const exportReport = () => {
       // Implement export functionality
     };
-
+    
+    // Lifecycle
     onMounted(() => {
-      // Load any additional data needed for superadmin dashboard
-      store.dispatch('loadAllUsers');
+      // Load initial data
+      store.dispatch('getRecentTransactions');
+      
+      // Check theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
+      }
+      
+      // Check if mobile
+      window.addEventListener('resize', () => {
+        // Handle resize if needed
+      });
     });
-
+    
     return {
-      showQuickAddModal,
-      usersCount,
-      activeWarehousesCount,
-      totalItems,
-      todayTransactions,
-      recentActivities,
-      criticalAlerts,
-      getActivityColor,
-      getActivityIcon,
-      formatTimeAgo,
-      openAddUser,
-      openAddItem,
-      openAddTransaction,
-      resolveAlert,
-      exportSystemReport
+      // State
+      isDarkMode,
+      loading,
+      hoveredCard,
+      lastUpdate,
+      sparklineData,
+      statsChange,
+      
+      // Computed
+      userRole,
+      userName,
+      dashboardStats,
+      recentTransactions,
+      recentTransactionsLoading,
+      canModifyItems,
+      canDispatch,
+      warehouseStats,
+      notificationCount,
+      userAvatarColor,
+      isMobile,
+      
+      // Methods
+      toggleDarkMode,
+      toggleUserMenu,
+      toggleNotifications,
+      hoverCard,
+      resetCard,
+      refreshData,
+      formatNumber,
+      formatTime,
+      getRoleName,
+      getUserInitials,
+      getTransactionLabel,
+      openAddItemModal,
+      openTransferModal,
+      openDispatchModal,
+      exportReport
     };
   }
 };
 </script>
 
 <style scoped>
-/* Custom animations */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* Sky Background */
+.sky-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);
+  transition: background 1s ease;
 }
 
-.pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.dark .sky-background {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
 }
 
-/* Gradient borders */
-.gradient-border {
+/* Clouds */
+.clouds {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.cloud {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.3);
+}
+
+.dark .cloud {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+}
+
+.cloud-1 {
+  width: 200px;
+  height: 80px;
+  top: 10%;
+  left: 5%;
+  animation: floatCloud 60s linear infinite;
+}
+
+.cloud-2 {
+  width: 150px;
+  height: 60px;
+  top: 30%;
+  right: 10%;
+  animation: floatCloud 40s linear infinite reverse;
+}
+
+.cloud-3 {
+  width: 180px;
+  height: 70px;
+  bottom: 20%;
+  left: 20%;
+  animation: floatCloud 50s linear infinite;
+}
+
+@keyframes floatCloud {
+  0% {
+    transform: translateX(-100px);
+  }
+  100% {
+    transform: translateX(calc(100vw + 100px));
+  }
+}
+
+/* Celestial Body */
+.celestial-body {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  z-index: 1;
+}
+
+.sun {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 40px #f59e0b;
+  animation: pulseSun 4s ease-in-out infinite;
+}
+
+.moon {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 30px #94a3b8;
   position: relative;
 }
 
-.gradient-border::before {
-  content: '';
+.moon-crater {
+  position: absolute;
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 50%;
+}
+
+.moon-crater:nth-child(1) {
+  width: 15px;
+  height: 15px;
+  top: 15px;
+  left: 15px;
+}
+
+.moon-crater.small {
+  width: 10px;
+  height: 10px;
+  bottom: 20px;
+  right: 20px;
+}
+
+.moon-crater:nth-child(3) {
+  width: 12px;
+  height: 12px;
+  bottom: 10px;
+  left: 10px;
+}
+
+@keyframes pulseSun {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Stars */
+.stars {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 2s infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Dashboard Container */
+.dashboard-container {
+  position: relative;
+  min-height: 100vh;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .dashboard-container {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Glass Header */
+.glass-header {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.dark .glass-header {
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.logo-text {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.logo-title {
+  font-size: 1.125rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin: 0;
+}
+
+.dark .logo-title {
+  color: #f3f4f6;
+}
+
+.logo-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.dark .logo-subtitle {
+  color: #9ca3af;
+}
+
+/* User Controls */
+.user-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.theme-toggle {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sun-icon, .moon-icon {
+  width: 20px;
+  height: 20px;
+  color: #6b7280;
+}
+
+.dark .sun-icon, .dark .moon-icon {
+  color: #9ca3af;
+}
+
+.sun-icon {
+  color: #f59e0b;
+}
+
+/* Notifications */
+.notifications-container {
+  position: relative;
+}
+
+.notifications-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.notifications-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .notifications-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.has-notifications .bell-icon {
+  color: #ef4444;
+  animation: bellRing 0.5s ease;
+}
+
+.bell-icon {
+  width: 20px;
+  height: 20px;
+  color: #6b7280;
+}
+
+.dark .bell-icon {
+  color: #9ca3af;
+}
+
+.notification-badge {
   position: absolute;
   top: -2px;
-  left: -2px;
   right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899);
-  border-radius: inherit;
-  z-index: -1;
+  background: #ef4444;
+  color: white;
+  font-size: 0.625rem;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
 }
 
-/* Custom scrollbar for activity list */
-.activity-scroll {
-  max-height: 300px;
-  overflow-y: auto;
+@keyframes bellRing {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(15deg);
+  }
+  75% {
+    transform: rotate(-15deg);
+  }
 }
 
-.activity-scroll::-webkit-scrollbar {
-  width: 4px;
+/* User Profile */
+.user-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.activity-scroll::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.user-profile-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .user-profile-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.user-info {
+  text-align: right;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .user-name {
+  color: #f3f4f6;
+}
+
+.user-role {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .user-role {
+  color: #9ca3af;
+}
+
+/* Welcome Banner */
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 16px;
+  margin: 1.5rem auto;
+  max-width: 1400px;
+  padding: 1.5rem;
+}
+
+.dark .welcome-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.welcome-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.welcome-text h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.dark .welcome-text h2 {
+  color: #f3f4f6;
+}
+
+.welcome-text p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.dark .welcome-text p {
+  color: #9ca3af;
+}
+
+.welcome-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .stat-label {
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .stat-value {
+  color: #f3f4f6;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Main Dashboard Content */
+.main-dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+}
+
+/* Stats Grid - 4 Modern Cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.dark .stat-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.dark .stat-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.stat-icon-wrapper {
+  flex-shrink: 0;
+}
+
+.stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.stat-card.warning .stat-icon {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+}
+
+.stat-icon svg {
+  width: 24px;
+  height: 24px;
+  color: #f59e0b;
+}
+
+.stat-card.warning .stat-icon svg {
+  color: #ef4444;
+}
+
+.stat-icon-wrapper.hovered .stat-icon {
+  transform: scale(1.1) rotate(5deg);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.stat-card.warning .stat-icon-wrapper.hovered .stat-icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-icon-wrapper.hovered .stat-icon svg {
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stat-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.dark .stat-title {
+  color: #9ca3af;
+}
+
+.stat-change {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.stat-change.positive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.stat-change.negative {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.change-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.stat-value {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.dark .stat-value {
+  color: #f3f4f6;
+}
+
+.stat-card.warning .stat-value {
+  color: #ef4444;
+}
+
+.stat-description {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .stat-description {
+  color: #9ca3af;
+}
+
+.stat-sparkline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 0 1.5rem 0.5rem;
+  opacity: 0.3;
+}
+
+.sparkline-bar {
+  width: 6px;
+  background: linear-gradient(to top, #f59e0b, transparent);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.3s ease;
+}
+
+.stat-card.warning .sparkline-bar {
+  background: linear-gradient(to top, #ef4444, transparent);
+}
+
+/* Dashboard Section */
+.dashboard-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-section {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.section-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.dark .section-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .section-header h3 {
+  color: #f3f4f6;
+}
+
+.view-all-link {
+  font-size: 0.875rem;
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.legend {
+  display: flex;
+  gap: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
   border-radius: 2px;
 }
 
-.activity-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
+.legend-label {
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 
-.activity-scroll::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.dark .legend-label {
+  color: #9ca3af;
 }
 
-.dark .activity-scroll::-webkit-scrollbar-track {
+/* Transactions List */
+.transactions-list {
+  min-height: 300px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f4f6;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-state p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.dark .loading-state p {
+  color: #9ca3af;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 1rem;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: #d1d5db;
+}
+
+.dark .empty-icon {
+  color: #4b5563;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.dark .empty-state p {
+  color: #9ca3af;
+}
+
+.transactions-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(249, 250, 251, 0.5);
+  border-radius: 12px;
+  transition: background-color 0.2s;
+}
+
+.dark .transaction-item {
+  background: rgba(31, 41, 55, 0.5);
+}
+
+.transaction-item:hover {
+  background: rgba(249, 250, 251, 0.8);
+}
+
+.dark .transaction-item:hover {
+  background: rgba(31, 41, 55, 0.8);
+}
+
+.transaction-type {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  min-width: 100px;
+}
+
+.transaction-type.add {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
+.transaction-type.transfer {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+}
+
+.transaction-type.dispatch {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.type-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.type-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.transaction-details {
+  flex: 1;
+}
+
+.item-name {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .item-name {
+  color: #f3f4f6;
+}
+
+.item-code {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .item-code {
+  color: #9ca3af;
+}
+
+.transaction-info {
+  text-align: right;
+}
+
+.quantity {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .quantity {
+  color: #f3f4f6;
+}
+
+.time {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .time {
+  color: #9ca3af;
+}
+
+/* Warehouse Distribution */
+.warehouse-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.warehouse-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.warehouse-info {
+  flex: 1;
+  min-width: 120px;
+}
+
+.warehouse-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.dark .warehouse-name {
+  color: #f3f4f6;
+}
+
+.warehouse-stats {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .warehouse-stats {
+  color: #9ca3af;
+}
+
+.progress-bar {
+  flex: 2;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dark .progress-bar {
   background: #374151;
 }
 
-.dark .activity-scroll::-webkit-scrollbar-thumb {
-  background: #4b5563;
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
-.dark .activity-scroll::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+.warehouse-quantity {
+  min-width: 80px;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .warehouse-quantity {
+  color: #f3f4f6;
+}
+
+/* Quick Actions */
+.quick-actions-section {
+  margin-bottom: 2rem;
+}
+
+.quick-actions-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .quick-actions-section h3 {
+  color: #f3f4f6;
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: right;
+}
+
+.dark .action-btn {
+  background: #1f2937;
+}
+
+.action-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.action-icon svg {
+  width: 20px;
+  height: 20px;
+  color: white;
+}
+
+.action-btn.primary .action-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.action-btn.secondary .action-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.action-btn.warning .action-icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.action-btn.info .action-icon {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+
+.action-btn span {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  flex: 1;
+}
+
+.dark .action-btn span {
+  color: #f3f4f6;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dark .action-btn:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile Navigation */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.75rem 0;
+  z-index: 1000;
+}
+
+.dark .mobile-nav {
+  background: #1f2937;
+  border-top: 1px solid #374151;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: #6b7280;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.dark .nav-item {
+  color: #9ca3af;
+}
+
+.nav-item.active {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-item span {
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .welcome-content {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .welcome-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .main-dashboard-content {
+    padding-bottom: 5rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .glass-header,
+  .mobile-nav,
+  .action-buttons,
+  .refresh-btn,
+  .theme-toggle,
+  .notifications-btn,
+  .user-profile-btn {
+    display: none !important;
+  }
+  
+  .sky-background {
+    background: white !important;
+  }
+  
+  .clouds, .celestial-body, .stars {
+    display: none !important;
+  }
+  
+  .dashboard-container {
+    background: white !important;
+  }
+  
+  .stat-card, .section-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #e5e7eb !important;
+    background: white !important;
+  }
 }
 </style>
