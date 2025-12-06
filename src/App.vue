@@ -640,7 +640,7 @@ import AddUserModal from '@/components/users/AddUserModal.vue';
 export default {
   name: 'App',
   components: {
-    UserManagement
+    UserManagementModal
   },
   
   setup() {
@@ -944,3 +944,4 @@ export default {
   animation: gradient 15s ease infinite;
 }
 </style>
+
