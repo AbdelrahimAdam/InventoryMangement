@@ -281,127 +281,163 @@ export default createStore({
       });
     },
 
-    async createUserProfile({ commit, dispatch }, user) {
-      try {
-        // Determine role based on email for demo users
-        let userProfile = {
-          email: user.email,
-          role: 'company_manager',
-          name: user.email.split('@')[0],
-          allowed_warehouses: [],
-          permissions: ['view_reports'],
-          created_at: new Date()
-        };
-
-        // Set specific roles for demo accounts
-        if (user.email === 'superadmin@monofia.com') {
-          userProfile = {
-            ...userProfile,
-            role: 'superadmin',
-            name: 'المشرف العام',
-            allowed_warehouses: ['main_warehouse', 'tera_warehouse', 'shobeen_warehouse', 'hyper_warehouse', 'matbaa_warehouse', 'ghabashi_warehouse', 'factory', 'zahra'],
-            permissions: ['all']
-          };
-        } else if (user.email === 'warehouse@monofia.com') {
-          userProfile = {
-            ...userProfile,
-            role: 'warehouse_manager',
-            name: 'مدير المخازن',
-            allowed_warehouses: ['main_warehouse', 'tera_warehouse', 'shobeen_warehouse', 'hyper_warehouse'],
-            permissions: ['full_access', 'manage_inventory', 'create_transfers', 'dispatch_items', 'view_reports', 'delete_items', 'update_items']
-          };
-        } else if (user.email === 'company@monofia.com') {
-          userProfile = {
-            ...userProfile,
-            role: 'company_manager',
-            name: 'مدير الشركة',
-            allowed_warehouses: ['main_warehouse', 'tera_warehouse', 'shobeen_warehouse', 'hyper_warehouse', 'matbaa_warehouse', 'ghabashi_warehouse'],
-            permissions: ['view_reports', 'export_data']
-          };
-        }
-
-        await setDoc(doc(db, 'users', user.uid), userProfile);
-        commit('SET_USER_PROFILE', userProfile);
-
-        // Show notification
-        dispatch('showNotification', {
-          type: 'success',
-          message: `مرحباً ${userProfile.name}! تم إنشاء حسابك بنجاح.`
-        });
-
-        // Load warehouses after creating profile
-        await dispatch('loadWarehouses');
-
-      } catch (error) {
-        console.error('Error creating user profile:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في إنشاء حساب المستخدم'
-        });
-        throw error;
+   async createUserProfile({ commit, dispatch }, user) {
+  try {
+    // Get user document from Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    if (userDoc.exists()) {
+      const userProfile = userDoc.data();
+      
+      // Check if user is active
+      if (userProfile.is_active === false) {
+        throw new Error('حسابك غير نشط. يرجى التواصل مع المشرف.');
       }
-    },
+      
+      commit('SET_USER_PROFILE', userProfile);
+      console.log('User profile loaded:', userProfile.role, userProfile.permissions);
+
+      // Load warehouses
+      await dispatch('loadWarehouses');
+
+      // Start subscriptions
+      dispatch('subscribeToInventory');
+      dispatch('subscribeToTransactions');
+
+      // Load recent transactions
+      dispatch('getRecentTransactions');
+
+    } else {
+      // User profile doesn't exist in Firestore
+      // This should NOT happen for demo accounts - they should already exist
+      console.error('User profile not found for:', user.email);
+      
+      // Create minimal read-only profile
+      const tempProfile = {
+        email: user.email,
+        name: user.email.split('@')[0],
+        role: 'pending',
+        allowed_warehouses: [],
+        permissions: ['view_reports'],
+        is_active: false,
+        profile_complete: false,
+        needs_approval: true,
+        created_at: new Date()
+      };
+
+      await setDoc(doc(db, 'users', user.uid), tempProfile);
+      commit('SET_USER_PROFILE', tempProfile);
+
+      dispatch('showNotification', {
+        type: 'warning',
+        message: 'حسابك قيد المراجعة. يرجى الانتظار حتى يتم تفعيله من قبل المشرف.'
+      });
+
+      // Notify admin
+      const notificationRef = doc(collection(db, 'admin_notifications'));
+      await setDoc(notificationRef, {
+        type: 'new_user_needs_approval',
+        user_id: user.uid,
+        user_email: user.email,
+        timestamp: new Date(),
+        read: false
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in createUserProfile:', error);
+    
+    let errorMessage = 'حدث خطأ في تحميل بيانات المستخدم';
+    if (error.message.includes('غير نشط')) {
+      errorMessage = error.message;
+    }
+    
+    dispatch('showNotification', {
+      type: 'error',
+      message: errorMessage
+    });
+    
+    // Sign out the user if there's an issue
+    await dispatch('logout');
+    throw error;
+  }
+},
 
     async login({ commit, dispatch }, { email, password }) {
-      commit('SET_LOADING', true);
-      commit('SET_AUTH_ERROR', null);
+  commit('SET_LOADING', true);
+  commit('SET_AUTH_ERROR', null);
 
-      try {
-        console.log('Attempting login with:', email);
+  try {
+    console.log('Attempting login with:', email);
 
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-        console.log('Login successful, user:', user.uid);
+    console.log('Login successful, user:', user.uid);
 
-        // Get or create user profile
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userProfile = userDoc.data();
-          commit('SET_USER_PROFILE', userProfile);
-          console.log('User profile loaded:', userProfile.role, userProfile.allowed_warehouses);
+    // Get user document from Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    if (!userDoc.exists()) {
+      // This shouldn't happen for demo accounts
+      console.error('User profile not found in Firestore');
+      throw new Error('الملف الشخصي غير موجود. يرجى التواصل مع الدعم.');
+    }
 
-          // Show welcome notification
-          dispatch('showNotification', {
-            type: 'success',
-            message: `مرحباً ${userProfile.name}! تم تسجيل الدخول بنجاح.`
-          });
+    const userProfile = userDoc.data();
+    
+    // Check if user is active
+    if (userProfile.is_active === false) {
+      throw new Error('حسابك غير نشط. يرجى التواصل مع المشرف.');
+    }
+    
+    commit('SET_USER_PROFILE', userProfile);
+    console.log('User profile loaded:', userProfile.role);
 
-          // Load warehouses after login
-          await dispatch('loadWarehouses');
+    // Show welcome notification
+    dispatch('showNotification', {
+      type: 'success',
+      message: `مرحباً ${userProfile.name}! تم تسجيل الدخول بنجاح.`
+    });
 
-          // Start data subscriptions
-          dispatch('subscribeToInventory');
-          dispatch('subscribeToTransactions');
+    // Load warehouses
+    await dispatch('loadWarehouses');
 
-          // Load recent transactions for dashboard
-          dispatch('getRecentTransactions');
-        } else {
-          console.log('Creating new user profile...');
-          await dispatch('createUserProfile', user);
-        }
+    // Start data subscriptions
+    dispatch('subscribeToInventory');
+    dispatch('subscribeToTransactions');
 
-        commit('SET_USER', user);
+    // Load recent transactions
+    dispatch('getRecentTransactions');
 
-        return user;
+    commit('SET_USER', user);
+    return user;
 
-      } catch (error) {
-        console.error('Login error details:', error);
+  } catch (error) {
+    console.error('Login error details:', error);
+    
+    let errorMessage;
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = 'محاولات تسجيل دخول كثيرة. يرجى المحاولة لاحقاً';
+    } else if (error.message.includes('غير نشط')) {
+      errorMessage = error.message;
+    } else {
+      errorMessage = 'حدث خطأ أثناء تسجيل الدخول';
+    }
+    
+    commit('SET_AUTH_ERROR', errorMessage);
+    dispatch('showNotification', {
+      type: 'error',
+      message: errorMessage
+    });
 
-        const errorMessage = getAuthErrorMessage(error.code);
-        commit('SET_AUTH_ERROR', errorMessage);
-
-        // Show error notification
-        dispatch('showNotification', {
-          type: 'error',
-          message: errorMessage
-        });
-
-        throw new Error(errorMessage);
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
+    throw new Error(errorMessage);
+  } finally {
+    commit('SET_LOADING', false);
+  }
+},
 
     async logout({ commit, dispatch }) {
       try {
