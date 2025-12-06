@@ -1,54 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your App</title>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-
-    /* Hide URL bar for standalone apps */
-    @media all and (display-mode: standalone) {
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    
+    <!-- Arabic font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    
+    <title><%= htmlWebpackPlugin.options.title %></title>
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="<%= BASE_URL %>manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    
+    <style>
+      /* Loading styles */
+      #app-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 9999;
+        font-family: 'Tajawal', sans-serif;
+      }
+      
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* Base styles */
       body {
-        overscroll-behavior-y: none;
+        margin: 0;
+        padding: 0;
+        font-family: 'Tajawal', sans-serif;
+        background: #f5f5f5;
       }
-    }
-
-    /* Prevent layout shift under keyboard */
-    @media (max-height: 600px) {
-      #installBtn {
-        bottom: 10px;
+      
+      /* Hide when Vue loads */
+      body.vue-loaded #app-loading {
+        display: none;
       }
-    }
-
-    /* Extra styles if app is launched standalone */
-    @media (display-mode: standalone), (display-mode: minimal-ui) {
-      /* Additional PWA mode styles */
-    }
-  </style>
-</head>
-
-<body>
-
-  <h1>Your App</h1>
-  <p>Clean deployment — no missing JS, no service worker, no manifest.</p>
-
-  <script>
-    // This script is safe even without PWA or external JS
-    window.addEventListener('load', () => {
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('Running in standalone mode');
-      }
-    });
-  </script>
-
-</body>
+    </style>
+  </head>
+  <body>
+    <!-- Loading screen -->
+    <div id="app-loading">
+      <div class="loading-spinner"></div>
+      <h2>جاري تحميل النظام...</h2>
+      <p>نظام إدارة المخازن </p>
+    </div>
+    
+    <!-- Vue app mounts here -->
+    <noscript>
+      <div style="padding: 50px; text-align: center; background: #fee; color: #c00;">
+        <h2>⚠️ JavaScript مطلوب</h2>
+        <p>هذا التطبيق يتطلب تفعيل JavaScript في المتصفح.</p>
+        <p>يرجى تفعيل JavaScript وإعادة تحميل الصفحة.</p>
+      </div>
+    </noscript>
+    
+    <div id="app"></div>
+    
+    <!-- Auto-hide loading script -->
+    <script>
+      // Hide loading when Vue mounts
+      document.addEventListener('DOMContentLoaded', function() {
+        const appDiv = document.getElementById('app');
+        
+        // Check every 100ms if Vue has mounted
+        const checkInterval = setInterval(function() {
+          if (appDiv && appDiv.children.length > 0) {
+            console.log('✅ Vue mounted successfully');
+            document.body.classList.add('vue-loaded');
+            clearInterval(checkInterval);
+          }
+        }, 100);
+        
+        // Timeout after 10 seconds
+        setTimeout(function() {
+          clearInterval(checkInterval);
+          if (!document.body.classList.contains('vue-loaded')) {
+            console.error('❌ Vue did not mount in time');
+            // Show error
+            const loadingEl = document.getElementById('app-loading');
+            if (loadingEl) {
+              loadingEl.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                  <h2>⚠️ خطأ في التحميل</h2>
+                  <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
+                  <button onclick="window.location.reload()" style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
+                    إعادة التحميل
+                  </button>
+                </div>
+              `;
+            }
+          }
+        }, 10000);
+      });
+    </script>
+    
+    <!-- Built files will be auto injected -->
+  </body>
 </html>
-
-
