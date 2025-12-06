@@ -884,110 +884,173 @@ export default {
         }
       }
     };
+const handleSubmit = async () => {
+  if (!isFormValid.value) return;
 
-    const handleSubmit = async () => {
-      if (!isFormValid.value) return;
+  loading.value = true;
+  errorMessage.value = '';
+  validationErrors.value = [];
 
-      loading.value = true;
-      errorMessage.value = '';
+  try {
+    console.log('Starting user submission process...');
 
-      try {
-        // Prepare user data
-        const userData = {
-          name: formData.value.name.trim(),
-          email: formData.value.email.trim(),
-          role: formData.value.role,
-          is_active: formData.value.is_active,
-          phone: formData.value.phone.trim(),
-          allowed_warehouses: formData.value.role === 'warehouse_manager' 
-            ? formData.value.allowed_warehouses 
-            : [],
-          permissions: formData.value.permissions,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
+    // Get current user ID (superadmin creating the user)
+    const currentUserId = store.state.user?.uid;
+    if (!currentUserId) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
 
-        let result;
-        
-        if (props.user) {
-          // UPDATE EXISTING USER
-          userData.created_at = props.user.created_at;
-          userData.id = props.user.id;
-          
-          result = await store.dispatch('updateUser', {
-            userId: props.user.id,
-            userData: userData
-          });
-          
-          if (!result.success) {
-            throw new Error(result.error || 'فشل في تحديث المستخدم');
-          }
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم تحديث المستخدم بنجاح'
-          });
-          
-        } else {
-          // CREATE NEW USER
-          // Create Firebase Auth user first
-          const firebaseUser = await createUserWithEmailAndPassword(
-            auth,
-            userData.email,
-            formData.value.password
-          );
-          
-          // Add user ID to data
-          userData.id = firebaseUser.uid;
-          userData.created_by = store.state.user?.uid;
-          
-          // Save user profile to Firestore
-          await setDoc(doc(db, 'users', firebaseUser.uid), userData);
-          
-          // Store the password for display
-          const resultData = {
-            ...userData,
-            temporary_password: formData.value.password
-          };
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `تم إضافة المستخدم "${userData.name}" بنجاح`
-          });
-          
-          result = { success: true, data: resultData };
-        }
-
-        // Emit save event with result data
-        emit('save', result.data || userData);
-        
-        // Close modal
-        emit('close');
-        
-      } catch (error) {
-        console.error('Error in form submission:', error);
-        
-        let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
-        
-        // Translate Firebase errors
-        if (error.code === 'auth/email-already-in-use') {
-          errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
-        } else if (error.code === 'auth/invalid-email') {
-          errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-        } else if (error.code === 'auth/weak-password') {
-          errorMsg = 'كلمة المرور ضعيفة';
-        }
-        
-        errorMessage.value = errorMsg;
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: errorMsg
-        });
-      } finally {
-        loading.value = false;
-      }
+    // Prepare COMPLETE user data that matches Firebase rules
+    const userData = {
+      name: formData.value.name.trim(),
+      email: formData.value.email.trim().toLowerCase(),
+      role: formData.value.role,
+      is_active: formData.value.is_active !== false, // Ensure boolean
+      phone: formData.value.phone.trim() || null,
+      allowed_warehouses: formData.value.role === 'warehouse_manager' 
+        ? formData.value.allowed_warehouses 
+        : [],
+      permissions: Array.isArray(formData.value.permissions) 
+        ? formData.value.permissions 
+        : [],
+      // CRITICAL: Add fields required by Firebase rules
+      profile_complete: true,
+      email_verified: false,
+      created_by: currentUserId,
+      // Timestamps
+      created_at: new Date(),
+      updated_at: new Date(),
+      last_login: null
     };
+
+    console.log('Prepared user data for Firestore:', userData);
+
+    let result;
+    
+    if (props.user) {
+      // UPDATE EXISTING USER
+      console.log('Updating existing user:', props.user.id);
+      
+      // Don't include created_at and created_by for updates
+      delete userData.created_at;
+      delete userData.created_by;
+      delete userData.profile_complete;
+      delete userData.email_verified;
+      
+      userData.updated_at = new Date();
+      
+      // Use store dispatch for updating user
+      result = await store.dispatch('updateUser', {
+        userId: props.user.id,
+        userData: userData
+      });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'فشل في تحديث المستخدم');
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم تحديث المستخدم بنجاح'
+      });
+      
+    } else {
+      // CREATE NEW USER
+      console.log('Creating new user...');
+      
+      // Validate password
+      if (!formData.value.password) {
+        throw new Error('كلمة المرور مطلوبة');
+      }
+      
+      if (formData.value.password.length < 8) {
+        throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      }
+
+      // Create Firebase Auth user first
+      const firebaseUser = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        formData.value.password
+      );
+      
+      // Add user ID to data
+      userData.id = firebaseUser.uid;
+      
+      console.log('Firebase Auth user created:', firebaseUser.uid);
+      console.log('Saving to Firestore:', userData);
+
+      // Save user profile to Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      
+      // Store the password for display
+      const resultData = {
+        ...userData,
+        temporary_password: formData.value.password
+      };
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: `تم إضافة المستخدم "${userData.name}" بنجاح`
+      });
+      
+      result = { success: true, data: resultData };
+    }
+
+    // Emit save event with result data
+    if (result && result.success) {
+      emit('save', result.data || userData);
+      
+      // Close modal
+      setTimeout(() => {
+        emit('close');
+      }, 500);
+    } else {
+      throw new Error('فشل في عملية الحفظ');
+    }
+    
+  } catch (error) {
+    console.error('Error in form submission:', error);
+    console.error('Error details:', error.message, error.code);
+    
+    let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
+    
+    // Translate specific validation errors
+    if (error.message.includes('الاسم يجب أن يكون على الأقل حرفين')) {
+      errorMsg = 'الاسم يجب أن يكون على الأقل حرفين';
+    } else if (error.message.includes('البريد الإلكتروني غير صالح')) {
+      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
+    } else if (error.code === 'auth/email-already-in-use' || error.message.includes('البريد الإلكتروني مستخدم بالفعل')) {
+      errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
+    } else if (error.code === 'auth/weak-password' || error.message.includes('كلمة المرور يجب أن تكون 8 أحرف على الأقل')) {
+      errorMsg = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+    } else if (error.message.includes('يجب اختيار مخزن واحد على الأقل لمدير المخازن')) {
+      errorMsg = 'يجب اختيار مخزن واحد على الأقل لمدير المخازن';
+    } else if (error.message.includes('يجب تسجيل الدخول أولاً')) {
+      errorMsg = 'يجب تسجيل الدخول أولاً';
+    } else if (error.code === 'permission-denied') {
+      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء';
+    } else if (error.code === 'invalid-argument') {
+      errorMsg = 'بيانات غير صالحة. يرجى التحقق من الحقول';
+    } else if (error.code === 'firestore/permission-denied') {
+      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء. تأكد من أنك سوبر أدمن';
+    } else if (error.message.includes('profile_complete')) {
+      errorMsg = 'بيانات المستخدم غير مكتملة. يرجى التحقق من الحقول المطلوبة';
+    }
+    
+    errorMessage.value = errorMsg;
+    validationErrors.value = [errorMsg];
+    
+    store.dispatch('showNotification', {
+      type: 'error',
+      message: errorMsg
+    });
+  } finally {
+    loading.value = false;
+  }
+};
 
     watch(() => props.isOpen, async (newVal) => {
       if (newVal) {
