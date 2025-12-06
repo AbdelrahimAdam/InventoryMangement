@@ -192,7 +192,7 @@ class UserService {
     try {
       await this._checkSuperAdminPermission();
 
-      // Validate user data
+      // Validate user data with null checks
       const validation = this.validateUserData(userData, false);
       if (!validation.isValid) {
         return {
@@ -212,25 +212,26 @@ class UserService {
       const firebaseUser = userCredential.user;
       const userId = firebaseUser.uid;
 
-      // Prepare user document for Firestore
+      // Prepare COMPLETE user document for Firestore
       const userDoc = {
-        name: userData.name.trim(),
-        email: userData.email.trim().toLowerCase(),
-        phone: userData.phone?.trim() || null,
-        role: userData.role,
+        name: userData.name ? userData.name.trim() : '',
+        email: userData.email ? userData.email.trim().toLowerCase() : '',
+        phone: userData.phone ? userData.phone.trim() : null,
+        role: userData.role || 'company_manager',
         is_active: userData.is_active !== false,
-        allowed_warehouses: userData.allowed_warehouses || [],
+        allowed_warehouses: Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [],
+        permissions: Array.isArray(userData.permissions) ? userData.permissions : [], // CRITICAL: Save permissions
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
         created_by: auth.currentUser?.uid || 'system',
         email_verified: false,
         last_login: null,
-        profile_complete: false
+        profile_complete: true // Mark as complete profile
       };
 
       // Set user display name in Firebase Auth
       await updateFirebaseProfile(firebaseUser, {
-        displayName: userData.name.trim()
+        displayName: userDoc.name
       });
 
       // Send email verification
@@ -257,7 +258,8 @@ class UserService {
       await this._logUserAction('create', userId, { 
         name: userDoc.name, 
         email: userDoc.email, 
-        role: userDoc.role 
+        role: userDoc.role,
+        permissions: userDoc.permissions // Log permissions too
       });
 
       return {
@@ -296,7 +298,7 @@ class UserService {
         return currentUser;
       }
 
-      // Validate user data
+      // Validate user data with null checks
       const validation = this.validateUserData(userData, true);
       if (!validation.isValid) {
         return {
@@ -306,13 +308,18 @@ class UserService {
         };
       }
 
-      // Prepare update data
+      // Prepare update data with null checks
       const updateData = {
-        name: userData.name?.trim() || currentUser.data.name,
-        phone: userData.phone?.trim() || currentUser.data.phone || null,
+        name: userData.name ? userData.name.trim() : currentUser.data.name,
+        phone: userData.phone ? userData.phone.trim() : currentUser.data.phone || null,
         role: userData.role || currentUser.data.role,
         is_active: userData.is_active !== false,
-        allowed_warehouses: userData.allowed_warehouses || currentUser.data.allowed_warehouses || [],
+        allowed_warehouses: Array.isArray(userData.allowed_warehouses) 
+          ? userData.allowed_warehouses 
+          : currentUser.data.allowed_warehouses || [],
+        permissions: Array.isArray(userData.permissions) 
+          ? userData.permissions 
+          : currentUser.data.permissions || [], // CRITICAL: Update permissions
         updated_at: serverTimestamp(),
         updated_by: auth.currentUser?.uid
       };
@@ -320,11 +327,10 @@ class UserService {
       // Update display name in Firebase Auth
       if (userData.name && userData.name !== currentUser.data.name) {
         try {
-          // This only works if current user is updating themselves
           const firebaseUser = auth.currentUser;
           if (firebaseUser?.uid === userId) {
             await updateFirebaseProfile(firebaseUser, {
-              displayName: userData.name.trim()
+              displayName: updateData.name
             });
           }
         } catch (error) {
@@ -340,7 +346,8 @@ class UserService {
       await this._logUserAction('update', userId, {
         name: updateData.name,
         role: updateData.role,
-        is_active: updateData.is_active
+        is_active: updateData.is_active,
+        permissions: updateData.permissions // Log permissions too
       });
 
       return {
@@ -408,7 +415,10 @@ class UserService {
       await deleteDoc(profileRef);
 
       // Log the action
-      await this._logUserAction('delete', userId, { name: userData.name, email: userData.email });
+      await this._logUserAction('delete', userId, { 
+        name: userData.name || 'غير معروف', 
+        email: userData.email || 'غير معروف' 
+      });
 
       return {
         success: true,
@@ -471,7 +481,7 @@ class UserService {
 
       // Log the action
       await this._logUserAction(isActive ? 'activate' : 'deactivate', userId, {
-        name: userData.name,
+        name: userData.name || 'غير معروف',
         previous_status: userData.is_active,
         new_status: isActive
       });
@@ -638,13 +648,15 @@ class UserService {
   }
 
   /**
-   * Check if user matches search criteria
+   * Check if user matches search criteria with null checks
    * @private
    */
   _userMatchesSearch(userData, searchTerm) {
-    if (!searchTerm.trim()) return true;
-
+    if (!searchTerm || typeof searchTerm !== 'string') return true;
+    
     const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+
     const name = (userData.name || '').toLowerCase();
     const email = (userData.email || '').toLowerCase();
     const phone = (userData.phone || '').toLowerCase();
@@ -655,16 +667,18 @@ class UserService {
   }
 
   /**
-   * Calculate search score for relevance sorting
+   * Calculate search score for relevance sorting with null checks
    * @private
    */
   _calculateSearchScore(user, searchTerm) {
+    if (!user || !searchTerm || typeof searchTerm !== 'string') return 0;
+    
     let score = 0;
     const term = searchTerm.toLowerCase().trim();
 
-    if (user.name?.toLowerCase().includes(term)) score += 3;
-    if (user.email?.toLowerCase().includes(term)) score += 2;
-    if (user.phone?.toLowerCase().includes(term)) score += 1;
+    if (user.name && typeof user.name === 'string' && user.name.toLowerCase().includes(term)) score += 3;
+    if (user.email && typeof user.email === 'string' && user.email.toLowerCase().includes(term)) score += 2;
+    if (user.phone && typeof user.phone === 'string' && user.phone.toLowerCase().includes(term)) score += 1;
 
     return score;
   }
@@ -692,6 +706,8 @@ class UserService {
    * @private
    */
   _handleFirebaseError(error) {
+    if (!error) return 'حدث خطأ غير معروف';
+
     console.error('Firebase Error:', error.code, error.message);
 
     const errorMessages = {
@@ -712,11 +728,15 @@ class UserService {
       'unavailable': 'الخدمة غير متاحة حالياً'
     };
 
-    return errorMessages[error.code] || error.message || 'حدث خطأ غير متوقع';
+    if (error.code && errorMessages[error.code]) {
+      return errorMessages[error.code];
+    }
+
+    return error.message || 'حدث خطأ غير متوقع';
   }
 
   /**
-   * Validate user data
+   * Validate user data with null checks
    * @param {Object} userData - User data to validate
    * @param {boolean} isUpdate - Whether this is an update operation
    * @returns {Object} - Validation result
@@ -724,22 +744,32 @@ class UserService {
   validateUserData(userData, isUpdate = false) {
     const errors = [];
 
+    if (!userData || typeof userData !== 'object') {
+      return {
+        isValid: false,
+        errors: ['بيانات المستخدم غير صالحة']
+      };
+    }
+
     // Name validation
-    if (!userData.name || userData.name.trim().length < 2) {
+    if (!userData.name || typeof userData.name !== 'string' || userData.name.trim().length < 2) {
       errors.push('الاسم يجب أن يكون على الأقل حرفين');
     }
 
     // Email validation
     if (!isUpdate || userData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!userData.email || !emailRegex.test(userData.email)) {
+      if (!userData.email || typeof userData.email !== 'string' || !emailRegex.test(userData.email.trim())) {
         errors.push('البريد الإلكتروني غير صالح');
       }
     }
 
     // Phone validation (optional)
-    if (userData.phone && !/^01[0-9]{9}$/.test(userData.phone)) {
-      errors.push('رقم الهاتف يجب أن يبدأ بـ 01 ويتكون من 11 رقماً');
+    if (userData.phone && typeof userData.phone === 'string' && userData.phone.trim()) {
+      const phoneRegex = /^01[0-9]{9}$/;
+      if (!phoneRegex.test(userData.phone.trim())) {
+        errors.push('رقم الهاتف يجب أن يبدأ بـ 01 ويتكون من 11 رقماً');
+      }
     }
 
     // Role validation
@@ -750,16 +780,21 @@ class UserService {
 
     // Password validation for new users
     if (!isUpdate) {
-      if (!userData.password || userData.password.length < 8) {
+      if (!userData.password || typeof userData.password !== 'string' || userData.password.length < 8) {
         errors.push('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
       }
     }
 
     // Warehouse validation for warehouse managers
     if (userData.role === 'warehouse_manager') {
-      if (!userData.allowed_warehouses || userData.allowed_warehouses.length === 0) {
+      if (!Array.isArray(userData.allowed_warehouses) || userData.allowed_warehouses.length === 0) {
         errors.push('يجب اختيار مخزن واحد على الأقل لمدير المخازن');
       }
+    }
+
+    // Permissions validation (optional, but recommended)
+    if (userData.permissions && !Array.isArray(userData.permissions)) {
+      errors.push('صلاحيات المستخدم يجب أن تكون مصفوفة');
     }
 
     return {
@@ -769,13 +804,32 @@ class UserService {
   }
 
   /**
-   * Format user data for display
+   * Format user data for display with null checks
    * @param {Object} user - User object
    * @returns {Object} - Formatted user
    */
   formatUserForDisplay(user) {
+    if (!user || typeof user !== 'object') {
+      return {
+        id: 'غير معروف',
+        name: 'غير معروف',
+        email: '',
+        phone: '-',
+        role: 'user',
+        role_name: 'غير معروف',
+        is_active: false,
+        status: 'غير نشط',
+        status_color: 'red',
+        allowed_warehouses: [],
+        permissions: [],
+        created_at: '-',
+        updated_at: '-',
+        last_login: 'لم يسجل دخول'
+      };
+    }
+
     return {
-      id: user.id,
+      id: user.id || 'غير معروف',
       name: user.name || 'غير معروف',
       email: user.email || '',
       phone: user.phone || '-',
@@ -784,7 +838,8 @@ class UserService {
       is_active: user.is_active !== false,
       status: user.is_active !== false ? 'نشط' : 'غير نشط',
       status_color: user.is_active !== false ? 'green' : 'red',
-      allowed_warehouses: user.allowed_warehouses || [],
+      allowed_warehouses: Array.isArray(user.allowed_warehouses) ? user.allowed_warehouses : [],
+      permissions: Array.isArray(user.permissions) ? user.permissions : [],
       created_at: user.created_at ? new Date(user.created_at).toLocaleDateString('ar-EG') : '-',
       updated_at: user.updated_at ? new Date(user.updated_at).toLocaleDateString('ar-EG') : '-',
       last_login: user.last_login ? new Date(user.last_login).toLocaleDateString('ar-EG') : 'لم يسجل دخول'
@@ -792,11 +847,13 @@ class UserService {
   }
 
   /**
-   * Get role name in Arabic
+   * Get role name in Arabic with null checks
    * @param {string} role - Role key
    * @returns {string} - Role name in Arabic
    */
   getRoleName(role) {
+    if (!role || typeof role !== 'string') return 'غير معروف';
+    
     const roles = {
       superadmin: 'المشرف العام',
       warehouse_manager: 'مدير المخازن',
@@ -806,11 +863,13 @@ class UserService {
   }
 
   /**
-   * Get role permissions description
+   * Get role permissions description with null checks
    * @param {string} role - Role key
    * @returns {Array} - Permissions list
    */
   getRolePermissions(role) {
+    if (!role || typeof role !== 'string') return [];
+    
     const permissions = {
       superadmin: [
         'الوصول الكامل إلى جميع المخازن',
@@ -835,6 +894,76 @@ class UserService {
       ]
     };
     return permissions[role] || [];
+  }
+
+  /**
+   * Clean user data before saving to Firestore
+   * @param {Object} userData - Raw user data
+   * @returns {Object} - Cleaned user data
+   */
+  cleanUserData(userData) {
+    if (!userData || typeof userData !== 'object') {
+      return {
+        name: '',
+        email: '',
+        role: 'company_manager',
+        is_active: true,
+        allowed_warehouses: [],
+        permissions: []
+      };
+    }
+
+    return {
+      name: userData.name ? userData.name.trim() : '',
+      email: userData.email ? userData.email.trim().toLowerCase() : '',
+      phone: userData.phone ? userData.phone.trim() : null,
+      role: userData.role || 'company_manager',
+      is_active: userData.is_active !== false,
+      allowed_warehouses: Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [],
+      permissions: Array.isArray(userData.permissions) ? userData.permissions : []
+    };
+  }
+
+  /**
+   * Get default permissions for a role
+   * @param {string} role - User role
+   * @returns {Array} - Default permissions
+   */
+  getDefaultPermissionsForRole(role) {
+    const defaultPermissions = {
+      superadmin: ['all', 'full_access'],
+      warehouse_manager: [
+        'manage_inventory',
+        'create_transfers',
+        'dispatch_items',
+        'update_items',
+        'view_reports',
+        'export_data'
+      ],
+      company_manager: ['view_reports', 'export_data']
+    };
+    
+    return defaultPermissions[role] || ['view_reports'];
+  }
+
+  /**
+   * Check if user has specific permission
+   * @param {Object} user - User object
+   * @param {string} permission - Permission to check
+   * @returns {boolean} - Whether user has permission
+   */
+  hasPermission(user, permission) {
+    if (!user || !permission) return false;
+    
+    const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
+    
+    // Superadmins have all permissions
+    if (user.role === 'superadmin') return true;
+    
+    // Check for specific permission or 'all' or 'full_access'
+    return userPermissions.includes(permission) || 
+           userPermissions.includes('all') || 
+           userPermissions.includes('full_access');
   }
 }
 
