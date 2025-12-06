@@ -1,6 +1,4 @@
 {
-  "version": 2,
-  "name": "monofia-perfume-inventory",
   "builds": [
     {
       "src": "package.json",
@@ -16,12 +14,10 @@
       "dest": "/index.html"
     }
   ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm ci --legacy-peer-deps",
-  "framework": "vue",
   "env": {
     "NODE_ENV": "production",
-    "VUE_APP_MODE": "production"
+    "VUE_APP_MODE": "production",
+    "NODE_VERSION": "22"
   }
 }
+
