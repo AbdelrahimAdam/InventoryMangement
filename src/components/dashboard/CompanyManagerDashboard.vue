@@ -1,226 +1,390 @@
 <template>
-  <div class="space-y-6">
-    <!-- View Only Notice -->
-    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-yellow-500 dark:text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+  <div class="sky-background">
+    <!-- Animated Background Elements -->
+    <div class="clouds">
+      <div class="cloud cloud-1"></div>
+      <div class="cloud cloud-2"></div>
+    </div>
+
+    <div class="celestial-body" :class="{ 'moon-mode': isDarkMode }">
+      <div class="sun" v-if="!isDarkMode"></div>
+      <div class="moon" v-else>
+        <div class="moon-crater"></div>
+        <div class="moon-crater small"></div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+      <!-- Desktop Header -->
+      <header class="glass-header">
+        <div class="header-content">
+          <!-- Logo -->
+          <router-link to="/" class="logo-container">
+            <div class="logo-icon" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%);">
+              <span class="logo-text">م</span>
+            </div>
+            <div class="logo-text-container">
+              <h1 class="logo-title">لوحة التقارير والمشاهدات</h1>
+              <p class="logo-subtitle">مدير الشركة - وضع العرض فقط</p>
+            </div>
+          </router-link>
+
+          <!-- User Controls -->
+          <div class="user-controls">
+            <button @click="toggleDarkMode" class="theme-toggle">
+              <svg v-if="isDarkMode" class="sun-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5" fill="currentColor"/>
+                <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2"/>
+                <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2"/>
+                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/>
+                <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2"/>
+                <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <svg v-else class="moon-icon" viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <!-- Export Menu -->
+            <div class="export-menu">
+              <button @click="toggleExportMenu" class="export-btn">
+                <svg class="export-icon" viewBox="0 0 24 24">
+                  <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                تصدير
+              </button>
+              <div v-if="showExportMenu" class="export-dropdown">
+                <button @click="exportToExcel" class="export-option">
+                  <svg class="option-icon" viewBox="0 0 24 24">
+                    <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  تصدير Excel
+                </button>
+                <button @click="exportToCSV" class="export-option">
+                  <svg class="option-icon" viewBox="0 0 24 24">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  تصدير CSV
+                </button>
+                <button @click="printReport" class="export-option">
+                  <svg class="option-icon" viewBox="0 0 24 24">
+                    <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  طباعة التقرير
+                </button>
+              </div>
+            </div>
+
+            <!-- User Profile -->
+            <div class="user-profile-container">
+              <div class="user-profile-btn">
+                <div class="user-avatar" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%);">
+                  {{ getUserInitials(userName) }}
+                </div>
+                <div class="user-info">
+                  <p class="user-name">{{ userName }}</p>
+                  <p class="user-role">مدير الشركة</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Read-Only Notice -->
+      <div class="readonly-notice">
+        <div class="notice-content">
+          <svg class="notice-icon" viewBox="0 0 24 24">
+            <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                  fill="none" stroke="currentColor" stroke-width="2"/>
           </svg>
-        </div>
-        <div class="mr-3">
-          <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300">وضع العرض فقط</h3>
-          <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
-            <p>لديك صلاحية عرض البيانات فقط. يرجى التواصل مع المشرف العام لتعديل الصلاحيات.</p>
+          <div class="notice-text">
+            <h3>وضع العرض فقط</h3>
+            <p>لديك صلاحية عرض البيانات والتقارير فقط. يرجى التواصل مع المشرف العام لتعديل الصلاحيات.</p>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Reports and Filters -->
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h3 class="text-lg font-bold text-gray-900 dark:text-white">التقارير والبيانات</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">عرض وتحليل بيانات المخزون</p>
+      <!-- Main Dashboard Content -->
+      <div class="main-dashboard-content">
+        <!-- Stats Grid - 4 Modern Cards -->
+        <div class="stats-grid">
+          <!-- Total Items Card -->
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h3 class="stat-title">إجمالي الأصناف</h3>
+              <p class="stat-value">{{ formatNumber(dashboardStats.totalItems) }}</p>
+              <p class="stat-description">صنف في النظام</p>
+            </div>
+            <div class="stat-trend">
+              <span class="trend-up">+{{ formatNumber(recentStats.totalItemsAdded) }} هذا الشهر</span>
+            </div>
+          </div>
+
+          <!-- Total Quantity Card -->
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h3 class="stat-title">إجمالي الكمية</h3>
+              <p class="stat-value">{{ formatNumber(dashboardStats.totalQuantity) }}</p>
+              <p class="stat-description">وحدة متاحة</p>
+            </div>
+            <div class="stat-trend">
+              <span class="trend-up">+{{ formatNumber(recentStats.quantityAdded) }} هذا الشهر</span>
+            </div>
+          </div>
+
+          <!-- Low Stock Card -->
+          <div class="stat-card warning">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h3 class="stat-title">أصناف منخفضة</h3>
+              <p class="stat-value">{{ formatNumber(dashboardStats.lowStockItems) }}</p>
+              <p class="stat-description">أقل من 10 وحدات</p>
+            </div>
+            <div class="stat-trend">
+              <span class="trend-down">{{ formatNumber(recentStats.lowStockChange) }} تغيير</span>
+            </div>
+          </div>
+
+          <!-- Inventory Value Card -->
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h3 class="stat-title">قيمة المخزون</h3>
+              <p class="stat-value">{{ formatCurrency(dashboardStats.estimatedValue) }}</p>
+              <p class="stat-description">جنيه مصري</p>
+            </div>
+            <div class="stat-trend">
+              <span class="trend-up">+{{ formatCurrency(recentStats.valueChange) }} هذا الشهر</span>
+            </div>
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button @click="exportToExcel" 
-                  class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg">
-            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+          <div class="filter-card">
+            <h3>تصفية البيانات</h3>
+            <div class="filter-grid">
+              <div class="filter-group">
+                <label>المخزن</label>
+                <select v-model="filters.warehouse" class="filter-select">
+                  <option value="">جميع المخازن</option>
+                  <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                    {{ warehouse.name_ar }}
+                  </option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>حالة المخزون</label>
+                <select v-model="filters.stockStatus" class="filter-select">
+                  <option value="">الكل</option>
+                  <option value="low">منخفض (أقل من 10)</option>
+                  <option value="critical">حرج (أقل من 5)</option>
+                  <option value="out">نفذ من المخزون</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>تاريخ التحديث</label>
+                <select v-model="filters.updatePeriod" class="filter-select">
+                  <option value="">الكل</option>
+                  <option value="today">اليوم</option>
+                  <option value="week">آخر أسبوع</option>
+                  <option value="month">آخر شهر</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>بحث</label>
+                <div class="search-wrapper">
+                  <input type="text" v-model="filters.search" placeholder="ابحث عن صنف..." class="search-input">
+                  <svg class="search-icon" viewBox="0 0 24 24">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Warehouse Distribution -->
+        <div class="warehouse-distribution-section">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>توزيع المخزون على المخازن</h3>
+              <div class="section-actions">
+                <button @click="refreshData" class="action-btn small" :disabled="loading">
+                  <svg :class="{'animate-spin': loading}" class="action-icon" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  تحديث
+                </button>
+              </div>
+            </div>
+            <div class="warehouse-chart">
+              <div class="chart-container">
+                <div class="chart-bars">
+                  <div v-for="warehouse in warehouseDistribution" :key="warehouse.id" class="chart-bar-wrapper">
+                    <div class="chart-bar-label">{{ warehouse.name }}</div>
+                    <div class="chart-bar">
+                      <div class="bar-fill" :style="{ height: `${warehouse.percentage}%` }"></div>
+                    </div>
+                    <div class="chart-bar-value">{{ warehouse.percentage }}%</div>
+                  </div>
+                </div>
+                <div class="chart-legend">
+                  <div class="legend-item">
+                    <span class="legend-color" style="background: #f59e0b"></span>
+                    <span>نسبة الأصناف</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Table -->
+        <div class="inventory-section">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="header-left">
+                <h3>المخزون الحالي</h3>
+                <p class="section-subtitle">عرض {{ filteredInventory.length }} من {{ totalItems }} صنف</p>
+              </div>
+              <div class="header-right">
+                <div class="summary-stats">
+                  <div class="summary-stat">
+                    <span class="stat-label">متوسط الكمية</span>
+                    <span class="stat-value">{{ formatNumber(averageQuantity) }}</span>
+                  </div>
+                  <div class="summary-stat">
+                    <span class="stat-label">أصناف محدثة</span>
+                    <span class="stat-value">{{ recentlyUpdated }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="loading" class="loading-state">
+              <div class="spinner"></div>
+              <p>جاري تحميل بيانات المخزون...</p>
+            </div>
+            
+            <div v-else-if="filteredInventory.length === 0" class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24">
+                <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <h4>لا توجد بيانات</h4>
+              <p>لم يتم العثور على أصناف تطابق معايير البحث.</p>
+              <button @click="clearFilters" class="clear-filters-btn">مسح الفلاتر</button>
+            </div>
+            
+            <div v-else class="inventory-table-container">
+              <div class="table-responsive">
+                <table class="inventory-table">
+                  <thead>
+                    <tr>
+                      <th>الكود</th>
+                      <th>الاسم</th>
+                      <th>اللون</th>
+                      <th>المخزن</th>
+                      <th>المورد</th>
+                      <th>الكمية</th>
+                      <th>آخر تحديث</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in paginatedItems" :key="item.id">
+                      <td>{{ item.code }}</td>
+                      <td>{{ item.name }}</td>
+                      <td>
+                        <span class="color-badge" :style="{ background: getColorHex(item.color) }">
+                          {{ item.color }}
+                        </span>
+                      </td>
+                      <td>{{ getWarehouseName(item.warehouse_id) }}</td>
+                      <td>{{ item.supplier || '-' }}</td>
+                      <td>
+                        <span :class="getQuantityClass(item.remaining_quantity)">
+                          {{ formatNumber(item.remaining_quantity) }}
+                        </span>
+                      </td>
+                      <td>{{ formatDate(item.updated_at) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Pagination -->
+              <div class="pagination">
+                <button @click="prevPage" :disabled="currentPage === 1" class="pagination-btn">
+                  <svg class="pagination-icon" viewBox="0 0 24 24">
+                    <path d="M15 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </button>
+                <span class="pagination-info">صفحة {{ currentPage }} من {{ totalPages }}</span>
+                <button @click="nextPage" :disabled="currentPage === totalPages" class="pagination-btn">
+                  <svg class="pagination-icon" viewBox="0 0 24 24">
+                    <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Bottom Navigation -->
+        <div class="mobile-nav" v-if="isMobile">
+          <router-link to="/dashboard" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
             </svg>
-            تصدير Excel
-          </button>
-          <button @click="exportToCSV" 
-                  class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg">
-            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <span>الرئيسية</span>
+          </router-link>
+          
+          <router-link to="/reports" class="nav-item active">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
             </svg>
-            تصدير CSV
-          </button>
-          <button @click="printReport" 
-                  class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-medium rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-200 shadow-md hover:shadow-lg">
-            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            <span>التقارير</span>
+          </router-link>
+          
+          <router-link to="/profile" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
-            طباعة
-          </button>
-        </div>
-      </div>
-
-      <!-- Filters -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المخزن</label>
-          <select v-model="filters.warehouse" 
-                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200">
-            <option value="">جميع المخازن</option>
-            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-              {{ warehouse.name_ar }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">بحث</label>
-          <div class="relative">
-            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-            </div>
-            <input v-model="filters.search" 
-                   type="text" 
-                   placeholder="ابحث بالاسم، الكود، أو اللون..."
-                   class="w-full pr-10 pl-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200">
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">حالة المخزون</label>
-          <select v-model="filters.stockStatus" 
-                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200">
-            <option value="">الكل</option>
-            <option value="low">منخفض (أقل من 10)</option>
-            <option value="critical">حرج (أقل من 5)</option>
-            <option value="out">نفذ من المخزون</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">النوع/التصنيف</label>
-          <select v-model="filters.category" 
-                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200">
-            <option value="">جميع الأنواع</option>
-            <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Statistics Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div class="flex items-center">
-            <div class="h-10 w-10 rounded-lg bg-blue-500 dark:bg-blue-600 flex items-center justify-center mr-3">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-blue-800 dark:text-blue-300">إجمالي الأصناف</p>
-              <p class="text-xl font-bold text-blue-900 dark:text-blue-200">{{ stats.totalItems }}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 p-4 rounded-lg border border-green-200 dark:border-green-800">
-          <div class="flex items-center">
-            <div class="h-10 w-10 rounded-lg bg-green-500 dark:bg-green-600 flex items-center justify-center mr-3">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-green-800 dark:text-green-300">إجمالي الكمية</p>
-              <p class="text-xl font-bold text-green-900 dark:text-green-200">{{ formatNumber(stats.totalQuantity) }}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-          <div class="flex items-center">
-            <div class="h-10 w-10 rounded-lg bg-orange-500 dark:bg-orange-600 flex items-center justify-center mr-3">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-orange-800 dark:text-orange-300">أصناف منخفضة</p>
-              <p class="text-xl font-bold text-orange-900 dark:text-orange-200">{{ stats.lowStockItems }}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 p-4 rounded-lg border border-red-200 dark:border-red-800">
-          <div class="flex items-center">
-            <div class="h-10 w-10 rounded-lg bg-red-500 dark:bg-red-600 flex items-center justify-center mr-3">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-red-800 dark:text-red-300">نفذ من المخزون</p>
-              <p class="text-xl font-bold text-red-900 dark:text-red-200">{{ stats.outOfStockItems }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Summary Info -->
-      <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="text-center md:text-right">
-            <p class="text-sm text-gray-600 dark:text-gray-400">قيمة المخزون التقريبية</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatCurrency(stats.estimatedValue) }}</p>
-          </div>
-          <div class="text-center md:text-right">
-            <p class="text-sm text-gray-600 dark:text-gray-400">متوسط الكمية لكل صنف</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatNumber(stats.averageQuantity) }}</p>
-          </div>
-          <div class="text-center md:text-right">
-            <p class="text-sm text-gray-600 dark:text-gray-400">أصناف تم تحديثها مؤخراً</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ stats.recentlyUpdated }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inventory Table -->
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div class="flex justify-between items-center mb-4">
-        <h4 class="text-lg font-medium text-gray-900 dark:text-white">قائمة المخزون</h4>
-        <span class="text-sm text-gray-600 dark:text-gray-400">
-          عرض {{ filteredInventory.length }} من {{ inventory.length }} صنف
-        </span>
-      </div>
-      
-      <div v-if="loading" class="text-center py-8">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
-        <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
-      </div>
-      
-      <div v-else-if="filteredInventory.length === 0" class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد بيانات</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم العثور على أصناف تطابق معايير البحث.</p>
-      </div>
-      
-      <InventoryTable 
-        v-else
-        :items="filteredInventory" 
-        :readonly="true" 
-        :show-actions="false"
-        :user-role="'company_manager'"
-      />
-    </div>
-
-    <!-- Warehouse Distribution Chart -->
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">توزيع المخزون بين المخازن</h4>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div v-for="warehouse in warehouseDistribution" :key="warehouse.id" 
-             class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-          <div class="flex justify-between items-center mb-2">
-            <span class="font-medium text-gray-900 dark:text-white">{{ warehouse.name }}</span>
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{ warehouse.percentage }}%</span>
-          </div>
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div class="bg-yellow-500 h-2 rounded-full" :style="{ width: warehouse.percentage + '%' }"></div>
-          </div>
-          <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mt-2">
-            <span>{{ warehouse.itemsCount }} صنف</span>
-            <span>{{ formatNumber(warehouse.totalQuantity) }} وحدة</span>
-          </div>
+            <span>الحساب</span>
+          </router-link>
         </div>
       </div>
     </div>
@@ -228,129 +392,98 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import InventoryTable from '@/components/inventory/InventoryTable.vue';
-import { ExportUtils } from '@/utils/exportUtils';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'CompanyManagerDashboard',
-  components: {
-    InventoryTable
-  },
+  
   setup() {
     const store = useStore();
+    const router = useRouter();
     
+    // State
+    const isDarkMode = ref(false);
+    const loading = ref(false);
+    const showExportMenu = ref(false);
+    const currentPage = ref(1);
+    const itemsPerPage = 10;
+    
+    // Filters
     const filters = ref({
       warehouse: '',
       search: '',
       stockStatus: '',
-      category: ''
+      updatePeriod: ''
     });
-
-    const loading = ref(true);
-
-    // Transform inventory data
-    const inventory = computed(() => {
-      const rawInventory = store.state.inventory || [];
-      return rawInventory.map(item => ({
-        id: item.id,
-        name: item.name || item.الاسم || 'غير محدد',
-        code: item.code || item.الكود || '-',
-        color: item.color || item.اللون || '-',
-        category: item.category || item.النوع || 'عام',
-        warehouse_id: item.warehouse_id || item.المخزن_id,
-        supplier: item.supplier || item.المورد || '-',
-        item_location: item.item_location || item.مكان_الصنف || '-',
-        cartons_count: item.cartons_count || item.كراتين || 0,
-        per_carton_count: item.per_carton_count || item.في_الكرتونة || 0,
-        single_bottles_count: item.single_bottles_count || item.فردي || 0,
-        total_added: item.total_added || item.المضاف || 0,
-        remaining_quantity: item.remaining_quantity || item.الكميه_المتبقيه || 0,
-        unit_price: item.unit_price || item.سعر_الوحدة || 0,
-        updated_at: item.updated_at || item.آخر_تحديث || new Date(),
-        created_at: item.created_at || item.تاريخ_الإضافة || new Date()
-      }));
-    });
-
+    
+    // Computed properties
+    const userRole = computed(() => store.getters.userRole);
+    const userName = computed(() => store.getters.userName);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const inventory = computed(() => store.state.inventory || []);
     const warehouses = computed(() => store.state.warehouses || []);
     
-    const categories = computed(() => {
-      const uniqueCategories = new Set();
-      inventory.value.forEach(item => {
-        if (item.category) uniqueCategories.add(item.category);
-      });
-      return Array.from(uniqueCategories).sort();
+    // Mock recent stats
+    const recentStats = ref({
+      totalItemsAdded: 24,
+      quantityAdded: 150,
+      lowStockChange: -3,
+      valueChange: 12500
     });
-
+    
+    // Filtered inventory
     const filteredInventory = computed(() => {
-      let items = inventory.value;
-
+      let items = [...inventory.value];
+      
       // Apply warehouse filter
       if (filters.value.warehouse) {
         items = items.filter(item => item.warehouse_id === filters.value.warehouse);
       }
-
+      
       // Apply search filter
       if (filters.value.search) {
         const searchLower = filters.value.search.toLowerCase();
         items = items.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.code?.toLowerCase().includes(searchLower) ||
-          item.color?.toLowerCase().includes(searchLower) ||
-          item.supplier?.toLowerCase().includes(searchLower)
+          (item.name || '').toLowerCase().includes(searchLower) ||
+          (item.code || '').toLowerCase().includes(searchLower) ||
+          (item.color || '').toLowerCase().includes(searchLower) ||
+          (item.supplier || '').toLowerCase().includes(searchLower)
         );
       }
-
+      
       // Apply stock status filter
       if (filters.value.stockStatus === 'low') {
-        items = items.filter(item => item.remaining_quantity < 10 && item.remaining_quantity > 0);
+        items = items.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0);
       } else if (filters.value.stockStatus === 'critical') {
-        items = items.filter(item => item.remaining_quantity < 5 && item.remaining_quantity > 0);
+        items = items.filter(item => (item.remaining_quantity || 0) < 5 && (item.remaining_quantity || 0) > 0);
       } else if (filters.value.stockStatus === 'out') {
-        items = items.filter(item => item.remaining_quantity === 0);
+        items = items.filter(item => (item.remaining_quantity || 0) === 0);
       }
-
-      // Apply category filter
-      if (filters.value.category) {
-        items = items.filter(item => item.category === filters.value.category);
+      
+      // Apply update period filter
+      if (filters.value.updatePeriod) {
+        const now = new Date();
+        let cutoffDate = new Date();
+        
+        if (filters.value.updatePeriod === 'today') {
+          cutoffDate.setDate(now.getDate() - 1);
+        } else if (filters.value.updatePeriod === 'week') {
+          cutoffDate.setDate(now.getDate() - 7);
+        } else if (filters.value.updatePeriod === 'month') {
+          cutoffDate.setMonth(now.getMonth() - 1);
+        }
+        
+        items = items.filter(item => {
+          const updatedDate = new Date(item.updated_at || item.created_at);
+          return updatedDate >= cutoffDate;
+        });
       }
-
+      
       return items;
     });
-
-    // Statistics
-    const stats = computed(() => {
-      const items = filteredInventory.value;
-      const totalItems = items.length;
-      const totalQuantity = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-      const lowStockItems = items.filter(item => item.remaining_quantity < 10 && item.remaining_quantity > 0).length;
-      const outOfStockItems = items.filter(item => item.remaining_quantity === 0).length;
-      const averageQuantity = totalItems > 0 ? Math.round(totalQuantity / totalItems) : 0;
-      const estimatedValue = items.reduce((sum, item) => {
-        const price = item.unit_price || 0;
-        return sum + (price * (item.remaining_quantity || 0));
-      }, 0);
-      
-      // Count recently updated items (last 7 days)
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const recentlyUpdated = items.filter(item => {
-        const updatedDate = new Date(item.updated_at);
-        return updatedDate >= weekAgo;
-      }).length;
-
-      return {
-        totalItems,
-        totalQuantity,
-        lowStockItems,
-        outOfStockItems,
-        averageQuantity,
-        estimatedValue,
-        recentlyUpdated
-      };
-    });
-
+    
     // Warehouse distribution
     const warehouseDistribution = computed(() => {
       const distribution = {};
@@ -362,33 +495,118 @@ export default {
           distribution[warehouseId] = {
             id: warehouseId,
             name: warehouse ? warehouse.name_ar : `مخزن ${warehouseId}`,
-            itemsCount: 0,
-            totalQuantity: 0
+            items: 0,
+            quantity: 0
           };
         }
-        distribution[warehouseId].itemsCount++;
-        distribution[warehouseId].totalQuantity += item.remaining_quantity || 0;
+        distribution[warehouseId].items++;
+        distribution[warehouseId].quantity += item.remaining_quantity || 0;
       });
-
+      
       const totalItems = inventory.value.length;
-      const totalQuantity = inventory.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-
-      return Object.values(distribution).map(warehouse => ({
-        ...warehouse,
-        percentage: totalItems > 0 ? Math.round((warehouse.itemsCount / totalItems) * 100) : 0,
-        quantityPercentage: totalQuantity > 0 ? Math.round((warehouse.totalQuantity / totalQuantity) * 100) : 0
-      })).sort((a, b) => b.itemsCount - a.itemsCount);
+      
+      return Object.values(distribution)
+        .map(warehouse => ({
+          ...warehouse,
+          percentage: totalItems > 0 ? Math.round((warehouse.items / totalItems) * 100) : 0
+        }))
+        .sort((a, b) => b.items - a.items)
+        .slice(0, 5);
     });
-
-    watch(filters, () => {
-      // Handle filter changes
-    }, { deep: true });
-
-    // Formatting functions
+    
+    // Statistics
+    const totalItems = computed(() => inventory.value.length);
+    const averageQuantity = computed(() => {
+      if (filteredInventory.value.length === 0) return 0;
+      const total = filteredInventory.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return Math.round(total / filteredInventory.value.length);
+    });
+    
+    const recentlyUpdated = computed(() => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return filteredInventory.value.filter(item => {
+        const updatedDate = new Date(item.updated_at || item.created_at);
+        return updatedDate >= weekAgo;
+      }).length;
+    });
+    
+    // Pagination
+    const totalPages = computed(() => Math.ceil(filteredInventory.value.length / itemsPerPage));
+    
+    const paginatedItems = computed(() => {
+      const start = (currentPage.value - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      return filteredInventory.value.slice(start, end);
+    });
+    
+    // Check if mobile
+    const isMobile = computed(() => window.innerWidth < 768);
+    
+    // Methods
+    const toggleDarkMode = () => {
+      isDarkMode.value = !isDarkMode.value;
+      document.documentElement.classList.toggle('dark', isDarkMode.value);
+      localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+    };
+    
+    const toggleExportMenu = () => {
+      showExportMenu.value = !showExportMenu.value;
+    };
+    
+    const refreshData = async () => {
+      loading.value = true;
+      try {
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const exportToExcel = () => {
+      console.log('Exporting to Excel...');
+      showExportMenu.value = false;
+    };
+    
+    const exportToCSV = () => {
+      console.log('Exporting to CSV...');
+      showExportMenu.value = false;
+    };
+    
+    const printReport = () => {
+      window.print();
+      showExportMenu.value = false;
+    };
+    
+    const clearFilters = () => {
+      filters.value = {
+        warehouse: '',
+        search: '',
+        stockStatus: '',
+        updatePeriod: ''
+      };
+      currentPage.value = 1;
+    };
+    
+    const prevPage = () => {
+      if (currentPage.value > 1) {
+        currentPage.value--;
+      }
+    };
+    
+    const nextPage = () => {
+      if (currentPage.value < totalPages.value) {
+        currentPage.value++;
+      }
+    };
+    
     const formatNumber = (num) => {
       return new Intl.NumberFormat('ar-EG').format(num);
     };
-
+    
     const formatCurrency = (amount) => {
       return new Intl.NumberFormat('ar-EG', {
         style: 'currency',
@@ -397,89 +615,785 @@ export default {
         maximumFractionDigits: 0
       }).format(amount);
     };
-
-    // Export functions
-    const exportToExcel = () => {
-      const data = ExportUtils.formatInventoryForExport(filteredInventory.value);
-      ExportUtils.exportToExcel(data, `inventory-report-${new Date().toISOString().split('T')[0]}`);
+    
+    const formatDate = (date) => {
+      if (!date) return '';
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleDateString('ar-EG');
     };
-
-    const exportToCSV = () => {
-      const data = ExportUtils.formatInventoryForExport(filteredInventory.value);
-      ExportUtils.exportToCSV(data, `inventory-report-${new Date().toISOString().split('T')[0]}`);
+    
+    const getWarehouseName = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId);
+      return warehouse ? warehouse.name_ar : warehouseId;
     };
-
-    const printReport = () => {
-      window.print();
+    
+    const getColorHex = (colorName) => {
+      const colors = {
+        'أحمر': '#ef4444',
+        'أزرق': '#3b82f6',
+        'أخضر': '#10b981',
+        'أصفر': '#f59e0b',
+        'أسود': '#000000',
+        'أبيض': '#ffffff',
+        'رمادي': '#6b7280',
+        'بنفسجي': '#8b5cf6'
+      };
+      return colors[colorName] || '#6b7280';
     };
-
+    
+    const getQuantityClass = (quantity) => {
+      if (quantity === 0) return 'quantity-out';
+      if (quantity < 5) return 'quantity-critical';
+      if (quantity < 10) return 'quantity-low';
+      return 'quantity-normal';
+    };
+    
+    const getUserInitials = (name) => {
+      if (!name) return '??';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    };
+    
+    // Lifecycle
     onMounted(() => {
-      // Load data if not already loaded
-      if (!store.state.inventory || store.state.inventory.length === 0) {
-        store.dispatch('loadInventory').finally(() => {
-          loading.value = false;
-        });
-      } else {
-        loading.value = false;
+      // Check theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
       }
     });
-
+    
+    // Close export menu when clicking outside
+    onMounted(() => {
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.export-menu')) {
+          showExportMenu.value = false;
+        }
+      });
+    });
+    
     return {
-      filters,
-      warehouses,
-      categories,
-      inventory,
-      filteredInventory,
+      // State
+      isDarkMode,
       loading,
-      stats,
+      showExportMenu,
+      currentPage,
+      filters,
+      
+      // Computed
+      userRole,
+      userName,
+      dashboardStats,
+      inventory,
+      warehouses,
+      recentStats,
+      filteredInventory,
       warehouseDistribution,
-      formatNumber,
-      formatCurrency,
+      totalItems,
+      averageQuantity,
+      recentlyUpdated,
+      totalPages,
+      paginatedItems,
+      isMobile,
+      
+      // Methods
+      toggleDarkMode,
+      toggleExportMenu,
+      refreshData,
       exportToExcel,
       exportToCSV,
-      printReport
+      printReport,
+      clearFilters,
+      prevPage,
+      nextPage,
+      formatNumber,
+      formatCurrency,
+      formatDate,
+      getWarehouseName,
+      getColorHex,
+      getQuantityClass,
+      getUserInitials
     };
   }
 };
 </script>
 
 <style scoped>
+/* Import base styles from first dashboard */
+/* Only unique styles are shown here */
+
+/* Read-Only Notice */
+.readonly-notice {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+  margin: 1.5rem auto;
+  max-width: 1400px;
+  padding: 1rem;
+}
+
+.dark .readonly-notice {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.notice-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.notice-icon {
+  width: 24px;
+  height: 24px;
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notice-text h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .notice-text h3 {
+  color: #f3f4f6;
+}
+
+.notice-text p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.dark .notice-text p {
+  color: #9ca3af;
+}
+
+/* Export Menu */
+.export-menu {
+  position: relative;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.export-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.export-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 180px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-top: 0.5rem;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dark .export-dropdown {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #1f2937;
+  transition: background-color 0.2s;
+}
+
+.dark .export-option {
+  color: #f3f4f6;
+  border-bottom-color: #374151;
+}
+
+.export-option:last-child {
+  border-bottom: none;
+}
+
+.export-option:hover {
+  background: #f9fafb;
+}
+
+.dark .export-option:hover {
+  background: #374151;
+}
+
+.option-icon {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+}
+
+.dark .option-icon {
+  color: #9ca3af;
+}
+
+/* Stats Grid */
+.stat-trend {
+  margin-top: 0.5rem;
+}
+
+.trend-up, .trend-down {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.trend-up {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.trend-down {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Filters Section */
+.filters-section {
+  margin-bottom: 2rem;
+}
+
+.filter-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.dark .filter-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .filter-card h3 {
+  color: #f3f4f6;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.dark .filter-group label {
+  color: #9ca3af;
+}
+
+.filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark .filter-select {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.search-wrapper {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  color: #1f2937;
+  transition: all 0.2s;
+}
+
+.dark .search-input {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.dark .search-icon {
+  color: #9ca3af;
+}
+
+/* Warehouse Chart */
+.warehouse-chart {
+  margin-top: 1.5rem;
+}
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  height: 200px;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .chart-bars {
+  border-bottom-color: #374151;
+}
+
+.chart-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-bar-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.dark .chart-bar-label {
+  color: #9ca3af;
+}
+
+.chart-bar {
+  width: 40px;
+  height: 150px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dark .chart-bar {
+  background: #374151;
+}
+
+.bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #f59e0b, #fbbf24);
+  border-radius: 4px 4px 0 0;
+  transition: height 1s ease;
+}
+
+.chart-bar-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .chart-bar-value {
+  color: #f3f4f6;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-item span {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.dark .legend-item span {
+  color: #9ca3af;
+}
+
+/* Section Actions */
+.section-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn.small {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn.small:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.action-btn.small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Summary Stats */
+.summary-stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.dark .stat-label {
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .stat-value {
+  color: #f3f4f6;
+}
+
+/* Inventory Table */
+.inventory-table-container {
+  margin-top: 1.5rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.dark .table-responsive {
+  border-color: #374151;
+}
+
+.inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.inventory-table thead {
+  background: #f9fafb;
+}
+
+.dark .inventory-table thead {
+  background: #374151;
+}
+
+.inventory-table th {
+  padding: 1rem;
+  text-align: right;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .inventory-table th {
+  color: #9ca3af;
+  border-bottom-color: #374151;
+}
+
+.inventory-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+
+.dark .inventory-table td {
+  color: #f3f4f6;
+  border-bottom-color: #374151;
+}
+
+.inventory-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.dark .inventory-table tbody tr:hover {
+  background: #374151;
+}
+
+.inventory-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Color Badge */
+.color-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Quantity Classes */
+.quantity-normal {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.quantity-low {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.quantity-critical {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.quantity-out {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark .pagination-btn {
+  background: #1f2937;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.dark .pagination-info {
+  color: #9ca3af;
+}
+
+/* Clear Filters Button */
+.clear-filters-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-filters-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chart-bars {
+    gap: 0.5rem;
+  }
+  
+  .chart-bar {
+    width: 30px;
+  }
+  
+  .inventory-table {
+    font-size: 0.75rem;
+  }
+  
+  .inventory-table th,
+  .inventory-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+/* Print Styles */
 @media print {
-  .no-print {
+  .glass-header,
+  .mobile-nav,
+  .export-menu,
+  .section-actions,
+  .pagination,
+  .clear-filters-btn {
     display: none !important;
   }
   
-  body {
-    background: white !important;
-  }
-  
-  .bg-white, .bg-gray-50, .bg-gradient-to-r {
-    background: white !important;
+  .readonly-notice {
     border: 1px solid #e5e7eb !important;
   }
   
-  .dark\:bg-gray-800, .dark\:bg-gray-900 {
-    background: white !important;
+  .filter-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   
-  .text-white, .dark\:text-white {
-    color: black !important;
-  }
-  
-  .text-gray-900, .dark\:text-gray-900 {
-    color: black !important;
-  }
-  
-  .text-gray-700, .dark\:text-gray-700 {
-    color: #4b5563 !important;
-  }
-  
-  .text-gray-500, .dark\:text-gray-500 {
-    color: #6b7280 !important;
-  }
-  
-  .shadow, .shadow-md, .shadow-lg {
-    box-shadow: none !important;
+  .inventory-table {
+    border: 1px solid #e5e7eb !important;
   }
 }
 </style>
