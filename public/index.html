@@ -13,7 +13,7 @@
       text-align: center;
     }
 
-    /* Hide URL bar for standalone apps (safe even without a PWA) */
+    /* Hide URL bar for standalone apps */
     @media all and (display-mode: standalone) {
       body {
         overscroll-behavior-y: none;
@@ -29,7 +29,7 @@
 
     /* Extra styles if app is launched standalone */
     @media (display-mode: standalone), (display-mode: minimal-ui) {
-      /* Additional PWA mode styles (safe even without PWA) */
+      /* Additional PWA mode styles */
     }
   </style>
 </head>
@@ -37,10 +37,10 @@
 <body>
 
   <h1>Your App</h1>
-  <p>This is a cleaned HTML version without PWA or JS bundle files.</p>
+  <p>Clean deployment — no missing JS, no service worker, no manifest.</p>
 
   <script>
-    // Safe: checks standalone mode (won’t break if not a PWA)
+    // This script is safe even without PWA or external JS
     window.addEventListener('load', () => {
       if (window.matchMedia('(display-mode: standalone)').matches) {
         console.log('Running in standalone mode');
