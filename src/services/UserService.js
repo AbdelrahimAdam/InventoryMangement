@@ -13,7 +13,6 @@ import {
   serverTimestamp,
   Timestamp,
   limit,
-  startAfter,
   writeBatch
 } from 'firebase/firestore';
 import { 
@@ -184,17 +183,19 @@ class UserService {
   }
 
   /**
-   * Create new user
-   * @param {Object} userData - User data
+   * Create new user - FIXED VERSION
+   * @param {Object} userData - User data from modal
    * @returns {Promise<Object>} - Created user
    */
   async createUser(userData) {
     try {
+      console.log('UserService.createUser called with:', userData);
       await this._checkSuperAdminPermission();
 
-      // Validate user data with null checks
+      // Validate user data
       const validation = this.validateUserData(userData, false);
       if (!validation.isValid) {
+        console.error('Validation errors:', validation.errors);
         return {
           success: false,
           error: validation.errors[0],
@@ -212,6 +213,9 @@ class UserService {
       const firebaseUser = userCredential.user;
       const userId = firebaseUser.uid;
 
+      // Get default permissions if none provided
+      const defaultPermissions = this.getDefaultPermissionsForRole(userData.role);
+      
       // Prepare COMPLETE user document for Firestore
       const userDoc = {
         name: userData.name ? userData.name.trim() : '',
@@ -219,15 +223,23 @@ class UserService {
         phone: userData.phone ? userData.phone.trim() : null,
         role: userData.role || 'company_manager',
         is_active: userData.is_active !== false,
-        allowed_warehouses: Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [],
-        permissions: Array.isArray(userData.permissions) ? userData.permissions : [], // CRITICAL: Save permissions
+        // CRITICAL FIX: Save the permissions from modal, not default ones
+        permissions: Array.isArray(userData.permissions) && userData.permissions.length > 0 
+          ? userData.permissions 
+          : defaultPermissions,
+        // CRITICAL FIX: Save allowed_warehouses from modal
+        allowed_warehouses: userData.role === 'warehouse_manager' 
+          ? (Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [])
+          : [],
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
         created_by: auth.currentUser?.uid || 'system',
         email_verified: false,
         last_login: null,
-        profile_complete: true // Mark as complete profile
+        profile_complete: true
       };
+
+      console.log('Creating user document:', userDoc);
 
       // Set user display name in Firebase Auth
       await updateFirebaseProfile(firebaseUser, {
@@ -259,7 +271,8 @@ class UserService {
         name: userDoc.name, 
         email: userDoc.email, 
         role: userDoc.role,
-        permissions: userDoc.permissions // Log permissions too
+        permissions: userDoc.permissions,
+        allowed_warehouses: userDoc.allowed_warehouses
       });
 
       return {
@@ -283,13 +296,14 @@ class UserService {
   }
 
   /**
-   * Update existing user
+   * Update existing user - FIXED VERSION
    * @param {string} userId - User ID
-   * @param {Object} userData - User data
+   * @param {Object} userData - User data from modal
    * @returns {Promise<Object>} - Updated user
    */
   async updateUser(userId, userData) {
     try {
+      console.log('UserService.updateUser called for:', userId, 'with data:', userData);
       await this._checkSuperAdminPermission();
 
       // Get current user data
@@ -298,7 +312,7 @@ class UserService {
         return currentUser;
       }
 
-      // Validate user data with null checks
+      // Validate user data
       const validation = this.validateUserData(userData, true);
       if (!validation.isValid) {
         return {
@@ -308,21 +322,25 @@ class UserService {
         };
       }
 
-      // Prepare update data with null checks
+      // Prepare update data - CRITICAL FIX: Keep permissions and allowed_warehouses from modal
       const updateData = {
         name: userData.name ? userData.name.trim() : currentUser.data.name,
         phone: userData.phone ? userData.phone.trim() : currentUser.data.phone || null,
         role: userData.role || currentUser.data.role,
         is_active: userData.is_active !== false,
-        allowed_warehouses: Array.isArray(userData.allowed_warehouses) 
-          ? userData.allowed_warehouses 
-          : currentUser.data.allowed_warehouses || [],
-        permissions: Array.isArray(userData.permissions) 
-          ? userData.permissions 
-          : currentUser.data.permissions || [], // CRITICAL: Update permissions
+        // CRITICAL FIX: Update permissions from modal
+        permissions: Array.isArray(userData.permissions) && userData.permissions.length > 0
+          ? userData.permissions
+          : currentUser.data.permissions || [],
+        // CRITICAL FIX: Update allowed_warehouses from modal
+        allowed_warehouses: userData.role === 'warehouse_manager'
+          ? (Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [])
+          : [],
         updated_at: serverTimestamp(),
         updated_by: auth.currentUser?.uid
       };
+
+      console.log('Updating user with data:', updateData);
 
       // Update display name in Firebase Auth
       if (userData.name && userData.name !== currentUser.data.name) {
@@ -347,7 +365,8 @@ class UserService {
         name: updateData.name,
         role: updateData.role,
         is_active: updateData.is_active,
-        permissions: updateData.permissions // Log permissions too
+        permissions: updateData.permissions,
+        allowed_warehouses: updateData.allowed_warehouses
       });
 
       return {
@@ -450,7 +469,7 @@ class UserService {
       if (!userSnap.exists()) {
         return {
           success: false,
-          error: 'المستخدم غير موجود'
+          error: 'المخدم غير موجود'
         };
       }
 
@@ -525,7 +544,7 @@ class UserService {
         }
       });
 
-      // Sort by relevance (simple implementation)
+      // Sort by relevance
       const sortedResults = results.sort((a, b) => {
         const aScore = this._calculateSearchScore(a, searchTerm);
         const bScore = this._calculateSearchScore(b, searchTerm);
@@ -931,7 +950,7 @@ class UserService {
    */
   getDefaultPermissionsForRole(role) {
     const defaultPermissions = {
-      superadmin: ['all', 'full_access'],
+      superadmin: ['all'],
       warehouse_manager: [
         'manage_inventory',
         'create_transfers',
@@ -940,7 +959,7 @@ class UserService {
         'view_reports',
         'export_data'
       ],
-      company_manager: ['view_reports', 'export_data']
+      company_manager: ['view_reports', 'export_data', 'view_inventory']
     };
     
     return defaultPermissions[role] || ['view_reports'];
