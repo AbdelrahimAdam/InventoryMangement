@@ -944,4 +944,3 @@ export default {
   animation: gradient 15s ease infinite;
 }
 </style>
-
