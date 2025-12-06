@@ -855,151 +855,119 @@ export default {
       }
     };
 
-    const handleSubmit = async () => {
-      if (!isFormValid.value) return;
+  const handleSubmit = async () => {
+  if (!isFormValid.value) return;
 
-      loading.value = true;
-      errorMessage.value = '';
-      validationErrors.value = [];
+  loading.value = true;
+  errorMessage.value = '';
+  validationErrors.value = [];
 
-      try {
-        console.log('Starting user submission process...');
+  try {
+    console.log('Starting user submission process...');
 
-        // Prepare user data with null checks
-        const userData = {
-          name: formData.value.name ? formData.value.name.trim() : '',
-          email: formData.value.email ? formData.value.email.trim().toLowerCase() : '',
-          role: formData.value.role || 'company_manager',
-          is_active: formData.value.is_active !== false,
-          phone: formData.value.phone ? formData.value.phone.trim() : '',
-          allowed_warehouses: formData.value.role === 'warehouse_manager' 
-            ? (formData.value.allowed_warehouses || [])
-            : [],
-          permissions: formData.value.permissions || [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        // Ensure arrays are valid
-        if (!Array.isArray(userData.allowed_warehouses)) {
-          userData.allowed_warehouses = [];
-        }
-        if (!Array.isArray(userData.permissions)) {
-          userData.permissions = [];
-        }
-
-        console.log('Prepared user data:', userData);
-
-        let result;
-        
-        if (props.user) {
-          // UPDATE EXISTING USER
-          console.log('Updating existing user:', props.user.id);
-          
-          userData.created_at = props.user.created_at || new Date().toISOString();
-          userData.id = props.user.id;
-          
-          result = await store.dispatch('updateUser', {
-            userId: props.user.id,
-            userData: userData
-          });
-          
-          if (!result || !result.success) {
-            throw new Error(result?.error || 'فشل في تحديث المستخدم');
-          }
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم تحديث المستخدم بنجاح'
-          });
-          
-        } else {
-          // CREATE NEW USER
-          console.log('Creating new user...');
-          
-          // Validate required fields
-          if (!formData.value.password) {
-            throw new Error('كلمة المرور مطلوبة');
-          }
-          
-          if (formData.value.password.length < 8) {
-            throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-          }
-
-          // Check if we have a current user
-          if (!store.state.user) {
-            throw new Error('يجب تسجيل الدخول أولاً');
-          }
-
-          const newUserData = {
-            ...userData,
-            password: formData.value.password
-          };
-
-          console.log('Dispatching createUser with data:', newUserData);
-
-          result = await store.dispatch('createUser', newUserData);
-
-          console.log('Store createUser result:', result);
-          
-          if (!result || !result.success) {
-            throw new Error(result?.error || 'فشل في إنشاء المستخدم');
-          }
-
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `تم إضافة المستخدم "${userData.name}" بنجاح`
-          });
-        }
-
-        // Emit save event with result data
-        if (result && result.success) {
-          emit('save', result.data || userData);
-          
-          setTimeout(() => {
-            emit('close');
-          }, 500);
-        } else {
-          throw new Error('فشل في عملية الحفظ');
-        }
-        
-      } catch (error) {
-        console.error('Error in form submission:', error);
-        console.error('Error details:', error.message);
-        
-        let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
-        
-        // FIX: Check if error.message exists and is a string before using includes()
-        if (error.message && typeof error.message === 'string') {
-          if (error.message.includes('الاسم يجب أن يكون على الأقل حرفين')) {
-            errorMsg = 'الاسم يجب أن يكون على الأقل حرفين';
-          } else if (error.message.includes('البريد الإلكتروني غير صالح')) {
-            errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-          } else if (error.message.includes('البريد الإلكتروني مستخدم بالفعل')) {
-            errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
-          } else if (error.message.includes('كلمة المرور يجب أن تكون 8 أحرف على الأقل')) {
-            errorMsg = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
-          } else if (error.message.includes('يجب اختيار مخزن واحد على الأقل لمدير المخازن')) {
-            errorMsg = 'يجب اختيار مخزن واحد على الأقل لمدير المخازن';
-          } else if (error.message.includes('ليس لديك صلاحية')) {
-            errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء';
-          } else if (error.message.includes('يجب تسجيل الدخول أولاً')) {
-            errorMsg = 'يجب تسجيل الدخول أولاً';
-          }
-        }
-        
-        errorMessage.value = errorMsg;
-        validationErrors.value = [errorMsg];
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: errorMsg
-        });
-      } finally {
-        loading.value = false;
-      }
+    // Prepare COMPLETE user data with ALL required fields
+    const userData = {
+      name: formData.value.name.trim(),
+      email: formData.value.email.trim().toLowerCase(),
+      role: formData.value.role,
+      is_active: formData.value.is_active,
+      phone: formData.value.phone?.trim() || '',
+      allowed_warehouses: formData.value.role === 'warehouse_manager' 
+        ? formData.value.allowed_warehouses 
+        : [],
+      permissions: formData.value.permissions,
+      // Add password for new users
+      ...(props.user ? {} : { password: formData.value.password })
     };
 
+    console.log('Prepared user data for UserService:', userData);
+
+    let result;
+    
+    if (props.user) {
+      // UPDATE EXISTING USER
+      console.log('Updating existing user:', props.user.id);
+      
+      // Use store dispatch for updating user
+      result = await store.dispatch('updateUser', {
+        userId: props.user.id,
+        userData: userData  // Pass the complete userData object
+      });
+      
+    } else {
+      // CREATE NEW USER
+      console.log('Creating new user...');
+      
+      // Validate required fields
+      if (!formData.value.password) {
+        throw new Error('كلمة المرور مطلوبة');
+      }
+      
+      if (formData.value.password.length < 8) {
+        throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      }
+
+      // Add the user password to the userData
+      userData.password = formData.value.password;
+
+      console.log('Dispatching createUser with complete data:', userData);
+
+      // Use store dispatch to create user
+      result = await store.dispatch('createUser', userData);
+
+      console.log('Store createUser result:', result);
+    }
+
+    if (result && result.success) {
+      // Show success notification
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: props.user ? 'تم تحديث المستخدم بنجاح' : `تم إضافة المستخدم "${userData.name}" بنجاح`
+      });
+
+      // Emit save event with result data
+      emit('save', result.data || userData);
+      
+      // Close modal after delay
+      setTimeout(() => {
+        emit('close');
+      }, 500);
+    } else {
+      throw new Error(result?.error || 'فشل في عملية الحفظ');
+    }
+    
+  } catch (error) {
+    console.error('Error in form submission:', error);
+    console.error('Error details:', error.message);
+    
+    let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
+    
+    // Translate specific validation errors
+    if (error.message.includes('الاسم يجب أن يكون على الأقل حرفين')) {
+      errorMsg = 'الاسم يجب أن يكون على الأقل حرفين';
+    } else if (error.message.includes('البريد الإلكتروني غير صالح')) {
+      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
+    } else if (error.message.includes('البريد الإلكتروني مستخدم بالفعل')) {
+      errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
+    } else if (error.message.includes('كلمة المرور يجب أن تكون 8 أحرف على الأقل')) {
+      errorMsg = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+    } else if (error.message.includes('يجب اختيار مخزن واحد على الأقل لمدير المخازن')) {
+      errorMsg = 'يجب اختيار مخزن واحد على الأقل لمدير المخازن';
+    } else if (error.message.includes('ليس لديك صلاحية')) {
+      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء';
+    }
+    
+    errorMessage.value = errorMsg;
+    validationErrors.value = [errorMsg];
+    
+    store.dispatch('showNotification', {
+      type: 'error',
+      message: errorMsg
+    });
+  } finally {
+    loading.value = false;
+  }
+};
     const ensureWarehousesLoaded = async () => {
       if (!loadingWarehouses.value && (allWarehouses.value.length === 0 || !store.state.warehousesLoaded)) {
         loadingWarehouses.value = true;
