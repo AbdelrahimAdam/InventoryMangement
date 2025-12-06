@@ -232,6 +232,7 @@ export default createStore({
           if (user) {
             commit('SET_USER', user);
             try {
+              // Load user profile - NO MORE createUserProfile calls
               await dispatch('loadUserProfile', user);
             } catch (error) {
               console.error('Error in auth initialization:', error);
@@ -255,12 +256,15 @@ export default createStore({
 
     async loadUserProfile({ commit, dispatch }, user) {
       try {
+        console.log('Loading user profile for:', user.email);
+        
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         
         if (!userDoc.exists()) {
-          console.error('User profile not found:', user.email);
+          console.error('User profile not found in Firestore:', user.email);
           
-          // Create minimal pending profile for new users
+          // THIS SHOULD NOT HAPPEN - All users should be created via UserService
+          // Create a minimal pending profile and notify admin
           const tempProfile = {
             email: user.email,
             name: user.email.split('@')[0],
@@ -291,6 +295,7 @@ export default createStore({
         }
 
         const userProfile = userDoc.data();
+        console.log('Loaded user profile:', userProfile);
         
         // Check if user is active
         if (userProfile.is_active === false) {
@@ -303,7 +308,7 @@ export default createStore({
         }
         
         commit('SET_USER_PROFILE', userProfile);
-        console.log('User profile loaded:', userProfile.role, userProfile.permissions);
+        console.log('User profile loaded with role:', userProfile.role, 'permissions:', userProfile.permissions);
 
         // Show welcome notification
         dispatch('showNotification', {
@@ -357,7 +362,7 @@ export default createStore({
 
         console.log('Login successful, user:', user.uid);
 
-        // Load user profile
+        // Load user profile - NO MORE createUserProfile calls
         await dispatch('loadUserProfile', user);
         commit('SET_USER', user);
 
@@ -410,7 +415,7 @@ export default createStore({
       }
     },
 
-    // User Management Actions
+    // User Management Actions - Using UserService for ALL user creation
     async loadAllUsers({ commit, dispatch, getters }) {
       commit('SET_USERS_LOADING', true);
 
@@ -444,15 +449,19 @@ export default createStore({
       commit('CLEAR_OPERATION_ERROR');
 
       try {
+        console.log('Store.createUser called with:', userData);
+        
         if (!getters.canManageUsers) {
           throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
         }
 
-        console.log('Creating user via UserService:', userData);
-
+        // Use UserService for ALL user creation
         const result = await UserService.createUser(userData);
 
+        console.log('UserService.createUser result:', result);
+
         if (result.success) {
+          // Show success notification
           dispatch('showNotification', {
             type: 'success',
             message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
@@ -482,15 +491,18 @@ export default createStore({
       commit('CLEAR_OPERATION_ERROR');
 
       try {
+        console.log('Store.updateUser called for:', userId, 'with:', userData);
+        
         if (!getters.canManageUsers) {
           throw new Error('ليس لديك صلاحية لتحديث المستخدمين');
         }
 
-        console.log('Updating user via UserService:', userId, userData);
-
         const result = await UserService.updateUser(userId, userData);
 
+        console.log('UserService.updateUser result:', result);
+
         if (result.success) {
+          // If current user is updating their own profile, update local state
           if (userId === getters.user?.uid) {
             const updatedProfile = {
               ...getters.userProfile,
@@ -1445,7 +1457,7 @@ export default createStore({
       const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
       
       // Calculate value (assuming average value per item)
-      const averageValuePerItem = 50; // This should be calculated from actual data
+      const averageValuePerItem = 50;
       const estimatedValue = totalQuantity * averageValuePerItem;
 
       const recentTransactions = state.recentTransactions.length;
