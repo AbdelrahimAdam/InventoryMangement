@@ -1,1098 +1,1563 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl rtl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-          {{ user ? 'تعديل المستخدم' : 'إضافة مستخدم جديد' }}
-        </h2>
+  <div v-if="isOpen" class="modal-overlay">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <h2 class="modal-title">إضافة صنف جديد</h2>
         <button 
-          @click="$emit('close')"
-          class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
+          @click="closeModal"
+          class="modal-close-btn"
         >
-          <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="modal-close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
-        <!-- Basic Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              الاسم الكامل <span class="text-red-500">*</span>
+      <!-- Scrollable Content -->
+      <div class="modal-body">
+        <form @submit.prevent="handleSubmit" class="space-y-4">
+          <!-- Photo Upload Section -->
+          <div class="form-group">
+            <label class="form-label">
+              صورة الصنف
+            </label>
+            <div class="photo-upload-container">
+              <!-- Photo Preview -->
+              <div class="photo-preview-wrapper">
+                <div 
+                  v-if="previewPhoto" 
+                  class="photo-preview"
+                  :style="{ backgroundImage: `url(${previewPhoto})` }"
+                  @click="openFilePicker"
+                >
+                  <div class="photo-overlay">
+                    <svg class="photo-edit-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                  </div>
+                </div>
+                <div 
+                  v-else 
+                  class="photo-placeholder"
+                  @click="openFilePicker"
+                >
+                  <svg class="photo-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  <span class="photo-placeholder-text">انقر لاختيار صورة</span>
+                </div>
+              </div>
+
+              <!-- Photo Upload Actions -->
+              <div class="photo-actions">
+                <input
+                  type="file"
+                  ref="fileInput"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleFileUpload"
+                />
+                <button
+                  type="button"
+                  @click="openFilePicker"
+                  class="photo-action-btn"
+                >
+                  <svg class="photo-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  اختيار صورة
+                </button>
+                <button
+                  type="button"
+                  @click="handlePasteFromClipboard"
+                  class="photo-action-btn"
+                  :disabled="clipboardLoading"
+                >
+                  <svg v-if="clipboardLoading" class="spinner spinner-xs" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <svg v-else class="photo-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                  {{ clipboardLoading ? 'جاري اللصق...' : 'لصق من الحافظة' }}
+                </button>
+                <button
+                  v-if="previewPhoto"
+                  type="button"
+                  @click="removePhoto"
+                  class="photo-action-btn photo-action-btn-danger"
+                >
+                  <svg class="photo-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  إزالة الصورة
+                </button>
+              </div>
+
+              <!-- Photo Info -->
+              <div v-if="selectedFile" class="photo-info">
+                <p class="photo-info-text">
+                  {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Name Field -->
+          <div class="form-group">
+            <label class="form-label">
+              الاسم <span class="required-star">*</span>
             </label>
             <input
               type="text"
               required
               v-model="formData.name"
-              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="أدخل الاسم الكامل"
+              class="form-input"
+              placeholder="أدخل اسم الصنف"
             />
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              البريد الإلكتروني <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              required
-              v-model="formData.email"
-              :readonly="!!user"
-              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="example@company.com"
-              :class="{ 'bg-gray-100 dark:bg-gray-800': !!user }"
-            />
-          </div>
-        </div>
-
-        <!-- Phone and Status -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              رقم الهاتف
-            </label>
-            <input
-              type="tel"
-              v-model="formData.phone"
-              class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="01XXXXXXXXX"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">حالة الحساب</label>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" v-model="formData.is_active" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-              <span class="mr-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ formData.is_active ? 'نشط' : 'غير نشط' }}
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Role Selection -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            الدور <span class="text-red-500">*</span>
-          </label>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label 
-              v-for="role in availableRoles" 
-              :key="role.value"
-              class="relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors duration-200"
-              :class="{
-                'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20': formData.role === role.value,
-                'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700': formData.role !== role.value
-              }"
-            >
+          <!-- Code and Color Fields -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label class="form-label">
+                الكود <span class="required-star">*</span>
+              </label>
               <input
-                type="radio"
-                :value="role.value"
-                v-model="formData.role"
-                :disabled="user?.role === 'superadmin'"
-                class="sr-only"
+                type="text"
+                required
+                v-model="formData.code"
+                class="form-input"
+                placeholder="كود الصنف"
               />
-              <div class="flex w-full items-center justify-between">
-                <div class="flex items-center">
-                  <div class="text-sm">
-                    <div class="font-medium text-gray-900 dark:text-white">{{ role.name }}</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ role.description }}</div>
-                  </div>
-                </div>
-                <svg v-if="formData.role === role.value" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                </svg>
-              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                اللون <span class="required-star">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                v-model="formData.color"
+                class="form-input"
+                placeholder="لون الصنف"
+              />
+            </div>
+          </div>
+
+          <!-- Warehouse Selection -->
+          <div class="form-group">
+            <label class="form-label">
+              المخزن <span class="required-star">*</span>
             </label>
-          </div>
-          <p v-if="user?.role === 'superadmin'" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            لا يمكن تغيير دور المشرف العام
-          </p>
-        </div>
-
-        <!-- Warehouse Access Control -->
-        <div v-if="formData.role === 'warehouse_manager'">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              المخازن المسموحة <span class="text-red-500">*</span>
-            </label>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                @click="toggleAllWarehouses"
-                class="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-              >
-                {{ formData.allowed_warehouses.length === allWarehouses.length ? 'إلغاء الكل' : 'اختيار الكل' }}
-              </button>
-              <button
-                type="button"
-                @click="manageWarehouses"
-                class="text-sm px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors duration-200 flex items-center gap-1"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                إدارة المخازن
-              </button>
-            </div>
-          </div>
-          
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-            اختر المخازن التي يمكن للمستخدم الوصول إليها. سيتمكن المستخدم من إجراء جميع العمليات في المخازن المختارة.
-          </p>
-
-          <!-- Loading State -->
-          <div v-if="loadingWarehouses" class="text-center py-4">
-            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">جاري تحميل المخازن...</p>
-          </div>
-
-          <!-- Warehouses Grid -->
-          <div v-else class="space-y-3">
-            <!-- Primary Warehouses -->
-            <div v-if="primaryWarehouses.length > 0">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المخازن الرئيسية</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label 
-                  v-for="warehouse in primaryWarehouses" 
-                  :key="warehouse.id"
-                  class="relative flex items-start p-3 border rounded-lg transition-colors duration-200 group"
-                  :class="{
-                    'border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20': formData.allowed_warehouses.includes(warehouse.id),
-                    'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600': !formData.allowed_warehouses.includes(warehouse.id)
-                  }"
-                >
-                  <div class="flex items-center h-5">
-                    <input
-                      type="checkbox"
-                      :value="warehouse.id"
-                      v-model="formData.allowed_warehouses"
-                      class="h-4 w-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
-                    />
-                  </div>
-                  <div class="mr-3 text-sm flex-1">
-                    <div class="flex justify-between items-start">
-                      <div>
-                        <div class="font-medium text-gray-900 dark:text-white">{{ warehouse.name_ar }}</div>
-                        <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ warehouse.name_en }}</div>
-                      </div>
-                      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          @click.stop="editWarehouse(warehouse)"
-                          class="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                          title="تعديل"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                      <span>السعة: {{ warehouse.capacity || 'غير محددة' }}</span>
-                      <span>•</span>
-                      <span>الموقع: {{ warehouse.location || 'غير محدد' }}</span>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- Dispatch Warehouses -->
-            <div v-if="dispatchWarehouses.length > 0">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">مواقع الصرف</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label 
-                  v-for="warehouse in dispatchWarehouses" 
-                  :key="warehouse.id"
-                  class="relative flex items-start p-3 border rounded-lg transition-colors duration-200"
-                  :class="{
-                    'border-purple-300 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20': formData.allowed_warehouses.includes(warehouse.id),
-                    'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600': !formData.allowed_warehouses.includes(warehouse.id)
-                  }"
-                >
-                  <div class="flex items-center h-5">
-                    <input
-                      type="checkbox"
-                      :value="warehouse.id"
-                      v-model="formData.allowed_warehouses"
-                      class="h-4 w-4 text-purple-600 dark:text-purple-400 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400"
-                    />
-                  </div>
-                  <div class="mr-3 text-sm">
-                    <div class="font-medium text-gray-900 dark:text-white">{{ warehouse.name_ar }}</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ warehouse.description || warehouse.name_en }}</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- Warehouse Access Summary -->
-            <div v-if="formData.allowed_warehouses.length > 0" 
-                 class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <div class="flex items-center gap-2">
-                <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="text-sm text-green-700 dark:text-green-300">
-                  تم اختيار {{ formData.allowed_warehouses.length }} مخزن
-                </span>
-              </div>
-              <div class="mt-2 text-xs text-green-600 dark:text-green-400">
-                <span>المخازن المختارة:</span>
-                <span class="mr-2 font-medium">
-                  {{ getSelectedWarehouseNames().join('، ') }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- No Warehouses Message -->
-          <div v-if="!loadingWarehouses && allWarehouses.length === 0" class="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد مخازن</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">ابدأ بإضافة مخازن جديدة للنظام.</p>
-            <div class="mt-4">
-              <button
-                type="button"
-                @click="addNewWarehouse"
-                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-              >
-                <svg class="ml-2 -mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                إضافة مخزن جديد
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Permissions Management -->
-        <div v-if="formData.role">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              إدارة الصلاحيات
-            </label>
-            <button
-              type="button"
-              @click="toggleAllPermissions"
-              class="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-            >
-              {{ allPermissionsSelected ? 'إلغاء الكل' : 'اختيار الكل' }}
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="permissionGroup in permissionGroups" :key="permissionGroup.category">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ permissionGroup.label }}</h4>
-              <div class="space-y-2">
-                <label 
-                  v-for="permission in permissionGroup.permissions" 
-                  :key="permission.value"
-                  class="flex items-center p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-                  :class="{
-                    'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20': formData.permissions.includes(permission.value),
-                    'border-gray-200 dark:border-gray-700': !formData.permissions.includes(permission.value)
-                  }"
-                >
-                  <input
-                    type="checkbox"
-                    :value="permission.value"
-                    v-model="formData.permissions"
-                    class="h-4 w-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
-                  />
-                  <div class="mr-3 text-sm">
-                    <div class="font-medium text-gray-700 dark:text-gray-300">{{ permission.name }}</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-xs mt-1">{{ permission.description }}</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Permission Sets -->
-          <div class="mt-4 flex gap-2 flex-wrap">
-            <button
-              type="button"
-              @click="applyPermissionSet('view_only')"
-              class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-            >
-              صلاحيات مشاهدة فقط
-            </button>
-            <button
-              type="button"
-              @click="applyPermissionSet('basic_operations')"
-              class="px-3 py-1 text-sm border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200"
-            >
-              عمليات أساسية
-            </button>
-            <button
-              type="button"
-              @click="applyPermissionSet('full_access')"
-              class="px-3 py-1 text-sm border border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200"
-            >
-              صلاحيات كاملة
-            </button>
-            <button
-              type="button"
-              @click="applyPermissionSet('warehouse_manager')"
-              class="px-3 py-1 text-sm border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-            >
-              مدير مخازن نموذجي
-            </button>
-          </div>
-        </div>
-
-        <!-- Password (only for new users) -->
-        <div v-if="!user" class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-          <div class="flex justify-between items-center mb-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              كلمة المرور <span class="text-red-500">*</span>
-            </label>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                @click="togglePasswordVisibility"
-                class="text-sm px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
-              >
-                {{ showPassword ? 'إخفاء' : 'إظهار' }}
-              </button>
-              <button
-                type="button"
-                @click="generateStrongPassword"
-                class="text-sm px-2 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-              >
-                توليد قوي
-              </button>
-            </div>
-          </div>
-          
-          <div class="flex gap-3">
-            <input
-              :type="showPassword ? 'text' : 'password'"
+            <select
+              v-model="formData.warehouse_id"
+              class="form-select"
               required
-              v-model="formData.password"
-              class="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="كلمة المرور المؤقتة"
-            />
-            <button
-              type="button"
-              @click="generatePassword"
-              class="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
             >
-              توليد عشوائي
-            </button>
+              <option value="">اختر المخزن</option>
+              <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
+                {{ warehouse.name_ar }}
+              </option>
+            </select>
           </div>
-          
-          <!-- Password Strength Indicator -->
-          <div class="mt-2">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-gray-500 dark:text-gray-400">قوة كلمة المرور:</span>
-              <span class="text-xs font-medium" :class="passwordStrength.color">
-                {{ passwordStrength.label }}
-              </span>
+
+          <!-- Supplier and Location Fields -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label class="form-label">
+                المورد
+              </label>
+              <input
+                type="text"
+                v-model="formData.supplier"
+                class="form-input"
+                placeholder="اسم المورد"
+              />
             </div>
-            <div class="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                class="h-full transition-all duration-300" 
-                :class="passwordStrength.color"
-                :style="{ width: passwordStrength.percentage + '%' }"
-              ></div>
+
+            <div class="form-group">
+              <label class="form-label">
+                مكان الصنف
+              </label>
+              <input
+                type="text"
+                v-model="formData.item_location"
+                class="form-input"
+                placeholder="مكان الصنف داخل المخزن"
+              />
             </div>
           </div>
-          
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            يجب أن تكون كلمة المرور 8 أحرف على الأقل وتحتوي على حروف وأرقام
-          </p>
-          
-          <!-- Temporary Password Display -->
-          <div v-if="formData.password" class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-            <div class="flex items-center gap-2 mb-2">
-              <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-              </svg>
-              <span class="text-sm font-medium text-yellow-800 dark:text-yellow-300">كلمة المرور المؤقتة</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 font-mono text-sm bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
-                {{ formData.password }}
-              </code>
+
+          <!-- Add Mode Selection -->
+          <div class="form-group">
+            <label class="form-label">
+              طريقة الإضافة
+            </label>
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 sm:space-x-reverse mb-4">
               <button
                 type="button"
-                @click="copyPassword"
-                class="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                title="نسخ"
+                @click="addMode = 'cartons'"
+                :class="['mode-btn', addMode === 'cartons' ? 'mode-btn-active' : 'mode-btn-inactive']"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
+                كراتين
+              </button>
+              <button
+                type="button"
+                @click="addMode = 'single'"
+                :class="['mode-btn', addMode === 'single' ? 'mode-btn-active' : 'mode-btn-inactive']"
+              >
+                فردي
+              </button>
+              <button
+                type="button"
+                @click="addMode = 'both'"
+                :class="['mode-btn', addMode === 'both' ? 'mode-btn-active' : 'mode-btn-inactive']"
+              >
+                الاثنين معاً
               </button>
             </div>
-            <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-2">
-              سيتم إرسال هذه الكلمة إلى المستخدم. يجب عليه تغييرها عند أول دخول.
+          </div>
+
+          <!-- Cartons Fields (Conditional) -->
+          <div v-if="addMode === 'cartons' || addMode === 'both'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label class="form-label">
+                عدد الكراتين <span class="required-star">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                v-model.number="formData.cartons_count"
+                class="form-input"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                عدد في الكرتونة <span class="required-star">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                v-model.number="formData.per_carton_count"
+                class="form-input"
+              />
+            </div>
+          </div>
+
+          <!-- Single Bottles Field (Conditional) -->
+          <div v-if="addMode === 'single' || addMode === 'both'" class="form-group">
+            <label class="form-label">
+              عدد القزاز الفردي <span class="required-star">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              required
+              v-model.number="formData.single_bottles_count"
+              class="form-input"
+            />
+          </div>
+
+          <!-- Notes Field -->
+          <div class="form-group">
+            <label class="form-label">
+              ملاحظات
+            </label>
+            <textarea
+              v-model="formData.notes"
+              rows="2"
+              class="form-textarea"
+              placeholder="ملاحظات إضافية (اختياري)"
+            ></textarea>
+          </div>
+
+          <!-- Summary Section -->
+          <div v-if="showSummary" class="alert alert-info">
+            <h4 class="alert-title">ملخص الكمية:</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <div v-if="addMode === 'cartons' || addMode === 'both'">
+                الكراتين: {{ formData.cartons_count }} × {{ formData.per_carton_count }} = {{ cartonsTotal }}
+              </div>
+              <div v-if="addMode === 'single' || addMode === 'both'">
+                الفردي: {{ formData.single_bottles_count }}
+              </div>
+              <div class="col-span-full border-t pt-1 font-medium mt-1">
+                الإجمالي: {{ totalQuantity }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing Item Warning -->
+          <div v-if="existingItem && !storeOperationError" class="alert alert-warning">
+            <div class="flex items-center">
+              <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+              <h4 class="alert-title">تم العثور على صنف موجود</h4>
+            </div>
+            <p class="alert-message">
+              يوجد بالفعل صنف بنفس الاسم واللون والكود في هذا المخزن. سيتم تحديث الكميات بدلاً من إنشاء صنف جديد.
             </p>
-          </div>
-        </div>
-
-        <!-- User Summary -->
-        <div v-if="formData.role" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-3">ملخص المستخدم:</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div class="text-xs text-blue-600 dark:text-blue-400 mb-1">الدور والصلاحيات</div>
-              <div class="text-sm text-blue-700 dark:text-blue-300">
-                {{ getRoleDisplay(formData.role) }}
-              </div>
-              <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                {{ formData.permissions.length }} صلاحية محددة
-              </div>
-            </div>
-            <div>
-              <div class="text-xs text-blue-600 dark:text-blue-400 mb-1">الوصول إلى المخازن</div>
-              <div class="text-sm text-blue-700 dark:text-blue-300">
-                {{ formData.allowed_warehouses.length }} مخزن
-              </div>
-              <div v-if="formData.allowed_warehouses.length > 0" class="mt-1 text-xs text-blue-600 dark:text-blue-400 truncate">
-                {{ getSelectedWarehouseNames().slice(0, 2).join('، ') }}
-                <span v-if="formData.allowed_warehouses.length > 2">وآخرون</span>
-              </div>
+            <div class="mt-2 text-sm">
+              <p>الكمية الحالية: {{ existingItem.remaining_quantity }}</p>
+              <p>الكمية المضافة سابقاً: {{ existingItem.total_added }}</p>
+              <p v-if="existingItem.photo_url">يوجد صورة مرفقة سابقاً</p>
             </div>
           </div>
-        </div>
 
-        <!-- Validation Errors -->
-        <div v-if="validationErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
-          <h4 class="text-sm font-medium text-red-800 dark:text-red-300 mb-2">خطأ في التحقق:</h4>
-          <ul class="text-sm text-red-700 dark:text-red-300 list-disc pr-5 space-y-1">
-            <li v-for="error in validationErrors" :key="error">{{ error }}</li>
-          </ul>
-        </div>
-
-        <!-- Error Message -->
-        <div v-if="errorMessage" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
-          <div class="flex items-center gap-2">
-            <svg class="w-5 h-5 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p class="text-sm text-red-700 dark:text-red-300">{{ errorMessage }}</p>
+          <!-- Store Operation Error -->
+          <div v-if="storeOperationError" class="alert alert-danger">
+            <p class="alert-message">{{ storeOperationError }}</p>
           </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <button
-            type="button"
-            @click="$emit('close')"
-            class="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 font-medium"
-          >
-            إلغاء
-          </button>
-          <button
-            type="submit"
-            :disabled="loading || !isFormValid"
-            class="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-          >
-            <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            {{ loading ? 'جاري الحفظ...' : (user ? 'تحديث المستخدم' : 'إضافة مستخدم') }}
-          </button>
-        </div>
-      </form>
+          <!-- Success Message -->
+          <div v-if="successMessage" class="alert alert-success">
+            <p class="alert-message">{{ successMessage }}</p>
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="errorMessage" class="alert alert-danger">
+            <p class="alert-message">{{ errorMessage }}</p>
+          </div>
+
+          <!-- Action Buttons (Fixed at bottom) -->
+          <div class="modal-footer">
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="closeModal"
+                class="btn-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                :disabled="loading || storeOperationLoading || !isFormValid || uploadingPhoto"
+                class="btn-primary"
+              >
+                <svg v-if="loading || storeOperationLoading || uploadingPhoto" class="spinner spinner-sm" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                {{ (loading || storeOperationLoading || uploadingPhoto) ? 'جاري الحفظ...' : (existingItem ? 'تحديث الكميات' : 'إضافة الصنف') }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-
-  <!-- Warehouse Management Modal -->
-  <WarehouseModal
-    v-if="showWarehouseModal"
-    :warehouse="editingWarehouse"
-    @close="closeWarehouseModal"
-    @save="handleWarehouseSave"
-  />
 </template>
 
 <script>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
-import WarehouseModal from '@/components/WarehouseModal.vue';
 
 export default {
-  name: 'UserManagementModal',
-  components: {
-    WarehouseModal
-  },
+  name: 'AddItemModal',
   props: {
     isOpen: {
       type: Boolean,
       required: true
-    },
-    user: {
-      type: Object,
-      default: null
     }
   },
-  emits: ['close', 'save', 'warehouse-updated'],
+  emits: ['close', 'success'],
   setup(props, { emit }) {
     const store = useStore();
     
     const loading = ref(false);
-    const loadingWarehouses = ref(false);
     const errorMessage = ref('');
-    const validationErrors = ref([]);
-    const showPassword = ref(false);
-    const showWarehouseModal = ref(false);
-    const editingWarehouse = ref(null);
+    const successMessage = ref('');
+    const addMode = ref('both');
+    const existingItem = ref(null);
+    const uploadingPhoto = ref(false);
+    const clipboardLoading = ref(false);
+    const selectedFile = ref(null);
+    const previewPhoto = ref('');
+    const fileInput = ref(null);
     
     const formData = ref({
       name: '',
-      email: '',
-      role: 'company_manager',
-      is_active: true,
-      phone: '',
-      allowed_warehouses: [],
-      permissions: [],
-      password: ''
+      code: '',
+      color: '',
+      warehouse_id: '',
+      supplier: '',
+      item_location: '',
+      cartons_count: 0,
+      per_carton_count: 12,
+      single_bottles_count: 0,
+      notes: '',
+      photo_url: null
     });
-
-    const availableRoles = ref([
-      {
-        value: 'superadmin',
-        name: 'المشرف العام',
-        description: 'صلاحيات كاملة على النظام'
-      },
-      {
-        value: 'warehouse_manager',
-        name: 'مدير المخازن',
-        description: 'إدارة المخزون والحركات في المخازن المحددة'
-      },
-      {
-        value: 'company_manager',
-        name: 'مدير الشركة',
-        description: 'عرض التقارير والبيانات (قراءة فقط)'
-      }
-    ]);
-
-    const permissionGroups = ref([
-      {
-        category: 'inventory',
-        label: 'إدارة المخزون',
-        permissions: [
-          { value: 'manage_inventory', name: 'إدارة المخزون', description: 'إضافة وتعديل المخزون' },
-          { value: 'create_transfers', name: 'إنشاء التحويلات', description: 'نقل المخزون بين المخازن' },
-          { value: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للخارج' },
-          { value: 'update_items', name: 'تحديث الأصناف', description: 'تعديل بيانات الأصناف' },
-          { value: 'delete_items', name: 'حذف الأصناف', description: 'إزالة الأصناف من النظام' }
-        ]
-      },
-      {
-        category: 'reports',
-        label: 'التقارير والمتابعة',
-        permissions: [
-          { value: 'view_reports', name: 'عرض التقارير', description: 'مشاهدة تقارير المخزون' },
-          { value: 'export_data', name: 'تصدير البيانات', description: 'تصدير البيانات إلى Excel' },
-          { value: 'view_analytics', name: 'عرض التحليلات', description: 'مشاهدة الإحصائيات والتحليلات' }
-        ]
-      },
-      {
-        category: 'system',
-        label: 'إدارة النظام',
-        permissions: [
-          { value: 'manage_warehouses', name: 'إدارة المخازن', description: 'إضافة وتعديل المخازن' },
-          { value: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل المستخدمين' },
-          { value: 'system_settings', name: 'إعدادات النظام', description: 'تعديل إعدادات النظام' }
-        ]
-      },
-      {
-        category: 'advanced',
-        label: 'صلاحيات متقدمة',
-        permissions: [
-          { value: 'audit_logs', name: 'سجلات المراجعة', description: 'مشاهدة سجلات النظام' },
-          { value: 'backup_restore', name: 'النسخ الاحتياطي', description: 'النسخ والاستعادة' },
-          { value: 'full_access', name: 'وصول كامل', description: 'جميع الصلاحيات بدون قيود' }
-        ]
-      }
-    ]);
 
     // Computed properties
-    const allWarehouses = computed(() => {
-      return store.state.warehouses || [];
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
+    const storeOperationLoading = computed(() => store.state.operationLoading);
+    const storeOperationError = computed(() => store.state.operationError);
+    const currentUser = computed(() => store.state.user);
+    const currentUserId = computed(() => store.state.user?.uid);
+    const userProfile = computed(() => store.state.userProfile);
+
+    const cartonsTotal = computed(() => {
+      return formData.value.cartons_count * formData.value.per_carton_count;
     });
 
-    const primaryWarehouses = computed(() => {
-      return allWarehouses.value.filter(w => w.type === 'primary');
+    const totalQuantity = computed(() => {
+      const cartonsQuantity = cartonsTotal.value;
+      const singleQuantity = formData.value.single_bottles_count || 0;
+      return cartonsQuantity + singleQuantity;
     });
 
-    const dispatchWarehouses = computed(() => {
-      return allWarehouses.value.filter(w => w.type === 'dispatch');
-    });
-
-    const allPermissionsSelected = computed(() => {
-      const allPermissions = permissionGroups.value.flatMap(group => 
-        group.permissions.map(p => p.value)
-      );
-      return allPermissions.every(permission => 
-        formData.value.permissions.includes(permission)
-      );
-    });
-
-    const passwordStrength = computed(() => {
-      const password = formData.value.password || '';
-      let score = 0;
-      
-      if (password.length >= 8) score += 1;
-      if (/[A-Z]/.test(password)) score += 1;
-      if (/[a-z]/.test(password)) score += 1;
-      if (/\d/.test(password)) score += 1;
-      if (/[^A-Za-z0-9]/.test(password)) score += 1;
-      
-      const percentage = (score / 5) * 100;
-      
-      if (score <= 1) return { label: 'ضعيفة', color: 'bg-red-500', percentage };
-      if (score <= 3) return { label: 'متوسطة', color: 'bg-yellow-500', percentage };
-      return { label: 'قوية', color: 'bg-green-500', percentage };
+    const showSummary = computed(() => {
+      return totalQuantity.value > 0;
     });
 
     const isFormValid = computed(() => {
-      validationErrors.value = [];
-
-      if (!formData.value.name || !formData.value.name.trim()) {
-        validationErrors.value.push('الاسم الكامل مطلوب');
+      if (!formData.value.name.trim()) return false;
+      if (!formData.value.code.trim()) return false;
+      if (!formData.value.color.trim()) return false;
+      if (!formData.value.warehouse_id) return false;
+      
+      // Check mode-specific validation
+      if (addMode.value === 'cartons') {
+        return formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
+      } else if (addMode.value === 'single') {
+        return formData.value.single_bottles_count > 0;
+      } else if (addMode.value === 'both') {
+        return totalQuantity.value > 0;
       }
-
-      if (!formData.value.email || !formData.value.email.trim()) {
-        validationErrors.value.push('البريد الإلكتروني مطلوب');
-      } else if (!isValidEmail(formData.value.email)) {
-        validationErrors.value.push('صيغة البريد الإلكتروني غير صحيحة');
-      }
-
-      if (!formData.value.role) {
-        validationErrors.value.push('الدور مطلوب');
-      }
-
-      if (!props.user && (!formData.value.password || formData.value.password.length < 8)) {
-        validationErrors.value.push('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-      }
-
-      if (formData.value.role === 'warehouse_manager' && 
-          (!formData.value.allowed_warehouses || formData.value.allowed_warehouses.length === 0)) {
-        validationErrors.value.push('يجب اختيار مخزن واحد على الأقل لمدير المخازن');
-      }
-
-      if (formData.value.phone && !isValidPhone(formData.value.phone)) {
-        validationErrors.value.push('رقم الهاتف غير صحيح');
-      }
-
-      return validationErrors.value.length === 0;
+      
+      return false;
     });
 
-    // Helper functions with null checks
-    const isValidEmail = (email) => {
-      if (!email || typeof email !== 'string') return false;
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return emailRegex.test(email);
-    };
-
-    const isValidPhone = (phone) => {
-      if (!phone || typeof phone !== 'string') return false;
-      const phoneRegex = /^01[0-9]{9}$/;
-      return phoneRegex.test(phone);
-    };
-
-    const getRoleDisplay = (role) => {
-      const roleMap = {
-        superadmin: 'المشرف العام',
-        warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركة'
-      };
-      return roleMap[role] || role;
-    };
-
-    const getSelectedWarehouseNames = () => {
-      if (!formData.value.allowed_warehouses || !Array.isArray(formData.value.allowed_warehouses)) {
-        return [];
-      }
-      return formData.value.allowed_warehouses
-        .map(warehouseId => {
-          const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
-          return warehouse ? warehouse.name_ar : warehouseId;
-        });
-    };
-
-    const generatePassword = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let password = '';
-      for (let i = 0; i < 10; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      formData.value.password = password;
-    };
-
-    const generateStrongPassword = () => {
-      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-      const numbers = '0123456789';
-      const symbols = '!@#$%^&*';
-      
-      let password = '';
-      
-      // Ensure at least one of each type
-      password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-      password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-      password += numbers.charAt(Math.floor(Math.random() * numbers.length));
-      password += symbols.charAt(Math.floor(Math.random() * symbols.length));
-      
-      // Fill the rest
-      const allChars = uppercase + lowercase + numbers + symbols;
-      for (let i = 4; i < 12; i++) {
-        password += allChars.charAt(Math.floor(Math.random() * allChars.length));
-      }
-      
-      // Shuffle the password
-      formData.value.password = password.split('').sort(() => Math.random() - 0.5).join('');
-    };
-
-    const togglePasswordVisibility = () => {
-      showPassword.value = !showPassword.value;
-    };
-
-    const copyPassword = async () => {
-      try {
-        await navigator.clipboard.writeText(formData.value.password);
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم نسخ كلمة المرور'
-        });
-      } catch (err) {
-        console.error('Failed to copy password:', err);
-      }
-    };
-
-    const toggleAllWarehouses = () => {
-      if (!formData.value.allowed_warehouses || !Array.isArray(formData.value.allowed_warehouses)) {
-        formData.value.allowed_warehouses = [];
-      }
-      
-      if (formData.value.allowed_warehouses.length === allWarehouses.value.length) {
-        formData.value.allowed_warehouses = [];
-      } else {
-        formData.value.allowed_warehouses = allWarehouses.value.map(w => w.id);
-      }
-    };
-
-    const toggleAllPermissions = () => {
-      if (!formData.value.permissions || !Array.isArray(formData.value.permissions)) {
-        formData.value.permissions = [];
-      }
-      
-      if (allPermissionsSelected.value) {
-        formData.value.permissions = [];
-      } else {
-        const allPermissions = permissionGroups.value.flatMap(group => 
-          group.permissions.map(p => p.value)
-        );
-        formData.value.permissions = [...allPermissions];
-      }
-    };
-
-    const applyPermissionSet = (setName) => {
-      const permissionSets = {
-        view_only: ['view_reports', 'export_data'],
-        basic_operations: ['manage_inventory', 'create_transfers', 'dispatch_items', 'view_reports'],
-        full_access: ['full_access'],
-        warehouse_manager: ['manage_inventory', 'create_transfers', 'dispatch_items', 'update_items', 'view_reports', 'export_data']
-      };
-      
-      formData.value.permissions = permissionSets[setName] || [];
-    };
-
-    const manageWarehouses = () => {
-      emit('warehouse-updated');
-      store.dispatch('showNotification', {
-        type: 'info',
-        message: 'يمكنك إدارة المخازن من قائمة المخازن في الشريط الجانبي'
-      });
-    };
-
-    const addNewWarehouse = () => {
-      editingWarehouse.value = null;
-      showWarehouseModal.value = true;
-    };
-
-    const editWarehouse = (warehouse) => {
-      editingWarehouse.value = warehouse;
-      showWarehouseModal.value = true;
-    };
-
-    const closeWarehouseModal = () => {
-      showWarehouseModal.value = false;
-      editingWarehouse.value = null;
-    };
-
-    const handleWarehouseSave = async (warehouseData) => {
-      try {
-        await store.dispatch('loadWarehouses');
-        
-        if (formData.value.allowed_warehouses && formData.value.allowed_warehouses.includes(warehouseData.id)) {
-          const index = formData.value.allowed_warehouses.indexOf(warehouseData.id);
-          if (index > -1) {
-            formData.value.allowed_warehouses[index] = warehouseData.id;
-          }
-        }
-        
-        closeWarehouseModal();
-      } catch (error) {
-        console.error('Error handling warehouse save:', error);
-      }
-    };
-
-  const handleSubmit = async () => {
-  if (!isFormValid.value) return;
-
-  loading.value = true;
-  errorMessage.value = '';
-  validationErrors.value = [];
-
-  try {
-    console.log('Starting user submission process...');
-
-    // Prepare COMPLETE user data with ALL required fields
-    const userData = {
-      name: formData.value.name.trim(),
-      email: formData.value.email.trim().toLowerCase(),
-      role: formData.value.role,
-      is_active: formData.value.is_active,
-      phone: formData.value.phone?.trim() || '',
-      allowed_warehouses: formData.value.role === 'warehouse_manager' 
-        ? formData.value.allowed_warehouses 
-        : [],
-      permissions: formData.value.permissions,
-      // Add password for new users
-      ...(props.user ? {} : { password: formData.value.password })
-    };
-
-    console.log('Prepared user data for UserService:', userData);
-
-    let result;
-    
-    if (props.user) {
-      // UPDATE EXISTING USER
-      console.log('Updating existing user:', props.user.id);
-      
-      // Use store dispatch for updating user
-      result = await store.dispatch('updateUser', {
-        userId: props.user.id,
-        userData: userData  // Pass the complete userData object
-      });
-      
-    } else {
-      // CREATE NEW USER
-      console.log('Creating new user...');
-      
-      // Validate required fields
-      if (!formData.value.password) {
-        throw new Error('كلمة المرور مطلوبة');
-      }
-      
-      if (formData.value.password.length < 8) {
-        throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-      }
-
-      // Add the user password to the userData
-      userData.password = formData.value.password;
-
-      console.log('Dispatching createUser with complete data:', userData);
-
-      // Use store dispatch to create user
-      result = await store.dispatch('createUser', userData);
-
-      console.log('Store createUser result:', result);
-    }
-
-    if (result && result.success) {
-      // Show success notification
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: props.user ? 'تم تحديث المستخدم بنجاح' : `تم إضافة المستخدم "${userData.name}" بنجاح`
-      });
-
-      // Emit save event with result data
-      emit('save', result.data || userData);
-      
-      // Close modal after delay
-      setTimeout(() => {
-        emit('close');
-      }, 500);
-    } else {
-      throw new Error(result?.error || 'فشل في عملية الحفظ');
-    }
-    
-  } catch (error) {
-    console.error('Error in form submission:', error);
-    console.error('Error details:', error.message);
-    
-    let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
-    
-    // Translate specific validation errors
-    if (error.message.includes('الاسم يجب أن يكون على الأقل حرفين')) {
-      errorMsg = 'الاسم يجب أن يكون على الأقل حرفين';
-    } else if (error.message.includes('البريد الإلكتروني غير صالح')) {
-      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-    } else if (error.message.includes('البريد الإلكتروني مستخدم بالفعل')) {
-      errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
-    } else if (error.message.includes('كلمة المرور يجب أن تكون 8 أحرف على الأقل')) {
-      errorMsg = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
-    } else if (error.message.includes('يجب اختيار مخزن واحد على الأقل لمدير المخازن')) {
-      errorMsg = 'يجب اختيار مخزن واحد على الأقل لمدير المخازن';
-    } else if (error.message.includes('ليس لديك صلاحية')) {
-      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء';
-    }
-    
-    errorMessage.value = errorMsg;
-    validationErrors.value = [errorMsg];
-    
-    store.dispatch('showNotification', {
-      type: 'error',
-      message: errorMsg
+    const isAddingCartonsComputed = computed(() => {
+      return (addMode.value === 'cartons' || addMode.value === 'both') && formData.value.cartons_count > 0;
     });
-  } finally {
-    loading.value = false;
-  }
-};
-    const ensureWarehousesLoaded = async () => {
-      if (!loadingWarehouses.value && (allWarehouses.value.length === 0 || !store.state.warehousesLoaded)) {
-        loadingWarehouses.value = true;
-        try {
-          await store.dispatch('loadWarehouses');
-          console.log('Warehouses loaded successfully');
-        } catch (error) {
-          console.error('Error loading warehouses:', error);
-          errorMessage.value = 'خطأ في تحميل المخازن. يرجى المحاولة مرة أخرى.';
-        } finally {
-          loadingWarehouses.value = false;
-        }
-      }
-    };
 
-    watch(() => props.isOpen, async (newVal) => {
+    // Watchers
+    watch(() => props.isOpen, (newVal) => {
       if (newVal) {
-        console.log('Modal opened, resetting form...');
+        resetForm();
         
-        // Reset form state
-        formData.value = {
-          name: '',
-          email: '',
-          role: 'company_manager',
-          is_active: true,
-          phone: '',
-          allowed_warehouses: [],
-          permissions: [],
-          password: ''
-        };
-        
-        errorMessage.value = '';
-        validationErrors.value = [];
-        showPassword.value = false;
-        showWarehouseModal.value = false;
-        editingWarehouse.value = null;
-        
-        if (!props.user) {
-          console.log('New user mode, generating password...');
-          generateStrongPassword();
-          applyPermissionSet('warehouse_manager');
+        // Set default warehouse if accessible warehouses exist
+        if (accessibleWarehouses.value.length > 0) {
+          const mainWarehouse = store.getters.mainWarehouse;
+          formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
         }
+      }
+    });
+
+    watch(accessibleWarehouses, (newWarehouses) => {
+      if (newWarehouses.length > 0 && !formData.value.warehouse_id) {
+        const mainWarehouse = store.getters.mainWarehouse;
+        formData.value.warehouse_id = mainWarehouse?.id || newWarehouses[0].id;
+      }
+    });
+
+    // Watch for form changes to check for existing items
+    watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
+      async ([name, code, color, warehouseId]) => {
+        if (name && code && color && warehouseId) {
+          await checkExistingItem();
+        } else {
+          existingItem.value = null;
+        }
+      }, 
+      { immediate: true }
+    );
+
+    // Methods
+    const closeModal = () => {
+      emit('close');
+      resetForm();
+    };
+
+    const resetForm = () => {
+      formData.value = {
+        name: '',
+        code: '',
+        color: '',
+        warehouse_id: accessibleWarehouses.value.length > 0 ? 
+          (store.getters.mainWarehouse?.id || accessibleWarehouses.value[0].id) : '',
+        supplier: '',
+        item_location: '',
+        cartons_count: 0,
+        per_carton_count: 12,
+        single_bottles_count: 0,
+        notes: '',
+        photo_url: null
+      };
+      addMode.value = 'both';
+      errorMessage.value = '';
+      successMessage.value = '';
+      existingItem.value = null;
+      selectedFile.value = null;
+      previewPhoto.value = '';
+      store.dispatch('clearOperationError');
+    };
+
+    const formatFileSize = (bytes) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const openFilePicker = () => {
+      if (fileInput.value) {
+        fileInput.value.click();
+      }
+    };
+
+    const handleFileUpload = (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        errorMessage.value = 'يرجى اختيار ملف صورة فقط';
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5MB';
+        return;
+      }
+
+      selectedFile.value = file;
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewPhoto.value = e.target.result;
+      };
+      reader.readAsDataURL(file);
+
+      // Reset file input
+      if (fileInput.value) {
+        fileInput.value.value = '';
+      }
+    };
+
+    const removePhoto = () => {
+      selectedFile.value = null;
+      previewPhoto.value = '';
+      formData.value.photo_url = null;
+    };
+
+    const handlePasteFromClipboard = async () => {
+      clipboardLoading.value = true;
+      errorMessage.value = '';
+
+      try {
+        // Check if clipboard API is available
+        if (!navigator.clipboard || !navigator.clipboard.read) {
+          errorMessage.value = 'ميزة لصق الصور من الحافظة غير مدعومة في هذا المتصفح';
+          return;
+        }
+
+        // Read clipboard contents
+        const clipboardItems = await navigator.clipboard.read();
         
-        await ensureWarehousesLoaded();
-        
-        if (props.user) {
-          console.log('Edit mode, populating form with user data:', props.user);
-          formData.value = {
-            name: props.user.name || '',
-            email: props.user.email || '',
-            role: props.user.role || 'company_manager',
-            is_active: props.user.is_active !== false,
-            phone: props.user.phone || '',
-            allowed_warehouses: props.user.allowed_warehouses || [],
-            permissions: props.user.permissions || []
-          };
-          if (formData.value.password) {
-            delete formData.value.password;
+        for (const clipboardItem of clipboardItems) {
+          // Look for image types
+          const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
+          
+          if (imageTypes.length > 0) {
+            const imageType = imageTypes[0];
+            const blob = await clipboardItem.getType(imageType);
+            
+            // Create file from blob
+            const file = new File([blob], `pasted-image-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
+            selectedFile.value = file;
+            
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              previewPhoto.value = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+            
+            successMessage.value = 'تم لصق الصورة من الحافظة بنجاح';
+            break;
           }
         }
-      }
-    }, { immediate: true });
 
-    watch(() => formData.value.role, (newRole, oldRole) => {
-      console.log('Role changed from', oldRole, 'to', newRole);
-      
-      if (newRole !== 'warehouse_manager') {
-        formData.value.allowed_warehouses = [];
+        if (!selectedFile.value) {
+          errorMessage.value = 'لا توجد صورة في الحافظة';
+        }
+      } catch (error) {
+        console.error('Error pasting from clipboard:', error);
+        errorMessage.value = 'حدث خطأ أثناء لصق الصورة من الحافظة. تأكد من وجود صورة في الحافظة وأنك قد منحت الإذن للوصول إلى الحافظة.';
+      } finally {
+        clipboardLoading.value = false;
       }
-      
-      if (newRole === 'company_manager') {
-        formData.value.permissions = ['view_reports', 'export_data', 'view_inventory'];
-      } else if (newRole === 'warehouse_manager') {
-        formData.value.permissions = [
-          'manage_inventory', 
-          'create_transfers', 
-          'dispatch_items', 
-          'update_items', 
-          'view_reports', 
-          'export_data',
-          'view_inventory'
-        ];
-      } else if (newRole === 'superadmin') {
-        formData.value.permissions = ['all'];
-      }
-    }, { immediate: true });
+    };
 
-    onMounted(async () => {
-      console.log('UserManagementModal mounted');
-      await ensureWarehousesLoaded();
-    });
+    const uploadPhotoToStorage = async () => {
+      if (!selectedFile.value) return null;
+
+      uploadingPhoto.value = true;
+
+      try {
+        // In a real implementation, you would upload to Firebase Storage
+        // For now, we'll simulate by returning a base64 data URL
+        // In production, replace this with actual Firebase Storage upload
+        
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            // Simulate upload delay
+            setTimeout(() => {
+              resolve(e.target.result); // Return base64 data URL
+            }, 1000);
+          };
+          reader.readAsDataURL(selectedFile.value);
+        });
+      } catch (error) {
+        console.error('Error uploading photo:', error);
+        errorMessage.value = 'حدث خطأ أثناء رفع الصورة';
+        return null;
+      } finally {
+        uploadingPhoto.value = false;
+      }
+    };
+
+    const checkExistingItem = async () => {
+      if (!formData.value.name || !formData.value.code || !formData.value.color || !formData.value.warehouse_id) {
+        existingItem.value = null;
+        return;
+      }
+
+      try {
+        // Dispatch action to check for existing item
+        const result = await store.dispatch('checkExistingItem', {
+          name: formData.value.name.trim(),
+          code: formData.value.code.trim(),
+          color: formData.value.color.trim(),
+          warehouse_id: formData.value.warehouse_id
+        });
+
+        if (result && result.exists && result.item) {
+          existingItem.value = result.item;
+          // If existing item has a photo, show it in preview
+          if (result.item.photo_url) {
+            previewPhoto.value = result.item.photo_url;
+            formData.value.photo_url = result.item.photo_url;
+          }
+        } else {
+          existingItem.value = null;
+        }
+      } catch (error) {
+        console.error('Error checking existing item:', error);
+        existingItem.value = null;
+      }
+    };
+
+    const validateForm = () => {
+      errorMessage.value = '';
+      store.dispatch('clearOperationError');
+
+      if (!formData.value.name.trim()) {
+        errorMessage.value = 'يرجى إدخال اسم الصنف';
+        return false;
+      }
+      if (!formData.value.code.trim()) {
+        errorMessage.value = 'يرجى إدخال كود الصنف';
+        return false;
+      }
+      if (!formData.value.color.trim()) {
+        errorMessage.value = 'يرجى إدخال لون الصنف';
+        return false;
+      }
+      if (!formData.value.warehouse_id) {
+        errorMessage.value = 'يرجى اختيار المخزن';
+        return false;
+      }
+
+      // Check if user is logged in
+      if (!currentUserId.value) {
+        errorMessage.value = 'يجب تسجيل الدخول أولاً';
+        return false;
+      }
+
+      // Check user permissions
+      if (!store.getters.canEdit) {
+        errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
+        return false;
+      }
+
+      // Mode-specific validation
+      if (addMode.value === 'cartons') {
+        if (!formData.value.cartons_count || formData.value.cartons_count <= 0) {
+          errorMessage.value = 'يرجى إدخال عدد كراتين صحيح';
+          return false;
+        }
+        if (!formData.value.per_carton_count || formData.value.per_carton_count <= 0) {
+          errorMessage.value = 'يرجى إدخال عدد صحيح في الكرتونة';
+          return false;
+        }
+      } else if (addMode.value === 'single') {
+        if (!formData.value.single_bottles_count || formData.value.single_bottles_count <= 0) {
+          errorMessage.value = 'يرجى إدخال عدد فردي صحيح';
+          return false;
+        }
+      } else if (addMode.value === 'both') {
+        const cartonsValid = formData.value.cartons_count && formData.value.cartons_count > 0 && 
+                           formData.value.per_carton_count && formData.value.per_carton_count > 0;
+        const singleValid = formData.value.single_bottles_count && formData.value.single_bottles_count > 0;
+        
+        if (!cartonsValid && !singleValid) {
+          errorMessage.value = 'يرجى إدخال كميات صحيحة إما في الكراتين أو الفردي';
+          return false;
+        }
+      }
+
+      if (totalQuantity.value <= 0) {
+        errorMessage.value = 'يرجى إدخال كمية صحيحة';
+        return false;
+      }
+
+      return true;
+    };
+
+    const handleSubmit = async () => {
+      if (!validateForm()) return;
+
+      loading.value = true;
+      errorMessage.value = '';
+      successMessage.value = '';
+
+      try {
+        // Upload photo if selected
+        if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
+          const photoUrl = await uploadPhotoToStorage();
+          if (photoUrl) {
+            formData.value.photo_url = photoUrl;
+          }
+        } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
+          // If we have a data URL from paste or file upload, use it directly
+          formData.value.photo_url = previewPhoto.value;
+        }
+
+        // Prepare item data properly
+        const userId = currentUserId.value;
+        
+        if (!userId) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // Use the computed property instead of creating a new variable with same name
+        const addingCartons = isAddingCartonsComputed.value;
+
+        // Prepare the item data object
+        const itemData = {
+          name: formData.value.name.trim(),
+          code: formData.value.code.trim(),
+          color: formData.value.color.trim(),
+          warehouse_id: formData.value.warehouse_id,
+          cartons_count: formData.value.cartons_count || 0,
+          per_carton_count: formData.value.per_carton_count || (addingCartons ? 12 : 1),
+          single_bottles_count: formData.value.single_bottles_count || 0,
+          supplier: formData.value.supplier?.trim() || '',
+          item_location: formData.value.item_location?.trim() || '',
+          notes: formData.value.notes?.trim() || '',
+          photo_url: formData.value.photo_url || null
+        };
+
+        console.log('Submitting item with data:', {
+          itemData,
+          userId,
+          addingCartons,
+          existingItem: existingItem.value
+        });
+
+        // Call the atomic action with correct parameters
+        const result = await store.dispatch('addInventoryItemAtomic', {
+          itemData,
+          userId,
+          isAddingCartons: addingCartons
+        });
+
+        console.log('Item operation completed:', result);
+
+        // Show success message
+        if (result?.type === 'created') {
+          successMessage.value = 'تم إضافة الصنف الجديد بنجاح!';
+        } else if (result?.type === 'updated') {
+          successMessage.value = 'تم تحديث الكميات بنجاح!';
+        } else {
+          successMessage.value = 'تم حفظ التغييرات بنجاح!';
+        }
+
+        // Wait a moment to show success message, then close modal
+        setTimeout(() => {
+          emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
+          closeModal();
+        }, 1500);
+        
+      } catch (error) {
+        console.error('Error in handleSubmit:', error);
+        
+        // Show appropriate error message
+        if (error.message?.includes('يجب تسجيل الدخول')) {
+          errorMessage.value = 'يجب تسجيل الدخول أولاً';
+        } else if (error.message?.includes('صلاحية')) {
+          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف. يرجى التواصل مع المشرف.';
+        } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
+          errorMessage.value = error.message;
+        } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
+          errorMessage.value = 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+        } else if (storeOperationError.value) {
+          // Use store error if available
+          errorMessage.value = storeOperationError.value;
+        } else {
+          errorMessage.value = `حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
+        }
+      } finally {
+        loading.value = false;
+      }
+    };
 
     return {
       loading,
-      loadingWarehouses,
       errorMessage,
-      validationErrors,
-      showPassword,
-      showWarehouseModal,
-      editingWarehouse,
+      successMessage,
+      addMode,
+      existingItem,
       formData,
-      availableRoles,
-      permissionGroups,
-      allWarehouses,
-      primaryWarehouses,
-      dispatchWarehouses,
-      allPermissionsSelected,
-      passwordStrength,
+      accessibleWarehouses,
+      storeOperationLoading,
+      storeOperationError,
+      cartonsTotal,
+      totalQuantity,
+      showSummary,
       isFormValid,
-      getRoleDisplay,
-      getSelectedWarehouseNames,
-      generatePassword,
-      generateStrongPassword,
-      togglePasswordVisibility,
-      copyPassword,
-      toggleAllWarehouses,
-      toggleAllPermissions,
-      applyPermissionSet,
-      manageWarehouses,
-      addNewWarehouse,
-      editWarehouse,
-      closeWarehouseModal,
-      handleWarehouseSave,
-      handleSubmit
+      uploadingPhoto,
+      clipboardLoading,
+      selectedFile,
+      previewPhoto,
+      fileInput,
+      closeModal,
+      handleSubmit,
+      formatFileSize,
+      openFilePicker,
+      handleFileUpload,
+      handlePasteFromClipboard,
+      removePhoto
     };
   }
 };
 </script>
+
+<style scoped>
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.dark .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Modal content */
+.modal-content {
+  background-color: white;
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.dark .modal-content {
+  background-color: #1f2937;
+}
+
+/* Modal header */
+.modal-header {
+    position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .modal-header {
+  background-color: #1f2937;
+  border-bottom-color: #374151;
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .modal-title {
+  color: #f3f4f6;
+}
+
+.modal-close-btn {
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  transition: background-color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.dark .modal-close-btn:hover {
+  background-color: #374151;
+}
+
+.modal-close-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Modal body */
+.modal-body {
+  padding: 1rem;
+  max-height: calc(90vh - 130px);
+  overflow-y: auto;
+}
+
+/* Modal footer */
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 1rem;
+  margin-bottom: -1rem;
+  margin-right: -1rem;
+  margin-left: -1rem;
+  padding-bottom: 1rem;
+}
+
+.dark .modal-footer {
+  background-color: #1f2937;
+  border-top-color: #374151;
+}
+
+/* Form elements */
+.form-input,
+.form-select,
+.form-textarea {
+  text-align: right;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #1f2937;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 0.875rem;
+}
+
+.dark .form-input,
+.dark .form-select,
+.dark .form-textarea {
+  background-color: #1f2937;
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+/* Form label */
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.dark .form-label {
+  color: #d1d5db;
+}
+
+.required-star {
+  color: #ef4444;
+  margin-right: 0.125rem;
+}
+
+/* Form group */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+/* Grid layout */
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Photo upload section */
+.photo-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.photo-preview-wrapper {
+  width: 100%;
+  max-width: 12rem;
+  margin: 0 auto;
+}
+
+.photo-preview {
+  position: relative;
+  width: 100%;
+  padding-bottom: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 0.5rem;
+  border: 2px dashed #d1d5db;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.photo-preview:hover .photo-overlay {
+  opacity: 1;
+}
+
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.photo-edit-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: white;
+}
+
+.photo-placeholder {
+  width: 100%;
+  padding: 2rem 1rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.photo-placeholder:hover {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+.dark .photo-placeholder:hover {
+  border-color: #fbbf24;
+  background-color: rgba(120, 53, 15, 0.1);
+}
+
+.photo-placeholder-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.photo-placeholder-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.dark .photo-placeholder-text {
+  color: #9ca3af;
+}
+
+/* Photo actions */
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.photo-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  border: none;
+}
+
+.dark .photo-action-btn {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #d1d5db;
+}
+
+.photo-action-btn:hover:not(:disabled) {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.dark .photo-action-btn:hover:not(:disabled) {
+  background-color: #4b5563;
+  border-color: #6b7280;
+}
+
+.photo-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.photo-action-btn-danger {
+  color: #dc2626;
+  background-color: #fee2e2;
+  border-color: #fecaca;
+}
+
+.dark .photo-action-btn-danger {
+  color: #f87171;
+  background-color: rgba(127, 29, 29, 0.2);
+  border-color: #7f1d1d;
+}
+
+.photo-action-btn-danger:hover {
+  background-color: #fecaca;
+  border-color: #fca5a5;
+}
+
+.dark .photo-action-btn-danger:hover {
+  background-color: #7f1d1d;
+  border-color: #ef4444;
+}
+
+.photo-action-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Photo info */
+.photo-info {
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.photo-info-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.dark .photo-info-text {
+  color: #9ca3af;
+}
+
+/* Hidden file input */
+.hidden {
+  display: none;
+}
+
+/* Mode buttons */
+.mode-btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+}
+
+.mode-btn-active {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.dark .mode-btn-active {
+  background-color: rgba(120, 53, 15, 0.3);
+  color: #fbbf24;
+  border-color: #f59e0b;
+}
+
+.mode-btn-inactive {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.dark .mode-btn-inactive {
+  background-color: #374151;
+  color: #d1d5db;
+  border-color: #4b5563;
+}
+
+.mode-btn-inactive:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.dark .mode-btn-inactive:hover {
+  background-color: #4b5563;
+  border-color: #6b7280;
+}
+
+/* Flex utilities */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+.space-x-2 > * + * {
+  margin-right: 0.5rem;
+}
+
+.space-x-reverse {
+  flex-direction: row-reverse;
+}
+
+@media (min-width: 640px) {
+  .sm\:flex-row {
+    flex-direction: row;
+  }
+  
+  .sm\:space-y-0 > * + * {
+    margin-top: 0;
+  }
+  
+  .sm\:space-x-2 > * + * {
+    margin-right: 0.5rem;
+  }
+  
+  .sm\:space-x-reverse {
+    flex-direction: row-reverse;
+  }
+}
+
+/* Buttons */
+.btn-primary {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(to right, #f59e0b, #f97316);
+  color: white;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(to right, #d97706, #ea580c);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background-color: #e5e7eb;
+  color: #1f2937;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.dark .btn-secondary {
+  background-color: #374151;
+  color: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background-color: #d1d5db;
+}
+
+.dark .btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+/* Gap utility */
+.gap-2 {
+  gap: 0.5rem;
+}
+
+/* Alert styles */
+.alert {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  margin: 0.5rem 0;
+}
+
+.alert-info {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.dark .alert-info {
+  background-color: rgba(30, 58, 138, 0.2);
+  border-color: #1e3a8a;
+  color: #93c5fd;
+}
+
+.alert-warning {
+  background-color: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
+}
+
+.dark .alert-warning {
+  background-color: rgba(120, 53, 15, 0.2);
+  border-color: #78350f;
+  color: #fde68a;
+}
+
+.alert-danger {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.dark .alert-danger {
+  background-color: rgba(127, 29, 29, 0.2);
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.alert-success {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.dark .alert-success {
+  background-color: rgba(6, 78, 59, 0.2);
+  border-color: #064e3b;
+  color: #a7f3d0;
+}
+
+.alert-title {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+}
+
+.alert-message {
+  font-size: 0.875rem;
+  margin: 0;
+  margin-top: 0.25rem;
+}
+
+.alert-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.5rem;
+}
+
+/* Spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.25rem;
+}
+
+.spinner-xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Text utilities */
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.border-t {
+  border-top: 1px solid #d1d5db;
+}
+
+.dark .border-t {
+  border-top-color: #4b5563;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+/* Column utilities */
+.col-span-full {
+  grid-column: 1 / -1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 0.5rem;
+    max-height: 95vh;
+    max-width: calc(100% - 1rem);
+  }
+  
+  .modal-body {
+    max-height: calc(95vh - 130px);
+  }
+  
+  .grid-cols-1.md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .photo-actions {
+    flex-direction: column;
+  }
+  
+  .photo-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .modal-footer {
+    margin-bottom: -0.5rem;
+    margin-right: -0.5rem;
+    margin-left: -0.5rem;
+    padding: 0.75rem;
+  }
+}
+
+/* Icon styles */
+.w-4 {
+  width: 1rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.ml-1 {
+  margin-right: 0.25rem;
+}
+</style>
