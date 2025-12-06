@@ -530,7 +530,7 @@ import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firesto
 import WarehouseModal from '@/components/WarehouseModal.vue';
 
 export default {
-  name: 'UserManagementModal',
+  name: 'AddUserModal',
   components: {
     WarehouseModal
   },
