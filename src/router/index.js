@@ -1,6 +1,5 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
-import { useStore } from 'vuex';
 
 const routes = [
   {
@@ -8,8 +7,9 @@ const routes = [
     name: 'Login',
     component: () => import('@/views/Login.vue'),
     meta: { 
-      requiresGuest: true,
-      layout: 'empty'
+      public: true,
+      layout: 'empty',
+      title: 'تسجيل الدخول'
     }
   },
   {
@@ -22,7 +22,8 @@ const routes = [
     component: () => import('@/views/Dashboard.vue'),
     meta: { 
       requiresAuth: true,
-      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager']
+      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+      title: 'لوحة التحكم'
     }
   },
   {
@@ -31,7 +32,8 @@ const routes = [
     component: () => import('@/views/Warehouses.vue'),
     meta: { 
       requiresAuth: true,
-      allowedRoles: ['superadmin']
+      allowedRoles: ['superadmin'],
+      title: 'إدارة المخازن'
     }
   },
   {
@@ -40,7 +42,8 @@ const routes = [
     component: () => import('@/views/Users.vue'),
     meta: { 
       requiresAuth: true,
-      allowedRoles: ['superadmin']
+      allowedRoles: ['superadmin'],
+      title: 'إدارة المستخدمين'
     }
   },
   {
@@ -53,7 +56,8 @@ const routes = [
       permissions: {
         company_manager: 'viewer',
         warehouse_manager: 'full_access'
-      }
+      },
+      title: 'إدارة المخزون'
     }
   },
   {
@@ -66,7 +70,8 @@ const routes = [
       permissions: {
         company_manager: 'none',
         warehouse_manager: 'full_access'
-      }
+      },
+      title: 'إضافة صنف'
     }
   },
   {
@@ -79,7 +84,8 @@ const routes = [
       permissions: {
         company_manager: 'none',
         warehouse_manager: 'full_access'
-      }
+      },
+      title: 'تعديل الصنف'
     }
   },
   {
@@ -92,7 +98,8 @@ const routes = [
       permissions: {
         company_manager: 'none',
         warehouse_manager: 'full_access'
-      }
+      },
+      title: 'نقل المخزون'
     }
   },
   {
@@ -105,7 +112,8 @@ const routes = [
       permissions: {
         company_manager: 'none',
         warehouse_manager: 'full_access'
-      }
+      },
+      title: 'صرف خارجي'
     }
   },
   {
@@ -118,7 +126,8 @@ const routes = [
       permissions: {
         company_manager: 'viewer',
         warehouse_manager: 'viewer'
-      }
+      },
+      title: 'سجل الحركات'
     }
   },
   {
@@ -131,7 +140,8 @@ const routes = [
       permissions: {
         company_manager: 'viewer',
         warehouse_manager: 'none'
-      }
+      },
+      title: 'التقارير'
     }
   },
   {
@@ -140,7 +150,49 @@ const routes = [
     component: () => import('@/views/Profile.vue'),
     meta: { 
       requiresAuth: true,
-      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager']
+      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+      title: 'الملف الشخصي'
+    }
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Settings.vue'),
+    meta: { 
+      requiresAuth: true,
+      allowedRoles: ['superadmin', 'company_manager'],
+      title: 'الإعدادات'
+    }
+  },
+  {
+    path: '/help',
+    name: 'Help',
+    component: () => import('@/views/Help.vue'),
+    meta: { 
+      requiresAuth: true,
+      title: 'المساعدة'
+    }
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: {
+      template: `
+        <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+          <div class="text-center">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">✅ اختبار التنقل</h1>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">الصفحة تعمل بنجاح!</p>
+            <router-link to="/dashboard" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+              العودة للرئيسية
+            </router-link>
+          </div>
+        </div>
+      `
+    },
+    meta: { 
+      requiresAuth: true,
+      title: 'اختبار',
+      layout: 'empty'
     }
   },
   {
@@ -166,7 +218,10 @@ const routes = [
         </div>
       `
     },
-    meta: { layout: 'empty' }
+    meta: { 
+      layout: 'empty',
+      title: 'صلاحية مرفوضة'
+    }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -186,7 +241,10 @@ const routes = [
         </div>
       `
     },
-    meta: { layout: 'empty' }
+    meta: { 
+      layout: 'empty',
+      title: 'الصفحة غير موجودة'
+    }
   }
 ];
 
@@ -194,11 +252,21 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
+    // Return to saved position if exists
     if (savedPosition) {
       return savedPosition;
-    } else {
-      return { top: 0 };
     }
+    
+    // Scroll to top for new routes
+    if (to.hash) {
+      return {
+        selector: to.hash,
+        behavior: 'smooth'
+      };
+    }
+    
+    // Default to top
+    return { top: 0, left: 0, behavior: 'smooth' };
   }
 });
 
@@ -236,7 +304,7 @@ const canWarehouseManagerAccess = (userProfile, routeName) => {
   return true;
 };
 
-// Create a global store reference for use in beforeEach
+// Global store reference
 let store = null;
 
 // Store setup injection
@@ -244,89 +312,197 @@ export const setupRouter = (appStore) => {
   store = appStore;
 };
 
-router.beforeEach((to, from, next) => {
-  // If store isn't injected yet, try to get it
+// Navigation logging for debugging
+const logNavigation = (from, to) => {
+  console.group('🔗 Navigation');
+  console.log('From:', from.name || from.path);
+  console.log('To:', to.name || to.path);
+  console.log('Full path:', to.fullPath);
+  console.log('Params:', to.params);
+  console.log('Query:', to.query);
+  console.groupEnd();
+};
+
+// Navigation guard with improved error handling
+router.beforeEach(async (to, from, next) => {
+  // Log navigation for debugging
+  logNavigation(from, to);
+  
+  // Set page title
+  if (to.meta.title) {
+    document.title = `${to.meta.title} - نظام إدارة المخازن`;
+  }
+  
+  // Try to get store if not injected yet
   if (!store) {
     try {
-      const { useStore } = require('vuex');
-      store = useStore();
+      // Try to get store from global properties
+      const app = router.app;
+      if (app && app.config.globalProperties.$store) {
+        store = app.config.globalProperties.$store;
+      }
     } catch (error) {
-      console.error('Store not available:', error);
+      console.warn('Store not available:', error);
     }
   }
 
+  // If still no store and route requires auth, redirect to login
+  if (!store && to.meta.requiresAuth) {
+    console.warn('Store not available, redirecting to login');
+    next('/login');
+    return;
+  }
+
+  // If store is not available, allow navigation for public routes
   if (!store) {
-    // If still no store, allow navigation but warn
-    console.warn('Store not available for route guard');
-    next();
-    return;
-  }
-
-  const user = store.state.user;
-  const userProfile = store.state.userProfile;
-  const isAuthenticated = store.getters.isAuthenticated;
-
-  // Track if we're navigating after logout
-  const isAfterLogout = from.name === null || from.name === undefined;
-
-  // Handle post-logout navigation
-  if (isAfterLogout && to.path === '/login') {
-    next();
-    return;
-  }
-
-  // Check if route requires authentication
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    if (to.path !== '/login') {
-      next('/login');
-    } else {
+    if (to.meta.public) {
       next();
-    }
-    return;
-  }
-
-  // Handle requiresGuest
-  if (to.meta.requiresGuest && isAuthenticated) {
-    if (to.path === '/login') {
-      next('/dashboard');
     } else {
-      next('/dashboard');
+      next('/login');
     }
     return;
   }
 
-  // If user exists, check role-based access
-  if (isAuthenticated && userProfile) {
-    const userRole = userProfile.role;
+  // Get authentication state
+  const isAuthenticated = store.getters.isAuthenticated;
+  const userProfile = store.state.userProfile;
+  const userRole = userProfile?.role;
 
-    // Check if route has role restrictions
-    if (to.meta.allowedRoles) {
-      if (!canAccessRoute(userRole, to.meta)) {
-        next('/unauthorized');
-        return;
-      }
+  // Public routes - allow access
+  if (to.meta.public) {
+    // If user is already authenticated and trying to access login, redirect to dashboard
+    if (to.name === 'Login' && isAuthenticated) {
+      next('/dashboard');
+      return;
+    }
+    next();
+    return;
+  }
 
-      // Special checks for warehouse managers
-      if (!canWarehouseManagerAccess(userProfile, to.name)) {
-        next('/unauthorized');
-        return;
-      }
+  // Routes that require authentication
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    // Store the intended URL for redirect after login
+    if (to.path !== '/login') {
+      store.commit('SET_REDIRECT_URL', to.fullPath);
+    }
+    next('/login');
+    return;
+  }
+
+  // If authenticated but no user profile (shouldn't happen normally)
+  if (isAuthenticated && !userProfile) {
+    console.warn('Authenticated but no user profile, redirecting to login');
+    store.dispatch('logout');
+    next('/login');
+    return;
+  }
+
+  // Role-based access control
+  if (to.meta.allowedRoles) {
+    // Check if user has a role
+    if (!userRole) {
+      console.warn('User has no role assigned');
+      next('/unauthorized');
+      return;
+    }
+
+    // Check if user's role is allowed
+    if (!canAccessRoute(userRole, to.meta)) {
+      console.log(`User role ${userRole} not allowed for route ${to.name}`);
+      next('/unauthorized');
+      return;
+    }
+
+    // Special checks for warehouse managers
+    if (!canWarehouseManagerAccess(userProfile, to.name)) {
+      console.log(`Warehouse manager access denied for ${to.name}`);
+      next('/unauthorized');
+      return;
     }
   }
 
+  // All checks passed, allow navigation
   next();
 });
 
-// Add navigation error handler to prevent redirect loops
-router.onError((error) => {
-  console.error('Router error:', error);
+// Navigation success handler
+router.afterEach((to, from) => {
+  // Update active navigation state in store if needed
+  if (store) {
+    store.commit('SET_CURRENT_ROUTE', to.name);
+  }
+  
+  // Analytics tracking (if implemented)
+  if (window.gtag && to.name) {
+    window.gtag('event', 'page_view', {
+      page_path: to.path,
+      page_title: to.meta.title || to.name
+    });
+  }
+});
 
+// Error handler with recovery
+router.onError((error) => {
+  console.error('🚨 Router Error:', error);
+  
+  // Handle chunk loading errors (common in production)
+  if (error.message.includes('Failed to fetch dynamically imported module')) {
+    console.warn('Chunk loading failed, likely due to deployment. Refreshing...');
+    
+    // Show user-friendly message
+    const message = 'تم تحديث النظام. جاري إعادة تحميل الصفحة...';
+    alert(message);
+    
+    // Reload after a delay
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    return;
+  }
+  
+  // Handle navigation aborted errors
+  if (error.name === 'NavigationDuplicated') {
+    // This is normal, just ignore it
+    return;
+  }
+  
+  // Handle other errors
   if (error.message.includes('redirected')) {
-    // Prevent infinite redirects
+    console.warn('Redirect loop detected');
+    
+    // Break the loop
     if (window.location.pathname !== '/login') {
+      // Clear any problematic state
+      if (store) {
+        store.dispatch('logout');
+      }
+      localStorage.clear();
       window.location.href = '/login';
     }
   }
 });
+
+// Global navigation helper
+router.navigateTo = async (path, options = {}) => {
+  try {
+    await router.push(path);
+    return true;
+  } catch (error) {
+    console.error('Navigation failed:', error);
+    
+    // Show error to user if not a duplicate navigation
+    if (error.name !== 'NavigationDuplicated' && options.showError !== false) {
+      const message = options.errorMessage || 'حدث خطأ في التنقل إلى الصفحة';
+      alert(message);
+    }
+    
+    return false;
+  }
+};
+
+// Add router to window for debugging (remove in production)
+if (process.env.NODE_ENV === 'development') {
+  window.router = router;
+}
 
 export default router;
