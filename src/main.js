@@ -1,268 +1,236 @@
-// src/main.js - Fixed with Auth Flow Control
+// src/main.js - Production Ready
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import store from './store';
 import './styles/globals.css';
 
-// Firebase imports
+// Import Firebase
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// ==================== 🚨 FIX: Control Variables ====================
-let isAuthInitialized = false;
-let authPromiseResolve;
-const authPromise = new Promise(resolve => {
-  authPromiseResolve = resolve;
-});
+console.log('🚀 Starting Warehouse Management System...');
 
-// ==================== 1. Loading Screen ====================
-function showLoadingScreen(message = 'جاري التحقق من المصادقة...') {
+// ==================== 1. SHOW LOADING SCREEN ====================
+function showLoadingScreen() {
   const appEl = document.getElementById('app');
   if (!appEl) return;
   
   appEl.innerHTML = `
-    <div id="auth-loading" style="
+    <div id="app-loading" style="
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: #f8f9fa;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      color: white;
       z-index: 9999;
-      font-family: system-ui;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Tajawal', sans-serif;
     ">
-      <div style="text-align: center; padding: 20px;">
+      <div style="text-align: center; max-width: 90%;">
         <div style="
-          width: 60px;
-          height: 60px;
-          border: 4px solid #e0e0e0;
-          border-top-color: #3498db;
+          width: 80px;
+          height: 80px;
+          border: 6px solid rgba(255,255,255,0.3);
+          border-top-color: white;
           border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
+          animation: spin 1.5s linear infinite;
+          margin: 0 auto 30px;
         "></div>
-        <h3 style="color: #2c3e50; margin-bottom: 10px;">نظام إدارة المخازن</h3>
-        <p style="color: #7f8c8d;">${message}</p>
+        
+        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          نظام إدارة المخازن
+        </h1>
+        
+        <p style="font-size: 16px; opacity: 0.9; margin-bottom: 40px;">
+          جاري تحميل النظام...
+        </p>
+        
+        <div style="
+          width: 200px;
+          height: 4px;
+          background: rgba(255,255,255,0.2);
+          border-radius: 2px;
+          margin: 0 auto;
+          overflow: hidden;
+        ">
+          <div id="progress-bar" style="
+            width: 30%;
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            animation: progress 2s ease-in-out infinite;
+          "></div>
+        </div>
+        
+        <p style="font-size: 12px; opacity: 0.7; margin-top: 30px;">
+          الإصدار 1.0.0 | Monofia Inventory
+        </p>
       </div>
       <style>
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes progress {
+          0%, 100% { transform: translateX(-100%); }
+          50% { transform: translateX(250%); }
+        }
       </style>
     </div>
   `;
 }
 
-// ==================== 2. Initialize Firebase Auth FIRST ====================
-function initializeFirebaseAuth() {
-  return new Promise((resolve) => {
-    console.log('🔐 Initializing Firebase auth...');
+// ==================== 2. INITIALIZE FIREBASE AUTH ====================
+async function initializeFirebaseAuth() {
+  return new Promise((resolve, reject) => {
+    console.log('🔐 Initializing Firebase authentication...');
     
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      isAuthInitialized = true;
-      
-      console.log('✅ Firebase auth state resolved:', user ? user.email : 'No user');
-      
-      if (user) {
-        // User is logged in (persisted session)
-        console.log('🔓 User has active session, auto-login enabled');
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (user) => {
+        console.log('✅ Firebase auth state:', user ? `User: ${user.email}` : 'No user');
         
-        try {
-          // Set user in store
-          store.commit('SET_USER', user);
-          
-          // Load user profile from Firestore
-          await store.dispatch('loadUserProfile', user);
-          
-          console.log('✅ Auto-login successful:', {
-            email: user.email,
-            role: store.state.userProfile?.role
-          });
-          
-          resolve({ user, autoLogin: true });
-        } catch (error) {
-          console.error('❌ Failed to load user profile:', error);
+        if (user) {
+          try {
+            // Set user in store
+            store.commit('SET_USER', user);
+            
+            // Load user profile
+            await store.dispatch('loadUserProfile', user);
+            console.log('✅ User profile loaded');
+            
+            resolve({ user, isAuthenticated: true });
+          } catch (error) {
+            console.error('❌ Failed to load user profile:', error);
+            store.commit('SET_USER', null);
+            resolve({ user: null, isAuthenticated: false });
+          }
+        } else {
           store.commit('SET_USER', null);
-          resolve({ user: null, autoLogin: false });
+          store.commit('SET_USER_PROFILE', null);
+          resolve({ user: null, isAuthenticated: false });
         }
-      } else {
-        // No user logged in
-        console.log('👤 No active session, user needs to login');
+        
+        unsubscribe();
+      },
+      (error) => {
+        console.error('❌ Firebase auth error:', error);
         store.commit('SET_USER', null);
-        store.commit('SET_USER_PROFILE', null);
-        resolve({ user: null, autoLogin: false });
+        reject(error);
       }
-      
-      unsubscribe();
-      authPromiseResolve();
-    }, (error) => {
-      console.error('❌ Firebase auth error:', error);
-      isAuthInitialized = true;
-      store.commit('SET_USER', null);
-      resolve({ user: null, autoLogin: false });
-      authPromiseResolve();
-    });
+    );
   });
 }
 
-// ==================== 3. Check Route Access ====================
-function shouldRedirectToLogin(currentRoute, isAuthenticated) {
-  const publicRoutes = ['/login', '/register', '/forgot-password', '/unauthorized'];
-  const isPublicRoute = publicRoutes.includes(currentRoute.path);
-  
-  // If not authenticated and trying to access private route
-  if (!isAuthenticated && !isPublicRoute) {
-    return '/login';
-  }
-  
-  // If authenticated and trying to access login page
-  if (isAuthenticated && currentRoute.path === '/login') {
-    return '/dashboard';
-  }
-  
-  return null;
-}
-
-// ==================== 4. Main App Initialization ====================
+// ==================== 3. INITIALIZE APP ====================
 async function initializeApp() {
   try {
-    // Step 1: Show loading immediately
+    // Show loading screen immediately
     showLoadingScreen();
     
-    // Step 2: Initialize Firebase auth
-    const { user, autoLogin } = await initializeFirebaseAuth();
+    // Initialize Firebase auth
+    const authResult = await initializeFirebaseAuth();
     
-    // Step 3: Wait for auth to fully initialize
-    await authPromise;
-    
-    // Step 4: Get current state
-    const isAuthenticated = !!user;
-    const currentRoute = router.currentRoute.value;
-    
-    console.log('📊 Initial state check:', {
-      route: currentRoute.path,
-      isAuthenticated,
-      autoLogin,
-      userRole: store.state.userProfile?.role
-    });
-    
-    // Step 5: Check if redirect is needed
-    const redirectPath = shouldRedirectToLogin(currentRoute, isAuthenticated);
-    
-    // Step 6: Create and configure Vue app
+    // Create Vue app
     const app = createApp(App);
+    
+    // Use plugins
     app.use(store);
     app.use(router);
     
-    // Step 7: Set global flag
-    window.appInitialized = true;
+    // Global error handler
+    app.config.errorHandler = (err, vm, info) => {
+      console.error('Vue Error:', err, info);
+      store.dispatch('showNotification', {
+        type: 'error',
+        message: 'حدث خطأ في النظام'
+      });
+    };
     
-    // Step 8: Mount app
+    // Mount app
     app.mount('#app');
     
-    // Step 9: Handle redirects AFTER mount
-    if (redirectPath) {
-      console.log(`🔄 Redirecting from ${currentRoute.path} to ${redirectPath}`);
-      
-      // Small delay to ensure app is ready
-      setTimeout(() => {
-        router.replace(redirectPath).then(() => {
-          console.log('✅ Redirect completed');
-          
-          // Remove loading screen after successful redirect
-          setTimeout(() => {
-            const loadingEl = document.getElementById('auth-loading');
-            if (loadingEl) loadingEl.style.display = 'none';
-          }, 500);
-        });
-      }, 100);
-    } else {
-      // No redirect needed, just remove loading
-      setTimeout(() => {
-        const loadingEl = document.getElementById('auth-loading');
-        if (loadingEl) loadingEl.style.display = 'none';
-        console.log('✅ App loaded successfully');
-      }, 500);
-    }
-    
-    // Step 10: Add auth state listener for future changes
-    onAuthStateChanged(auth, (newUser) => {
-      if (!newUser && isAuthenticated && !['/login', '/unauthorized'].includes(router.currentRoute.value.path)) {
-        console.log('👋 User logged out, redirecting to login');
-        router.replace('/login');
+    // Remove loading screen
+    setTimeout(() => {
+      const loadingEl = document.getElementById('app-loading');
+      if (loadingEl) {
+        loadingEl.style.opacity = '0';
+        loadingEl.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => loadingEl.remove(), 300);
       }
+    }, 500);
+    
+    console.log('✅ App initialized successfully');
+    console.log('📊 Initial auth state:', {
+      isAuthenticated: authResult.isAuthenticated,
+      user: authResult.user?.email
     });
     
     return { app, router, store };
     
   } catch (error) {
     console.error('❌ Failed to initialize app:', error);
-    showErrorScreen(error);
+    
+    // Show error screen
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      appEl.innerHTML = `
+        <div style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #f8f9fa;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 20px;
+          text-align: center;
+          font-family: system-ui;
+        ">
+          <div style="max-width: 500px;">
+            <h2 style="color: #e74c3c; margin-bottom: 20px;">⚠️ خطأ في التحميل</h2>
+            <p style="margin-bottom: 20px; color: #666;">${error.message || 'حدث خطأ في تحميل التطبيق'}</p>
+            <button onclick="window.location.reload()" style="
+              padding: 12px 24px;
+              background: #3498db;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              font-size: 16px;
+              cursor: pointer;
+              margin: 5px;
+            ">
+              🔄 إعادة التحميل
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
     throw error;
   }
 }
 
-// ==================== 5. Error Screen ====================
-function showErrorScreen(error) {
-  const appEl = document.getElementById('app');
-  if (!appEl) return;
-  
-  appEl.innerHTML = `
-    <div style="padding: 40px; text-align: center;">
-      <h2 style="color: #e74c3c;">خطأ في التحميل</h2>
-      <p>${error.message || 'حدث خطأ غير معروف'}</p>
-      <button onclick="window.location.reload()" style="
-        padding: 10px 20px;
-        background: #3498db;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        margin: 10px;
-        cursor: pointer;
-      ">
-        إعادة تحميل
-      </button>
-      <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload()" style="
-        padding: 10px 20px;
-        background: #e74c3c;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        margin: 10px;
-        cursor: pointer;
-      ">
-        مسح التخزين وإعادة تحميل
-      </button>
-    </div>
-  `;
-}
-
-// ==================== 🚀 START THE APP ====================
+// ==================== 4. START APP ====================
 initializeApp().catch(console.error);
 
-// ==================== Global Helpers ====================
+// ==================== 5. GLOBAL HELPERS ====================
 if (import.meta.env.DEV) {
-  window.debugAuth = {
-    getState: () => ({
-      firebaseUser: auth.currentUser,
+  window.debug = {
+    auth: () => ({
+      currentUser: auth.currentUser,
       storeUser: store.state.user,
-      isAuthenticated: store.getters.isAuthenticated,
-      initialized: isAuthInitialized
+      isAuthenticated: store.getters.isAuthenticated
     }),
-    simulateLogin: (email) => {
-      console.log('Simulating login for:', email);
-      store.commit('SET_USER', { email });
-    },
-    simulateLogout: () => {
-      console.log('Simulating logout');
-      store.commit('SET_USER', null);
-      router.push('/login');
-    }
+    store: () => store.state,
+    reload: () => window.location.reload()
   };
 }
 
-// ==================== Export for Testing ====================
-export { initializeApp };
+console.log('📄 Main.js loaded');
