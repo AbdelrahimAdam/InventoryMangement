@@ -1,5 +1,7 @@
 // src/router/index.js - Updated for Firebase store
 import { createRouter, createWebHistory } from 'vue-router';
+import { auth } from '@/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const routes = [
   {
@@ -239,7 +241,7 @@ const canAccessRoute = (userRole, routeMeta) => {
   return true;
 };
 
-// Global store reference
+// Store reference
 let store = null;
 
 // Store setup injection
@@ -248,45 +250,55 @@ export const setupRouter = (appStore) => {
   console.log('Router store injected');
 };
 
-// Simple navigation guard for Firebase
-router.beforeEach((to, from, next) => {
-  console.log('Router navigation:', {
-    from: from.path,
-    to: to.path,
-    toName: to.name,
-    meta: to.meta
-  });
+// Enhanced authentication state check
+let authChecked = false;
+let authResolvers = [];
 
-  // If store is not injected yet, try to get it
-  if (!store) {
-    console.warn('Store not available in router guard');
-    
-    // For public routes, allow access
-    if (to.meta.public) {
-      next();
+// Wait for auth initialization
+const waitForAuth = () => {
+  return new Promise((resolve) => {
+    if (authChecked) {
+      resolve();
       return;
     }
     
-    // For protected routes without store, redirect to login
-    next('/login');
-    return;
-  }
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      authChecked = true;
+      authResolvers.forEach(resolve => resolve());
+      authResolvers = [];
+      unsubscribe();
+      resolve();
+    });
 
-  // Get authentication state from store
-  const isAuthenticated = store.getters.isAuthenticated;
-  const userProfile = store.state.userProfile;
-  const userRole = userProfile?.role;
-
-  console.log('Auth state in router:', {
-    isAuthenticated,
-    userRole,
-    userProfile: userProfile ? 'Loaded' : 'Not loaded'
+    // Timeout fallback
+    setTimeout(() => {
+      authChecked = true;
+      resolve();
+    }, 2000);
   });
+};
+
+// Navigation guard
+router.beforeEach(async (to, from, next) => {
+  console.log('Navigation:', {
+    from: from.path,
+    to: to.path,
+    toName: to.name,
+    requiresAuth: to.meta.requiresAuth
+  });
+
+  // Wait for auth initialization
+  await waitForAuth();
+
+  // Check if user is authenticated via Firebase directly
+  const currentUser = auth.currentUser;
+  console.log('Firebase currentUser:', currentUser ? 'Logged in' : 'Not logged in');
 
   // Public routes - allow access
   if (to.meta.public) {
     // If user is already authenticated and trying to access login, redirect to dashboard
-    if (to.name === 'Login' && isAuthenticated) {
+    if (to.name === 'Login' && currentUser) {
       console.log('Already authenticated, redirecting from login to dashboard');
       next('/dashboard');
       return;
@@ -296,57 +308,79 @@ router.beforeEach((to, from, next) => {
   }
 
   // Routes that require authentication
-  if (!isAuthenticated) {
-    console.log('Not authenticated, redirecting to login');
-    next('/login');
-    return;
-  }
+  if (to.meta.requiresAuth) {
+    if (!currentUser) {
+      console.log('Not authenticated, redirecting to login');
+      next('/login');
+      return;
+    }
 
-  // If authenticated but user profile is not loaded yet (shouldn't happen)
-  if (!userProfile) {
-    console.warn('Authenticated but no user profile, allowing navigation');
+    // If we have store, get user profile and check permissions
+    if (store) {
+      const userProfile = store.state.userProfile;
+      const userRole = userProfile?.role;
+
+      console.log('Store user profile:', {
+        hasProfile: !!userProfile,
+        userRole,
+        isActive: userProfile?.is_active
+      });
+
+      // Check if user is active
+      if (userProfile?.is_active === false) {
+        console.log('User account is inactive');
+        store.dispatch('logout');
+        next('/login');
+        return;
+      }
+
+      // Role-based access control
+      if (to.meta.allowedRoles) {
+        if (!userRole) {
+          console.log('User has no role assigned');
+          next('/unauthorized');
+          return;
+        }
+
+        if (!canAccessRoute(userRole, to.meta)) {
+          console.log(`User role ${userRole} not allowed for route ${to.name}`);
+          next('/unauthorized');
+          return;
+        }
+      }
+    } else {
+      console.warn('Store not available for permission check, allowing navigation');
+    }
+
+    // All checks passed
     next();
     return;
   }
 
-  // Check if user is active
-  if (userProfile.is_active === false) {
-    console.log('User account is inactive');
-    store.dispatch('logout');
-    next('/login');
-    return;
-  }
-
-  // Role-based access control
-  if (to.meta.allowedRoles) {
-    if (!userRole) {
-      console.log('User has no role assigned');
-      next('/unauthorized');
-      return;
-    }
-
-    if (!canAccessRoute(userRole, to.meta)) {
-      console.log(`User role ${userRole} not allowed for route ${to.name}`);
-      next('/unauthorized');
-      return;
-    }
-  }
-
-  // All checks passed
+  // Default allow
   next();
 });
 
-// Add error handling
-router.onError((error) => {
-  console.error('Router error:', error);
-
+// Handle navigation errors
+router.onError((error, to) => {
+  console.error('Router navigation error:', error);
+  
   // Handle chunk loading errors
   if (error.message.includes('Failed to fetch dynamically imported module')) {
-    console.warn('Chunk loading failed, likely due to deployment');
-    alert('تم تحديث النظام. جاري إعادة تحميل الصفحة...');
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
+    console.warn('Chunk loading failed for route:', to.path);
+    
+    // Reload page for chunk errors
+    if (!window.location.href.includes(to.path)) {
+      window.location.href = to.fullPath;
+    }
+  }
+});
+
+// Global error handler for unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.name === 'ChunkLoadError') {
+    console.warn('Chunk load error, reloading page...');
+    window.location.reload();
   }
 });
 
