@@ -14,8 +14,12 @@ const routes = [
   },
   {
     path: '/',
+    redirect: '/dashboard'
+  },
+  {
+    path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('@/layouts/DesktopLayout.vue'),
+    component: () => import('@/views/Dashboard.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager']
@@ -55,7 +59,7 @@ const routes = [
   {
     path: '/inventory/add',
     name: 'AddInventory',
-    component: () => import('@/views/Inventory.vue'),
+    component: () => import('@/views/AddItem.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -68,7 +72,7 @@ const routes = [
   {
     path: '/inventory/edit/:id',
     name: 'EditInventory',
-    component: () => import('@/views/Inventory.vue'),
+    component: () => import('@/views/EditItem.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -155,7 +159,7 @@ const routes = [
             <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
               ليس لديك الصلاحية للوصول إلى هذه الصفحة
             </p>
-            <router-link to="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+            <router-link to="/dashboard" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
               العودة للرئيسية
             </router-link>
           </div>
@@ -175,7 +179,7 @@ const routes = [
             <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
               الصفحة غير موجودة
             </p>
-            <router-link to="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+            <router-link to="/dashboard" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
               العودة للرئيسية
             </router-link>
           </div>
@@ -188,18 +192,25 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition;
+    } else {
+      return { top: 0 };
+    }
+  }
 });
 
 // Helper function to check if user can access route
 const canAccessRoute = (userRole, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
-  
+
   // Check if user role is allowed
   if (!routeMeta.allowedRoles.includes(userRole)) {
     return false;
   }
-  
+
   // Check specific permissions if they exist
   if (routeMeta.permissions) {
     const permission = routeMeta.permissions[userRole];
@@ -207,40 +218,65 @@ const canAccessRoute = (userRole, routeMeta) => {
       return false;
     }
   }
-  
+
   return true;
 };
 
 // Check warehouse manager access
 const canWarehouseManagerAccess = (userProfile, routeName) => {
   if (userProfile?.role !== 'warehouse_manager') return true;
-  
+
   const allowedWarehouses = userProfile?.allowed_warehouses || [];
-  
+
   // For inventory management routes, check if user has any warehouses assigned
   if (routeName?.includes('Inventory') && allowedWarehouses.length === 0) {
     return false;
   }
-  
+
   return true;
 };
 
+// Create a global store reference for use in beforeEach
+let store = null;
+
+// Store setup injection
+export const setupRouter = (appStore) => {
+  store = appStore;
+};
+
 router.beforeEach((to, from, next) => {
-  const store = useStore();
+  // If store isn't injected yet, try to get it
+  if (!store) {
+    try {
+      const { useStore } = require('vuex');
+      store = useStore();
+    } catch (error) {
+      console.error('Store not available:', error);
+    }
+  }
+
+  if (!store) {
+    // If still no store, allow navigation but warn
+    console.warn('Store not available for route guard');
+    next();
+    return;
+  }
+
   const user = store.state.user;
   const userProfile = store.state.userProfile;
-  
+  const isAuthenticated = store.getters.isAuthenticated;
+
   // Track if we're navigating after logout
   const isAfterLogout = from.name === null || from.name === undefined;
-  
+
   // Handle post-logout navigation
   if (isAfterLogout && to.path === '/login') {
     next();
     return;
   }
-  
+
   // Check if route requires authentication
-  if (to.meta.requiresAuth && !user) {
+  if (to.meta.requiresAuth && !isAuthenticated) {
     if (to.path !== '/login') {
       next('/login');
     } else {
@@ -248,28 +284,28 @@ router.beforeEach((to, from, next) => {
     }
     return;
   }
-  
+
   // Handle requiresGuest
-  if (to.meta.requiresGuest && user) {
+  if (to.meta.requiresGuest && isAuthenticated) {
     if (to.path === '/login') {
-      next('/');
+      next('/dashboard');
     } else {
-      next('/');
+      next('/dashboard');
     }
     return;
   }
-  
+
   // If user exists, check role-based access
-  if (user && userProfile) {
+  if (isAuthenticated && userProfile) {
     const userRole = userProfile.role;
-    
+
     // Check if route has role restrictions
     if (to.meta.allowedRoles) {
       if (!canAccessRoute(userRole, to.meta)) {
         next('/unauthorized');
         return;
       }
-      
+
       // Special checks for warehouse managers
       if (!canWarehouseManagerAccess(userProfile, to.name)) {
         next('/unauthorized');
@@ -277,16 +313,19 @@ router.beforeEach((to, from, next) => {
       }
     }
   }
-  
+
   next();
 });
 
 // Add navigation error handler to prevent redirect loops
 router.onError((error) => {
   console.error('Router error:', error);
-  
+
   if (error.message.includes('redirected')) {
-    window.location.href = '/login';
+    // Prevent infinite redirects
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
   }
 });
 
