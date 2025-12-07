@@ -1,10 +1,7 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet"><title>نظام إدارة المخازن - منوفيا للعطور</title><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#3b82f6"><style>/* Loading styles */
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet"><title>Perfume Inventory</title><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#3b82f6"><style>/* Loading styles */
       #app-loading {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         display: flex;
         flex-direction: column;
@@ -12,60 +9,58 @@
         justify-content: center;
         color: white;
         z-index: 9999;
-        font-family: 'Tajawal', sans-serif;
+        font-family: "Tajawal", sans-serif;
       }
-      
+
       .loading-spinner {
         width: 60px;
         height: 60px;
-        border: 5px solid rgba(255,255,255,0.3);
+        border: 5px solid rgba(255, 255, 255, 0.3);
         border-radius: 50%;
         border-top-color: white;
         animation: spin 1s linear infinite;
         margin-bottom: 20px;
       }
-      
+
       @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+          transform: rotate(360deg);
+        }
       }
-      
-      /* Base styles */
+
       body {
         margin: 0;
         padding: 0;
-        font-family: 'Tajawal', sans-serif;
+        font-family: "Tajawal", sans-serif;
         background: #f5f5f5;
       }
-      
-      /* Hide when Vue loads */
+
+      /* Hide loading when Vue mounts */
       body.vue-loaded #app-loading {
         display: none;
-      }</style><meta name="description" content="نظام متكامل لإدارة مخازن زجاج العطور - منوفيا للعطور"><meta name="theme-color" content="#3b82f6"><script defer src="/js/runtime.61e46a3a.js"></script><script defer src="/js/vendors-15ec897b.f3e617f7.js"></script><script defer src="/js/vendors-50d74d78.f6fdb1b3.js"></script><script defer src="/js/vendors-6bc75065.ea185eec.js"></script><script defer src="/js/vendors-0fcd12e5.3ca75341.js"></script><script defer src="/js/vendors-37a93c5f.2b55f8f1.js"></script><script defer src="/js/vendors-839c41ae.3c8717df.js"></script><script defer src="/js/vendors-05b2d2c0.b8f14794.js"></script><script defer src="/js/vendors-c3ac4396.bf6fb1b4.js"></script><script defer src="/js/vendors-1656f0b4.fa58382d.js"></script><script defer src="/js/vendors-c3943e85.76199c36.js"></script><script defer src="/js/vendors-7d47fb9b.91ec5ae7.js"></script><script defer src="/js/vendors-51a11bcc.724776f1.js"></script><script defer src="/js/app-42f9d7e6.0f1ecb1e.js"></script><script defer src="/js/app-7409a45f.22308d9d.js"></script><script defer src="/js/app-692181e2.f426cf79.js"></script><script defer src="/js/app-6f02571b.3f91d853.js"></script><link href="/css/app-42f9d7e6.df3e60c6.css" rel="stylesheet"><link href="/css/app-692181e2.2680d659.css" rel="stylesheet"><link href="/css/app-6f02571b.44566b02.css" rel="stylesheet"></head><body><div id="app-loading"><div class="loading-spinner"></div><h2>جاري تحميل النظام...</h2><p>نظام إدارة المخازن</p></div><noscript><div style="padding: 50px; text-align: center; background: #fee; color: #c00;"><h2>⚠️ JavaScript مطلوب</h2><p>هذا التطبيق يتطلب تفعيل JavaScript في المتصفح.</p><p>يرجى تفعيل JavaScript وإعادة تحميل الصفحة.</p></div></noscript><div id="app"></div><script>// Hide loading when Vue mounts
-      document.addEventListener('DOMContentLoaded', function() {
-        const appDiv = document.getElementById('app');
-        
-        // Check every 100ms if Vue has mounted
-        const checkInterval = setInterval(function() {
+      }</style><meta name="description" content="نظام متكامل لإدارة مخازن زجاج العطور - منوفيا للعطور"><meta name="theme-color" content="#3b82f6"><script defer src="/js/runtime.d03701a2.js"></script><script defer src="/js/vendors-15ec897b.ff068cde.js"></script><script defer src="/js/vendors-50d74d78.be398955.js"></script><script defer src="/js/vendors-6bc75065.b019dc10.js"></script><script defer src="/js/vendors-0fcd12e5.620a7018.js"></script><script defer src="/js/vendors-37a93c5f.6c1296ed.js"></script><script defer src="/js/vendors-839c41ae.fc08f75e.js"></script><script defer src="/js/vendors-05b2d2c0.029bc7e7.js"></script><script defer src="/js/vendors-c3ac4396.ec53230d.js"></script><script defer src="/js/vendors-1656f0b4.061f03df.js"></script><script defer src="/js/vendors-c3943e85.afee1dfc.js"></script><script defer src="/js/vendors-7d47fb9b.44344541.js"></script><script defer src="/js/vendors-51a11bcc.0fed9f26.js"></script><script defer src="/js/app-334eb401.4aeaecb8.js"></script><script defer src="/js/app-49f7564d.1b5a5d6b.js"></script><script defer src="/js/app-7409a45f.1991efb4.js"></script><script defer src="/js/app-692181e2.51f4b63b.js"></script><script defer src="/js/app-6f02571b.f6723474.js"></script><link href="/css/app-334eb401.d950111e.css" rel="stylesheet"><link href="/css/app-49f7564d.d33d22ff.css" rel="stylesheet"><link href="/css/app-692181e2.0d43e7f7.css" rel="stylesheet"><link href="/css/app-6f02571b.a52ee0e6.css" rel="stylesheet"></head><body><div id="app-loading"><div class="loading-spinner"></div><h2>جاري تحميل النظام...</h2><p>نظام إدارة المخازن</p></div><div id="app"></div><script>document.addEventListener("DOMContentLoaded", function () {
+        const appDiv = document.getElementById("app");
+
+        const checkInterval = setInterval(function () {
           if (appDiv && appDiv.children.length > 0) {
-            console.log('✅ Vue mounted successfully');
-            document.body.classList.add('vue-loaded');
+            console.log("✅ Vue mounted successfully");
+            document.body.classList.add("vue-loaded");
             clearInterval(checkInterval);
           }
         }, 100);
-        
-        // Timeout after 10 seconds
-        setTimeout(function() {
+
+        setTimeout(function () {
           clearInterval(checkInterval);
-          if (!document.body.classList.contains('vue-loaded')) {
-            console.error('❌ Vue did not mount in time');
-            // Show error
-            const loadingEl = document.getElementById('app-loading');
+          if (!document.body.classList.contains("vue-loaded")) {
+            console.error("❌ Vue did not mount in time");
+            const loadingEl = document.getElementById("app-loading");
             if (loadingEl) {
               loadingEl.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                   <h2>⚠️ خطأ في التحميل</h2>
                   <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
-                  <button onclick="window.location.reload()" style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
+                  <button onclick="window.location.reload()" 
+                    style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
                     إعادة التحميل
                   </button>
                 </div>

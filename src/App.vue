@@ -166,7 +166,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 export default {
   name: 'App',
   components: {
-    MobileDashboard,
+    MobileLayout,
     DesktopLayout
   },
   

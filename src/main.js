@@ -1,4 +1,4 @@
-// src/main.js - Production Ready
+// src/main.js - Production Ready for Vue CLI
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
@@ -15,7 +15,7 @@ console.log('🚀 Starting Warehouse Management System...');
 function showLoadingScreen() {
   const appEl = document.getElementById('app');
   if (!appEl) return;
-  
+
   appEl.innerHTML = `
     <div id="app-loading" style="
       position: fixed;
@@ -42,15 +42,15 @@ function showLoadingScreen() {
           animation: spin 1.5s linear infinite;
           margin: 0 auto 30px;
         "></div>
-        
+
         <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
           نظام إدارة المخازن
         </h1>
-        
+
         <p style="font-size: 16px; opacity: 0.9; margin-bottom: 40px;">
           جاري تحميل النظام...
         </p>
-        
+
         <div style="
           width: 200px;
           height: 4px;
@@ -67,7 +67,7 @@ function showLoadingScreen() {
             animation: progress 2s ease-in-out infinite;
           "></div>
         </div>
-        
+
         <p style="font-size: 12px; opacity: 0.7; margin-top: 30px;">
           الإصدار 1.0.0 | Monofia Inventory
         </p>
@@ -87,21 +87,17 @@ function showLoadingScreen() {
 async function initializeFirebaseAuth() {
   return new Promise((resolve, reject) => {
     console.log('🔐 Initializing Firebase authentication...');
-    
+
     const unsubscribe = onAuthStateChanged(
       auth,
       async (user) => {
         console.log('✅ Firebase auth state:', user ? `User: ${user.email}` : 'No user');
-        
+
         if (user) {
           try {
-            // Set user in store
             store.commit('SET_USER', user);
-            
-            // Load user profile
             await store.dispatch('loadUserProfile', user);
             console.log('✅ User profile loaded');
-            
             resolve({ user, isAuthenticated: true });
           } catch (error) {
             console.error('❌ Failed to load user profile:', error);
@@ -113,7 +109,7 @@ async function initializeFirebaseAuth() {
           store.commit('SET_USER_PROFILE', null);
           resolve({ user: null, isAuthenticated: false });
         }
-        
+
         unsubscribe();
       },
       (error) => {
@@ -128,19 +124,14 @@ async function initializeFirebaseAuth() {
 // ==================== 3. INITIALIZE APP ====================
 async function initializeApp() {
   try {
-    // Show loading screen immediately
     showLoadingScreen();
-    
-    // Initialize Firebase auth
+
     const authResult = await initializeFirebaseAuth();
-    
-    // Create Vue app
+
     const app = createApp(App);
-    
-    // Use plugins
     app.use(store);
     app.use(router);
-    
+
     // Global error handler
     app.config.errorHandler = (err, vm, info) => {
       console.error('Vue Error:', err, info);
@@ -149,10 +140,9 @@ async function initializeApp() {
         message: 'حدث خطأ في النظام'
       });
     };
-    
-    // Mount app
+
     app.mount('#app');
-    
+
     // Remove loading screen
     setTimeout(() => {
       const loadingEl = document.getElementById('app-loading');
@@ -162,19 +152,17 @@ async function initializeApp() {
         setTimeout(() => loadingEl.remove(), 300);
       }
     }, 500);
-    
+
     console.log('✅ App initialized successfully');
     console.log('📊 Initial auth state:', {
       isAuthenticated: authResult.isAuthenticated,
       user: authResult.user?.email
     });
-    
+
     return { app, router, store };
-    
   } catch (error) {
     console.error('❌ Failed to initialize app:', error);
-    
-    // Show error screen
+
     const appEl = document.getElementById('app');
     if (appEl) {
       appEl.innerHTML = `
@@ -212,7 +200,7 @@ async function initializeApp() {
         </div>
       `;
     }
-    
+
     throw error;
   }
 }
@@ -221,7 +209,7 @@ async function initializeApp() {
 initializeApp().catch(console.error);
 
 // ==================== 5. GLOBAL HELPERS ====================
-if (import.meta.env.DEV) {
+if (process.env.NODE_ENV === 'development') {
   window.debug = {
     auth: () => ({
       currentUser: auth.currentUser,
