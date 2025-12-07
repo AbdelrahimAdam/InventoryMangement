@@ -1,17 +1,27 @@
 <template>
-  <!-- Mobile Layout -->
-  <MobileLayout v-if="isMobile && !initializing" />
-
-  <!-- Desktop Layout -->
-  <DesktopLayout v-else-if="!initializing" />
-
   <!-- Loading State -->
-  <div v-else class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
+  <div v-if="initializing" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
     <div class="text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
       <p class="mt-4 text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
     </div>
   </div>
+
+  <!-- Authenticated Routes with Layouts -->
+  <template v-else-if="isAuthenticated">
+    <!-- Mobile Layout -->
+    <MobileLayout v-if="isMobile">
+      <router-view :key="$route.fullPath" />
+    </MobileLayout>
+
+    <!-- Desktop Layout -->
+    <DesktopLayout v-else>
+      <router-view :key="$route.fullPath" />
+    </DesktopLayout>
+  </template>
+
+  <!-- Public/Unauthenticated Routes -->
+  <router-view v-else />
 </template>
 
 <script>
@@ -35,32 +45,49 @@ export default {
     const initializing = ref(true);
     const isMobile = ref(false);
     
+    // Computed properties
+    const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const currentRoute = computed(() => router.currentRoute.value);
+    const isPublicRoute = computed(() => {
+      return currentRoute.value.meta?.requiresGuest === true || 
+             currentRoute.value.meta?.layout === 'empty';
+    });
+    
     // Check if mobile
     const checkIfMobile = () => {
       isMobile.value = window.innerWidth < 1024;
     };
     
+    // Handle route protection
+    const checkRouteAccess = () => {
+      if (!initializing.value) {
+        if (!isAuthenticated.value && !isPublicRoute.value) {
+          router.push('/login');
+          return false;
+        }
+        
+        if (isAuthenticated.value && isPublicRoute.value && currentRoute.value.path === '/login') {
+          router.push('/dashboard');
+          return false;
+        }
+      }
+      return true;
+    };
+    
     // Lifecycle
     onMounted(async () => {
       try {
-        // Initialize auth
-        await store.dispatch('initializeAuth');
-        
         // Check if mobile
         checkIfMobile();
         window.addEventListener('resize', checkIfMobile);
         
-        // Set up auth state listener
-        const unsubscribe = store.subscribe((mutation, state) => {
-          if (mutation.type === 'SET_AUTH_STATE') {
-            if (!state.isAuthenticated && !router.currentRoute.value.meta?.public) {
-              router.push('/login');
-            }
-          }
-        });
+        // Initialize auth
+        await store.dispatch('initializeAuth');
         
-        // Store unsubscribe for cleanup
-        store.state.unsubscribeAuthListener = unsubscribe;
+        // Check initial route access after auth is initialized
+        setTimeout(() => {
+          checkRouteAccess();
+        }, 100);
         
       } catch (error) {
         console.error('App initialization error:', error);
@@ -73,14 +100,26 @@ export default {
     
     onUnmounted(() => {
       window.removeEventListener('resize', checkIfMobile);
-      if (store.state.unsubscribeAuthListener) {
-        store.state.unsubscribeAuthListener();
+    });
+    
+    // Watch for authentication changes
+    watch(() => isAuthenticated.value, (isAuth) => {
+      if (!initializing.value) {
+        checkRouteAccess();
+      }
+    });
+    
+    // Watch for route changes
+    watch(() => currentRoute.value, () => {
+      if (!initializing.value) {
+        checkRouteAccess();
       }
     });
     
     return {
       initializing,
-      isMobile
+      isMobile,
+      isAuthenticated
     };
   }
 };
@@ -101,6 +140,41 @@ export default {
 #app {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent pull-to-refresh on mobile */
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Desktop-specific styles */
+@media (min-width: 1024px) {
+  /* Allow independent scrolling for sidebar and main content */
+  .desktop-sidebar {
+    overscroll-behavior: contain;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  
+  .desktop-main {
+    overflow-y: auto;
+    height: calc(100vh - 5rem);
+  }
 }
 
 /* Global styles */
@@ -152,6 +226,14 @@ export default {
 
 .dark ::-webkit-scrollbar-thumb {
   background: rgba(107, 114, 128, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -263,6 +345,218 @@ export default {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Fade in animation for route transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide animations for mobile navigation */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+
+/* Prevent text selection on mobile */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  button, a {
+    user-select: none;
+  }
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button,
+  .btn,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Route transition animations */
+.router-view-wrapper {
+  position: relative;
+}
+
+.route-enter-active {
+  animation: slideInRight 0.3s ease;
+}
+
+.route-leave-active {
+  animation: slideOutLeft 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+}
+
+/* For RTL languages */
+[dir="rtl"] .route-enter-active {
+  animation: slideInLeft 0.3s ease;
+}
+
+[dir="rtl"] .route-leave-active {
+  animation: slideOutRight 0.3s ease;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+
+/* Ensure proper z-index layering */
+.router-view-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix for iOS Safari viewport height */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Fix for mobile keyboard */
+@media (max-width: 768px) {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Accessibility improvements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --sky-light: #ffffff;
+    --sky-mid: #d1d5db;
+    --sky-dark: #9ca3af;
+    --night-dark: #000000;
+    --night-mid: #1f2937;
+    --night-light: #4b5563;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  
+  .route-enter-active,
+  .route-leave-active,
+  .fade-enter-active,
+  .fade-leave-active,
+  .slide-up-enter-active,
+  .slide-up-leave-active {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+  
+  .no-print {
+    display: none !important;
   }
 }
 </style>
