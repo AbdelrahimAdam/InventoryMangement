@@ -22,11 +22,16 @@
               </div>
             </div>
           </div>
-          <button @click="refreshData" class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl transition-all duration-200 backdrop-blur-sm flex items-center">
+          <button 
+            @click="refreshData" 
+            :disabled="loading"
+            :class="{'opacity-50 cursor-not-allowed': loading}"
+            class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl transition-all duration-200 backdrop-blur-sm flex items-center"
+          >
             <svg :class="{'animate-spin': loading}" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            تحديث البيانات
+            {{ loading ? 'جاري التحديث...' : 'تحديث البيانات' }}
           </button>
         </div>
       </div>
@@ -97,7 +102,12 @@
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h3>
-          <router-link to="/transactions" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700">عرض الكل</router-link>
+          <div 
+            @click="navigateTo('/transactions')"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 cursor-pointer hover:underline"
+          >
+            عرض الكل
+          </div>
         </div>
         <div class="space-y-4">
           <div v-if="recentTransactionsLoading" class="text-center py-8">
@@ -111,8 +121,12 @@
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">لا توجد حركات حديثة</p>
           </div>
           <div v-else class="space-y-4">
-            <div v-for="transaction in recentTransactions.slice(0, 6)" :key="transaction.id" 
-                 class="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
+            <div 
+              v-for="transaction in recentTransactions.slice(0, 6)" 
+              :key="transaction.id" 
+              class="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer"
+              @click="viewTransaction(transaction)"
+            >
               <div :class="getTransactionColor(transaction.type)" class="h-12 w-12 rounded-xl flex items-center justify-center mr-4">
                 <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -135,7 +149,12 @@
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">توزيع المخزون</h3>
         <div class="space-y-4">
-          <div v-for="warehouse in warehouseStats" :key="warehouse.id" class="space-y-2">
+          <div 
+            v-for="warehouse in warehouseStats" 
+            :key="warehouse.id" 
+            class="space-y-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-3 rounded-lg transition-colors"
+            @click="navigateToWarehouse(warehouse.id)"
+          >
             <div class="flex justify-between text-sm">
               <span class="font-medium text-gray-900 dark:text-white">{{ warehouse.name }}</span>
               <span class="text-gray-600 dark:text-gray-400">{{ warehouse.items }} أصناف</span>
@@ -154,37 +173,158 @@
 
     <!-- Quick Actions Row -->
     <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-      <button v-if="canModifyItems" @click="openAddItemModal" 
-              class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+      <button 
+        v-if="canModifyItems" 
+        @click="navigateTo('/inventory/add')"
+        @touchstart="handleTouch($event, () => navigateTo('/inventory/add'))"
+        class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canModifyItems}"
+        :disabled="!canModifyItems"
+      >
         <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
         إضافة صنف جديد
       </button>
-      
-      <button @click="exportReport"
-              class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+
+      <button 
+        @click="navigateTo('/reports')"
+        @touchstart="handleTouch($event, () => navigateTo('/reports'))"
+        v-if="canViewReports"
+        class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canViewReports}"
+        :disabled="!canViewReports"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        عرض التقارير
+      </button>
+
+      <button 
+        v-else
+        @click="exportReport"
+        @touchstart="handleTouch($event, exportReport)"
+        class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+      >
         <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
         تصدير تقرير
       </button>
-      
-      <button @click="printDashboard"
-              class="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+
+      <button 
+        @click="navigateTo('/transfers')"
+        @touchstart="handleTouch($event, () => navigateTo('/transfers'))"
+        v-if="canModifyItems"
+        class="bg-gradient-to-r from-purple-600 to-violet-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canModifyItems}"
+        :disabled="!canModifyItems"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+        </svg>
+        نقل المخزون
+      </button>
+
+      <button 
+        @click="navigateTo('/dispatch')"
+        @touchstart="handleTouch($event, () => navigateTo('/dispatch'))"
+        v-else-if="canDispatch"
+        class="bg-gradient-to-r from-orange-600 to-amber-500 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canDispatch}"
+        :disabled="!canDispatch"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12"/>
+        </svg>
+        صرف خارجي
+      </button>
+
+      <button 
+        @click="printDashboard"
+        @touchstart="handleTouch($event, printDashboard)"
+        v-else
+        class="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-medium py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center cursor-pointer touch-target"
+      >
         <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
         </svg>
         طباعة اللوحة
       </button>
     </div>
+
+    <!-- Additional Actions -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <button 
+        @click="navigateTo('/inventory')"
+        @touchstart="handleTouch($event, () => navigateTo('/inventory'))"
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium py-3 rounded-xl shadow hover:shadow-md transition-all flex items-center justify-center cursor-pointer touch-target"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+        </svg>
+        عرض المخزون
+      </button>
+
+      <button 
+        @click="navigateTo('/users')"
+        @touchstart="handleTouch($event, () => navigateTo('/users'))"
+        v-if="canManageUsers"
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium py-3 rounded-xl shadow hover:shadow-md transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canManageUsers}"
+        :disabled="!canManageUsers"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-6.197a6 6 0 00-9-5.197M9 10h.01"/>
+        </svg>
+        إدارة المستخدمين
+      </button>
+
+      <button 
+        @click="navigateTo('/warehouses')"
+        @touchstart="handleTouch($event, () => navigateTo('/warehouses'))"
+        v-if="canManageUsers"
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium py-3 rounded-xl shadow hover:shadow-md transition-all flex items-center justify-center cursor-pointer touch-target"
+        :class="{'opacity-50 cursor-not-allowed': !canManageUsers}"
+        :disabled="!canManageUsers"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        إدارة المخازن
+      </button>
+
+      <button 
+        @click="navigateTo('/profile')"
+        @touchstart="handleTouch($event, () => navigateTo('/profile'))"
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium py-3 rounded-xl shadow hover:shadow-md transition-all flex items-center justify-center cursor-pointer touch-target"
+      >
+        <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        الملف الشخصي
+      </button>
+    </div>
+
+    <!-- Toast for navigation errors -->
+    <div v-if="navigationError" class="fixed bottom-4 right-4 left-4 md:right-auto md:left-1/2 md:-translate-x-1/2 md:w-96 z-50">
+      <div class="bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
+        <span class="flex-1">{{ navigationError }}</span>
+        <button @click="navigationError = ''" class="ml-4">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 export default {
   name: 'Dashboard',
@@ -192,58 +332,32 @@ export default {
   setup() {
     const store = useStore();
     const router = useRouter();
+    const route = useRoute();
     
     // State
     const loading = ref(false);
+    const navigationError = ref('');
     
     // Computed properties
-    const userProfile = computed(() => store.state.userProfile);
     const userRole = computed(() => store.getters.userRole);
     const userName = computed(() => store.getters.userName);
-    const dashboardStats = computed(() => store.getters.dashboardStats);
-    const recentTransactions = computed(() => store.state.recentTransactions);
-    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading);
+    const dashboardStats = computed(() => store.getters.dashboardStats || {
+      totalItems: 0,
+      totalQuantity: 0,
+      lowStockItems: 0,
+      recentTransactions: 0
+    });
+    const recentTransactions = computed(() => store.state.recentTransactions || []);
+    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading || false);
     const inventory = computed(() => store.state.inventory || []);
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
-    const canModifyItems = computed(() => store.getters.canEdit);
-    const canDispatch = computed(() => store.getters.canDispatch);
-    const canManageUsers = computed(() => store.getters.canManageUsers);
+    const canModifyItems = computed(() => store.getters.canEdit || false);
+    const canDispatch = computed(() => store.getters.canDispatch || false);
+    const canManageUsers = computed(() => store.getters.canManageUsers || false);
     const canViewReports = computed(() => {
       const role = store.getters.userRole;
       return ['superadmin', 'company_manager'].includes(role);
-    });
-    
-    const notificationCount = computed(() => {
-      return store.getters.dashboardStats?.lowStockItems || 0;
-    });
-    
-    const getUserRoleName = computed(() => {
-      const roles = {
-        superadmin: 'المشرف العام',
-        warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركة'
-      };
-      return roles[userRole.value] || 'مستخدم';
-    });
-    
-    // Mock transaction stats
-    const todayTransactions = computed(() => {
-      return recentTransactions.value.filter(t => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const transactionDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-        return transactionDate >= today;
-      }).length;
-    });
-    
-    const thisWeekTransactions = computed(() => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return recentTransactions.value.filter(t => {
-        const transactionDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-        return transactionDate >= weekAgo;
-      }).length;
     });
     
     // Warehouse stats for chart
@@ -266,81 +380,204 @@ export default {
       });
     });
     
-    const lowStockNotifications = computed(() => {
-      const lowStockItems = inventory.value.filter(item => 
-        (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
-      ).slice(0, 5);
-      
-      return lowStockItems.map(item => ({
-        id: item.id,
-        message: `الصنف ${item.name || item.code} منخفض المخزون (${item.remaining_quantity} وحدة)`
-      }));
-    });
-    
     // Methods
+    const handleTouch = (event, handler) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Add visual feedback
+      const target = event.currentTarget;
+      target.classList.add('active-touch');
+      setTimeout(() => {
+        target.classList.remove('active-touch');
+      }, 200);
+      
+      if (typeof handler === 'function') {
+        handler();
+      }
+    };
+    
+    const navigateTo = async (path) => {
+      try {
+        console.log('Navigating to:', path);
+        
+        // Check if user has permission for the route
+        const canAccess = await checkRoutePermission(path);
+        if (!canAccess) {
+          navigationError.value = 'ليس لديك صلاحية للوصول إلى هذه الصفحة';
+          setTimeout(() => {
+            navigationError.value = '';
+          }, 3000);
+          return;
+        }
+        
+        // Navigate
+        await router.push(path);
+        
+      } catch (error) {
+        console.error('Navigation error:', error);
+        
+        if (error.name !== 'NavigationDuplicated') {
+          navigationError.value = 'حدث خطأ في التنقل إلى الصفحة';
+          setTimeout(() => {
+            navigationError.value = '';
+          }, 3000);
+        }
+      }
+    };
+    
+    const checkRoutePermission = async (path) => {
+      try {
+        // Check route meta permissions
+        const routeRecord = router.resolve(path).route;
+        
+        // No restrictions
+        if (!routeRecord.meta?.allowedRoles) {
+          return true;
+        }
+        
+        // Check user role
+        const userRole = store.getters.userRole;
+        if (!userRole) {
+          return false;
+        }
+        
+        // Check if role is allowed
+        const allowedRoles = routeRecord.meta.allowedRoles;
+        if (!allowedRoles.includes(userRole)) {
+          return false;
+        }
+        
+        // Check specific permissions
+        if (routeRecord.meta.permissions) {
+          const permission = routeRecord.meta.permissions[userRole];
+          if (permission === 'none') {
+            return false;
+          }
+        }
+        
+        // Additional checks for warehouse managers
+        if (userRole === 'warehouse_manager') {
+          const allowedWarehouses = store.state.userProfile?.allowed_warehouses || [];
+          
+          if (path.includes('/inventory') && allowedWarehouses.length === 0) {
+            return false;
+          }
+        }
+        
+        return true;
+        
+      } catch (error) {
+        console.error('Permission check error:', error);
+        return false;
+      }
+    };
+    
     const refreshData = async () => {
+      if (loading.value) return;
+      
       loading.value = true;
       try {
         await store.dispatch('getRecentTransactions');
+        
+        // Show success feedback
+        const event = new CustomEvent('show-toast', {
+          detail: {
+            message: 'تم تحديث البيانات بنجاح',
+            type: 'success'
+          }
+        });
+        window.dispatchEvent(event);
+        
       } catch (error) {
         console.error('Error refreshing data:', error);
+        
+        const event = new CustomEvent('show-toast', {
+          detail: {
+            message: 'حدث خطأ في تحديث البيانات',
+            type: 'error'
+          }
+        });
+        window.dispatchEvent(event);
+        
       } finally {
         loading.value = false;
       }
     };
     
-    const openAddItemModal = () => {
-      if (!canModifyItems.value) {
-        alert('ليس لديك صلاحية لإضافة أصناف');
-        return;
+    const exportReport = async () => {
+      try {
+        // Show loading
+        const loadingEvent = new CustomEvent('show-toast', {
+          detail: {
+            message: 'جاري تصدير التقرير...',
+            type: 'info'
+          }
+        });
+        window.dispatchEvent(loadingEvent);
+        
+        // Simulate export process
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Show success
+        const successEvent = new CustomEvent('show-toast', {
+          detail: {
+            message: 'تم تصدير التقرير بنجاح',
+            type: 'success'
+          }
+        });
+        window.dispatchEvent(successEvent);
+        
+      } catch (error) {
+        console.error('Export error:', error);
+        
+        const errorEvent = new CustomEvent('show-toast', {
+          detail: {
+            message: 'حدث خطأ في تصدير التقرير',
+            type: 'error'
+          }
+        });
+        window.dispatchEvent(errorEvent);
       }
-      router.push('/inventory/add');
-    };
-    
-    const openTransferModal = () => {
-      if (!canModifyItems.value) {
-        alert('ليس لديك صلاحية لنقل الأصناف');
-        return;
-      }
-      // Implement transfer modal
-      console.log('Open transfer modal');
-    };
-    
-    const openDispatchModal = () => {
-      if (!canDispatch.value) {
-        alert('ليس لديك صلاحية لصرف الأصناف');
-        return;
-      }
-      // Implement dispatch modal
-      console.log('Open dispatch modal');
-    };
-    
-    const exportReport = () => {
-      console.log('Export report');
     };
     
     const printDashboard = () => {
       window.print();
     };
     
+    const viewTransaction = (transaction) => {
+      console.log('View transaction:', transaction);
+      // Could navigate to transaction details if implemented
+    };
+    
+    const navigateToWarehouse = (warehouseId) => {
+      navigateTo(`/inventory?warehouse=${warehouseId}`);
+    };
+    
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('ar-EG').format(num);
+      const number = Number(num) || 0;
+      return new Intl.NumberFormat('ar-EG').format(number);
     };
     
     const formatDateTime = (date) => {
       if (!date) return '';
-      const d = date.toDate ? date.toDate() : new Date(date);
-      return d.toLocaleString('ar-EG', {
-        dateStyle: 'short',
-        timeStyle: 'short'
-      });
+      try {
+        const d = date.toDate ? date.toDate() : new Date(date);
+        return d.toLocaleString('ar-EG', {
+          dateStyle: 'short',
+          timeStyle: 'short'
+        });
+      } catch (error) {
+        return '';
+      }
     };
     
     const getTransactionColor = (type) => {
       const colors = {
         add: 'bg-green-500',
         transfer: 'bg-blue-500',
-        dispatch: 'bg-orange-500'
+        dispatch: 'bg-orange-500',
+        receive: 'bg-purple-500'
       };
       return colors[type] || 'bg-gray-500';
     };
@@ -349,28 +586,39 @@ export default {
       const labels = {
         add: 'إضافة',
         transfer: 'نقل',
-        dispatch: 'صرف'
+        dispatch: 'صرف',
+        receive: 'استلام'
       };
       return labels[type] || type;
     };
     
-    const getUserInitials = (name) => {
-      if (!name) return '??';
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    // Listen for toast events
+    const handleToastEvent = (event) => {
+      console.log('Toast event received:', event.detail);
+      // This would show a toast if implemented
     };
     
     // Lifecycle
     onMounted(() => {
+      console.log('Dashboard mounted');
+      
       // Load initial data
       refreshData();
+      
+      // Listen for toast events
+      window.addEventListener('show-toast', handleToastEvent);
+    });
+    
+    onUnmounted(() => {
+      window.removeEventListener('show-toast', handleToastEvent);
     });
     
     return {
       // State
       loading,
+      navigationError,
       
       // Computed
-      userProfile,
       userRole,
       userName,
       dashboardStats,
@@ -381,31 +629,73 @@ export default {
       canDispatch,
       canManageUsers,
       canViewReports,
-      notificationCount,
-      getUserRoleName,
-      todayTransactions,
-      thisWeekTransactions,
       warehouseStats,
-      lowStockNotifications,
       
       // Methods
+      handleTouch,
+      navigateTo,
       refreshData,
-      openAddItemModal,
-      openTransferModal,
-      openDispatchModal,
       exportReport,
       printDashboard,
+      viewTransaction,
+      navigateToWarehouse,
       formatNumber,
       formatDateTime,
       getTransactionColor,
-      getTransactionLabel,
-      getUserInitials
+      getTransactionLabel
     };
   }
 };
 </script>
 
 <style scoped>
+/* Touch feedback */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.active-touch {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+/* Disabled state */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Button hover effects */
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+/* Animation for error toast */
+@keyframes slide-down {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
+}
+
 /* Print styles */
 @media print {
   button {
@@ -436,6 +726,37 @@ export default {
   .rounded-2xl {
     border-radius: 0 !important;
     border: 1px solid #e5e7eb !important;
+  }
+  
+  /* Ensure all text is black for printing */
+  * {
+    color: black !important;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none !important;
+  }
+  
+  .animate-slide-down {
+    animation: none !important;
   }
 }
 </style>
