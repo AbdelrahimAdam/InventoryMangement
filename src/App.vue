@@ -1,17 +1,23 @@
 <template>
-  <!-- Mobile Layout -->
-  <MobileLayout v-if="isMobile && !initializing" />
-
-  <!-- Desktop Layout -->
-  <DesktopLayout v-else-if="!initializing" />
-
   <!-- Loading State -->
-  <div v-else class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
+  <div v-if="initializing" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
     <div class="text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
       <p class="mt-4 text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
     </div>
   </div>
+
+  <!-- Authenticated Routes with Layouts -->
+  <template v-else-if="isAuthenticated">
+    <!-- Mobile Layout -->
+    <MobileLayout v-if="isMobile" />
+
+    <!-- Desktop Layout -->
+    <DesktopLayout v-else />
+  </template>
+
+  <!-- Public/Unauthenticated Routes -->
+  <router-view v-else />
 </template>
 
 <script>
@@ -35,10 +41,45 @@ export default {
     const initializing = ref(true);
     const isMobile = ref(false);
     
+    // Computed properties
+    const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const currentRoute = computed(() => router.currentRoute.value);
+    const isPublicRoute = computed(() => currentRoute.value.meta?.public === true);
+    
     // Check if mobile
     const checkIfMobile = () => {
       isMobile.value = window.innerWidth < 1024;
     };
+    
+    // Handle route protection
+    const checkRouteAccess = () => {
+      if (!isAuthenticated.value && !isPublicRoute.value) {
+        router.push('/login');
+        return false;
+      }
+      
+      if (isAuthenticated.value && isPublicRoute.value) {
+        router.push('/dashboard');
+        return false;
+      }
+      
+      return true;
+    };
+    
+    // Watch for route changes
+    router.beforeEach((to, from, next) => {
+      if (!initializing.value) {
+        if (!isAuthenticated.value && !to.meta?.public) {
+          next('/login');
+        } else if (isAuthenticated.value && to.meta?.public) {
+          next('/dashboard');
+        } else {
+          next();
+        }
+      } else {
+        next();
+      }
+    });
     
     // Lifecycle
     onMounted(async () => {
@@ -50,37 +91,34 @@ export default {
         checkIfMobile();
         window.addEventListener('resize', checkIfMobile);
         
-        // Set up auth state listener
-        const unsubscribe = store.subscribe((mutation, state) => {
-          if (mutation.type === 'SET_AUTH_STATE') {
-            if (!state.isAuthenticated && !router.currentRoute.value.meta?.public) {
-              router.push('/login');
-            }
-          }
-        });
-        
-        // Store unsubscribe for cleanup
-        store.state.unsubscribeAuthListener = unsubscribe;
+        // Check initial route access
+        checkRouteAccess();
         
       } catch (error) {
         console.error('App initialization error:', error);
       } finally {
+        // Add small delay to ensure auth state is properly initialized
         setTimeout(() => {
           initializing.value = false;
-        }, 500);
+        }, 300);
       }
     });
     
     onUnmounted(() => {
       window.removeEventListener('resize', checkIfMobile);
-      if (store.state.unsubscribeAuthListener) {
-        store.state.unsubscribeAuthListener();
+    });
+    
+    // Watch for authentication changes
+    watch(() => isAuthenticated.value, (isAuth) => {
+      if (!initializing.value) {
+        checkRouteAccess();
       }
     });
     
     return {
       initializing,
-      isMobile
+      isMobile,
+      isAuthenticated
     };
   }
 };
@@ -101,6 +139,41 @@ export default {
 #app {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent pull-to-refresh on mobile */
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Desktop-specific styles */
+@media (min-width: 1024px) {
+  /* Allow independent scrolling for sidebar and main content */
+  .desktop-sidebar {
+    overscroll-behavior: contain;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  
+  .desktop-main {
+    overflow-y: auto;
+    height: calc(100vh - 5rem);
+  }
 }
 
 /* Global styles */
@@ -152,6 +225,14 @@ export default {
 
 .dark ::-webkit-scrollbar-thumb {
   background: rgba(107, 114, 128, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -263,6 +344,61 @@ export default {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Fade in animation for route transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide animations for mobile navigation */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+
+/* Prevent text selection on mobile */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  button, a {
+    user-select: none;
+  }
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button,
+  .btn,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 </style>
