@@ -1,4 +1,4 @@
-// src/router/index.js
+// src/router/index.js - Updated for Firebase store
 import { createRouter, createWebHistory } from 'vue-router';
 
 const routes = [
@@ -7,7 +7,7 @@ const routes = [
     name: 'Login',
     component: () => import('@/views/Login.vue'),
     meta: { 
-      public: true,
+      public: true,  // This route is public
       layout: 'empty',
       title: 'تسجيل الدخول'
     }
@@ -155,47 +155,6 @@ const routes = [
     }
   },
   {
-    path: '/settings',
-    name: 'Settings',
-    component: () => import('@/views/Settings.vue'),
-    meta: { 
-      requiresAuth: true,
-      allowedRoles: ['superadmin', 'company_manager'],
-      title: 'الإعدادات'
-    }
-  },
-  {
-    path: '/help',
-    name: 'Help',
-    component: () => import('@/views/Help.vue'),
-    meta: { 
-      requiresAuth: true,
-      title: 'المساعدة'
-    }
-  },
-  {
-    path: '/test',
-    name: 'Test',
-    component: {
-      template: `
-        <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-          <div class="text-center">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">✅ اختبار التنقل</h1>
-            <p class="text-gray-600 dark:text-gray-400 mb-6">الصفحة تعمل بنجاح!</p>
-            <router-link to="/dashboard" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
-              العودة للرئيسية
-            </router-link>
-          </div>
-        </div>
-      `
-    },
-    meta: { 
-      requiresAuth: true,
-      title: 'اختبار',
-      layout: 'empty'
-    }
-  },
-  {
     path: '/unauthorized',
     name: 'Unauthorized',
     component: {
@@ -252,21 +211,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    // Return to saved position if exists
     if (savedPosition) {
       return savedPosition;
+    } else {
+      return { top: 0 };
     }
-    
-    // Scroll to top for new routes
-    if (to.hash) {
-      return {
-        selector: to.hash,
-        behavior: 'smooth'
-      };
-    }
-    
-    // Default to top
-    return { top: 0, left: 0, behavior: 'smooth' };
   }
 });
 
@@ -290,88 +239,55 @@ const canAccessRoute = (userRole, routeMeta) => {
   return true;
 };
 
-// Check warehouse manager access
-const canWarehouseManagerAccess = (userProfile, routeName) => {
-  if (userProfile?.role !== 'warehouse_manager') return true;
-
-  const allowedWarehouses = userProfile?.allowed_warehouses || [];
-
-  // For inventory management routes, check if user has any warehouses assigned
-  if (routeName?.includes('Inventory') && allowedWarehouses.length === 0) {
-    return false;
-  }
-
-  return true;
-};
-
 // Global store reference
 let store = null;
 
 // Store setup injection
 export const setupRouter = (appStore) => {
   store = appStore;
+  console.log('Router store injected');
 };
 
-// Navigation logging for debugging
-const logNavigation = (from, to) => {
-  console.group('🔗 Navigation');
-  console.log('From:', from.name || from.path);
-  console.log('To:', to.name || to.path);
-  console.log('Full path:', to.fullPath);
-  console.log('Params:', to.params);
-  console.log('Query:', to.query);
-  console.groupEnd();
-};
+// Simple navigation guard for Firebase
+router.beforeEach((to, from, next) => {
+  console.log('Router navigation:', {
+    from: from.path,
+    to: to.path,
+    toName: to.name,
+    meta: to.meta
+  });
 
-// Navigation guard with improved error handling
-router.beforeEach(async (to, from, next) => {
-  // Log navigation for debugging
-  logNavigation(from, to);
-  
-  // Set page title
-  if (to.meta.title) {
-    document.title = `${to.meta.title} - نظام إدارة المخازن`;
-  }
-  
-  // Try to get store if not injected yet
+  // If store is not injected yet, try to get it
   if (!store) {
-    try {
-      // Try to get store from global properties
-      const app = router.app;
-      if (app && app.config.globalProperties.$store) {
-        store = app.config.globalProperties.$store;
-      }
-    } catch (error) {
-      console.warn('Store not available:', error);
+    console.warn('Store not available in router guard');
+    
+    // For public routes, allow access
+    if (to.meta.public) {
+      next();
+      return;
     }
-  }
-
-  // If still no store and route requires auth, redirect to login
-  if (!store && to.meta.requiresAuth) {
-    console.warn('Store not available, redirecting to login');
+    
+    // For protected routes without store, redirect to login
     next('/login');
     return;
   }
 
-  // If store is not available, allow navigation for public routes
-  if (!store) {
-    if (to.meta.public) {
-      next();
-    } else {
-      next('/login');
-    }
-    return;
-  }
-
-  // Get authentication state
+  // Get authentication state from store
   const isAuthenticated = store.getters.isAuthenticated;
   const userProfile = store.state.userProfile;
   const userRole = userProfile?.role;
+
+  console.log('Auth state in router:', {
+    isAuthenticated,
+    userRole,
+    userProfile: userProfile ? 'Loaded' : 'Not loaded'
+  });
 
   // Public routes - allow access
   if (to.meta.public) {
     // If user is already authenticated and trying to access login, redirect to dashboard
     if (to.name === 'Login' && isAuthenticated) {
+      console.log('Already authenticated, redirecting from login to dashboard');
       next('/dashboard');
       return;
     }
@@ -380,18 +296,22 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Routes that require authentication
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    // Store the intended URL for redirect after login
-    if (to.path !== '/login') {
-      store.commit('SET_REDIRECT_URL', to.fullPath);
-    }
+  if (!isAuthenticated) {
+    console.log('Not authenticated, redirecting to login');
     next('/login');
     return;
   }
 
-  // If authenticated but no user profile (shouldn't happen normally)
-  if (isAuthenticated && !userProfile) {
-    console.warn('Authenticated but no user profile, redirecting to login');
+  // If authenticated but user profile is not loaded yet (shouldn't happen)
+  if (!userProfile) {
+    console.warn('Authenticated but no user profile, allowing navigation');
+    next();
+    return;
+  }
+
+  // Check if user is active
+  if (userProfile.is_active === false) {
+    console.log('User account is inactive');
     store.dispatch('logout');
     next('/login');
     return;
@@ -399,110 +319,35 @@ router.beforeEach(async (to, from, next) => {
 
   // Role-based access control
   if (to.meta.allowedRoles) {
-    // Check if user has a role
     if (!userRole) {
-      console.warn('User has no role assigned');
+      console.log('User has no role assigned');
       next('/unauthorized');
       return;
     }
 
-    // Check if user's role is allowed
     if (!canAccessRoute(userRole, to.meta)) {
       console.log(`User role ${userRole} not allowed for route ${to.name}`);
       next('/unauthorized');
       return;
     }
-
-    // Special checks for warehouse managers
-    if (!canWarehouseManagerAccess(userProfile, to.name)) {
-      console.log(`Warehouse manager access denied for ${to.name}`);
-      next('/unauthorized');
-      return;
-    }
   }
 
-  // All checks passed, allow navigation
+  // All checks passed
   next();
 });
 
-// Navigation success handler
-router.afterEach((to, from) => {
-  // Update active navigation state in store if needed
-  if (store) {
-    store.commit('SET_CURRENT_ROUTE', to.name);
-  }
-  
-  // Analytics tracking (if implemented)
-  if (window.gtag && to.name) {
-    window.gtag('event', 'page_view', {
-      page_path: to.path,
-      page_title: to.meta.title || to.name
-    });
-  }
-});
-
-// Error handler with recovery
+// Add error handling
 router.onError((error) => {
-  console.error('🚨 Router Error:', error);
-  
-  // Handle chunk loading errors (common in production)
+  console.error('Router error:', error);
+
+  // Handle chunk loading errors
   if (error.message.includes('Failed to fetch dynamically imported module')) {
-    console.warn('Chunk loading failed, likely due to deployment. Refreshing...');
-    
-    // Show user-friendly message
-    const message = 'تم تحديث النظام. جاري إعادة تحميل الصفحة...';
-    alert(message);
-    
-    // Reload after a delay
+    console.warn('Chunk loading failed, likely due to deployment');
+    alert('تم تحديث النظام. جاري إعادة تحميل الصفحة...');
     setTimeout(() => {
       window.location.reload();
     }, 1000);
-    return;
-  }
-  
-  // Handle navigation aborted errors
-  if (error.name === 'NavigationDuplicated') {
-    // This is normal, just ignore it
-    return;
-  }
-  
-  // Handle other errors
-  if (error.message.includes('redirected')) {
-    console.warn('Redirect loop detected');
-    
-    // Break the loop
-    if (window.location.pathname !== '/login') {
-      // Clear any problematic state
-      if (store) {
-        store.dispatch('logout');
-      }
-      localStorage.clear();
-      window.location.href = '/login';
-    }
   }
 });
-
-// Global navigation helper
-router.navigateTo = async (path, options = {}) => {
-  try {
-    await router.push(path);
-    return true;
-  } catch (error) {
-    console.error('Navigation failed:', error);
-    
-    // Show error to user if not a duplicate navigation
-    if (error.name !== 'NavigationDuplicated' && options.showError !== false) {
-      const message = options.errorMessage || 'حدث خطأ في التنقل إلى الصفحة';
-      alert(message);
-    }
-    
-    return false;
-  }
-};
-
-// Add router to window for debugging (remove in production)
-if (process.env.NODE_ENV === 'development') {
-  window.router = router;
-}
 
 export default router;
