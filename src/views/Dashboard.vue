@@ -1,1309 +1,1327 @@
 <template>
-  <div class="sky-dashboard">
-    <!-- Sky Background with Animated Clouds -->
-    <div class="sky-background">
-      <div class="clouds-container">
-        <div class="cloud cloud-1"></div>
-        <div class="cloud cloud-2"></div>
-        <div class="cloud cloud-3"></div>
-        <div class="cloud cloud-4"></div>
-        <div class="cloud cloud-5"></div>
-        <div class="cloud cloud-6"></div>
-      </div>
-      <div class="sun"></div>
-    </div>
-
-    <!-- Stars for night effect -->
-    <div class="stars-container">
-      <div class="star" v-for="star in stars" :key="star.id" :style="star.style"></div>
-    </div>
-
-    <!-- Welcome Banner -->
-    <div class="mb-8 relative z-10">
-      <div class="sky-banner rounded-2xl shadow-xl p-8 backdrop-blur-xl bg-gradient-to-r from-sky-500/90 to-cyan-500/90 border border-white/20">
-        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
-          <div>
-            <h2 class="text-3xl font-bold text-white mb-2 drop-shadow-lg">مرحباً، {{ userName }} 👋</h2>
-            <p class="text-blue-50 opacity-90">لوحة تحكم نظام إدارة المخزون</p>
-            <div class="mt-4 flex flex-wrap items-center gap-4">
-              <div class="flex items-center text-blue-50 bg-white/10 px-3 py-1 rounded-lg">
-                <svg class="w-5 h-5 ml-1 drop-shadow" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
-                <span class="text-sm">النظام يعمل بشكل طبيعي</span>
+  <div class="flex-1 overflow-hidden flex flex-col">
+    <!-- Desktop Header Only (hidden on mobile) -->
+    <header class="hidden lg:block bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
+      <div class="max-w-full mx-auto px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Left side: Logo -->
+          <div class="flex items-center space-x-3 space-x-reverse">
+            <router-link to="/" class="flex items-center space-x-3 space-x-reverse">
+              <div class="flex-shrink-0">
+                <div class="h-9 w-9 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                  <span class="text-white font-bold text-sm">م</span>
+                </div>
               </div>
-              <div class="flex items-center text-blue-50 bg-white/10 px-3 py-1 rounded-lg">
-                <svg class="w-5 h-5 ml-1 drop-shadow" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                </svg>
-                <span class="text-sm">{{ accessibleWarehouses.length }} مخازن نشطة</span>
+              <div>
+                <h1 class="text-lg font-bold text-gray-900 dark:text-white leading-tight">نظام إدارة المخزون</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">منظمة مونوفيا</p>
               </div>
-              <div class="flex items-center text-blue-50 bg-white/10 px-3 py-1 rounded-lg">
-                <svg class="w-5 h-5 ml-1 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span class="text-sm">{{ currentTime }}</span>
-              </div>
-            </div>
+            </router-link>
           </div>
-          <div class="flex flex-wrap gap-3">
+
+          <!-- Right Side Controls -->
+          <div class="flex items-center space-x-4 space-x-reverse">
+            <!-- Dark/Light Mode Toggle -->
             <button 
-              @click="refreshData" 
-              :disabled="loading"
-              :class="{'opacity-50 cursor-not-allowed': loading}"
-              class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl transition-all duration-200 backdrop-blur-sm flex items-center border border-white/30 hover:border-white/40 shadow-lg hover:shadow-xl"
+              @click="toggleDarkMode"
+              class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              :title="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
             >
-              <svg :class="{'animate-spin': loading}" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
               </svg>
-              {{ loading ? 'جاري التحديث...' : 'تحديث البيانات' }}
-            </button>
-            
-            <button 
-              v-if="canModifyItems"
-              @click="navigateTo('/inventory/add')"
-              class="px-6 py-3 bg-emerald-500/90 hover:bg-emerald-600/90 text-white font-medium rounded-xl transition-all duration-200 backdrop-blur-sm flex items-center border border-emerald-400/50 hover:border-emerald-400/70 shadow-lg hover:shadow-xl"
-            >
-              <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-              </svg>
-              إضافة صنف جديد
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats Grid - Sky Themed Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-10">
-      <!-- Total Items Card -->
-      <div class="sky-card morning-sky rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 backdrop-blur-md" 
-           @click="navigateTo('/inventory')"
-           role="button"
-           tabindex="0"
-           @keydown.enter="navigateTo('/inventory')"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-3 bg-gradient-to-br from-sky-500/80 to-blue-600/80 rounded-xl backdrop-blur-sm border border-white/20">
-            <svg class="w-6 h-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
-          </div>
-          <div class="flex items-center space-x-2 rtl:space-x-reverse">
-            <span class="text-sm font-medium text-green-300 drop-shadow">{{ statsPercentage.totalItems > 0 ? '+' : '' }}{{ statsPercentage.totalItems }}%</span>
-            <svg v-if="statsPercentage.totalItems > 0" class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-            </svg>
-            <svg v-else class="w-4 h-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-            </svg>
-          </div>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2 drop-shadow">{{ formatNumber(dashboardStats.totalItems) }}</h3>
-        <p class="text-sky-100 opacity-90">إجمالي الأصناف</p>
-        <div class="mt-3 text-xs text-sky-200/70">انقر للعرض التفصيلي</div>
-      </div>
-
-      <!-- Total Quantity Card -->
-      <div class="sky-card day-sky rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 backdrop-blur-md"
-           @click="navigateTo('/inventory?view=quantities')"
-           role="button"
-           tabindex="0"
-           @keydown.enter="navigateTo('/inventory?view=quantities')"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-3 bg-gradient-to-br from-emerald-500/80 to-green-600/80 rounded-xl backdrop-blur-sm border border-white/20">
-            <svg class="w-6 h-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <div class="flex items-center space-x-2 rtl:space-x-reverse">
-            <span class="text-sm font-medium text-green-300 drop-shadow">{{ statsPercentage.totalQuantity > 0 ? '+' : '' }}{{ statsPercentage.totalQuantity }}%</span>
-            <svg v-if="statsPercentage.totalQuantity > 0" class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-            </svg>
-            <svg v-else class="w-4 h-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-            </svg>
-          </div>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2 drop-shadow">{{ formatNumber(dashboardStats.totalQuantity) }}</h3>
-        <p class="text-emerald-100 opacity-90">إجمالي الكمية</p>
-        <div class="mt-3 text-xs text-emerald-200/70">{{ dashboardStats.estimatedValue ? `قيمة تقريبية: ${formatNumber(dashboardStats.estimatedValue)} ج.م` : 'انقر للعرض التفصيلي' }}</div>
-      </div>
-
-      <!-- Low Stock Card -->
-      <div class="sky-card sunset-sky rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 backdrop-blur-md"
-           @click="navigateTo('/inventory?status=low')"
-           role="button"
-           tabindex="0"
-           @keydown.enter="navigateTo('/inventory?status=low')"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-3 bg-gradient-to-br from-orange-500/80 to-amber-600/80 rounded-xl backdrop-blur-sm border border-white/20">
-            <svg class="w-6 h-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <div class="flex items-center space-x-2 rtl:space-x-reverse">
-            <span class="text-sm font-medium text-orange-300 drop-shadow">{{ statsPercentage.lowStockItems > 0 ? '+' : '' }}{{ statsPercentage.lowStockItems }}%</span>
-            <svg v-if="statsPercentage.lowStockItems > 0" class="w-4 h-4 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-            </svg>
-            <svg v-else class="w-4 h-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-            </svg>
-          </div>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2 drop-shadow">{{ formatNumber(dashboardStats.lowStockItems) }}</h3>
-        <p class="text-orange-100 opacity-90">أصناف منخفضة</p>
-        <div v-if="dashboardStats.outOfStockItems > 0" class="mt-2 text-xs text-red-300">
-          {{ dashboardStats.outOfStockItems }} أصناف نفذت
-        </div>
-      </div>
-
-      <!-- Recent Activity Card -->
-      <div class="sky-card twilight-sky rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 backdrop-blur-md"
-           @click="navigateTo('/transactions')"
-           role="button"
-           tabindex="0"
-           @keydown.enter="navigateTo('/transactions')"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-3 bg-gradient-to-br from-violet-500/80 to-purple-600/80 rounded-xl backdrop-blur-sm border border-white/20">
-            <svg class="w-6 h-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-          </div>
-          <div class="flex items-center space-x-2 rtl:space-x-reverse">
-            <span class="text-sm font-medium text-purple-300 drop-shadow">{{ statsPercentage.recentTransactions > 0 ? '+' : '' }}{{ statsPercentage.recentTransactions }}%</span>
-            <svg v-if="statsPercentage.recentTransactions > 0" class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-            </svg>
-            <svg v-else class="w-4 h-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-            </svg>
-          </div>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2 drop-shadow">{{ formatNumber(dashboardStats.recentTransactions) }}</h3>
-        <p class="text-violet-100 opacity-90">الحركات اليوم</p>
-        <div class="mt-3 flex items-center justify-between text-xs">
-          <span class="text-emerald-300">{{ dashboardStats.transactionsByType?.add || 0 }} إضافة</span>
-          <span class="text-blue-300">{{ dashboardStats.transactionsByType?.transfer || 0 }} نقل</span>
-          <span class="text-orange-300">{{ dashboardStats.transactionsByType?.dispatch || 0 }} صرف</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-      <!-- Recent Transactions -->
-      <div class="cloud-card rounded-2xl shadow-xl p-6 backdrop-blur-md border border-white/20 bg-gradient-to-br from-white/10 to-blue-50/5">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-bold text-white drop-shadow">آخر الحركات</h3>
-          <div class="flex items-center space-x-4 rtl:space-x-reverse">
-            <div 
-              @click="navigateTo('/transactions')"
-              class="text-sm text-sky-300 hover:text-sky-200 cursor-pointer hover:underline transition-colors flex items-center"
-            >
-              عرض الكل
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-              </svg>
-            </div>
-            <button 
-              @click="refreshRecentTransactions"
-              :disabled="recentTransactionsLoading"
-              class="text-sm text-sky-300 hover:text-sky-200 transition-colors"
-            >
-              <svg :class="{'animate-spin': recentTransactionsLoading}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
               </svg>
             </button>
-          </div>
-        </div>
-        
-        <div class="space-y-4">
-          <div v-if="recentTransactionsLoading" class="text-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-400 mx-auto"></div>
-            <p class="mt-2 text-sm text-sky-200 opacity-80">جاري تحميل الحركات...</p>
-          </div>
-          
-          <div v-else-if="recentTransactions.length === 0" class="text-center py-8">
-            <svg class="h-12 w-12 text-sky-300/50 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            </svg>
-            <p class="mt-2 text-sm text-sky-200 opacity-80">لا توجد حركات حديثة</p>
-            <button 
-              @click="navigateTo('/transactions')"
-              class="mt-4 px-4 py-2 text-sm bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 rounded-lg transition-colors"
-            >
-              عرض جميع الحركات
-            </button>
-          </div>
-          
-          <div v-else class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-            <div 
-              v-for="transaction in recentTransactions.slice(0, 8)" 
-              :key="transaction.id" 
-              class="flex items-center p-4 hover:bg-white/10 rounded-xl transition-all duration-300 cursor-pointer group backdrop-blur-sm border border-white/5 hover:border-white/20"
-              @click="viewTransaction(transaction)"
-            >
-              <div :class="getTransactionColor(transaction.type)" class="h-12 w-12 rounded-xl flex items-center justify-center mr-4 backdrop-blur-sm border border-white/20 group-hover:scale-110 transition-transform">
-                <svg class="h-6 w-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path v-if="transaction.type === 'add'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                  <path v-else-if="transaction.type === 'transfer'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                  <path v-else-if="transaction.type === 'dispatch'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                  <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <h4 class="font-medium text-white group-hover:text-sky-200 transition-colors truncate">
-                  {{ getTransactionLabel(transaction.type) }}
-                </h4>
-                <p class="text-sm text-sky-200/80 truncate">
-                  {{ formatDateTime(transaction.timestamp) }}
-                </p>
-                <p v-if="transaction.notes" class="text-xs text-sky-200/60 truncate">
-                  {{ transaction.notes }}
-                </p>
-              </div>
-              <div class="text-right ml-4">
-                <p class="font-medium text-white group-hover:text-sky-200 transition-colors">
-                  {{ transaction.quantity || 0 }} وحدة
-                </p>
-                <p class="text-sm text-sky-200/80 truncate max-w-[100px]">
-                  {{ transaction.item_code || transaction.item_id || 'N/A' }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Warehouse Distribution -->
-      <div class="cloud-card rounded-2xl shadow-xl p-6 backdrop-blur-md border border-white/20 bg-gradient-to-br from-white/10 to-blue-50/5">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-bold text-white drop-shadow">توزيع المخزون</h3>
-          <div 
-            @click="navigateTo('/warehouses')"
-            class="text-sm text-sky-300 hover:text-sky-200 cursor-pointer hover:underline transition-colors flex items-center"
-          >
-            إدارة المخازن
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-            </svg>
-          </div>
-        </div>
-        
-        <div class="space-y-4">
-          <div v-if="warehouseStats.length === 0" class="text-center py-8">
-            <svg class="h-12 w-12 text-sky-300/50 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-            </svg>
-            <p class="mt-2 text-sm text-sky-200 opacity-80">لا توجد مخازن متاحة</p>
-          </div>
-          
-          <div v-else>
-            <div 
-              v-for="warehouse in warehouseStats.slice(0, 5)" 
-              :key="warehouse.id" 
-              class="space-y-2 cursor-pointer hover:bg-white/10 p-4 rounded-xl transition-all duration-300 group backdrop-blur-sm border border-white/5 hover:border-white/20"
-              @click="navigateToWarehouse(warehouse.id)"
+            <!-- Notifications -->
+            <button 
+              @click="showNotifications"
+              class="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              aria-label="الإشعارات"
             >
-              <div class="flex justify-between items-center">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center space-x-2 rtl:space-x-reverse">
-                    <span class="font-medium text-white group-hover:text-sky-200 transition-colors truncate">
-                      {{ warehouse.name }}
-                    </span>
-                    <span v-if="warehouse.is_main" class="text-xs bg-emerald-500/20 text-emrade text-emerald-300 px-2 py-0.5 rounded">
-                      رئيسي
-                    </span>
-                    <span v-if="warehouse.type === 'dispatch'" class="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded">
-                      صرف
+              <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              <span v-if="notificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {{ notificationCount > 9 ? '9+' : notificationCount }}
+              </span>
+            </button>
+
+            <!-- User Profile -->
+            <div class="flex items-center space-x-3 space-x-reverse">
+              <!-- Desktop User Info -->
+              <div class="text-right">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ userName }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px]">{{ userProfile?.email }}</p>
+              </div>
+
+              <!-- User Dropdown Trigger -->
+              <div class="relative">
+                <button 
+                  @click="toggleUserMenu"
+                  class="flex items-center space-x-2 space-x-reverse focus:outline-none"
+                >
+                  <span :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200', roleBadgeClass]">
+                    {{ getRoleName(userRole) }}
+                  </span>
+                  <div class="h-9 w-9 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm">
+                    <span class="text-white font-medium text-sm">
+                      {{ getUserInitials(userName) }}
                     </span>
                   </div>
-                  <p v-if="warehouse.location" class="text-xs text-sky-200/60 truncate mt-1">
-                    {{ warehouse.location }}
-                  </p>
+                </button>
+
+                <!-- User Dropdown Menu -->
+                <div v-if="showUserMenu" class="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ userName }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ userProfile?.email }}</p>
+                    <div class="mt-1">
+                      <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', roleBadgeClass]">
+                        {{ getRoleName(userRole) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="py-1">
+                    <router-link 
+                      to="/profile"
+                      @click="showUserMenu = false"
+                      class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                    >
+                      <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
+                      إعدادات الحساب
+                    </router-link>
+                    <button 
+                      @click="logout"
+                      class="w-full flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
+                    >
+                      <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                      </svg>
+                      تسجيل خروج
+                    </button>
+                  </div>
                 </div>
-                <span class="text-sky-200/80 text-sm whitespace-nowrap ml-4">{{ warehouse.items }} أصناف</span>
-              </div>
-              
-              <div class="w-full bg-white/20 rounded-full h-2 backdrop-blur-sm">
-                <div class="h-2 rounded-full transition-all duration-500 group-hover:h-3" :style="{ 
-                  width: warehouse.percentage + '%', 
-                  background: `linear-gradient(to right, ${warehouse.color}80, ${warehouse.color})`,
-                  boxShadow: `0 0 20px ${warehouse.color}40`
-                }"></div>
-              </div>
-              
-              <div class="flex justify-between text-xs">
-                <span class="text-sky-200/80">{{ formatNumber(warehouse.quantity) }} وحدة</span>
-                <span class="text-white font-medium">{{ warehouse.percentage }}%</span>
               </div>
             </div>
-            
-            <div v-if="warehouseStats.length > 5" class="text-center pt-4">
-              <button 
-                @click="navigateTo('/warehouses')"
-                class="text-sm text-sky-300 hover:text-sky-200 transition-colors"
-              >
-                عرض {{ warehouseStats.length - 5 }} مخزن إضافي
-              </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Role Information Banner (Desktop only) -->
+    <div class="hidden lg:block bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-b border-yellow-100 dark:border-gray-700">
+      <div class="max-w-full mx-auto px-6 lg:px-8 py-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 space-x-reverse">
+            <span class="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+              <span class="font-bold">دورك الحالي:</span> {{ getRoleDescription(userRole) }}
+            </span>
+            <div class="w-px h-4 bg-yellow-200 dark:bg-gray-600"></div>
+            <div class="text-xs text-yellow-600 dark:text-yellow-400">
+              المخازن المسموحة: {{ allowedWarehousesText }}
             </div>
           </div>
+          <div class="flex space-x-2 space-x-reverse">
+            <span v-if="canModifyItems" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+              </svg>
+              تعديل المخزون
+            </span>
+            <span v-if="canManageUsers" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+              </svg>
+              إدارة المستخدمين
+            </span>
+            <span v-if="canViewReports" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              عرض التقارير
+            </span>
+            <span v-if="canManageWarehouses" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
+              إدارة المخازن
+            </span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="mt-8">
-      <h3 class="text-lg font-bold text-white mb-6 drop-shadow relative z-10">الإجراءات السريعة</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-        <!-- Add Item Button -->
-        <button 
-          v-if="canModifyItems" 
-          @click="navigateTo('/inventory/add')"
-          class="sky-action-btn morning-action text-white font-medium py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-1"
-          :disabled="!canModifyItems"
-        >
-          <svg class="h-6 w-6 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          <div class="text-right">
-            <div class="font-bold">إضافة صنف</div>
-            <div class="text-sm opacity-80">إضافة صنف جديد للمخزون</div>
-          </div>
-        </button>
+    <!-- Main Content with Sidebar -->
+    <div class="flex-1 overflow-hidden">
+      <div class="max-w-full mx-auto h-full px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+        <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
+          <!-- Sidebar (Desktop only) -->
+          <aside class="hidden lg:block lg:w-1/4 xl:w-1/5">
+            <div class="sticky top-6 h-[calc(100vh-9rem)] overflow-y-auto">
+              <div class="space-y-6 pb-6">
+                <!-- Navigation Sidebar Component -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                    <svg class="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                    القائمة الرئيسية
+                  </h3>
+                  <div class="space-y-1">
+                    <template v-for="nav in filteredNavLinks" :key="nav.path">
+                      <router-link 
+                        v-if="nav.show"
+                        :to="nav.path" 
+                        class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                        :class="[
+                          $route.path === nav.path 
+                            ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400' 
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ]"
+                      >
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="nav.icon" />
+                        </svg>
+                        {{ nav.title }}
+                      </router-link>
+                    </template>
+                  </div>
+                </div>
 
-        <!-- Reports Button -->
-        <button 
-          @click="navigateTo('/reports')"
-          v-if="canViewReports"
-          class="sky-action-btn day-action text-white font-medium py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-1"
-          :disabled="!canViewReports"
-        >
-          <svg class="h-6 w-6 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <div class="text-right">
-            <div class="font-bold">التقارير</div>
-            <div class="text-sm opacity-80">تقارير المخزون والإحصائيات</div>
-          </div>
-        </button>
+                <!-- Quick Actions Sidebar Component -->
+                <div v-if="canModifyItems || canManageWarehouses" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                    <svg class="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    إجراءات سريعة
+                  </h3>
+                  <div class="space-y-2">
+                    <button 
+                      v-if="canModifyItems"
+                      @click="openAddItemModal"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors duration-200 group"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mr-3">
+                          <svg class="w-4 h-4 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                          </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">إضافة صنف جديد</span>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 group-hover:text-yellow-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
 
-        <!-- Transfer Button -->
-        <button 
-          @click="navigateTo('/transfers')"
-          v-if="canModifyItems"
-          class="sky-action-btn twilight-action text-white font-medium py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-1"
-          :disabled="!canModifyItems"
-        >
-          <svg class="h-6 w-6 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-          </svg>
-          <div class="text-right">
-            <div class="font-bold">نقل المخزون</div>
-            <div class="text-sm opacity-80">نقل الأصناف بين المخازن</div>
-          </div>
-        </button>
+                    <button 
+                      v-if="canModifyItems"
+                      @click="openTransferModal"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200 group"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
+                          <svg class="w-4 h-4 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                          </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">نقل بين المخازن</span>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 group-hover:text-green-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
 
-        <!-- Dispatch Button -->
-        <button 
-          @click="navigateTo('/dispatch')"
-          v-if="canDispatch"
-          class="sky-action-btn sunset-action text-white font-medium py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-1"
-          :disabled="!canDispatch"
-        >
-          <svg class="h-6 w-6 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12"/>
-          </svg>
-          <div class="text-right">
-            <div class="font-bold">صرف خارجي</div>
-            <div class="text-sm opacity-80">صرف الأصناف للخارج</div>
-          </div>
-        </button>
+                    <button 
+                      v-if="canModifyItems"
+                      @click="openDispatchModal"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors duration-200 group"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center mr-3">
+                          <svg class="w-4 h-4 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                          </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">صرف إلى خارجي</span>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 group-hover:text-orange-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+
+                    <!-- Add User Button for Super Admin -->
+                    <button 
+                      v-if="canManageUsers"
+                      @click="openAddUserModal"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 group"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                          <svg class="w-4 h-4 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                          </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">إضافة مستخدم جديد</span>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+
+                    <!-- Add Warehouse Button for Super Admin -->
+                    <button 
+                      v-if="canManageWarehouses"
+                      @click="openAddWarehouseModal"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors duration-200 group"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mr-3">
+                          <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                          </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">إضافة مخزن جديد</span>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Warehouse Selector Sidebar Component -->
+                <div v-if="accessibleWarehouses.length > 0" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                    <svg class="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    المخازن المتاحة
+                  </h3>
+                  <div class="space-y-2">
+                    <button 
+                      v-for="warehouse in accessibleWarehouses" 
+                      :key="warehouse.id"
+                      @click="() => selectWarehouse(warehouse.id)"
+                      class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 group"
+                      :class="{'bg-yellow-50 dark:bg-yellow-900/20': selectedWarehouse === warehouse.id}"
+                    >
+                      <div class="flex items-center">
+                        <div class="h-6 w-6 rounded-md bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mr-2">
+                          <span class="text-xs text-yellow-600 dark:text-yellow-300 font-medium">{{ warehouse.name_ar.charAt(0) }}</span>
+                        </div>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ warehouse.name_ar }}</span>
+                        <span v-if="warehouse.is_main" class="mr-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">رئيسي</span>
+                      </div>
+                      <span v-if="selectedWarehouse === warehouse.id" class="h-2 w-2 rounded-full bg-yellow-500"></span>
+                    </button>
+                  </div>
+                  <button 
+                    v-if="canManageWarehouses"
+                    @click="$router.push('/warehouses')"
+                    class="w-full mt-4 flex items-center justify-center p-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors duration-200"
+                  >
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    </svg>
+                    إدارة المخازن
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+          
+          <!-- Main Content Area -->
+          <main class="w-full lg:w-3/4 xl:w-4/5 h-full overflow-hidden">
+            <!-- Content with proper scrolling -->
+            <div class="h-full overflow-y-auto pb-16 lg:pb-0">
+              <!-- Dynamic Content based on route -->
+              <router-view v-if="$route.path !== '/'" />
+
+              <!-- Dashboard Home -->
+              <div v-else class="space-y-4 lg:space-y-6">
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
+                  <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
+                    <div class="px-3 py-4 lg:px-4 lg:py-5">
+                      <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 lg:h-12 lg:w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+                          <svg class="h-5 w-5 lg:h-6 lg:w-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                          </svg>
+                        </div>
+                        <div class="mr-3 lg:mr-4">
+                          <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
+                          <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats.totalItems }}</dd>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
+                    <div class="px-3 py-4 lg:px-4 lg:py-5">
+                      <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 lg:h-12 lg:w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                          <svg class="h-5 w-5 lg:h-6 lg:w-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                        </div>
+                        <div class="mr-3 lg:mr-4">
+                          <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
+                          <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalQuantity) }}</dd>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
+                    <div class="px-3 py-4 lg:px-4 lg:py-5">
+                      <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 lg:h-12 lg:w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
+                          <svg class="h-5 w-5 lg:h-6 lg:w-6 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                        </div>
+                        <div class="mr-3 lg:mr-4">
+                          <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
+                          <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ dashboardStats.lowStockItems }}</dd>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
+                    <div class="px-3 py-4 lg:px-4 lg:py-5">
+                      <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 lg:h-12 lg:w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                          <svg class="h-5 w-5 lg:h-6 lg:w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                          </svg>
+                        </div>
+                        <div class="mr-3 lg:mr-4">
+                          <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
+                          <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats.recentTransactions }}</dd>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Search and Filter Bar -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+                  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 lg:mb-6">
+                    <div>
+                      <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">المخزون الحالي</h2>
+                      <p class="text-xs lg:text-sm text-gray-500 dark:text-gray-400">عرض جميع الأصناف في النظام</p>
+                    </div>
+
+                    <div class="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
+                      <!-- Search Input -->
+                      <div class="relative flex-grow">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          v-model="searchTerm"
+                          @input="handleSearch"
+                          placeholder="ابحث عن صنف..."
+                          class="block w-full pr-10 pl-3 py-2 text-sm lg:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200"
+                        />
+                      </div>
+
+                      <!-- Filter by Warehouse -->
+                      <select
+                        v-model="selectedWarehouse"
+                        @change="handleWarehouseChange"
+                        class="block w-full lg:w-auto pl-3 pr-10 py-2 text-sm lg:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200"
+                        :disabled="loading || accessibleWarehouses.length === 0"
+                      >
+                        <option value="">جميع المخازن</option>
+                        <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
+                          {{ warehouse.name_ar }}
+                        </option>
+                      </select>
+
+                      <!-- Add Item Button -->
+                      <button 
+                        v-if="canModifyItems"
+                        @click="openAddItemModal"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg text-sm lg:text-base"
+                      >
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span class="hidden lg:inline">إضافة صنف</span>
+                        <span class="lg:hidden">إضافة</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Loading State -->
+                  <div v-if="loading" class="text-center py-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
+                    <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
+                  </div>
+
+                  <!-- Integrated InventoryTable Component -->
+                  <div v-else-if="transformedInventory.length > 0" class="overflow-x-auto">
+                    <InventoryTable 
+                      :items="transformedInventory"
+                      :readonly="!canModifyItems"
+                      :user-role="userRole"
+                      @transfer="openTransferModalForItem"
+                      @dispatch="openDispatchModalForItem"
+                    />
+                  </div>
+
+                  <!-- Pagination Info -->
+                  <div v-if="transformedInventory.length > 0" class="mt-4 text-xs lg:text-sm text-gray-700 dark:text-gray-400">
+                    عرض {{ transformedInventory.length }} من {{ inventory.length }} صنف
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-else-if="!loading" class="text-center py-8 lg:py-12">
+                    <svg class="mx-auto h-10 w-10 lg:h-12 lg:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد بيانات</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
+                    <button 
+                      v-if="canModifyItems" 
+                      @click="openAddItemModal" 
+                      class="mt-4 inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-colors duration-200 shadow-md text-sm lg:text-base"
+                    >
+                      إضافة صنف جديد
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
     </div>
 
-    <!-- Additional Actions -->
-    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-      <button 
-        @click="navigateTo('/inventory')"
-        class="cloud-action-btn text-white font-medium py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-0.5"
-      >
-        <svg class="h-5 w-5 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-        </svg>
-        <div class="text-right">
-          <div>عرض المخزون</div>
-        </div>
-      </button>
+    <!-- Inventory Modals -->
+    <AddItemModal 
+      v-if="showAddItemModal"
+      :isOpen="showAddItemModal"
+      @close="showAddItemModal = false"
+      @success="handleItemAdded"
+    />
 
-      <button 
-        @click="navigateTo('/users')"
-        v-if="canManageUsers"
-        class="cloud-action-btn text-white font-medium py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-0.5"
-        :disabled="!canManageUsers"
-      >
-        <svg class="h-5 w-5 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-6.197a6 6 0 00-9-5.197M9 10h.01"/>
-        </svg>
-        <div class="text-right">
-          <div>إدارة المستخدمين</div>
-        </div>
-      </button>
+    <TransferModal 
+      v-if="showTransferModal"
+      :isOpen="showTransferModal"
+      @close="showTransferModal = false"
+      @success="handleTransferSuccess"
+    />
 
-      <button 
-        @click="navigateTo('/warehouses')"
-        v-if="canManageUsers"
-        class="cloud-action-btn text-white font-medium py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-0.5"
-        :disabled="!canManageUsers"
-      >
-        <svg class="h-5 w-5 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-        </svg>
-        <div class="text-right">
-          <div>إدارة المخازن</div>
-        </div>
-      </button>
+    <DispatchModal 
+      v-if="showDispatchModal"
+      :isOpen="showDispatchModal"
+      @close="showDispatchModal = false"
+      @success="handleDispatchSuccess"
+    />
 
-      <button 
-        @click="navigateTo('/profile')"
-        class="cloud-action-btn text-white font-medium py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer backdrop-blur-md border border-white/20 hover:-translate-y-0.5"
-      >
-        <svg class="h-5 w-5 ml-2 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-        </svg>
-        <div class="text-right">
-          <div>الملف الشخصي</div>
-        </div>
-      </button>
-    </div>
+    <!-- User Management Modal -->
+    <UserModal
+      v-if="showUserModal"
+      :isOpen="showUserModal"
+      :user="selectedUser"
+      @close="closeUserModal"
+      @save="handleUserSave"
+    />
 
-    <!-- Navigation Error Toast -->
-    <div v-if="navigationError" class="fixed bottom-4 right-4 left-4 md:right-auto md:left-1/2 md:-translate-x-1/2 md:w-96 z-50 animate-slide-down">
-      <div class="bg-gradient-to-r from-red-500/90 to-pink-500/90 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center justify-between backdrop-blur-md border border-white/20">
-        <div class="flex items-center">
-          <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <span class="flex-1">{{ navigationError }}</span>
-        </div>
-        <button @click="navigationError = ''" class="ml-4 hover:text-red-100 transition-colors">
-          <svg class="h-5 w-5 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
+    <!-- Add User Modal -->
+    <AddUserModal
+      v-if="showAddUserModal"
+      :isOpen="showAddUserModal"
+      @close="showAddUserModal = false"
+      @success="handleUserAdded"
+    />
+
+    <!-- Warehouse Management Modal -->
+    <WarehouseModal
+      v-if="showWarehouseModal"
+      :isOpen="showWarehouseModal"
+      :warehouse="selectedWarehouseData"
+      @close="closeWarehouseModal"
+      @save="handleWarehouseSave"
+    />
   </div>
 </template>
 
 <script>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useStore } from 'vuex';
+import { useRouter, useRoute } from 'vue-router';
+import { debounce } from 'lodash';
+
+// Import inventory components
+import AddItemModal from '@/components/inventory/AddItemModal.vue';
+import TransferModal from '@/components/inventory/TransferModal.vue';
+import DispatchModal from '@/components/inventory/DispatchModal.vue';
+import InventoryTable from '@/components/inventory/InventoryTable.vue';
+import UserModal from '@/components/users/UserModal.vue';
+import AddUserModal from '@/components/users/AddUserModal.vue';
+
+// Import Warehouse Modal
+import WarehouseModal from '@/components/WarehouseModal.vue';
+
+// Import services
+import UserService from '@/services/UserService';
+
+// Import constants from inventory service
+import { WAREHOUSE_LABELS } from '@/services/inventoryService';
+
 export default {
-  name: 'SkyDashboard',
-  
-  data() {
-    return {
-      navigationError: '',
-      currentTime: '',
-      timeInterval: null,
-      stars: []
-    };
+  name: 'Dashboard',
+  components: {
+    AddItemModal,
+    TransferModal,
+    DispatchModal,
+    InventoryTable,
+    UserModal,
+    AddUserModal,
+    WarehouseModal
   },
-  
-  computed: {
-    // Store getters
-    loading() {
-      return this.$store.state.loading;
-    },
+  setup() {
+    const store = useStore();
+    const router = useRouter();
+    const route = useRoute();
     
-    recentTransactionsLoading() {
-      return this.$store.state.recentTransactionsLoading;
-    },
+    const isDarkMode = ref(false);
+    const showUserMenu = ref(false);
+    const selectedWarehouse = ref('');
+    const searchTerm = ref('');
+    const loading = ref(true);
     
-    userRole() {
-      return this.$store.getters.userRole;
-    },
+    // Modal states
+    const showAddItemModal = ref(false);
+    const showTransferModal = ref(false);
+    const showDispatchModal = ref(false);
+    const showUserModal = ref(false);
+    const showAddUserModal = ref(false);
+    const showWarehouseModal = ref(false);
+    const selectedItemForAction = ref(null);
+    const selectedUser = ref(null);
+    const selectedWarehouseData = ref(null);
+
+    // Users management state
+    const users = ref([]);
+    const loadingUsers = ref(false);
+    const currentPage = ref(1);
+    const totalPages = ref(1);
+    const searchUserTerm = ref('');
+
+    // Navigation links based on user role
+    const navigationLinks = [
+      {
+        path: '/',
+        title: 'لوحة التحكم',
+        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+        roles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        show: true
+      },
+      {
+        path: '/warehouses',
+        title: 'إدارة المخازن',
+        icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+        roles: ['superadmin'],
+        show: true
+      },
+      {
+        path: '/users',
+        title: 'إدارة المستخدمين',
+        icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z',
+        roles: ['superadmin'],
+        show: true
+      },
+      {
+        path: '/transactions',
+        title: 'سجل الحركات',
+        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+        roles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        show: true
+      },
+      {
+        path: '/reports',
+        title: 'التقارير',
+        icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+        roles: ['superadmin', 'company_manager'],
+        show: true
+      }
+    ];
+
+    // Filter navigation links based on user role
+    const filteredNavLinks = computed(() => {
+      const userRole = store.getters.userRole;
+      return navigationLinks.filter(link => {
+        return link.roles.includes(userRole) && link.show;
+      });
+    });
+
+    // Computed properties
+    const userProfile = computed(() => store.state.userProfile);
+    const userRole = computed(() => store.getters.userRole);
+    const userName = computed(() => store.getters.userName);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const inventory = computed(() => store.state.inventory || []);
     
-    userName() {
-      return this.$store.getters.userName || 'مستخدم';
-    },
-    
-    dashboardStats() {
-      return this.$store.getters.dashboardStats || {
-        totalItems: 0,
-        totalQuantity: 0,
-        lowStockItems: 0,
-        outOfStockItems: 0,
-        estimatedValue: 0,
-        recentTransactions: 0,
-        transactionsByType: {
-          add: 0,
-          transfer: 0,
-          dispatch: 0
-        }
-      };
-    },
-    
-    recentTransactions() {
-      return this.$store.state.recentTransactions || [];
-    },
-    
-    accessibleWarehouses() {
-      return this.$store.getters.accessibleWarehouses || [];
-    },
-    
-    inventory() {
-      return this.$store.state.inventory || [];
-    },
-    
-    canModifyItems() {
-      return this.$store.getters.canEdit || false;
-    },
-    
-    canDispatch() {
-      return this.$store.getters.canDispatch || false;
-    },
-    
-    canManageUsers() {
-      return this.$store.getters.canManageUsers || false;
-    },
-    
-    canViewReports() {
-      return this.$store.getters.userRole === 'superadmin' || 
-             this.$store.getters.userRole === 'company_manager';
-    },
-    
-    // Warehouse stats with store data
-    warehouseStats() {
-      const warehouses = this.accessibleWarehouses.slice(0, 6);
-      const colors = ['#fbbf24', '#60a5fa', '#34d399', '#a78bfa', '#ec4899', '#8b5cf6'];
+    // Permission getters
+    const canModifyItems = computed(() => {
+      const role = store.getters.userRole;
+      const profile = store.state.userProfile;
       
-      return warehouses.map((warehouse, index) => {
-        const warehouseItems = this.inventory.filter(item => item.warehouse_id === warehouse.id);
-        const totalItems = this.inventory.length;
-        const totalQuantity = warehouseItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-        
-        return {
-          id: warehouse.id,
-          name: warehouse.name_ar || warehouse.name || `مخزن ${index + 1}`,
-          location: warehouse.location,
-          type: warehouse.type,
-          is_main: warehouse.is_main,
-          items: warehouseItems.length,
-          quantity: totalQuantity,
-          percentage: totalItems > 0 ? Math.round((warehouseItems.length / totalItems) * 100) : 0,
-          color: colors[index] || '#94a3b8'
+      // Superadmin always has permission
+      if (role === 'superadmin') return true;
+      
+      // Warehouse manager has permission if they have allowed warehouses
+      if (role === 'warehouse_manager') {
+        const hasWarehouses = profile?.allowed_warehouses?.length > 0;
+        const hasPermission = profile?.permissions?.includes('full_access') || 
+                              profile?.permissions?.includes('manage_inventory');
+        return hasWarehouses && hasPermission;
+      }
+      
+      return false;
+    });
+    
+    const canManageUsers = computed(() => store.getters.userRole === 'superadmin');
+    const canManageWarehouses = computed(() => store.getters.userRole === 'superadmin');
+    const canViewReports = computed(() => {
+      const role = store.getters.userRole;
+      return ['superadmin', 'company_manager'].includes(role);
+    });
+    
+    const accessibleWarehouses = computed(() => {
+      // Get warehouses from Vuex store
+      const warehouses = store.state.warehouses || [];
+      
+      // If no warehouses in store, try to get from constants
+      if (warehouses.length === 0) {
+        console.warn('No warehouses found in store. Using fallback data.');
+        return Object.keys(WAREHOUSE_LABELS).map(id => ({
+          id: id,
+          name_ar: WAREHOUSE_LABELS[id],
+          name_en: id
+        }));
+      }
+      
+      return warehouses;
+    });
+    
+    const notificationCount = computed(() => store.getters.dashboardStats?.lowStockItems || 0);
+
+    // Filtered inventory based on search and warehouse selection
+    const filteredInventory = computed(() => {
+      let filtered = [...inventory.value];
+      
+      // Apply warehouse filter
+      if (selectedWarehouse.value) {
+        filtered = filtered.filter(item => 
+          (item.warehouse_id || item.المخزن_id) === selectedWarehouse.value
+        );
+      }
+      
+      // Apply search filter
+      if (searchTerm.value.trim()) {
+        const term = searchTerm.value.toLowerCase().trim();
+        filtered = filtered.filter(item => {
+          const name = (item.name || item.الاسم || '').toLowerCase();
+          const code = (item.code || item.الكود || '').toLowerCase();
+          const color = (item.color || item.اللون || '').toLowerCase();
+          const supplier = (item.supplier || item.المورد || '').toLowerCase();
+          
+          return name.includes(term) || 
+                 code.includes(term) || 
+                 color.includes(term) ||
+                 supplier.includes(term);
+        });
+      }
+      
+      return filtered;
+    });
+
+    // Transform inventory data to match InventoryTable component structure
+    const transformedInventory = computed(() => {
+      return filteredInventory.value.map(item => ({
+        id: item.id,
+        name: item.name || item.الاسم || 'غير محدد',
+        code: item.code || item.الكود || '-',
+        color: item.color || item.اللون || '-',
+        warehouse_id: item.warehouse_id || item.المخزن_id,
+        supplier: item.supplier || item.المورد || '-',
+        item_location: item.item_location || item.مكان_الصنف || '-',
+        cartons_count: item.cartons_count || item.كراتين || 0,
+        per_carton_count: item.per_carton_count || item.في_الكرتونة || 0,
+        single_bottles_count: item.single_bottles_count || item.فردي || 0,
+        total_added: item.total_added || item.المضاف || 0,
+        remaining_quantity: item.remaining_quantity || item.الكميه_المتبقيه || 0,
+        updated_at: item.updated_at || item.آخر_تحديث || new Date()
+      }));
+    });
+
+    const allowedWarehousesText = computed(() => {
+      if (userRole.value === 'superadmin') return 'جميع المخازن';
+      if (userRole.value === 'company_manager') return 'جميع المخازن (قراءة فقط)';
+      
+      const warehouses = userProfile.value?.allowed_warehouses || [];
+      if (warehouses.length === 0) return 'لا توجد مخازن محددة';
+      
+      return warehouses.map(id => {
+        return WAREHOUSE_LABELS[id] || id;
+      }).join('، ');
+    });
+
+    const roleBadgeClass = computed(() => {
+      const classes = {
+        superadmin: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white',
+        warehouse_manager: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
+        company_manager: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+      };
+      return classes[userRole.value] || 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+    });
+
+    // User Management Functions
+    const loadUsers = async (page = 1, search = '') => {
+      if (!canManageUsers.value) return;
+      
+      loadingUsers.value = true;
+      try {
+        const params = {
+          page,
+          limit: 10
         };
-      }).sort((a, b) => b.percentage - a.percentage);
-    },
-    
-    // Stats percentage changes (simulated)
-    statsPercentage() {
-      return {
-        totalItems: 12,
-        totalQuantity: 8,
-        lowStockItems: 3,
-        recentTransactions: 15
-      };
-    }
-  },
-  
-  created() {
-    this.createStars();
-    this.updateCurrentTime();
-    this.timeInterval = setInterval(this.updateCurrentTime, 60000); // Update every minute
-  },
-  
-  mounted() {
-    console.log('SkyDashboard mounted');
-    this.refreshData();
-  },
-  
-  beforeUnmount() {
-    if (this.timeInterval) {
-      clearInterval(this.timeInterval);
-    }
-  },
-  
-  methods: {
-    createStars() {
-      const starsArray = [];
-      for (let i = 0; i < 30; i++) {
-        starsArray.push({
-          id: i,
-          style: {
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            width: `${Math.random() * 2 + 1}px`,
-            height: `${Math.random() * 2 + 1}px`,
-            animationDelay: `${Math.random() * 5}s`
-          }
+        
+        if (search) {
+          params.search = search;
+        }
+        
+        const response = await UserService.getUsers(params);
+        users.value = response.data || [];
+        currentPage.value = response.currentPage || page;
+        totalPages.value = response.totalPages || 1;
+      } catch (error) {
+        console.error('Error loading users:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحميل المستخدمين'
         });
+      } finally {
+        loadingUsers.value = false;
       }
-      this.stars = starsArray;
-    },
-    
-    updateCurrentTime() {
-      const now = new Date();
-      this.currentTime = now.toLocaleTimeString('ar-EG', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    },
-    
-    async refreshData() {
+    };
+
+    const openAddUserModal = () => {
+      if (!canManageUsers.value) return;
+      selectedUser.value = null;
+      showAddUserModal.value = true;
+    };
+
+    const openEditUserModal = (user) => {
+      if (!canManageUsers.value) return;
+      selectedUser.value = user;
+      showUserModal.value = true;
+    };
+
+    const closeUserModal = () => {
+      showUserModal.value = false;
+      selectedUser.value = null;
+    };
+
+    const handleUserSave = async (userData) => {
       try {
-        await this.$store.dispatch('getRecentTransactions');
-        this.showSuccess('تم تحديث البيانات بنجاح');
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-        this.showError('حدث خطأ في تحديث البيانات');
-      }
-    },
-    
-    async refreshRecentTransactions() {
-      try {
-        await this.$store.dispatch('getRecentTransactions');
-        this.showSuccess('تم تحديث الحركات بنجاح');
-      } catch (error) {
-        console.error('Error refreshing recent transactions:', error);
-        this.showError('حدث خطأ في تحديث الحركات');
-      }
-    },
-    
-    async navigateTo(path) {
-      try {
-        console.log('Navigating to:', path);
+        loading.value = true;
         
-        // Check if user has permission for the route
-        const canAccess = await this.checkRoutePermission(path);
-        if (!canAccess) {
-          this.navigationError = 'ليس لديك صلاحية للوصول إلى هذه الصفحة';
-          setTimeout(() => {
-            this.navigationError = '';
-          }, 5000);
-          return;
+        if (userData.id) {
+          // Update existing user
+          await UserService.updateUser(userData.id, userData);
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم تحديث المستخدم بنجاح'
+          });
+        } else {
+          // Create new user
+          await UserService.createUser(userData);
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم إضافة المستخدم بنجاح'
+          });
         }
         
-        // Navigate using Vue Router
-        this.$router.push(path);
+        // Refresh users list
+        await loadUsers(currentPage.value, searchUserTerm.value);
+        closeUserModal();
         
       } catch (error) {
-        console.error('Navigation error:', error);
-        
-        if (error.name !== 'NavigationDuplicated') {
-          this.navigationError = 'حدث خطأ في التنقل إلى الصفحة';
-          setTimeout(() => {
-            this.navigationError = '';
-          }, 5000);
-        }
-      }
-    },
-    
-    async checkRoutePermission(path) {
-      try {
-        // Resolve the route
-        const route = this.$router.resolve(path).route;
-        
-        // No restrictions
-        if (!route.meta?.allowedRoles) {
-          return true;
-        }
-        
-        // Check user role
-        const userRole = this.$store.getters.userRole;
-        if (!userRole) {
-          return false;
-        }
-        
-        // Check if role is allowed
-        const allowedRoles = route.meta.allowedRoles;
-        if (!allowedRoles.includes(userRole)) {
-          return false;
-        }
-        
-        // Additional checks for warehouse managers
-        if (userRole === 'warehouse_manager') {
-          const allowedWarehouses = this.$store.state.userProfile?.allowed_warehouses || [];
-          
-          // Check warehouse-specific permissions
-          if (path.includes('/inventory')) {
-            if (allowedWarehouses.length === 0) {
-              return false;
-            }
-          }
-          
-          // Check if route requires dispatch permission
-          if (path.includes('/dispatch')) {
-            if (!this.$store.getters.canDispatch) {
-              return false;
-            }
-          }
-        }
-        
-        return true;
-        
-      } catch (error) {
-        console.error('Permission check error:', error);
-        return false;
-      }
-    },
-    
-    navigateToWarehouse(warehouseId) {
-      this.navigateTo(`/inventory?warehouse=${warehouseId}`);
-    },
-    
-    viewTransaction(transaction) {
-      this.navigateTo(`/transactions/${transaction.id}`);
-    },
-    
-    formatNumber(num) {
-      const number = Number(num) || 0;
-      return new Intl.NumberFormat('ar-EG').format(number);
-    },
-    
-    formatDateTime(date) {
-      if (!date) return '';
-      try {
-        const d = date.toDate ? date.toDate() : new Date(date);
-        return d.toLocaleString('ar-EG', {
-          dateStyle: 'short',
-          timeStyle: 'short'
+        console.error('Error saving user:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حفظ المستخدم'
         });
-      } catch (error) {
-        return '';
+      } finally {
+        loading.value = false;
       }
-    },
-    
-    getTransactionColor(type) {
-      const colors = {
-        add: 'bg-gradient-to-br from-emerald-500/80 to-green-600/80',
-        transfer: 'bg-gradient-to-br from-blue-500/80 to-cyan-600/80',
-        dispatch: 'bg-gradient-to-br from-orange-500/80 to-amber-600/80',
-        receive: 'bg-gradient-to-br from-violet-500/80 to-purple-600/80'
-      };
-      return colors[type] || 'bg-gradient-to-br from-gray-500/80 to-gray-600/80';
-    },
-    
-    getTransactionLabel(type) {
-      const labels = {
-        add: 'إضافة صنف',
-        transfer: 'نقل بين مخازن',
-        dispatch: 'صرف خارجي',
-        receive: 'استلام صنف'
-      };
-      return labels[type] || type;
-    },
-    
-    showSuccess(message) {
-      this.$store.dispatch('showNotification', {
+    };
+
+    const handleUserAdded = () => {
+      showAddUserModal.value = false;
+      // Refresh users list if on users page
+      if (route.path === '/users') {
+        loadUsers(currentPage.value, searchUserTerm.value);
+      }
+      store.dispatch('showNotification', {
         type: 'success',
-        message: message
+        message: 'تم إضافة المستخدم بنجاح'
       });
-    },
-    
-    showError(message) {
-      this.$store.dispatch('showNotification', {
-        type: 'error',
-        message: message
-      });
-    },
-    
-    showInfo(message) {
-      this.$store.dispatch('showNotification', {
-        type: 'info',
-        message: message
-      });
-    },
-    
-    exportReport() {
-      this.showInfo('جاري تصدير التقرير...');
+    };
+
+    const handleDeleteUser = async (userId) => {
+      if (!canManageUsers.value) return;
+      
+      if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+        return;
+      }
+      
+      try {
+        await UserService.deleteUser(userId);
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم حذف المستخدم بنجاح'
+        });
+        
+        // Refresh users list
+        await loadUsers(currentPage.value, searchUserTerm.value);
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حذف المستخدم'
+        });
+      }
+    };
+
+    const handleToggleUserStatus = async (userId, isActive) => {
+      if (!canManageUsers.value) return;
+      
+      try {
+        await UserService.updateUserStatus(userId, isActive);
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم ${isActive ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`
+        });
+        
+        // Refresh users list
+        await loadUsers(currentPage.value, searchUserTerm.value);
+      } catch (error) {
+        console.error('Error updating user status:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث حالة المستخدم'
+        });
+      }
+    };
+
+    // Warehouse Management Functions
+    const openAddWarehouseModal = () => {
+      if (!canManageWarehouses.value) return;
+      selectedWarehouseData.value = null;
+      showWarehouseModal.value = true;
+    };
+
+    const openEditWarehouseModal = (warehouse) => {
+      if (!canManageWarehouses.value) return;
+      selectedWarehouseData.value = warehouse;
+      showWarehouseModal.value = true;
+    };
+
+    const closeWarehouseModal = () => {
+      showWarehouseModal.value = false;
+      selectedWarehouseData.value = null;
+    };
+
+    const handleWarehouseSave = async (warehouseData) => {
+      try {
+        // Refresh warehouses list
+        await store.dispatch('loadWarehouses');
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم ${warehouseData.id ? 'تحديث' : 'إضافة'} المخزن "${warehouseData.name_ar}" بنجاح`
+        });
+        
+        closeWarehouseModal();
+        
+      } catch (error) {
+        console.error('Error saving warehouse:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حفظ المخزن'
+        });
+      }
+    };
+
+    // Helper functions
+    const getRoleName = (role) => {
+      const names = {
+        superadmin: 'المشرف العام',
+        warehouse_manager: 'مدير المخازن',
+        company_manager: 'مدير الشركة'
+      };
+      return names[role] || role;
+    };
+
+    const getRoleDescription = (role) => {
+      const descriptions = {
+        superadmin: 'المشرف العام - صلاحيات كاملة',
+        warehouse_manager: 'مدير المخازن - إدارة المخزون',
+        company_manager: 'مدير الشركة - عرض التقارير'
+      };
+      return descriptions[role] || 'مستخدم عادي';
+    };
+
+    const getUserInitials = (name) => {
+      if (!name) return '?';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    };
+
+    const formatNumber = (num) => {
+      return new Intl.NumberFormat('ar-EG').format(num);
+    };
+
+    const getWarehouseLabel = (warehouseId) => {
+      return WAREHOUSE_LABELS[warehouseId] || warehouseId;
+    };
+
+    // Warehouse selection
+    const selectWarehouse = (warehouseId) => {
+      selectedWarehouse.value = warehouseId;
+    };
+
+    // Search handler with debounce
+    const handleSearch = debounce(() => {
+      // Search is handled in computed property
+    }, 300);
+
+    const handleWarehouseChange = () => {
+      // Warehouse change is handled in computed property
+    };
+
+    // Modal handlers
+    const openAddItemModal = () => {
+      if (!canModifyItems.value) {
+        alert('ليس لديك صلاحية لإضافة أصناف. يرجى التواصل مع المشرف العام.');
+        return;
+      }
+      showAddItemModal.value = true;
+    };
+
+    const openTransferModal = () => {
+      if (!canModifyItems.value) {
+        alert('ليس لديك صلاحية لنقل الأصناف. يرجى التواصل مع المشرف العام.');
+        return;
+      }
+      showTransferModal.value = true;
+    };
+
+    const openDispatchModal = () => {
+      if (!canModifyItems.value) {
+        alert('ليس لديك صلاحية لصرف الأصناف. يرجى التواصل مع المشرف العام.');
+        return;
+      }
+      showDispatchModal.value = true;
+    };
+
+    const openTransferModalForItem = (item) => {
+      selectedItemForAction.value = item;
+      showTransferModal.value = true;
+    };
+
+    const openDispatchModalForItem = (item) => {
+      selectedItemForAction.value = item;
+      showDispatchModal.value = true;
+    };
+
+    const handleItemAdded = () => {
+      showAddItemModal.value = false;
+      // Inventory will update automatically via subscription
+    };
+
+    const handleTransferSuccess = () => {
+      showTransferModal.value = false;
+      selectedItemForAction.value = null;
+      // Inventory will update automatically via subscription
+    };
+
+    const handleDispatchSuccess = () => {
+      showDispatchModal.value = false;
+      selectedItemForAction.value = null;
+      // Inventory will update automatically via subscription
+    };
+
+    const toggleDarkMode = () => {
+      isDarkMode.value = !isDarkMode.value;
+      if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    };
+
+    const toggleUserMenu = () => {
+      showUserMenu.value = !showUserMenu.value;
+    };
+
+    const showNotifications = () => {
+      // Navigate to low stock items or show notification panel
+      console.log('Showing notifications...');
+    };
+
+    const logout = async () => {
+      try {
+        await store.dispatch('logout');
+        router.push('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    };
+
+    // Lifecycle hooks
+    onMounted(() => {
+      // Load warehouses
+      store.dispatch('loadWarehouses');
+      
+      // Check for saved theme preference
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
+      }
+      
+      // Set default warehouse if accessible warehouses exist
+      if (accessibleWarehouses.value.length > 0) {
+        const mainWarehouse = store.getters.mainWarehouse;
+        selectedWarehouse.value = mainWarehouse?.id || accessibleWarehouses.value[0].id;
+      }
+      
+      // Subscribe to real-time data
+      console.log('Starting inventory subscription...');
+      store.dispatch('subscribeToInventory');
+      store.dispatch('subscribeToTransactions');
+      
+      // Set loading to false after a short delay (data will load via subscription)
       setTimeout(() => {
-        this.showSuccess('تم تصدير التقرير بنجاح');
-      }, 1500);
-    },
-    
-    printDashboard() {
-      window.print();
-    }
+        loading.value = false;
+      }, 1000);
+    });
+
+    // Watch for route changes
+    watch(() => route.path, () => {
+      showUserMenu.value = false;
+    });
+
+    // Watch for inventory changes to stop loading
+    watch(() => inventory.value, () => {
+      if (loading.value && inventory.value.length > 0) {
+        loading.value = false;
+      }
+    }, { immediate: true });
+
+    // Listen for add item modal event from App.vue
+    window.addEventListener('open-add-item-modal', () => {
+      openAddItemModal();
+    });
+
+    // Listen for add warehouse modal event
+    window.addEventListener('open-add-warehouse-modal', () => {
+      if (canManageWarehouses.value) {
+        openAddWarehouseModal();
+      }
+    });
+
+    onUnmounted(() => {
+      window.removeEventListener('open-add-item-modal', () => {});
+      window.removeEventListener('open-add-warehouse-modal', () => {});
+    });
+
+    return {
+      isDarkMode,
+      showUserMenu,
+      selectedWarehouse,
+      searchTerm,
+      loading,
+      notificationCount,
+      showAddItemModal,
+      showTransferModal,
+      showDispatchModal,
+      showUserModal,
+      showAddUserModal,
+      showWarehouseModal,
+      selectedItemForAction,
+      selectedUser,
+      selectedWarehouseData,
+      users,
+      loadingUsers,
+      currentPage,
+      totalPages,
+      searchUserTerm,
+      filteredNavLinks,
+      userProfile,
+      userRole,
+      userName,
+      dashboardStats,
+      inventory,
+      filteredInventory,
+      transformedInventory,
+      canModifyItems,
+      canManageUsers,
+      canManageWarehouses,
+      canViewReports,
+      accessibleWarehouses,
+      allowedWarehousesText,
+      roleBadgeClass,
+      getRoleName,
+      getRoleDescription,
+      getUserInitials,
+      formatNumber,
+      getWarehouseLabel,
+      loadUsers,
+      openAddUserModal,
+      openEditUserModal,
+      closeUserModal,
+      handleUserSave,
+      handleUserAdded,
+      handleDeleteUser,
+      handleToggleUserStatus,
+      openAddWarehouseModal,
+      openEditWarehouseModal,
+      closeWarehouseModal,
+      handleWarehouseSave,
+      selectWarehouse,
+      handleSearch,
+      handleWarehouseChange,
+      openAddItemModal,
+      openTransferModal,
+      openDispatchModal,
+      openTransferModalForItem,
+      openDispatchModalForItem,
+      handleItemAdded,
+      handleTransferSuccess,
+      handleDispatchSuccess,
+      toggleDarkMode,
+      toggleUserMenu,
+      showNotifications,
+      logout
+    };
   }
 };
 </script>
 
 <style scoped>
-.sky-dashboard {
-  min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
-  background: linear-gradient(180deg, #0c3a65 0%, #1e3a8a 25%, #3b82f6 50%, #60a5fa 75%, #93c5fd 100%);
-  background-size: 100% 400%;
-  animation: skyGradient 30s ease infinite;
-  padding: 1rem;
+/* Custom scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 10px;
 }
 
-.sky-background {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  overflow: hidden;
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
 }
 
-.clouds-container {
-  position: absolute;
-  width: 100%;
-  height: 100%;
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 5px;
 }
 
-.cloud {
-  position: absolute;
-  background: white;
-  border-radius: 1000px;
-  opacity: 0.7;
-  filter: blur(20px);
-  animation: floatCloud 60s linear infinite;
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 
-.cloud-1 {
-  width: 300px;
-  height: 100px;
-  top: 10%;
-  left: -300px;
-  animation-delay: 0s;
+/* Sidebar scrollbar */
+aside ::-webkit-scrollbar {
+  width: 6px;
 }
 
-.cloud-2 {
-  width: 200px;
-  height: 80px;
-  top: 30%;
-  left: -200px;
-  animation-delay: 15s;
-  animation-duration: 45s;
+aside ::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.cloud-3 {
-  width: 250px;
-  height: 90px;
-  top: 50%;
-  left: -250px;
-  animation-delay: 30s;
-  animation-duration: 50s;
+aside ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
 }
 
-.cloud-4 {
-  width: 180px;
-  height: 70px;
-  top: 70%;
-  left: -180px;
-  animation-delay: 45s;
-  animation-duration: 55s;
+.dark aside ::-webkit-scrollbar-thumb {
+  background: #4b5563;
 }
 
-.cloud-5 {
-  width: 220px;
-  height: 85px;
-  top: 20%;
-  left: -220px;
-  animation-delay: 60s;
-  animation-duration: 65s;
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.cloud-6 {
-  width: 280px;
-  height: 95px;
-  top: 40%;
-  left: -280px;
-  animation-delay: 75s;
-  animation-duration: 70s;
+/* Fix for RTL direction */
+.rtl {
+  direction: rtl;
 }
 
-.sun {
-  position: absolute;
-  top: 20%;
-  right: 10%;
-  width: 80px;
-  height: 80px;
-  background: radial-gradient(circle, #ffd700 30%, #ff8c00 100%);
-  border-radius: 50%;
-  filter: blur(2px);
-  box-shadow: 0 0 100px 50px rgba(255, 215, 0, 0.5);
-  animation: sunGlow 8s ease-in-out infinite;
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.stars-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  pointer-events: none;
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
 }
 
-.star {
-  position: absolute;
-  background: white;
-  border-radius: 50%;
-  animation: twinkle 4s ease-in-out infinite;
-  filter: blur(1px);
-}
-
-.sky-banner {
-  position: relative;
-  overflow: hidden;
-}
-
-.sky-banner::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  right: -50%;
-  bottom: -50%;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
-  animation: rotate 20s linear infinite;
-}
-
-.sky-card {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-}
-
-.sky-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  transition: 0.5s;
-}
-
-.sky-card:hover::before {
-  left: 100%;
-}
-
-.morning-sky {
-  background: linear-gradient(135deg, rgba(255, 200, 100, 0.2), rgba(100, 180, 255, 0.3));
-  box-shadow: 0 20px 40px rgba(100, 180, 255, 0.3);
-}
-
-.day-sky {
-  background: linear-gradient(135deg, rgba(100, 200, 255, 0.2), rgba(50, 150, 250, 0.3));
-  box-shadow: 0 20px 40px rgba(50, 150, 250, 0.3);
-}
-
-.sunset-sky {
-  background: linear-gradient(135deg, rgba(255, 150, 50, 0.2), rgba(200, 100, 50, 0.3));
-  box-shadow: 0 20px 40px rgba(255, 150, 50, 0.3);
-}
-
-.twilight-sky {
-  background: linear-gradient(135deg, rgba(150, 100, 255, 0.2), rgba(100, 50, 200, 0.3));
-  box-shadow: 0 20px 40px rgba(150, 100, 255, 0.3);
-}
-
-.cloud-card {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.cloud-card::after {
-  content: '';
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  right: -10px;
-  bottom: -10px;
-  background: linear-gradient(45deg, 
-    rgba(255,255,255,0.1) 0%,
-    rgba(255,255,255,0.05) 25%,
-    transparent 50%,
-    rgba(255,255,255,0.05) 75%,
-    rgba(255,255,255,0.1) 100%);
-  z-index: -1;
-  filter: blur(20px);
-  animation: cloudShift 15s ease-in-out infinite;
-}
-
-.sky-action-btn {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-}
-
-.sky-action-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  transition: 0.5s;
-}
-
-.sky-action-btn:hover::before {
-  left: 100%;
-}
-
-.morning-action {
-  background: linear-gradient(135deg, rgba(255, 200, 100, 0.4), rgba(255, 150, 50, 0.6));
-}
-
-.day-action {
-  background: linear-gradient(135deg, rgba(100, 200, 255, 0.4), rgba(50, 150, 250, 0.6));
-}
-
-.sunset-action {
-  background: linear-gradient(135deg, rgba(255, 150, 50, 0.4), rgba(255, 100, 50, 0.6));
-}
-
-.twilight-action {
-  background: linear-gradient(135deg, rgba(150, 100, 255, 0.4), rgba(100, 50, 200, 0.6));
-}
-
-.night-action {
-  background: linear-gradient(135deg, rgba(50, 50, 150, 0.4), rgba(20, 20, 100, 0.6));
-}
-
-.midnight-action {
-  background: linear-gradient(135deg, rgba(30, 30, 80, 0.4), rgba(10, 10, 50, 0.6));
-}
-
-.cloud-action-btn {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(200,200,255,0.2));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* Animations */
-@keyframes skyGradient {
-  0%, 100% { background-position: 0% 0%; }
-  25% { background-position: 100% 25%; }
-  50% { background-position: 100% 50%; }
-  75% { background-position: 0% 75%; }
-}
-
-@keyframes floatCloud {
-  0% {
-    transform: translateX(0) translateY(0);
-  }
-  50% {
-    transform: translateX(100vw) translateY(-20px);
-  }
-  100% {
-    transform: translateX(200vw) translateY(0);
-  }
-}
-
-@keyframes sunGlow {
-  0%, 100% {
-    box-shadow: 0 0 100px 50px rgba(255, 215, 0, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 120px 60px rgba(255, 215, 0, 0.7);
-  }
-}
-
-@keyframes twinkle {
-  0%, 100% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.2);
-  }
-}
-
-@keyframes rotate {
+/* Loading spinner */
+@keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes cloudShift {
-  0%, 100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(5px, -5px);
-  }
-  50% {
-    transform: translate(-5px, 5px);
-  }
-  75% {
-    transform: translate(5px, 5px);
-  }
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
-@keyframes slide-down {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* Enhanced blur effects for better performance */
-.sky-card,
-.cloud-card,
-.sky-action-btn,
-.cloud-action-btn {
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-}
-
-/* Accessibility improvements */
-.sky-card:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-button:disabled:hover {
-  box-shadow: none !important;
-}
-
-button:disabled:hover::before {
-  left: -100%;
-}
-
-.animate-slide-down {
-  animation: slide-down 0.3s ease-out;
-}
-
-/* Scrollbar styling */
-.cloud-card .space-y-4::-webkit-scrollbar {
-  width: 6px;
-}
-
-.cloud-card .space-y-4::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.cloud-card .space-y-4::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-
-.cloud-card .space-y-4::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .sky-dashboard {
-    padding: 0.5rem;
-  }
-  
-  .sky-banner {
-    padding: 1.5rem;
-  }
-  
-  .sky-banner h2 {
-    font-size: 1.5rem;
-  }
-  
-  .grid-cols-4, .grid-cols-2 {
-    grid-template-columns: 1fr;
-  }
-  
-  .cloud {
-    display: none;
-  }
-  
-  .sun {
-    display: none;
-  }
-}
-
-@media (max-width: 1024px) {
-  .lg\:grid-cols-2 {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Print styles */
-@media print {
-  .sky-dashboard {
-    background: white !important;
-  }
-  
-  .sky-background,
-  .stars-container,
-  .cloud-card::after,
-  .sky-card::before,
-  .sky-action-btn::before,
-  .sun,
-  .cloud {
-    display: none !important;
-  }
-  
-  button {
-    display: none !important;
-  }
-  
-  .sky-banner,
-  .sky-card,
-  .cloud-card {
-    background: white !important;
-    color: black !important;
-    box-shadow: none !important;
-    border: 1px solid #e5e7eb !important;
-  }
-  
-  .text-white {
-    color: black !important;
-  }
-  
-  .drop-shadow {
-    filter: none !important;
-  }
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  .sky-dashboard,
-  .cloud,
-  .sun,
-  .star,
-  .sky-card::before,
-  .sky-action-btn::before,
-  .sky-banner::before,
-  .cloud-card::after {
-    animation: none !important;
-  }
-  
-  .sky-card:hover,
-  .sky-action-btn:hover {
-    transform: none !important;
-  }
-  
-  .animate-slide-down {
-    animation: none !important;
+/* Ensure proper scrolling on mobile */
+@media (max-width: 1023px) {
+  .pb-16 {
+    padding-bottom: 70px;
   }
 }
 </style>
+   
+       
+      
+      
+         
+        
+    
+      
+
+    
+       
+    
+
+    
+      
+      
+      
+
+ 
+

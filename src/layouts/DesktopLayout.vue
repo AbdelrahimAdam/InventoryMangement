@@ -1,501 +1,507 @@
 <template>
-  <div class="sky-background">
-    <!-- Animated Clouds -->
-    <div class="clouds">
-      <div class="cloud cloud-1"></div>
-      <div class="cloud cloud-2"></div>
-      <div class="cloud cloud-3"></div>
-      <div class="cloud cloud-4"></div>
-    </div>
+  <div class="app-container">
+    <!-- Background Elements (behind everything) -->
+    <div class="background-elements">
+      <!-- Animated Clouds -->
+      <div class="clouds">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+        <div class="cloud cloud-4"></div>
+      </div>
 
-    <!-- Floating Sun/Moon -->
-    <div class="celestial-body" :class="{ 'moon-mode': isDarkMode }">
-      <div class="sun" v-if="!isDarkMode"></div>
-      <div class="moon" v-else>
-        <div class="moon-crater"></div>
-        <div class="moon-crater small"></div>
-        <div class="moon-crater"></div>
+      <!-- Floating Sun/Moon -->
+      <div class="celestial-body" :class="{ 'moon-mode': isDarkMode }">
+        <div class="sun" v-if="!isDarkMode"></div>
+        <div class="moon" v-else>
+          <div class="moon-crater"></div>
+          <div class="moon-crater small"></div>
+          <div class="moon-crater"></div>
+        </div>
+      </div>
+
+      <!-- Stars for night mode -->
+      <div v-if="isDarkMode" class="stars">
+        <div v-for="n in 50" :key="n" class="star" :style="{
+          left: `${Math.random() * 100}%`,
+          top: `${Math.random() * 100}%`,
+          animationDelay: `${Math.random() * 5}s`,
+          animationDuration: `${1 + Math.random() * 2}s`
+        }"></div>
       </div>
     </div>
 
-    <!-- Stars for night mode -->
-    <div v-if="isDarkMode" class="stars">
-      <div v-for="n in 50" :key="n" class="star" :style="{
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 5}s`,
-        animationDuration: `${1 + Math.random() * 2}s`
-      }"></div>
-    </div>
-
-    <!-- Main Dashboard Content -->
-    <div class="dashboard-container">
-      <!-- Desktop Header with Glass Effect -->
-      <header class="glass-header">
-        <div class="header-content">
-          <!-- Logo -->
-          <router-link to="/" class="logo-container">
-            <div class="logo-icon">
-              <span class="logo-text">م</span>
-            </div>
-            <div class="logo-text-container">
-              <h1 class="logo-title">نظام إدارة المخزون</h1>
-              <p class="logo-subtitle">منظمة مونوفيا</p>
-            </div>
-          </router-link>
-
-          <!-- User Controls -->
-          <div class="user-controls">
-            <!-- Theme Toggle -->
-            <button 
-              @click="toggleDarkMode"
-              class="theme-toggle"
-              :title="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
-            >
-              <div class="theme-toggle-inner">
-                <svg v-if="isDarkMode" class="sun-icon" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="5" fill="currentColor"/>
-                  <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2"/>
-                  <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2"/>
-                  <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2"/>
-                  <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/>
-                  <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/>
-                  <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
-                  <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2"/>
-                  <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <svg v-else class="moon-icon" viewBox="0 0 24 24">
-                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/>
-                </svg>
+    <!-- Main Content Area -->
+    <div class="main-content-area">
+      <!-- Dashboard Container -->
+      <div class="dashboard-container">
+        <!-- Desktop Header with Glass Effect -->
+        <header class="glass-header">
+          <div class="header-content">
+            <!-- Logo -->
+            <router-link to="/" class="logo-container">
+              <div class="logo-icon">
+                <span class="logo-text">م</span>
               </div>
-            </button>
+              <div class="logo-text-container">
+                <h1 class="logo-title">نظام إدارة المخزون</h1>
+                <p class="logo-subtitle">منظمة مونوفيا</p>
+              </div>
+            </router-link>
 
-            <!-- Notifications -->
-            <div class="notifications-container">
+            <!-- User Controls -->
+            <div class="user-controls">
+              <!-- Theme Toggle -->
               <button 
-                @click="toggleNotifications"
-                class="notifications-btn"
-                :class="{ 'has-notifications': notificationCount > 0 }"
+                @click="toggleDarkMode"
+                class="theme-toggle"
+                :title="isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'"
               >
-                <svg class="bell-icon" viewBox="0 0 24 24">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" 
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span v-if="notificationCount > 0" class="notification-badge">
-                  {{ notificationCount > 9 ? '9+' : notificationCount }}
-                </span>
-              </button>
-              
-              <!-- Notifications Dropdown -->
-              <div v-if="showNotificationsDropdown" class="notifications-dropdown">
-                <div class="notifications-header">
-                  <h3>الإشعارات</h3>
-                  <button @click="markAllAsRead" class="mark-read-btn">تحديد الكل كمقروء</button>
+                <div class="theme-toggle-inner">
+                  <svg v-if="isDarkMode" class="sun-icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5" fill="currentColor"/>
+                    <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2"/>
+                    <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2"/>
+                    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2"/>
+                    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/>
+                    <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/>
+                    <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
+                    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2"/>
+                    <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <svg v-else class="moon-icon" viewBox="0 0 24 24">
+                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/>
+                  </svg>
                 </div>
-                <div class="notifications-list">
-                  <div v-if="notificationCount === 0" class="no-notifications">
-                    لا توجد إشعارات جديدة
+              </button>
+
+              <!-- Notifications -->
+              <div class="notifications-container">
+                <button 
+                  @click="toggleNotifications"
+                  class="notifications-btn"
+                  :class="{ 'has-notifications': notificationCount > 0 }"
+                >
+                  <svg class="bell-icon" viewBox="0 0 24 24">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" 
+                          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span v-if="notificationCount > 0" class="notification-badge">
+                    {{ notificationCount > 9 ? '9+' : notificationCount }}
+                  </span>
+                </button>
+                
+                <!-- Notifications Dropdown -->
+                <div v-if="showNotificationsDropdown" class="notifications-dropdown">
+                  <div class="notifications-header">
+                    <h3>الإشعارات</h3>
+                    <button @click="markAllAsRead" class="mark-read-btn">تحديد الكل كمقروء</button>
                   </div>
-                  <div v-else class="notification-item" 
-                       v-for="notification in lowStockNotifications" 
-                       :key="notification.id">
-                    <div class="notification-icon">
-                      <svg class="warning-icon" viewBox="0 0 24 24">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" 
-                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
+                  <div class="notifications-list">
+                    <div v-if="notificationCount === 0" class="no-notifications">
+                      لا توجد إشعارات جديدة
                     </div>
-                    <div class="notification-content">
-                      <p class="notification-title">تحذير المخزون</p>
-                      <p class="notification-message">الصنف {{ notification.itemName }} منخفض المخزون</p>
-                      <p class="notification-time">{{ notification.time }}</p>
+                    <div v-else class="notification-item" 
+                         v-for="notification in lowStockNotifications" 
+                         :key="notification.id">
+                      <div class="notification-icon">
+                        <svg class="warning-icon" viewBox="0 0 24 24">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" 
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+                      <div class="notification-content">
+                        <p class="notification-title">تحذير المخزون</p>
+                        <p class="notification-message">الصنف {{ notification.itemName }} منخفض المخزون</p>
+                        <p class="notification-time">{{ notification.time }}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- User Profile -->
-            <div class="user-profile-container">
-              <button @click="toggleUserMenu" class="user-profile-btn">
-                <div class="user-avatar" :style="{ background: userAvatarColor }">
-                  {{ getUserInitials(userName) }}
-                </div>
-                <div class="user-info">
-                  <p class="user-name">{{ userName }}</p>
-                  <p class="user-role">{{ getRoleName(userRole) }}</p>
-                </div>
-                <svg class="chevron-icon" viewBox="0 0 24 24" :class="{ 'rotate-180': showUserMenu }">
-                  <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-              </button>
-
-              <!-- User Menu Dropdown -->
-              <div v-if="showUserMenu" class="user-menu-dropdown">
-                <div class="user-menu-header">
-                  <div class="menu-avatar" :style="{ background: userAvatarColor }">
+              <!-- User Profile -->
+              <div class="user-profile-container">
+                <button @click="toggleUserMenu" class="user-profile-btn">
+                  <div class="user-avatar" :style="{ background: userAvatarColor }">
                     {{ getUserInitials(userName) }}
                   </div>
-                  <div class="menu-user-info">
-                    <p class="menu-user-name">{{ userName }}</p>
-                    <p class="menu-user-email">{{ userProfile?.email }}</p>
-                    <span class="menu-user-role" :style="{ background: roleBadgeColor }">
-                      {{ getRoleName(userRole) }}
-                    </span>
+                  <div class="user-info">
+                    <p class="user-name">{{ userName }}</p>
+                    <p class="user-role">{{ getRoleName(userRole) }}</p>
+                  </div>
+                  <svg class="chevron-icon" viewBox="0 0 24 24" :class="{ 'rotate-180': showUserMenu }">
+                    <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </button>
+
+                <!-- User Menu Dropdown -->
+                <div v-if="showUserMenu" class="user-menu-dropdown">
+                  <div class="user-menu-header">
+                    <div class="menu-avatar" :style="{ background: userAvatarColor }">
+                      {{ getUserInitials(userName) }}
+                    </div>
+                    <div class="menu-user-info">
+                      <p class="menu-user-name">{{ userName }}</p>
+                      <p class="menu-user-email">{{ userProfile?.email }}</p>
+                      <span class="menu-user-role" :style="{ background: roleBadgeColor }">
+                        {{ getRoleName(userRole) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="user-menu-items">
+                    <router-link to="/profile" @click="showUserMenu = false" class="menu-item">
+                      <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" 
+                              fill="none" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      <span>الملف الشخصي</span>
+                    </router-link>
+                    <button @click="logout" class="menu-item logout-item">
+                      <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" 
+                              fill="none" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      <span>تسجيل خروج</span>
+                    </button>
                   </div>
                 </div>
-                <div class="user-menu-items">
-                  <router-link to="/profile" @click="showUserMenu = false" class="menu-item">
-                    <svg class="menu-icon" viewBox="0 0 24 24">
-                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" 
-                            fill="none" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <span>الملف الشخصي</span>
-                  </router-link>
-                  <button @click="logout" class="menu-item logout-item">
-                    <svg class="menu-icon" viewBox="0 0 24 24">
-                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" 
-                            fill="none" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <span>تسجيل خروج</span>
-                  </button>
-                </div>
               </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Role Info Banner -->
+        <div class="role-banner">
+          <div class="role-banner-content">
+            <div class="role-info">
+              <svg class="role-icon" viewBox="0 0 24 24">
+                <path d="M12 15l8.385-8.415a2.1 2.1 0 00-2.97-2.97L9 12v3h3z" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M18 10l4-4-4-4M2 22h20M3 9.172a4 4 0 015.656 0L9 10.172l5.656-5.656a4 4 0 115.656 5.656L14.828 16l-5.656 5.656a4 4 0 01-5.656 0z" 
+                      fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <div>
+                <h3>دورك الحالي: {{ getRoleDescription(userRole) }}</h3>
+                <p>المخازن المسموحة: {{ allowedWarehousesText }}</p>
+              </div>
+            </div>
+            <div class="permission-badges">
+              <span v-if="canModifyItems" class="permission-badge edit-badge">
+                <svg class="badge-icon" viewBox="0 0 24 24">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                تعديل المخزون
+              </span>
+              <span v-if="canManageUsers" class="permission-badge user-badge">
+                <svg class="badge-icon" viewBox="0 0 24 24">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                إدارة المستخدمين
+              </span>
+              <span v-if="canViewReports" class="permission-badge report-badge">
+                <svg class="badge-icon" viewBox="0 0 24 24">
+                  <path d="M21 21H3V3h8l2 2h8v16z" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M7 11h10M7 15h6M7 7h10" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                عرض التقارير
+              </span>
             </div>
           </div>
         </div>
-      </header>
 
-      <!-- Role Info Banner -->
-      <div class="role-banner">
-        <div class="role-banner-content">
-          <div class="role-info">
-            <svg class="role-icon" viewBox="0 0 24 24">
-              <path d="M12 15l8.385-8.415a2.1 2.1 0 00-2.97-2.97L9 12v3h3z" fill="none" stroke="currentColor" stroke-width="2"/>
-              <path d="M18 10l4-4-4-4M2 22h20M3 9.172a4 4 0 015.656 0L9 10.172l5.656-5.656a4 4 0 115.656 5.656L14.828 16l-5.656 5.656a4 4 0 01-5.656 0z" 
-                    fill="none" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <div>
-              <h3>دورك الحالي: {{ getRoleDescription(userRole) }}</h3>
-              <p>المخازن المسموحة: {{ allowedWarehousesText }}</p>
-            </div>
-          </div>
-          <div class="permission-badges">
-            <span v-if="canModifyItems" class="permission-badge edit-badge">
-              <svg class="badge-icon" viewBox="0 0 24 24">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              تعديل المخزون
-            </span>
-            <span v-if="canManageUsers" class="permission-badge user-badge">
-              <svg class="badge-icon" viewBox="0 0 24 24">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              إدارة المستخدمين
-            </span>
-            <span v-if="canViewReports" class="permission-badge report-badge">
-              <svg class="badge-icon" viewBox="0 0 24 24">
-                <path d="M21 21H3V3h8l2 2h8v16z" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M7 11h10M7 15h6M7 7h10" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              عرض التقارير
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Main Content -->
-      <div class="main-content">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-          <!-- Navigation -->
-          <nav class="sidebar-nav">
-            <h3 class="sidebar-title">
-              <svg class="nav-icon" viewBox="0 0 24 24">
-                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                      fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              القائمة الرئيسية
-            </h3>
-            <div class="nav-items">
-              <router-link 
-                v-for="nav in filteredNavLinks" 
-                :key="nav.path"
-                :to="nav.path"
-                class="nav-item"
-                :class="{ 'active': $route.path === nav.path }"
-                @click="closeAllMenus"
-              >
-                <svg class="nav-item-icon" viewBox="0 0 24 24">
-                  <path :d="nav.icon" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <span class="nav-item-text">{{ nav.title }}</span>
-              </router-link>
-            </div>
-          </nav>
-
-          <!-- Quick Actions -->
-          <div class="quick-actions">
-            <h3 class="sidebar-title">
-              <svg class="nav-icon" viewBox="0 0 24 24">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              إجراءات سريعة
-            </h3>
-            <div class="action-buttons">
-              <button v-if="canModifyItems" @click="openAddItemModal" class="action-btn add-item-btn">
-                <div class="action-icon">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 5v14m7-7H5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                </div>
-                <span>إضافة صنف جديد</span>
-              </button>
-              
-              <button v-if="canModifyItems" @click="openTransferModal" class="action-btn transfer-btn">
-                <div class="action-icon">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                </div>
-                <span>نقل بين المخازن</span>
-              </button>
-              
-              <button v-if="canModifyItems && canDispatch" @click="openDispatchModal" class="action-btn dispatch-btn">
-                <div class="action-icon">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                </div>
-                <span>صرف إلى خارجي</span>
-              </button>
-              
-              <button v-if="canManageUsers" @click="openAddUserModal" class="action-btn add-user-btn">
-                <div class="action-icon">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M16 19h6m-3-3v6" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                </div>
-                <span>إضافة مستخدم جديد</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Warehouses -->
-          <div v-if="accessibleWarehouses.length > 0" class="warehouses-section">
-            <h3 class="sidebar-title">
-              <svg class="nav-icon" viewBox="0 0 24 24">
-                <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" 
-                      fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              المخازن المتاحة
-            </h3>
-            <div class="warehouse-list">
-              <button 
-                v-for="warehouse in accessibleWarehouses" 
-                :key="warehouse.id"
-                @click="selectWarehouse(warehouse.id)"
-                class="warehouse-item"
-                :class="{ 'selected': selectedWarehouse === warehouse.id }"
-              >
-                <div class="warehouse-icon">
-                  <span>{{ warehouse.name_ar.charAt(0) }}</span>
-                </div>
-                <div class="warehouse-info">
-                  <p class="warehouse-name">{{ warehouse.name_ar }}</p>
-                  <p class="warehouse-type">{{ warehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}</p>
-                </div>
-                <div v-if="selectedWarehouse === warehouse.id" class="selected-indicator"></div>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Dashboard Content -->
-        <main class="dashboard-main">
-          <!-- Stats Cards -->
-          <div class="stats-grid">
-            <div class="stat-card" @mouseenter="hoverCard('total')" @mouseleave="resetCard">
-              <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'total' }">
-                <svg viewBox="0 0 24 24">
-                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" 
+        <!-- Main Content -->
+        <div class="main-content">
+          <!-- Sidebar -->
+          <aside class="sidebar">
+            <!-- Navigation -->
+            <nav class="sidebar-nav">
+              <h3 class="sidebar-title">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                  <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
                         fill="none" stroke="currentColor" stroke-width="2"/>
                 </svg>
-              </div>
-              <div class="stat-content">
-                <h4 class="stat-title">إجمالي الأصناف</h4>
-                <p class="stat-value">{{ dashboardStats.totalItems }}</p>
-              </div>
-              <div class="stat-trend">+{{ recentActivity.added }} اليوم</div>
-            </div>
-
-            <div class="stat-card" @mouseenter="hoverCard('quantity')" @mouseleave="resetCard">
-              <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'quantity' }">
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
-                        fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <h4 class="stat-title">إجمالي الكمية</h4>
-                <p class="stat-value">{{ formatNumber(dashboardStats.totalQuantity) }}</p>
-              </div>
-              <div class="stat-trend">+{{ recentActivity.transferred }} نقل</div>
-            </div>
-
-            <div class="stat-card warning" @mouseenter="hoverCard('low')" @mouseleave="resetCard">
-              <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'low' }">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z" 
-                        fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <h4 class="stat-title">أصناف قليلة</h4>
-                <p class="stat-value">{{ dashboardStats.lowStockItems }}</p>
-              </div>
-              <div class="stat-trend">تحتاج إعادة تعبئة</div>
-            </div>
-
-            <div class="stat-card" @mouseenter="hoverCard('activity')" @mouseleave="resetCard">
-              <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'activity' }">
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
-                        fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <h4 class="stat-title">الحركات اليوم</h4>
-                <p class="stat-value">{{ dashboardStats.recentTransactions }}</p>
-              </div>
-              <div class="stat-trend">-{{ recentActivity.dispatched }} صرف</div>
-            </div>
-          </div>
-
-          <!-- Inventory Section -->
-          <div class="inventory-section">
-            <div class="section-header">
-              <div class="header-left">
-                <h2>المخزون الحالي</h2>
-                <p>عرض جميع الأصناف في النظام</p>
-              </div>
-              <div class="header-controls">
-                <div class="search-box">
-                  <svg class="search-icon" viewBox="0 0 24 24">
-                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-                          fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                  <input 
-                    type="text" 
-                    v-model="searchTerm"
-                    @input="handleSearch"
-                    placeholder="ابحث عن صنف..."
-                    class="search-input"
-                  />
-                </div>
-                <select 
-                  v-model="selectedWarehouse"
-                  @change="handleWarehouseChange"
-                  class="warehouse-select"
+                القائمة الرئيسية
+              </h3>
+              <div class="nav-items">
+                <router-link 
+                  v-for="nav in filteredNavLinks" 
+                  :key="nav.path"
+                  :to="nav.path"
+                  class="nav-item"
+                  :class="{ 'active': $route.path === nav.path }"
+                  @click="closeAllMenus"
                 >
-                  <option value="">جميع المخازن</option>
-                  <option v-for="warehouse in accessibleWarehouses" 
-                          :key="warehouse.id" 
-                          :value="warehouse.id">
-                    {{ warehouse.name_ar }}
-                  </option>
-                </select>
-                <button v-if="canModifyItems" @click="openAddItemModal" class="add-btn">
-                  <svg class="add-icon" viewBox="0 0 24 24">
-                    <path d="M12 4v16m8-8H4" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <svg class="nav-item-icon" viewBox="0 0 24 24">
+                    <path :d="nav.icon" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
-                  إضافة صنف
+                  <span class="nav-item-text">{{ nav.title }}</span>
+                </router-link>
+              </div>
+            </nav>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <h3 class="sidebar-title">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                إجراءات سريعة
+              </h3>
+              <div class="action-buttons">
+                <button v-if="canModifyItems" @click="openAddItemModal" class="action-btn add-item-btn">
+                  <div class="action-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 5v14m7-7H5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>إضافة صنف جديد</span>
+                </button>
+                
+                <button v-if="canModifyItems" @click="openTransferModal" class="action-btn transfer-btn">
+                  <div class="action-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>نقل بين المخازن</span>
+                </button>
+                
+                <button v-if="canModifyItems && canDispatch" @click="openDispatchModal" class="action-btn dispatch-btn">
+                  <div class="action-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>صرف إلى خارجي</span>
+                </button>
+                
+                <button v-if="canManageUsers" @click="openAddUserModal" class="action-btn add-user-btn">
+                  <div class="action-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" fill="none" stroke="currentColor" stroke-width="2"/>
+                      <path d="M16 19h6m-3-3v6" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>إضافة مستخدم جديد</span>
                 </button>
               </div>
             </div>
 
-            <!-- Inventory Table -->
-            <div v-if="loading" class="loading-state">
-              <div class="loading-spinner"></div>
-              <p>جاري تحميل البيانات...</p>
+            <!-- Warehouses -->
+            <div v-if="accessibleWarehouses.length > 0" class="warehouses-section">
+              <h3 class="sidebar-title">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                  <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                المخازن المتاحة
+              </h3>
+              <div class="warehouse-list">
+                <button 
+                  v-for="warehouse in accessibleWarehouses" 
+                  :key="warehouse.id"
+                  @click="selectWarehouse(warehouse.id)"
+                  class="warehouse-item"
+                  :class="{ 'selected': selectedWarehouse === warehouse.id }"
+                >
+                  <div class="warehouse-icon">
+                    <span>{{ warehouse.name_ar.charAt(0) }}</span>
+                  </div>
+                  <div class="warehouse-info">
+                    <p class="warehouse-name">{{ warehouse.name_ar }}</p>
+                    <p class="warehouse-type">{{ warehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}</p>
+                  </div>
+                  <div v-if="selectedWarehouse === warehouse.id" class="selected-indicator"></div>
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Dashboard Content -->
+          <main class="dashboard-main">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+              <div class="stat-card" @mouseenter="hoverCard('total')" @mouseleave="resetCard">
+                <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'total' }">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <h4 class="stat-title">إجمالي الأصناف</h4>
+                  <p class="stat-value">{{ dashboardStats.totalItems }}</p>
+                </div>
+                <div class="stat-trend">+{{ recentActivity.added }} اليوم</div>
+              </div>
+
+              <div class="stat-card" @mouseenter="hoverCard('quantity')" @mouseleave="resetCard">
+                <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'quantity' }">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <h4 class="stat-title">إجمالي الكمية</h4>
+                  <p class="stat-value">{{ formatNumber(dashboardStats.totalQuantity) }}</p>
+                </div>
+                <div class="stat-trend">+{{ recentActivity.transferred }} نقل</div>
+              </div>
+
+              <div class="stat-card warning" @mouseenter="hoverCard('low')" @mouseleave="resetCard">
+                <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'low' }">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <h4 class="stat-title">أصناف قليلة</h4>
+                  <p class="stat-value">{{ dashboardStats.lowStockItems }}</p>
+                </div>
+                <div class="stat-trend">تحتاج إعادة تعبئة</div>
+              </div>
+
+              <div class="stat-card" @mouseenter="hoverCard('activity')" @mouseleave="resetCard">
+                <div class="stat-icon" :class="{ 'hovered': hoveredCard === 'activity' }">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
+                          fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+                <div class="stat-content">
+                  <h4 class="stat-title">الحركات اليوم</h4>
+                  <p class="stat-value">{{ dashboardStats.recentTransactions }}</p>
+                </div>
+                <div class="stat-trend">-{{ recentActivity.dispatched }} صرف</div>
+              </div>
             </div>
 
-            <div v-else-if="transformedInventory.length > 0" class="inventory-table-container">
-              <InventoryTable 
-                :items="transformedInventory"
-                :readonly="!canModifyItems"
-                :user-role="userRole"
-                @transfer="openTransferModalForItem"
-                @dispatch="openDispatchModalForItem"
-              />
-            </div>
+            <!-- Inventory Section -->
+            <div class="inventory-section">
+              <div class="section-header">
+                <div class="header-left">
+                  <h2>المخزون الحالي</h2>
+                  <p>عرض جميع الأصناف في النظام</p>
+                </div>
+                <div class="header-controls">
+                  <div class="search-box">
+                    <svg class="search-icon" viewBox="0 0 24 24">
+                      <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                            fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <input 
+                      type="text" 
+                      v-model="searchTerm"
+                      @input="handleSearch"
+                      placeholder="ابحث عن صنف..."
+                      class="search-input"
+                    />
+                  </div>
+                  <select 
+                    v-model="selectedWarehouse"
+                    @change="handleWarehouseChange"
+                    class="warehouse-select"
+                  >
+                    <option value="">جميع المخازن</option>
+                    <option v-for="warehouse in accessibleWarehouses" 
+                            :key="warehouse.id" 
+                            :value="warehouse.id">
+                      {{ warehouse.name_ar }}
+                    </option>
+                  </select>
+                  <button v-if="canModifyItems" @click="openAddItemModal" class="add-btn">
+                    <svg class="add-icon" viewBox="0 0 24 24">
+                      <path d="M12 4v16m8-8H4" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    إضافة صنف
+                  </button>
+                </div>
+              </div>
 
-            <div v-else class="empty-state">
-              <svg class="empty-icon" viewBox="0 0 24 24">
-                <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" 
-                      fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-              <h3>لا توجد بيانات</h3>
-              <p>لم يتم إضافة أي أصناف بعد.</p>
-              <button v-if="canModifyItems" @click="openAddItemModal" class="empty-action-btn">
-                إضافة صنف جديد
-              </button>
+              <!-- Inventory Table -->
+              <div v-if="loading" class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>جاري تحميل البيانات...</p>
+              </div>
+
+              <div v-else-if="transformedInventory.length > 0" class="inventory-table-container">
+                <InventoryTable 
+                  :items="transformedInventory"
+                  :readonly="!canModifyItems"
+                  :user-role="userRole"
+                  @transfer="openTransferModalForItem"
+                  @dispatch="openDispatchModalForItem"
+                />
+              </div>
+
+              <div v-else class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 24 24">
+                  <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" 
+                        fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <h3>لا توجد بيانات</h3>
+                <p>لم يتم إضافة أي أصناف بعد.</p>
+                <button v-if="canModifyItems" @click="openAddItemModal" class="empty-action-btn">
+                  إضافة صنف جديد
+                </button>
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
+
+      <!-- Modals -->
+      <AddItemModal 
+        v-if="showAddItemModal"
+        :isOpen="showAddItemModal"
+        @close="showAddItemModal = false"
+        @success="handleItemAdded"
+      />
+
+      <TransferModal 
+        v-if="showTransferModal"
+        :isOpen="showTransferModal"
+        @close="showTransferModal = false"
+        @success="handleTransferSuccess"
+      />
+
+      <DispatchModal 
+        v-if="showDispatchModal"
+        :isOpen="showDispatchModal"
+        @close="showDispatchModal = false"
+        @success="handleDispatchSuccess"
+      />
+
+      <!-- User Management Modal -->
+      <AddUserModal
+        v-if="showAddUserModal"
+        :isOpen="showAddUserModal"
+        @close="showAddUserModal = false"
+        @save="handleUserAdded"
+      />
+
+      <!-- Edit User Modal -->
+      <AddUserModal
+        v-if="showUserModal"
+        :isOpen="showUserModal"
+        :user="selectedUser"
+        @close="closeUserModal"
+        @save="handleUserSave"
+      />
+
+      <WarehouseModal
+        v-if="showWarehouseModal"
+        :isOpen="showWarehouseModal"
+        :warehouse="selectedWarehouseData"
+        @close="closeWarehouseModal"
+        @save="handleWarehouseSave"
+      />
     </div>
-
-    <!-- Modals -->
-    <AddItemModal 
-      v-if="showAddItemModal"
-      :isOpen="showAddItemModal"
-      @close="showAddItemModal = false"
-      @success="handleItemAdded"
-    />
-
-    <TransferModal 
-      v-if="showTransferModal"
-      :isOpen="showTransferModal"
-      @close="showTransferModal = false"
-      @success="handleTransferSuccess"
-    />
-
-    <DispatchModal 
-      v-if="showDispatchModal"
-      :isOpen="showDispatchModal"
-      @close="showDispatchModal = false"
-      @success="handleDispatchSuccess"
-    />
-
-    <!-- User Management Modal -->
-    <AddUserModal
-      v-if="showAddUserModal"
-      :isOpen="showAddUserModal"
-      @close="showAddUserModal = false"
-      @save="handleUserAdded"
-    />
-
-    <!-- Edit User Modal -->
-    <AddUserModal
-      v-if="showUserModal"
-      :isOpen="showUserModal"
-      :user="selectedUser"
-      @close="closeUserModal"
-      @save="handleUserSave"
-    />
-
-    <WarehouseModal
-      v-if="showWarehouseModal"
-      :isOpen="showWarehouseModal"
-      :warehouse="selectedWarehouseData"
-      @close="closeWarehouseModal"
-      @save="handleWarehouseSave"
-    />
   </div>
 </template>
 
@@ -1082,15 +1088,34 @@ export default {
 </script>
 
 <style scoped>
-/* Sky Background */
-.sky-background {
+/* Root container */
+.app-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: visible;
+}
+
+/* Background Elements - Behind everything, non-scrolling */
+.background-elements {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
   z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Sky Background */
+.background-elements::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(135deg, 
     var(--sky-light, #e0f2fe) 0%, 
     var(--sky-mid, #bae6fd) 50%, 
@@ -1098,7 +1123,7 @@ export default {
   transition: background 1s ease;
 }
 
-.dark .sky-background {
+.dark .background-elements::before {
   background: linear-gradient(135deg, 
     var(--night-dark, #0f172a) 0%, 
     var(--night-mid, #1e293b) 50%, 
@@ -1174,6 +1199,7 @@ export default {
   width: 80px;
   height: 80px;
   z-index: 1;
+  pointer-events: none;
 }
 
 .sun {
@@ -1247,6 +1273,7 @@ export default {
   position: absolute;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 .star {
@@ -1256,6 +1283,7 @@ export default {
   background: white;
   border-radius: 50%;
   animation: twinkle 2s infinite;
+  pointer-events: none;
 }
 
 @keyframes twinkle {
@@ -1269,12 +1297,21 @@ export default {
   }
 }
 
+/* Main Content Area - Scrollable */
+.main-content-area {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
+}
+
 /* Dashboard Container */
 .dashboard-container {
   position: relative;
   min-height: 100vh;
-  backdrop-filter: blur(10px);
+  width: 100%;
   background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .dark .dashboard-container {
@@ -1287,6 +1324,9 @@ export default {
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .dark .glass-header {
@@ -1362,6 +1402,7 @@ export default {
   cursor: pointer;
   border-radius: 50%;
   transition: background-color 0.2s;
+  position: relative;
 }
 
 .theme-toggle:hover {
@@ -1895,6 +1936,7 @@ export default {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 2rem 2rem;
+  min-height: calc(100vh - 200px);
 }
 
 /* Sidebar */
@@ -1902,6 +1944,11 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
 }
 
 .sidebar-nav, .quick-actions, .warehouses-section {
@@ -2148,6 +2195,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow: visible;
 }
 
 /* Stats Grid */
@@ -2282,6 +2330,7 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 16px;
   padding: 1.5rem;
+  min-height: 400px;
 }
 
 .dark .inventory-section {
@@ -2294,6 +2343,8 @@ export default {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .header-left h2 {
@@ -2321,6 +2372,7 @@ export default {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -2403,6 +2455,7 @@ export default {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .add-btn:hover {
@@ -2513,6 +2566,8 @@ export default {
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
 .dark .inventory-table-container {
@@ -2523,37 +2578,68 @@ export default {
 @media (max-width: 1200px) {
   .main-content {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .sidebar {
-    display: none;
+    position: relative;
+    top: 0;
+    max-height: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  
+  .sidebar-nav,
+  .quick-actions,
+  .warehouses-section {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-content {
+    padding: 0 1rem 1rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .user-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
 @media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
+  .glass-header {
+    padding: 1rem;
   }
   
-  .user-controls {
-    justify-content: space-between;
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
   
   .role-banner-content {
     flex-direction: column;
     gap: 1rem;
-    align-items: stretch;
+    align-items: flex-start;
   }
   
   .permission-badges {
     flex-wrap: wrap;
+    justify-content: flex-start;
   }
   
   .section-header {
     flex-direction: column;
-    gap: 1rem;
     align-items: stretch;
   }
   
@@ -2564,6 +2650,41 @@ export default {
   
   .search-box {
     width: 100%;
+  }
+  
+  .warehouse-select {
+    width: 100%;
+  }
+  
+  .add-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .logo-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .logo-text-container {
+    text-align: right;
+  }
+  
+  .user-profile-btn .user-info {
+    display: none;
+  }
+  
+  .notifications-dropdown {
+    width: 280px;
+    right: -50px;
+  }
+  
+  .user-menu-dropdown {
+    width: 250px;
+    right: -20px;
   }
 }
 
@@ -2584,5 +2705,91 @@ export default {
   --night-dark: #0f172a;
   --night-mid: #1e293b;
   --night-light: #334155;
+}
+
+/* Scrollbar styling */
+.main-content-area {
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.main-content-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content-area::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.main-content-area::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.5);
+  border-radius: 4px;
+}
+
+.dark .main-content-area::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dark .main-content-area::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.7);
+}
+
+.inventory-table-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.inventory-table-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.inventory-table-container::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 3px;
+}
+
+.dark .inventory-table-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dark .inventory-table-container::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+/* Fix z-index issues */
+.background-elements {
+  z-index: -1;
+}
+
+.main-content-area {
+  z-index: 1;
+  position: relative;
+}
+
+.glass-header {
+  z-index: 100;
+}
+
+.notifications-dropdown,
+.user-menu-dropdown {
+  z-index: 1000;
+}
+
+/* Make sure everything is clickable */
+* {
+  pointer-events: auto;
+}
+
+.background-elements * {
+  pointer-events: none;
+}
+
+/* Ensure proper stacking */
+.app-container {
+  isolation: isolate;
+}
+
+.dashboard-container {
+  isolation: isolate;
 }
 </style>
