@@ -1,580 +1,535 @@
 <template>
-  <div id="app" dir="rtl" class="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950 transition-all duration-300">
-    <!-- Public routes (login, register, etc.) -->
-    <template v-if="isPublicRoute">
-      <div class="flex-1 overflow-y-auto">
-        <router-view />
-      </div>
-    </template>
-
-    <!-- Authenticated layout -->
-    <template v-else>
-      <!-- Mobile Header -->
-      <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-        <div class="px-4 py-3">
-          <div class="flex items-center justify-between">
-            <!-- Left: Menu button and logo -->
-            <div class="flex items-center gap-3">
-              <button 
-                @click="toggleMobileMenu"
-                class="p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200"
-                :aria-label="mobileMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'"
-                :aria-expanded="mobileMenuOpen"
-              >
-                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16" />
-                  <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              <router-link 
-                to="/" 
-                class="flex items-center gap-2" 
-                @click="closeAllMenus"
-              >
-                <div class="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
-                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <div class="text-right">
-                  <h1 class="text-sm font-bold text-gray-900 dark:text-white">نظام إدارة المخازن</h1>
-                  <p class="text-xs text-blue-500 dark:text-blue-400">منوفيا للعطور</p>
-                </div>
-              </router-link>
-            </div>
-
-            <!-- Right: Dark mode and Notifications -->
-            <div class="flex items-center gap-2">
-              <button 
-                @click="toggleDarkMode"
-                class="p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200"
-                :aria-label="isDarkMode ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'"
-              >
-                <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
-                </svg>
-                <svg v-else class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-                </svg>
-              </button>
-
-              <button 
-                @click="handleNotifications"
-                class="relative p-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-gray-800 dark:to-gray-900 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200"
-                aria-label="الإشعارات"
-              >
-                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0.538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                <span 
-                  v-if="notificationCount > 0" 
-                  class="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-br from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800 font-bold"
-                >
-                  {{ notificationCount > 9 ? '9+' : notificationCount }}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <!-- Mobile Menu Overlay -->
-      <div 
-        v-if="mobileMenuOpen" 
-        class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-all duration-300"
-        @click="closeAllMenus"
-      ></div>
-
-      <!-- Mobile Menu Drawer -->
-      <div 
-        v-if="mobileMenuOpen"
-        class="fixed inset-y-0 right-0 z-50 w-72 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl transform transition-all duration-300 ease-out"
-        :class="mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'"
-      >
-        <div class="h-full flex flex-col overflow-hidden">
-          <!-- User Profile -->
-          <div class="p-5 border-b border-gray-200/50 dark:border-gray-700/50">
-            <div class="flex items-center">
-              <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center ml-3 shadow-lg">
-                <span class="text-white font-bold text-base">
-                  {{ getUserInitials(userProfile?.name || userProfile?.email) }}
-                </span>
-              </div>
-              <div class="text-right flex-1">
-                <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
-                <p class="text-xs text-blue-500 dark:text-blue-400">{{ getRoleName(userRole) }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Navigation Links -->
-          <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
-            <router-link 
-              to="/" 
-              @click="closeAllMenus"
-              class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-              :class="{
-                'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/',
-                'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/'
-              }"
-            >
-              <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-              </div>
-              <span class="text-sm font-medium">لوحة التحكم</span>
-            </router-link>
-
-            <router-link 
-              to="/inventory" 
-              @click="closeAllMenus"
-              class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-              :class="{
-                'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/inventory',
-                'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/inventory'
-              }"
-            >
-              <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                </svg>
-              </div>
-              <span class="text-sm font-medium">المخزون</span>
-            </router-link>
-
-            <router-link 
-              to="/transactions" 
-              @click="closeAllMenus"
-              class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-              :class="{
-                'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/transactions',
-                'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/transactions'
-              }"
-            >
-              <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-              </div>
-              <span class="text-sm font-medium">الحركات</span>
-            </router-link>
-
-            <!-- Superadmin Menu Items in Mobile -->
-            <div v-if="userRole === 'superadmin'" class="space-y-1">
-              <router-link 
-                to="/users" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المستخدمين</span>
-              </router-link>
-
-              <button 
-                @click="openAddUserModal"
-                class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-blue-500/5 hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">إضافة مستخدم</span>
-              </button>
-
-              <router-link 
-                to="/warehouses" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المخازن</span>
-              </router-link>
-
-              <button 
-                @click="openAddWarehouseModal"
-                class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group text-right hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-purple-500/5 hover:text-purple-600 dark:hover:text-purple-400"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">إضافة مخزن</span>
-              </button>
-            </div>
-
-            <!-- Regular Users Menu Items in Mobile -->
-            <template v-else>
-              <router-link 
-                v-if="canManageUsers"
-                to="/users" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-800/50': $route.path === '/users',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/users'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المستخدمين</span>
-              </router-link>
-
-              <router-link 
-                v-if="canManageWarehouses"
-                to="/warehouses" 
-                @click="closeAllMenus"
-                class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-                :class="{
-                  'bg-gradient-to-r from-purple-500/10 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50': $route.path === '/warehouses',
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'
-                }"
-              >
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center ml-3">
-                  <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-medium">المخازن</span>
-              </router-link>
-            </template>
-
-            <router-link 
-              to="/profile" 
-              @click="closeAllMenus"
-              class="flex items-center px-4 py-3 rounded-xl transition-all duration-200 group"
-              :class="{
-                'bg-gradient-to-r from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/profile',
-                'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50': $route.path !== '/profile'
-              }"
-            >
-              <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center ml-3">
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-              </div>
-              <span class="text-sm font-medium">الملف الشخصي</span>
-            </router-link>
-          </nav>
-
-          <!-- Logout Button -->
-          <div class="p-4 border-t border-gray-200/50 dark:border-gray-700/50">
-            <button 
-              @click="logout"
-              class="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-br from-red-500 to-pink-500 text-white rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+  <div class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <!-- Mobile Header -->
+    <header class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
+      <div class="px-4 py-3">
+        <div class="flex items-center justify-between">
+          <!-- Logo & Title -->
+          <div class="flex items-center">
+            <div class="h-10 w-10 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+              <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
-              تسجيل خروج
+            </div>
+            <div class="mr-3">
+              <h1 class="text-lg font-bold text-gray-900 dark:text-white">لوحة التحكم</h1>
+              <p class="text-xs text-gray-600 dark:text-gray-400">{{ getUserRoleName }}</p>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center space-x-3 rtl:space-x-reverse">
+            <button @click="toggleDarkMode" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+              <svg v-if="isDarkMode" class="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+              <svg v-else class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+              </svg>
+            </button>
+            
+            <button @click="toggleNotifications" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
+              <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              <span v-if="notificationCount > 0" class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pb-20 px-4">
+      <!-- Welcome Card -->
+      <div class="mt-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl shadow-xl p-6">
+        <div class="text-white">
+          <h2 class="text-xl font-bold mb-2">مرحباً، {{ userName }}</h2>
+          <p class="text-blue-100 opacity-90 text-sm">آخر تحديث: {{ formatTime(lastUpdate) }}</p>
+          <div class="mt-4 flex items-center space-x-4 rtl:space-x-reverse">
+            <button @click="refreshData" :disabled="loading" 
+                    class="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all">
+              <svg :class="{'animate-spin': loading}" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <span class="text-sm">تحديث</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Main Content Area -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Router view with proper spacing -->
-        <div 
-          class="flex-1 overflow-y-auto"
-          :class="{
-            'pt-16': isAuthenticated,
-            'pb-16': showBottomNav
-          }"
-        >
-          <router-view />
+      <!-- Stats Grid - 4 Cards -->
+      <div class="grid grid-cols-2 gap-4 mt-6">
+        <!-- Total Items -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <div class="flex items-center mb-3">
+            <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3">
+              <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+            </div>
+            <span class="text-xs text-green-600 dark:text-green-400 ml-auto">+12%</span>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ formatNumber(dashboardStats.totalItems) }}</h3>
+          <p class="text-xs text-gray-600 dark:text-gray-400">الأصناف</p>
         </div>
 
-        <!-- Mobile Bottom Navigation -->
-        <nav 
-          v-if="showBottomNav" 
-          class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 shadow-lg"
-        >
-          <div class="flex justify-around p-2">
-            <router-link
-              to="/" 
-              class="flex flex-col items-center p-2 flex-1 transition-all duration-200 rounded-xl"
-              :class="{
-                'text-blue-600 dark:text-blue-400': $route.path === '/',
-                'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/'
-              }"
-              @click="closeAllMenus"
-            >
-              <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
-                :class="{
-                  'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/',
-                  'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/'
-                }"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-              </div>
-              <span class="text-xs font-medium mt-1">الرئيسية</span>
-            </router-link>
-
-            <button 
-              v-if="canModifyItems"
-              @click="openAddItemModal" 
-              class="flex flex-col items-center p-2 flex-1 transition-all duration-200 rounded-xl group"
-            >
-              <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
-                </svg>
-              </div>
-              <span class="text-xs font-medium mt-1 text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400">إضافة</span>
-            </button>
-
-            <router-link 
-              to="/inventory" 
-              class="flex flex-col items-center p-2 flex-1 transition-all duration-200 rounded-xl"
-              :class="{
-                'text-blue-600 dark:text-blue-400': $route.path === '/inventory',
-                'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/inventory'
-              }"
-              @click="closeAllMenus"
-            >
-              <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
-                :class="{
-                  'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/inventory',
-                  'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/inventory'
-                }"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                </svg>
-              </div>
-              <span class="text-xs font-medium mt-1">المخزون</span>
-            </router-link>
-
-            <router-link 
-              to="/transactions" 
-              class="flex flex-col items-center p-2 flex-1 transition-all duration-200 rounded-xl"
-              :class="{
-                'text-blue-600 dark:text-blue-400': $route.path === '/transactions',
-                'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400': $route.path !== '/transactions'
-              }"
-              @click="closeAllMenus"
-            >
-              <div class="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200"
-                :class="{
-                  'bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-200/50 dark:border-blue-800/50': $route.path === '/transactions',
-                  'hover:bg-gray-100/50 dark:hover:bg-gray-800/50': $route.path !== '/transactions'
-                }"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-              </div>
-              <span class="text-xs font-medium mt-1">الحركات</span>
-            </router-link>
+        <!-- Total Quantity -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <div class="flex items-center mb-3">
+            <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-3">
+              <svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-xs text-green-600 dark:text-green-400 ml-auto">+8%</span>
           </div>
-        </nav>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ formatNumber(dashboardStats.totalQuantity) }}</h3>
+          <p class="text-xs text-gray-600 dark:text-gray-400">الكمية</p>
+        </div>
+
+        <!-- Low Stock -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <div class="flex items-center mb-3">
+            <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-3">
+              <svg class="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-xs text-orange-600 dark:text-orange-400 ml-auto">+3</span>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ formatNumber(dashboardStats.lowStockItems) }}</h3>
+          <p class="text-xs text-gray-600 dark:text-gray-400">منخفضة</p>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <div class="flex items-center mb-3">
+            <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg mr-3">
+              <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+            <span class="text-xs text-green-600 dark:text-green-400 ml-auto">+15%</span>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ formatNumber(dashboardStats.recentTransactions) }}</h3>
+          <p class="text-xs text-gray-600 dark:text-gray-400">حركات</p>
+        </div>
       </div>
-    </template>
+
+      <!-- Quick Actions -->
+      <div class="mt-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إجراءات سريعة</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <button v-if="canModifyItems" @click="openAddItemModal" 
+                  class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
+            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            إضافة صنف
+          </button>
+          
+          <button v-if="canModifyItems" @click="openTransferModal"
+                  class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
+            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            نقل مخزون
+          </button>
+          
+          <button v-if="canModifyItems && canDispatch" @click="openDispatchModal"
+                  class="bg-gradient-to-r from-orange-600 to-amber-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
+            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12"/>
+            </svg>
+            صرف خارجي
+          </button>
+          
+          <button @click="exportData"
+                  class="bg-gradient-to-r from-purple-600 to-violet-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
+            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            تصدير
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h3>
+          <router-link to="/transactions" class="text-sm text-blue-600 dark:text-blue-400">عرض الكل</router-link>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow">
+          <div v-if="recentTransactionsLoading" class="p-8 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">جاري التحميل...</p>
+          </div>
+          
+          <div v-else-if="recentTransactions.length === 0" class="p-8 text-center">
+            <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">لا توجد حركات حديثة</p>
+          </div>
+          
+          <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+            <div v-for="transaction in recentTransactions.slice(0, 5)" :key="transaction.id" 
+                 class="p-4 flex items-center">
+              <div :class="getTransactionColor(transaction.type)" class="h-10 w-10 rounded-lg flex items-center justify-center mr-3">
+                <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ getTransactionLabel(transaction.type) }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(transaction.timestamp) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ transaction.quantity || 0 }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">وحدة</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Warehouses -->
+      <div v-if="accessibleWarehouses.length > 0" class="mt-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">مخازني</h3>
+        <div class="space-y-3">
+          <div v-for="warehouse in accessibleWarehouses.slice(0, 3)" :key="warehouse.id" 
+               class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center">
+                <div class="h-8 w-8 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                  {{ warehouse.name_ar.charAt(0) }}
+                </div>
+                <span class="font-medium text-gray-900 dark:text-white">{{ warehouse.name_ar }}</span>
+              </div>
+              <span class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-full">
+                {{ getWarehouseStats(warehouse.id).items }} أصناف
+              </span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div class="bg-blue-500 h-2 rounded-full" :style="{ width: getWarehouseFillPercentage(warehouse.id) + '%' }"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-2">
+              <span>{{ formatNumber(getWarehouseStats(warehouse.id).quantity) }} وحدة</span>
+              <span>{{ getWarehouseFillPercentage(warehouse.id) }}% إشغال</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40">
+      <div class="flex justify-around py-3">
+        <router-link to="/dashboard" class="flex flex-col items-center text-blue-600 dark:text-blue-400">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span class="text-xs mt-1">الرئيسية</span>
+        </router-link>
+        
+        <router-link to="/inventory" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+          </svg>
+          <span class="text-xs mt-1">المخزون</span>
+        </router-link>
+        
+        <router-link to="/transactions" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          <span class="text-xs mt-1">الحركات</span>
+        </router-link>
+        
+        <router-link to="/profile" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span class="text-xs mt-1">حسابي</span>
+        </router-link>
+      </div>
+    </nav>
+
+    <!-- Notifications Dropdown -->
+    <div v-if="showNotifications" class="fixed inset-0 z-50" @click="showNotifications = false">
+      <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl max-h-80 overflow-y-auto"
+           @click.stop>
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">الإشعارات</h3>
+            <button @click="showNotifications = false" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+              <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div v-if="notificationCount === 0" class="text-center py-8">
+            <p class="text-gray-600 dark:text-gray-400">لا توجد إشعارات جديدة</p>
+          </div>
+          <div v-else class="space-y-3">
+            <div v-for="notification in lowStockNotifications" :key="notification.id" 
+                 class="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+              <div class="flex items-start">
+                <svg class="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">تحذير المخزون</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ notification.message }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute, useRouter } from 'vue-router';
-import AddUserModal from '@/components/users/AddUserModal.vue';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'MobileLayout',
-  components: {
-    AddUserModal
-  },
   
   setup() {
     const store = useStore();
-    const route = useRoute();
     const router = useRouter();
     
     // State
-    const mobileMenuOpen = ref(false);
     const isDarkMode = ref(false);
-    const showUserModal = ref(false);
+    const loading = ref(false);
+    const showNotifications = ref(false);
+    const lastUpdate = ref(new Date());
     
-    // Computed
-    const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    // Computed properties
     const userRole = computed(() => store.getters.userRole);
-    const userProfile = computed(() => store.state.userProfile);
-    const notificationCount = computed(() => store.getters.dashboardStats?.lowStockItems || 0);
+    const userName = computed(() => store.getters.userName);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const recentTransactions = computed(() => store.state.recentTransactions);
+    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading);
+    const inventory = computed(() => store.state.inventory || []);
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
-    const isPublicRoute = computed(() => {
-      const publicRoutes = ['Login', 'Register', 'Unauthorized', 'NotFound'];
-      return publicRoutes.includes(route.name);
+    const canModifyItems = computed(() => store.getters.canEdit);
+    const canDispatch = computed(() => store.getters.canDispatch);
+    
+    const notificationCount = computed(() => {
+      return store.getters.dashboardStats?.lowStockItems || 0;
     });
     
-    const showBottomNav = computed(() => {
-      const hideBottomNavRoutes = ['/login', '/register', '/unauthorized', '/notfound'];
-      return !hideBottomNavRoutes.includes(route.path) && isAuthenticated.value;
-    });
-    
-    const canModifyItems = computed(() => {
-      const role = userRole.value;
-      const profile = userProfile.value;
-      
-      if (role === 'superadmin') return true;
-      
-      if (role === 'warehouse_manager') {
-        const hasWarehouses = profile?.allowed_warehouses?.length > 0;
-        const hasPermission = profile?.permissions?.includes('full_access') || 
-                            profile?.permissions?.includes('manage_inventory');
-        return hasWarehouses && hasPermission;
-      }
-      
-      return false;
-    });
-    
-    const canManageUsers = computed(() => store.getters.canManageUsers);
-    const canManageWarehouses = computed(() => store.getters.canManageWarehouses);
-    
-    // Methods
-    const getRoleName = (role) => {
-      const names = {
+    const getUserRoleName = computed(() => {
+      const roles = {
         superadmin: 'المشرف العام',
         warehouse_manager: 'مدير المخازن',
         company_manager: 'مدير الشركة'
       };
-      return names[role] || role;
-    };
+      return roles[userRole.value] || 'مستخدم';
+    });
     
-    const getUserInitials = (name) => {
-      if (!name) return 'مخ';
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-    };
+    const lowStockNotifications = computed(() => {
+      const lowStockItems = inventory.value.filter(item => 
+        (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+      ).slice(0, 3);
+      
+      return lowStockItems.map(item => ({
+        id: item.id,
+        message: `الصنف ${item.name || item.code} منخفض المخزون (${item.remaining_quantity} وحدة)`
+      }));
+    });
     
+    // Methods
     const toggleDarkMode = () => {
       isDarkMode.value = !isDarkMode.value;
-      if (isDarkMode.value) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
+      document.documentElement.classList.toggle('dark', isDarkMode.value);
+      localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+    };
+    
+    const toggleNotifications = () => {
+      showNotifications.value = !showNotifications.value;
+    };
+    
+    const refreshData = async () => {
+      loading.value = true;
+      try {
+        await store.dispatch('getRecentTransactions');
+        lastUpdate.value = new Date();
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+      } finally {
+        loading.value = false;
       }
-    };
-    
-    const toggleMobileMenu = () => {
-      mobileMenuOpen.value = !mobileMenuOpen.value;
-    };
-    
-    const closeAllMenus = () => {
-      mobileMenuOpen.value = false;
-    };
-    
-    const handleNotifications = () => {
-      router.push('/transactions');
     };
     
     const openAddItemModal = () => {
-      window.dispatchEvent(new CustomEvent('open-add-item-modal'));
-    };
-    
-    const openAddUserModal = () => {
-      showUserModal.value = true;
-      closeAllMenus();
-    };
-    
-    const openAddWarehouseModal = () => {
-      window.dispatchEvent(new CustomEvent('open-add-warehouse-modal'));
-      closeAllMenus();
-    };
-    
-    const closeUserModal = () => {
-      showUserModal.value = false;
-    };
-    
-    const handleUserSave = (userData) => {
-      console.log('User saved:', userData);
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم حفظ المستخدم بنجاح'
-      });
-    };
-    
-    const logout = async () => {
-      try {
-        closeAllMenus();
-        await store.dispatch('logout');
-        router.push('/login');
-      } catch (error) {
-        console.error('Logout error:', error);
-        router.push('/login');
+      if (!canModifyItems.value) {
+        alert('ليس لديك صلاحية لإضافة أصناف');
+        return;
       }
+      router.push('/inventory/add');
     };
     
-    // Initialize dark mode
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const openTransferModal = () => {
+      if (!canModifyItems.value) {
+        alert('ليس لديك صلاحية لنقل الأصناف');
+        return;
+      }
+      // Implement transfer modal
+      console.log('Open transfer modal');
+    };
     
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      isDarkMode.value = true;
-      document.documentElement.classList.add('dark');
-    }
+    const openDispatchModal = () => {
+      if (!canDispatch.value) {
+        alert('ليس لديك صلاحية لصرف الأصناف');
+        return;
+      }
+      // Implement dispatch modal
+      console.log('Open dispatch modal');
+    };
     
-    watch(() => route.path, () => {
-      closeAllMenus();
+    const exportData = () => {
+      console.log('Export data');
+    };
+    
+    const getWarehouseStats = (warehouseId) => {
+      const items = inventory.value.filter(item => item.warehouse_id === warehouseId);
+      return {
+        items: items.length,
+        quantity: items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+        lowStock: items.filter(item => (item.remaining_quantity || 0) < 10).length
+      };
+    };
+    
+    const getWarehouseFillPercentage = (warehouseId) => {
+      const warehouse = accessibleWarehouses.value.find(w => w.id === warehouseId);
+      if (!warehouse?.capacity) return 0;
+      
+      const items = getWarehouseStats(warehouseId).items;
+      return Math.min(Math.round((items / warehouse.capacity) * 100), 100);
+    };
+    
+    const formatNumber = (num) => {
+      return new Intl.NumberFormat('ar-EG').format(num);
+    };
+    
+    const formatTime = (date) => {
+      if (!date) return '';
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    };
+    
+    const getTransactionColor = (type) => {
+      const colors = {
+        add: 'bg-green-500',
+        transfer: 'bg-blue-500',
+        dispatch: 'bg-orange-500'
+      };
+      return colors[type] || 'bg-gray-500';
+    };
+    
+    const getTransactionLabel = (type) => {
+      const labels = {
+        add: 'إضافة',
+        transfer: 'نقل',
+        dispatch: 'صرف'
+      };
+      return labels[type] || type;
+    };
+    
+    // Lifecycle
+    onMounted(() => {
+      // Check theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
+      }
+      
+      // Load initial data
+      refreshData();
     });
     
     return {
       // State
-      mobileMenuOpen,
       isDarkMode,
-      showUserModal,
+      loading,
+      showNotifications,
+      lastUpdate,
       
       // Computed
-      isAuthenticated,
-      isPublicRoute,
-      showBottomNav,
       userRole,
-      userProfile,
-      notificationCount,
+      userName,
+      dashboardStats,
+      recentTransactions,
+      recentTransactionsLoading,
+      accessibleWarehouses,
       canModifyItems,
-      canManageUsers,
-      canManageWarehouses,
+      canDispatch,
+      notificationCount,
+      getUserRoleName,
+      lowStockNotifications,
       
       // Methods
-      getRoleName,
-      getUserInitials,
       toggleDarkMode,
-      toggleMobileMenu,
-      closeAllMenus,
-      handleNotifications,
+      toggleNotifications,
+      refreshData,
       openAddItemModal,
-      openAddUserModal,
-      openAddWarehouseModal,
-      closeUserModal,
-      handleUserSave,
-      logout
+      openTransferModal,
+      openDispatchModal,
+      exportData,
+      getWarehouseStats,
+      getWarehouseFillPercentage,
+      formatNumber,
+      formatTime,
+      getTransactionColor,
+      getTransactionLabel
     };
   }
 };
 </script>
+
+<style scoped>
+/* Mobile-specific styles */
+@media (max-width: 640px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Safe area for iPhone X and above */
+@supports (padding: max(0px)) {
+  .fixed.bottom-0 {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Animation for notifications dropdown */
+.fixed.inset-0 {
+  animation: fadeIn 0.2s ease;
+}
+
+.absolute.bottom-0 {
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+</style>
