@@ -12,10 +12,14 @@
     <!-- Authenticated User - Show Layouts -->
     <template v-if="isAuthenticated">
       <!-- Mobile Layout -->
-      <MobileLayout v-if="isMobile" />
+      <div v-if="isMobile" class="mobile-scroll-container">
+        <MobileLayout />
+      </div>
 
       <!-- Desktop Layout -->
-      <DesktopLayout v-else />
+      <div v-else class="desktop-scroll-container">
+        <DesktopLayout />
+      </div>
     </template>
 
     <!-- Not Authenticated - Show Router View (Login Page) -->
@@ -36,14 +40,49 @@
 
   <!-- Development Tools -->
   <div v-if="isDevelopment && !initializing" class="fixed bottom-4 right-4 z-50">
-    <div class="bg-gray-800 text-white text-xs p-2 rounded-lg opacity-75">
-      <div class="grid grid-cols-2 gap-1">
-        <span>النظام:</span>
-        <span>{{ isMobile ? 'جوال' : 'سطح مكتب' }}</span>
-        <span>الحالة:</span>
-        <span>{{ isAuthenticated ? 'مسجل' : 'غير مسجل' }}</span>
-        <span>المستخدم:</span>
-        <span class="truncate max-w-[100px]">{{ userName || '---' }}</span>
+    <button @click="toggleDebugPanel" class="bg-gray-800 text-white p-2 rounded-lg opacity-75 hover:opacity-100">
+      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+      </svg>
+    </button>
+    
+    <div v-if="showDebugPanel" class="absolute bottom-full right-0 mb-2 bg-gray-900 text-white rounded-lg p-4 w-80 max-h-96 overflow-auto">
+      <div class="space-y-3 text-sm">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gray-800 p-2 rounded">
+            <p class="text-gray-400">النظام</p>
+            <p>{{ isMobile ? 'جوال' : 'سطح مكتب' }}</p>
+          </div>
+          <div class="bg-gray-800 p-2 rounded">
+            <p class="text-gray-400">الحالة</p>
+            <p :class="isAuthenticated ? 'text-green-400' : 'text-red-400'">
+              {{ isAuthenticated ? 'مسجل' : 'غير مسجل' }}
+            </p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-800 p-2 rounded">
+          <p class="text-gray-400">المستخدم</p>
+          <p>{{ userName || '---' }}</p>
+          <p class="text-xs text-gray-400 mt-1">{{ userRole || '---' }}</p>
+        </div>
+        
+        <div class="bg-gray-800 p-2 rounded">
+          <p class="text-gray-400">المسار</p>
+          <p class="truncate">{{ currentRoutePath }}</p>
+        </div>
+        
+        <div class="space-y-2">
+          <button @click="forceLoginRedirect" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded text-sm">
+            إجبار تسجيل الدخول
+          </button>
+          <button @click="clearAuthAndReload" class="w-full bg-red-600 hover:bg-red-700 p-2 rounded text-sm">
+            مسح المصادقة وإعادة التحميل
+          </button>
+          <button @click="toggleDebugPanel" class="w-full bg-gray-700 hover:bg-gray-600 p-2 rounded text-sm">
+            إغلاق
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -70,6 +109,7 @@ export default {
     
     const initializing = ref(true);
     const isMobile = ref(false);
+    const showDebugPanel = ref(false);
     
     // Toast notification
     const toast = ref({
@@ -86,6 +126,7 @@ export default {
     const userProfile = computed(() => store.state.userProfile);
     const userName = computed(() => store.getters.userName);
     const userRole = computed(() => store.getters.userRole);
+    const currentRoutePath = computed(() => route.path);
     
     // Show toast
     const showToast = (message, type = 'info', duration = 3000) => {
@@ -118,66 +159,144 @@ export default {
       return classes[toast.value.type] || 'bg-blue-500';
     });
     
-    // Check if mobile
+    // Check if mobile with improved detection
     const checkIfMobile = () => {
-      isMobile.value = window.innerWidth < 1024;
-      console.log('Device check:', isMobile.value ? 'Mobile' : 'Desktop', window.innerWidth);
+      const width = window.innerWidth;
+      isMobile.value = width < 1024;
+      console.log('Device check:', isMobile.value ? 'Mobile' : 'Desktop', width);
+      
+      // Update body class for mobile-specific styles
+      if (isMobile.value) {
+        document.body.classList.add('is-mobile');
+        document.body.classList.remove('is-desktop');
+      } else {
+        document.body.classList.add('is-desktop');
+        document.body.classList.remove('is-mobile');
+      }
     };
     
-    // Handle authentication and routing
+    // Toggle debug panel
+    const toggleDebugPanel = () => {
+      showDebugPanel.value = !showDebugPanel.value;
+    };
+    
+    // Force login redirect (for debugging)
+    const forceLoginRedirect = () => {
+      if (isAuthenticated.value) {
+        store.dispatch('logout').then(() => {
+          router.push('/login');
+          showToast('تم تسجيل الخروج والإعادة إلى صفحة الدخول', 'success');
+        });
+      } else {
+        router.push('/login');
+        showToast('تم التوجيه إلى صفحة الدخول', 'info');
+      }
+    };
+    
+    // Clear auth data and reload
+    const clearAuthAndReload = () => {
+      try {
+        // Clear Firebase auth data
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('firebase:authUser') || key.includes('firebase:host:')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear app auth data
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        sessionStorage.clear();
+        
+        // Clear store state
+        store.commit('SET_USER', null);
+        store.commit('SET_USER_PROFILE', null);
+        store.commit('SET_AUTH_STATE', false);
+        
+        showToast('تم مسح بيانات المصادقة', 'success');
+        
+        // Reload page
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Clear auth error:', error);
+        showToast('خطأ في مسح البيانات', 'error');
+      }
+    };
+    
+    // Handle authentication and routing - FIXED VERSION
     const handleAuthAndRouting = () => {
-      console.log('Auth state changed:', {
+      console.log('🔐 Auth check:', {
         isAuthenticated: isAuthenticated.value,
         currentRoute: route.path,
         routeName: route.name,
-        userProfile: userProfile.value
+        routeMeta: route.meta
       });
       
-      // If not authenticated and trying to access protected route
-      if (!isAuthenticated.value && route.meta?.requiresAuth) {
-        console.log('Not authenticated, redirecting to login');
+      // CRITICAL FIX: If not authenticated AND not on login page, redirect to login
+      if (!isAuthenticated.value && route.name !== 'Login') {
+        console.log('🔴 Not authenticated, redirecting to login');
         router.replace('/login');
         return;
       }
       
-      // If authenticated and trying to access login page
+      // If authenticated AND on login page, redirect to dashboard
       if (isAuthenticated.value && route.name === 'Login') {
-        console.log('Already authenticated, redirecting to dashboard');
+        console.log('🟢 Authenticated, redirecting from login to dashboard');
         router.replace('/dashboard');
         return;
       }
       
       // If authenticated but user profile is not loaded yet
       if (isAuthenticated.value && !userProfile.value) {
-        console.log('Authenticated but profile not loaded, staying on current page');
-        // The profile will load automatically via the auth listener
+        console.log('🟡 Authenticated but profile not loaded');
+        // Profile will load via auth listener
         return;
       }
       
       // If authenticated and user profile is loaded but inactive
       if (isAuthenticated.value && userProfile.value && userProfile.value.is_active === false) {
-        console.log('User account is inactive');
-        // The store will handle logout automatically
+        console.log('🔴 User account is inactive, logging out');
+        store.dispatch('logout');
+        router.replace('/login');
         return;
       }
       
-      console.log('Auth and routing check passed');
+      console.log('✅ Auth and routing check passed');
     };
     
-    // Initialize the app
+    // Initialize the app with FIXED authentication handling
     const initializeApp = async () => {
-      console.log('Starting app initialization...');
+      console.log('🚀 Starting app initialization...');
       
       try {
         // Check if mobile
         checkIfMobile();
         window.addEventListener('resize', checkIfMobile);
         
+        // CRITICAL FIX: Clear any Firebase auth persistence on initial load
+        // This forces login page on first load
+        if (sessionStorage.getItem('app_first_load') === null) {
+          console.log('🔄 First app load - clearing auth persistence');
+          
+          // Clear any Firebase auth in localStorage
+          Object.keys(localStorage).forEach(key => {
+            if (key.includes('firebase:authUser')) {
+              localStorage.removeItem(key);
+              console.log('Cleared Firebase key:', key);
+            }
+          });
+          
+          sessionStorage.setItem('app_first_load', 'true');
+        }
+        
         // Initialize authentication via store
         console.log('Initializing auth via store...');
         await store.dispatch('initializeAuth');
         
-        console.log('Auth initialization complete', {
+        console.log('Auth initialization complete:', {
           isAuthenticated: isAuthenticated.value,
           hasUser: !!store.state.user,
           hasProfile: !!userProfile.value
@@ -195,34 +314,75 @@ export default {
           handleAuthAndRouting();
         });
         
-        // Initial check
+        // Initial check with timeout to ensure router is ready
         setTimeout(() => {
           handleAuthAndRouting();
-        }, 100);
+        }, 200);
         
       } catch (error) {
-        console.error('App initialization error:', error);
+        console.error('❌ App initialization error:', error);
         showToast('حدث خطأ في تحميل النظام', 'error');
+        
+        // On error, ensure we're on login page
+        if (route.name !== 'Login') {
+          router.replace('/login');
+        }
       } finally {
         setTimeout(() => {
           initializing.value = false;
-          console.log('App initialization complete');
+          console.log('✅ App initialization complete');
           
           // Show welcome message if authenticated
           if (isAuthenticated.value && userName.value) {
-            showToast(`مرحباً ${userName.value}!`, 'success');
+            setTimeout(() => {
+              showToast(`مرحباً ${userName.value}!`, 'success');
+            }, 1000);
           }
         }, 500);
       }
     };
     
+    // Handle keyboard shortcuts for development
+    const handleKeyPress = (e) => {
+      // Ctrl+Shift+D to toggle debug panel
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        showDebugPanel.value = !showDebugPanel.value;
+      }
+      
+      // Ctrl+Shift+L to force logout
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        forceLoginRedirect();
+      }
+    };
+    
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated.value) {
+        // Refresh data when app becomes visible
+        console.log('App became visible, refreshing data...');
+        store.dispatch('getRecentTransactions').catch(console.error);
+      }
+    };
+    
     // Lifecycle
     onMounted(async () => {
+      console.log('📱 App component mounted');
+      
+      // Add event listeners
+      document.addEventListener('keydown', handleKeyPress);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Initialize app
       await initializeApp();
     });
     
     onUnmounted(() => {
+      console.log('👋 App component unmounted');
       window.removeEventListener('resize', checkIfMobile);
+      document.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     });
     
     return {
@@ -231,15 +391,20 @@ export default {
       isMobile,
       toast,
       isDevelopment,
+      showDebugPanel,
       
       // Computed
       isAuthenticated,
       userName,
       userRole,
+      currentRoutePath,
       toastClasses,
       
       // Methods
-      hideToast
+      hideToast,
+      toggleDebugPanel,
+      forceLoginRedirect,
+      clearAuthAndReload
     };
   }
 };
@@ -260,6 +425,8 @@ export default {
 #app {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  height: 100%;
 }
 
 /* Global styles */
@@ -276,6 +443,79 @@ export default {
   --sky-light: #0f172a;
   --sky-mid: #1e293b;
   --sky-dark: #334155;
+}
+
+/* === SEPARATE MOBILE & DESKTOP SCROLLING === */
+
+/* Mobile-specific scrolling */
+.mobile-scroll-container {
+  height: 100vh;
+  height: -webkit-fill-available; /* iOS Safari fix */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain; /* Prevent pull-to-refresh on mobile */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Mobile scrollbar (thin and hidden by default) */
+.mobile-scroll-container::-webkit-scrollbar {
+  width: 3px;
+}
+
+.mobile-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 1.5px;
+}
+
+.dark .mobile-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.3);
+}
+
+/* Desktop scrolling */
+.desktop-scroll-container {
+  min-height: 100vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Desktop scrollbar */
+.desktop-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.desktop-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.desktop-scroll-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.dark .desktop-scroll-container::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark .desktop-scroll-container::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.desktop-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.dark .desktop-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 
 /* Safe area for mobile */
@@ -295,7 +535,7 @@ export default {
               transform 0.2s ease;
 }
 
-/* Custom scrollbar */
+/* Global scrollbar fallback */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -456,10 +696,29 @@ export default {
     -webkit-user-select: none;
   }
   
-  /* Improve scrolling on mobile */
-  .overflow-auto,
-  .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
+  /* Mobile body class */
+  body.is-mobile {
+    overflow: hidden; /* Prevent body scrolling on mobile */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+  
+  /* Fix for mobile address bar */
+  .mobile-scroll-container {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Desktop-specific optimizations */
+@media (min-width: 1024px) {
+  body.is-desktop {
+    overflow: auto;
+  }
+  
+  /* Desktop hover effects */
+  button:hover {
+    transform: translateY(-1px);
   }
 }
 
@@ -472,6 +731,11 @@ export default {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  
+  .animate-slide-down,
+  .animated-gradient {
+    animation: none !important;
+  }
 }
 
 /* iOS specific fixes */
@@ -483,6 +747,20 @@ export default {
   /* Fix for Safari 100vh bug */
   .h-screen {
     height: -webkit-fill-available;
+  }
+  
+  /* Prevent elastic scrolling on iOS */
+  .mobile-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: scroll;
+    overscroll-behavior-y: none;
+  }
+}
+
+/* Android Chrome specific fixes */
+@supports (padding: max(0px)) {
+  .mobile-scroll-container {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 
@@ -519,6 +797,71 @@ button:disabled,
   
   a[href]:after {
     content: " (" attr(href) ")";
+  }
+  
+  .mobile-scroll-container,
+  .desktop-scroll-container {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --sky-light: #ffffff;
+    --sky-mid: #dddddd;
+    --sky-dark: #aaaaaa;
+  }
+  
+  button {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .bg-white\/90,
+  .bg-gray-900\/90 {
+    background-color: rgba(255, 255, 255, 1) !important;
+  }
+  
+  .dark .bg-white\/90,
+  .dark .bg-gray-900\/90 {
+    background-color: rgba(17, 24, 39, 1) !important;
+  }
+}
+
+/* Mobile orientation handling */
+@media (orientation: portrait) and (max-width: 768px) {
+  .mobile-scroll-container {
+    /* Optimize for portrait */
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .mobile-scroll-container {
+    /* Optimize for landscape mobile */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fix for Firefox scrollbar */
+@-moz-document url-prefix() {
+  .mobile-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  }
+  
+  .desktop-scroll-container {
+    scrollbar-width: auto;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+  }
+  
+  .dark .desktop-scroll-container {
+    scrollbar-color: #4b5563 #1f2937;
   }
 }
 </style>
