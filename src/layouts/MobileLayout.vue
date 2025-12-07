@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 safe-area-padding">
+  <div class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
     <!-- Mobile Header -->
-    <header class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 safe-area-top">
+    <header class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
       <div class="px-4 py-3">
         <div class="flex items-center justify-between">
           <!-- Logo & Title -->
@@ -19,12 +19,7 @@
 
           <!-- Actions -->
           <div class="flex items-center space-x-3 rtl:space-x-reverse">
-            <button 
-              @click="toggleDarkMode"
-              @touchstart="handleTouchStart($event, toggleDarkMode)"
-              class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 touch-target"
-              aria-label="تبديل الوضع الليلي"
-            >
+            <button @click="toggleDarkMode" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
               <svg v-if="isDarkMode" class="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
               </svg>
@@ -33,16 +28,11 @@
               </svg>
             </button>
 
-            <button 
-              @click="toggleNotifications"
-              @touchstart="handleTouchStart($event, toggleNotifications)"
-              class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative touch-target"
-              aria-label="الإشعارات"
-            >
+            <button @click="toggleNotifications" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
               <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
               </svg>
-              <span v-if="notificationCount > 0" class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+              <span v-if="notificationCount > 0" class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
           </div>
         </div>
@@ -50,25 +40,19 @@
     </header>
 
     <!-- Main Content -->
-    <main class="pb-24 px-4 safe-area-content">
+    <main class="pb-20 px-4">
       <!-- Welcome Card -->
       <div class="mt-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl shadow-xl p-6">
         <div class="text-white">
           <h2 class="text-xl font-bold mb-2">مرحباً، {{ userName }}</h2>
           <p class="text-blue-100 opacity-90 text-sm">آخر تحديث: {{ formatTime(lastUpdate) }}</p>
           <div class="mt-4 flex items-center space-x-4 rtl:space-x-reverse">
-            <button 
-              @click="refreshData" 
-              @touchstart="handleTouchStart($event, refreshData)"
-              :disabled="loading" 
-              :class="{'opacity-50 cursor-not-allowed': loading}"
-              class="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all touch-target"
-              aria-label="تحديث البيانات"
-            >
+            <button @click="refreshData" :disabled="loading" 
+                    class="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all">
               <svg :class="{'animate-spin': loading}" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              <span class="text-sm">{{ loading ? 'جاري التحديث...' : 'تحديث' }}</span>
+              <span class="text-sm">تحديث</span>
             </button>
           </div>
         </div>
@@ -137,51 +121,32 @@
       <div class="mt-6">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إجراءات سريعة</h3>
         <div class="grid grid-cols-2 gap-3">
-          <button 
-            v-if="canModifyItems" 
-            @click="openAddItemModal"
-            @touchstart="handleTouchStart($event, openAddItemModal)"
-            class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center touch-target hover:shadow-xl transition-shadow"
-            aria-label="إضافة صنف جديد"
-          >
+          <button v-if="canModifyItems" @click="openAddItemModal" 
+                  class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
             <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             إضافة صنف
           </button>
 
-          <button 
-            v-if="canModifyItems" 
-            @click="openTransferModal"
-            @touchstart="handleTouchStart($event, openTransferModal)"
-            class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center touch-target hover:shadow-xl transition-shadow"
-            aria-label="نقل المخزون"
-          >
+          <button v-if="canModifyItems" @click="openTransferModal"
+                  class="bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
             <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
             </svg>
             نقل مخزون
           </button>
 
-          <button 
-            v-if="canModifyItems && canDispatch" 
-            @click="openDispatchModal"
-            @touchstart="handleTouchStart($event, openDispatchModal)"
-            class="bg-gradient-to-r from-orange-600 to-amber-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center touch-target hover:shadow-xl transition-shadow"
-            aria-label="صرف خارجي"
-          >
+          <button v-if="canModifyItems && canDispatch" @click="openDispatchModal"
+                  class="bg-gradient-to-r from-orange-600 to-amber-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
             <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12"/>
             </svg>
             صرف خارجي
           </button>
 
-          <button 
-            @click="exportData"
-            @touchstart="handleTouchStart($event, exportData)"
-            class="bg-gradient-to-r from-purple-600 to-violet-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center touch-target hover:shadow-xl transition-shadow"
-            aria-label="تصدير البيانات"
-          >
+          <button @click="exportData"
+                  class="bg-gradient-to-r from-purple-600 to-violet-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center">
             <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
@@ -194,13 +159,7 @@
       <div class="mt-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h3>
-          <div 
-            @click="navigateTo('/transactions')"
-            @touchstart="handleTouchStart($event, () => navigateTo('/transactions'))"
-            class="text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:underline touch-target"
-          >
-            عرض الكل
-          </div>
+          <router-link to="/transactions" class="text-sm text-blue-600 dark:text-blue-400">عرض الكل</router-link>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow">
@@ -217,13 +176,8 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
-            <div 
-              v-for="transaction in recentTransactions.slice(0, 5)" 
-              :key="transaction.id" 
-              class="p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              @click="viewTransaction(transaction)"
-              @touchstart="handleTouchStart($event, () => viewTransaction(transaction))"
-            >
+            <div v-for="transaction in recentTransactions.slice(0, 5)" :key="transaction.id" 
+                 class="p-4 flex items-center">
               <div :class="getTransactionColor(transaction.type)" class="h-10 w-10 rounded-lg flex items-center justify-center mr-3">
                 <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -246,13 +200,8 @@
       <div v-if="accessibleWarehouses.length > 0" class="mt-6">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">مخازني</h3>
         <div class="space-y-3">
-          <div 
-            v-for="warehouse in accessibleWarehouses.slice(0, 3)" 
-            :key="warehouse.id" 
-            class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 hover:shadow-md transition-shadow cursor-pointer"
-            @click="viewWarehouse(warehouse.id)"
-            @touchstart="handleTouchStart($event, () => viewWarehouse(warehouse.id))"
-          >
+          <div v-for="warehouse in accessibleWarehouses.slice(0, 3)" :key="warehouse.id" 
+               class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center">
                 <div class="h-8 w-8 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center text-white font-bold mr-3">
@@ -277,95 +226,58 @@
     </main>
 
     <!-- Mobile Bottom Navigation -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 safe-area-bottom">
+    <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40">
       <div class="flex justify-around py-3">
-        <div 
-          @click="navigateTo('/dashboard')"
-          @touchstart="handleTouchStart($event, () => navigateTo('/dashboard'))"
-          :class="{'text-blue-600 dark:text-blue-400': $route.path === '/dashboard', 'text-gray-600 dark:text-gray-400': $route.path !== '/dashboard'}"
-          class="flex flex-col items-center cursor-pointer touch-target nav-item"
-          aria-label="لوحة التحكم"
-        >
+        <router-link to="/dashboard" class="flex flex-col items-center text-blue-600 dark:text-blue-400">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
           </svg>
           <span class="text-xs mt-1">الرئيسية</span>
-        </div>
+        </router-link>
 
-        <div 
-          @click="navigateTo('/inventory')"
-          @touchstart="handleTouchStart($event, () => navigateTo('/inventory'))"
-          :class="{'text-blue-600 dark:text-blue-400': $route.path.includes('/inventory'), 'text-gray-600 dark:text-gray-400': !$route.path.includes('/inventory')}"
-          class="flex flex-col items-center cursor-pointer touch-target nav-item"
-          aria-label="المخزون"
-        >
+        <router-link to="/inventory" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
           </svg>
           <span class="text-xs mt-1">المخزون</span>
-        </div>
+        </router-link>
 
-        <div 
-          @click="navigateTo('/transactions')"
-          @touchstart="handleTouchStart($event, () => navigateTo('/transactions'))"
-          :class="{'text-blue-600 dark:text-blue-400': $route.path === '/transactions', 'text-gray-600 dark:text-gray-400': $route.path !== '/transactions'}"
-          class="flex flex-col items-center cursor-pointer touch-target nav-item"
-          aria-label="الحركات"
-        >
+        <router-link to="/transactions" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
           </svg>
           <span class="text-xs mt-1">الحركات</span>
-        </div>
+        </router-link>
 
-        <div 
-          @click="navigateTo('/profile')"
-          @touchstart="handleTouchStart($event, () => navigateTo('/profile'))"
-          :class="{'text-blue-600 dark:text-blue-400': $route.path === '/profile', 'text-gray-600 dark:text-gray-400': $route.path !== '/profile'}"
-          class="flex flex-col items-center cursor-pointer touch-target nav-item"
-          aria-label="حسابي"
-        >
+        <router-link to="/profile" class="flex flex-col items-center text-gray-600 dark:text-gray-400">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
           <span class="text-xs mt-1">حسابي</span>
-        </div>
+        </router-link>
       </div>
     </nav>
 
     <!-- Notifications Dropdown -->
     <div v-if="showNotifications" class="fixed inset-0 z-50" @click="showNotifications = false">
       <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-      <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl max-h-80 overflow-y-auto safe-area-bottom"
+      <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl max-h-80 overflow-y-auto"
            @click.stop>
         <div class="p-4">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">الإشعارات</h3>
-            <button 
-              @click="showNotifications = false"
-              @touchstart="handleTouchStart($event, () => showNotifications = false)"
-              class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 touch-target"
-              aria-label="إغلاق الإشعارات"
-            >
+            <button @click="showNotifications = false" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
               <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
           <div v-if="notificationCount === 0" class="text-center py-8">
-            <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-            </svg>
-            <p class="mt-2 text-gray-600 dark:text-gray-400">لا توجد إشعارات جديدة</p>
+            <p class="text-gray-600 dark:text-gray-400">لا توجد إشعارات جديدة</p>
           </div>
           <div v-else class="space-y-3">
-            <div 
-              v-for="notification in lowStockNotifications" 
-              :key="notification.id" 
-              class="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30"
-              @click="handleLowStockNotification(notification)"
-              @touchstart="handleTouchStart($event, () => handleLowStockNotification(notification))"
-            >
+            <div v-for="notification in lowStockNotifications" :key="notification.id" 
+                 class="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
               <div class="flex items-start">
                 <svg class="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z"/>
@@ -380,33 +292,13 @@
         </div>
       </div>
     </div>
-
-    <!-- Toast Notification -->
-    <div v-if="toast.show" class="fixed top-4 right-4 left-4 z-50">
-      <div :class="toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'" class="text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
-        <span class="flex-1">{{ toast.message }}</span>
-        <button @click="toast.show = false" class="ml-4">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div v-if="isNavigating" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 flex flex-col items-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <p class="mt-4 text-gray-600 dark:text-gray-400">جاري التحميل...</p>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'MobileLayout',
@@ -414,41 +306,27 @@ export default {
   setup() {
     const store = useStore();
     const router = useRouter();
-    const route = useRoute();
     
     // State
     const isDarkMode = ref(false);
     const loading = ref(false);
     const showNotifications = ref(false);
     const lastUpdate = ref(new Date());
-    const isNavigating = ref(false);
-    
-    // Toast notification
-    const toast = ref({
-      show: false,
-      message: '',
-      type: 'success'
-    });
     
     // Computed properties
-    const userRole = computed(() => store.getters.userRole || '');
-    const userName = computed(() => store.getters.userName || 'مستخدم');
-    const dashboardStats = computed(() => store.getters.dashboardStats || {
-      totalItems: 0,
-      totalQuantity: 0,
-      lowStockItems: 0,
-      recentTransactions: 0
-    });
-    const recentTransactions = computed(() => store.state.recentTransactions || []);
-    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading || false);
+    const userRole = computed(() => store.getters.userRole);
+    const userName = computed(() => store.getters.userName);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const recentTransactions = computed(() => store.state.recentTransactions);
+    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading);
     const inventory = computed(() => store.state.inventory || []);
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
-    const canModifyItems = computed(() => store.getters.canEdit || false);
-    const canDispatch = computed(() => store.getters.canDispatch || false);
+    const canModifyItems = computed(() => store.getters.canEdit);
+    const canDispatch = computed(() => store.getters.canDispatch);
     
     const notificationCount = computed(() => {
-      return dashboardStats.value?.lowStockItems || 0;
+      return store.getters.dashboardStats?.lowStockItems || 0;
     });
     
     const getUserRoleName = computed(() => {
@@ -467,46 +345,15 @@ export default {
       
       return lowStockItems.map(item => ({
         id: item.id,
-        message: `الصنف ${item.name || item.code} منخفض المخزون (${item.remaining_quantity} وحدة)`,
-        itemId: item.id
+        message: `الصنف ${item.name || item.code} منخفض المخزون (${item.remaining_quantity} وحدة)`
       }));
     });
     
     // Methods
-    const showToast = (message, type = 'success') => {
-      toast.value = {
-        show: true,
-        message,
-        type
-      };
-      setTimeout(() => {
-        toast.value.show = false;
-      }, 3000);
-    };
-    
-    const handleTouchStart = (event, handler) => {
-      // Prevent default touch behavior
-      event.preventDefault();
-      event.stopPropagation();
-      
-      // Add visual feedback
-      const target = event.currentTarget;
-      target.classList.add('active-touch');
-      setTimeout(() => {
-        target.classList.remove('active-touch');
-      }, 200);
-      
-      // Call the handler
-      if (typeof handler === 'function') {
-        handler();
-      }
-    };
-    
     const toggleDarkMode = () => {
       isDarkMode.value = !isDarkMode.value;
       document.documentElement.classList.toggle('dark', isDarkMode.value);
       localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
-      showToast(`تم تفعيل الوضع ${isDarkMode.value ? 'الليلي' : 'النهاري'}`, 'success');
     };
     
     const toggleNotifications = () => {
@@ -514,134 +361,45 @@ export default {
     };
     
     const refreshData = async () => {
-      if (loading.value) return;
-      
       loading.value = true;
       try {
         await store.dispatch('getRecentTransactions');
         lastUpdate.value = new Date();
-        showToast('تم تحديث البيانات بنجاح', 'success');
       } catch (error) {
         console.error('Error refreshing data:', error);
-        showToast('حدث خطأ في تحديث البيانات', 'error');
       } finally {
         loading.value = false;
       }
     };
     
-    const navigateTo = async (path) => {
-      // Prevent duplicate navigation
-      if (route.path === path || isNavigating.value) return;
-      
-      isNavigating.value = true;
-      
-      try {
-        // Check permissions
-        const canAccess = await checkRoutePermission(path);
-        if (!canAccess) {
-          await router.push('/unauthorized');
-          return;
-        }
-        
-        // Navigate with error handling
-        await router.push(path);
-        console.log('Navigation successful to:', path);
-      } catch (error) {
-        console.error('Navigation error:', error);
-        if (error.name !== 'NavigationDuplicated') {
-          showToast('حدث خطأ في التنقل', 'error');
-        }
-      } finally {
-        setTimeout(() => {
-          isNavigating.value = false;
-        }, 500);
-      }
-    };
-    
-    const checkRoutePermission = async (path) => {
-      try {
-        const routeRecord = router.resolve(path).route;
-        
-        // No meta restrictions
-        if (!routeRecord.meta) return true;
-        
-        // Check if auth is required
-        if (routeRecord.meta.requiresAuth && !store.getters.isAuthenticated) {
-          return false;
-        }
-        
-        // Check role restrictions
-        if (routeRecord.meta.allowedRoles) {
-          const userRole = store.getters.userRole;
-          if (!userRole || !routeRecord.meta.allowedRoles.includes(userRole)) {
-            return false;
-          }
-          
-          // Check specific permissions
-          if (routeRecord.meta.permissions) {
-            const permission = routeRecord.meta.permissions[userRole];
-            if (permission === 'none') {
-              return false;
-            }
-          }
-        }
-        
-        return true;
-      } catch (error) {
-        console.error('Permission check error:', error);
-        return false;
-      }
-    };
-    
     const openAddItemModal = () => {
       if (!canModifyItems.value) {
-        showToast('ليس لديك صلاحية لإضافة أصناف', 'error');
+        alert('ليس لديك صلاحية لإضافة أصناف');
         return;
       }
-      navigateTo('/inventory/add');
+      router.push('/inventory/add');
     };
     
     const openTransferModal = () => {
       if (!canModifyItems.value) {
-        showToast('ليس لديك صلاحية لنقل الأصناف', 'error');
+        alert('ليس لديك صلاحية لنقل الأصناف');
         return;
       }
-      navigateTo('/transfers');
+      // Implement transfer modal
+      console.log('Open transfer modal');
     };
     
     const openDispatchModal = () => {
       if (!canDispatch.value) {
-        showToast('ليس لديك صلاحية لصرف الأصناف', 'error');
+        alert('ليس لديك صلاحية لصرف الأصناف');
         return;
       }
-      navigateTo('/dispatch');
+      // Implement dispatch modal
+      console.log('Open dispatch modal');
     };
     
-    const exportData = async () => {
-      try {
-        showToast('جاري تصدير البيانات...', 'success');
-        // Implement export logic here
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        showToast('تم تصدير البيانات بنجاح', 'success');
-      } catch (error) {
-        console.error('Export error:', error);
-        showToast('حدث خطأ في التصدير', 'error');
-      }
-    };
-    
-    const viewTransaction = (transaction) => {
-      console.log('View transaction:', transaction);
-      // Navigate to transaction details if needed
-      showToast('عرض تفاصيل الحركة', 'success');
-    };
-    
-    const viewWarehouse = (warehouseId) => {
-      navigateTo(`/inventory?warehouse=${warehouseId}`);
-    };
-    
-    const handleLowStockNotification = (notification) => {
-      navigateTo(`/inventory?item=${notification.itemId}`);
-      showNotifications.value = false;
+    const exportData = () => {
+      console.log('Export data');
     };
     
     const getWarehouseStats = (warehouseId) => {
@@ -662,30 +420,20 @@ export default {
     };
     
     const formatNumber = (num) => {
-      const number = Number(num) || 0;
-      return new Intl.NumberFormat('ar-EG').format(number);
+      return new Intl.NumberFormat('ar-EG').format(num);
     };
     
     const formatTime = (date) => {
       if (!date) return '';
-      try {
-        const d = date.toDate ? date.toDate() : new Date(date);
-        return d.toLocaleTimeString('ar-EG', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: true 
-        });
-      } catch (error) {
-        return '';
-      }
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
     };
     
     const getTransactionColor = (type) => {
       const colors = {
         add: 'bg-green-500',
         transfer: 'bg-blue-500',
-        dispatch: 'bg-orange-500',
-        receive: 'bg-purple-500'
+        dispatch: 'bg-orange-500'
       };
       return colors[type] || 'bg-gray-500';
     };
@@ -694,8 +442,7 @@ export default {
       const labels = {
         add: 'إضافة',
         transfer: 'نقل',
-        dispatch: 'صرف',
-        receive: 'استلام'
+        dispatch: 'صرف'
       };
       return labels[type] || type;
     };
@@ -704,36 +451,13 @@ export default {
     onMounted(() => {
       // Check theme
       const savedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      
-      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         isDarkMode.value = true;
         document.documentElement.classList.add('dark');
-      } else {
-        isDarkMode.value = false;
-        document.documentElement.classList.remove('dark');
       }
       
-      // Add event listener for system theme changes
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleThemeChange = (e) => {
-        if (!localStorage.getItem('theme')) {
-          isDarkMode.value = e.matches;
-          document.documentElement.classList.toggle('dark', e.matches);
-        }
-      };
-      
-      mediaQuery.addEventListener('change', handleThemeChange);
-      
-      // Cleanup function
-      return () => {
-        mediaQuery.removeEventListener('change', handleThemeChange);
-      };
-    });
-    
-    // Load initial data
-    onMounted(async () => {
-      await refreshData();
+      // Load initial data
+      refreshData();
     });
     
     return {
@@ -742,8 +466,6 @@ export default {
       loading,
       showNotifications,
       lastUpdate,
-      isNavigating,
-      toast,
       
       // Computed
       userRole,
@@ -762,15 +484,10 @@ export default {
       toggleDarkMode,
       toggleNotifications,
       refreshData,
-      navigateTo,
       openAddItemModal,
       openTransferModal,
       openDispatchModal,
       exportData,
-      viewTransaction,
-      viewWarehouse,
-      handleLowStockNotification,
-      handleTouchStart,
       getWarehouseStats,
       getWarehouseFillPercentage,
       formatNumber,
@@ -783,134 +500,36 @@ export default {
 </script>
 
 <style scoped>
-/* Mobile-specific optimizations */
-.safe-area-padding {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.safe-area-top {
-  padding-top: env(safe-area-inset-top);
-}
-
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.safe-area-content {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
-}
-
-/* Touch targets */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-}
-
-.nav-item {
-  padding: 8px 0;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.nav-item:active {
-  transform: scale(0.95);
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-/* Touch feedback */
-.active-touch {
-  transform: scale(0.98);
-  opacity: 0.9;
-}
-
-/* Button states */
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Animations */
-@keyframes slide-down {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+/* Mobile-specific styles */
+@media (max-width: 640px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.animate-slide-down {
-  animation: slide-down 0.3s ease-out;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
+/* Safe area for iPhone X and above */
+@supports (padding: max(0px)) {
+  .fixed.bottom-0 {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* Animation for notifications dropdown */
+.fixed.inset-0 {
+  animation: fadeIn 0.2s ease;
 }
 
-/* Scrollbar for notifications */
-.overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+.absolute.bottom-0 {
+  animation: slideUp 0.3s ease;
 }
 
-.overflow-y-auto::-webkit-scrollbar {
-  width: 4px;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 2px;
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(107, 114, 128, 0.5);
-}
-
-/* iOS specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .min-h-screen {
-    min-height: -webkit-fill-available;
-  }
-  
-  .safe-area-content {
-    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  }
-}
-
-/* Performance optimizations */
-* {
-  -webkit-tap-highlight-color: transparent;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 </style>
