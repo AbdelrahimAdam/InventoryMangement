@@ -156,7 +156,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
-import MobileDashboard from '@/views/MobileDashboard.vue';
+import MobileLayout from '@/layouts/MobileLayout.vue';
 import DesktopLayout from '@/layouts/DesktopLayout.vue';
 
 // Firebase imports
