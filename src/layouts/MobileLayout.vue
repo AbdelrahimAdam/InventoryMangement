@@ -4,6 +4,14 @@
     <header class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
       <div class="px-4 py-3">
         <div class="flex items-center justify-between">
+          <!-- Sidebar Toggle -->
+          <button @click="toggleSidebar" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <svg class="h-6 w-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="!sidebarOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
           <!-- Logo & Title -->
           <div class="flex items-center">
             <div class="h-10 w-10 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -17,19 +25,17 @@
             </div>
           </div>
 
-          <!-- Actions -->
+          <!-- User Menu -->
           <div class="flex items-center space-x-3 rtl:space-x-reverse">
-            <!-- Logout Button -->
-            <button 
-              @click="logout" 
-              class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-              title="تسجيل الخروج"
-            >
-              <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            <!-- Notification Bell -->
+            <button @click="toggleNotifications" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
+              <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
               </svg>
+              <span v-if="notificationCount > 0" class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
 
+            <!-- Dark Mode Toggle -->
             <button @click="toggleDarkMode" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
               <svg v-if="isDarkMode" class="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -38,17 +44,174 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
               </svg>
             </button>
-
-            <button @click="toggleNotifications" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
-              <svg class="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-              </svg>
-              <span v-if="notificationCount > 0" class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-            </button>
           </div>
         </div>
       </div>
     </header>
+
+    <!-- Sidebar Overlay -->
+    <div v-if="sidebarOpen" class="fixed inset-0 z-40" @click="sidebarOpen = false">
+      <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside :class="['fixed top-0 right-0 h-full z-50 w-64 transform transition-transform duration-300 ease-in-out', 
+                    sidebarOpen ? 'translate-x-0' : 'translate-x-full']">
+      <div class="h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-2xl">
+        <!-- Sidebar Header -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">القائمة</h2>
+            <button @click="sidebarOpen = false" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <svg class="h-5 w-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- User Info -->
+          <div class="flex items-center mb-6">
+            <div class="h-12 w-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+              {{ userName.charAt(0) }}
+            </div>
+            <div class="mr-3">
+              <h3 class="font-bold text-gray-900 dark:text-white">{{ userName }}</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400">{{ getUserRoleName }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 overflow-y-auto px-4 py-2">
+          <!-- Dashboard -->
+          <router-link to="/dashboard" @click="sidebarOpen = false" 
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/dashboard' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            <span>الرئيسية</span>
+          </router-link>
+
+          <!-- Inventory -->
+          <router-link to="/inventory" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path.startsWith('/inventory') 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+            </svg>
+            <span>المخزون</span>
+          </router-link>
+
+          <!-- Transactions -->
+          <router-link to="/transactions" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/transactions' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span>الحركات</span>
+          </router-link>
+
+          <!-- Transfers -->
+          <router-link v-if="canModifyItems" to="/transfers" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/transfers' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            <span>النقل بين المخازن</span>
+          </router-link>
+
+          <!-- Dispatch -->
+          <router-link v-if="canModifyItems && canDispatch" to="/dispatch" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/dispatch' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m6 4l4-4m0 0l4 4m-4-4v12"/>
+            </svg>
+            <span>الصرف الخارجي</span>
+          </router-link>
+
+          <!-- Reports -->
+          <router-link v-if="canViewReports" to="/reports" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/reports' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span>التقارير</span>
+          </router-link>
+
+          <!-- Warehouses -->
+          <router-link v-if="canManageUsers" to="/warehouses" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/warehouses' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+            <span>المخازن</span>
+          </router-link>
+
+          <!-- Users -->
+          <router-link v-if="canManageUsers" to="/users" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/users' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-6.197a6 6 0 00-9-5.197M9 10h.01"/>
+            </svg>
+            <span>المستخدمين</span>
+          </router-link>
+
+          <!-- Settings -->
+          <router-link to="/settings" @click="sidebarOpen = false"
+                       :class="['flex items-center p-3 rounded-xl mb-2 transition-colors', 
+                               $route.path === '/settings' 
+                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300']">
+            <svg class="h-5 w-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span>الإعدادات</span>
+          </router-link>
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-800">
+          <button @click="logout" class="w-full flex items-center justify-center p-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium hover:shadow-lg transition-all">
+            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            تسجيل الخروج
+          </button>
+          
+          <div class="mt-4 text-center">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              نظام إدارة المخازن
+              <br>
+              الإصدار 1.0.0
+            </p>
+          </div>
+        </div>
+      </div>
+    </aside>
 
     <!-- Navigation Toast -->
     <div v-if="navigationError" class="fixed top-20 right-4 left-4 z-50 animate-slide-down">
@@ -275,28 +438,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Admin Actions -->
-      <div v-if="canManageUsers" class="mt-6">
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إدارة النظام</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <button @click="navigateTo('/users')"
-                  class="bg-gradient-to-r from-indigo-600 to-purple-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center hover:shadow-xl transition-all">
-            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-6.197a6 6 0 00-9-5.197M9 10h.01"/>
-            </svg>
-            المستخدمين
-          </button>
-
-          <button @click="navigateTo('/warehouses')"
-                  class="bg-gradient-to-r from-pink-600 to-rose-500 text-white font-medium py-3 rounded-xl shadow-lg flex items-center justify-center hover:shadow-xl transition-all">
-            <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-            </svg>
-            المخازن
-          </button>
-        </div>
-      </div>
     </main>
 
     <!-- Mobile Bottom Navigation -->
@@ -320,6 +461,15 @@
           <span class="text-xs mt-1">المخزون</span>
         </a>
 
+        <a @click="toggleSidebar" 
+           class="flex flex-col items-center cursor-pointer">
+          <div class="h-10 w-10 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full flex items-center justify-center shadow-lg -mt-4">
+            <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </div>
+        </a>
+
         <a @click="navigateTo('/transactions')" 
            :class="{'text-blue-600 dark:text-blue-400': $route.path === '/transactions', 'text-gray-600 dark:text-gray-400': $route.path !== '/transactions'}"
            class="flex flex-col items-center cursor-pointer">
@@ -329,13 +479,12 @@
           <span class="text-xs mt-1">الحركات</span>
         </a>
 
-        <a @click="navigateTo('/profile')" 
-           :class="{'text-blue-600 dark:text-blue-400': $route.path === '/profile', 'text-gray-600 dark:text-gray-400': $route.path !== '/profile'}"
-           class="flex flex-col items-center cursor-pointer">
+        <a @click="exportData" 
+           class="flex flex-col items-center cursor-pointer text-gray-600 dark:text-gray-400">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
-          <span class="text-xs mt-1">حسابي</span>
+          <span class="text-xs mt-1">تصدير</span>
         </a>
       </div>
     </nav>
@@ -379,11 +528,14 @@
 </template>
 
 <script>
+import { auth } from '../firebase/config';
+
 export default {
   name: 'MobileDashboard',
   
   data() {
     return {
+      sidebarOpen: false,
       isDarkMode: false,
       loading: false,
       showNotifications: false,
@@ -399,7 +551,6 @@ export default {
   },
   
   computed: {
-    // Store getters
     userRole() {
       return this.$store.getters.userRole;
     },
@@ -413,14 +564,7 @@ export default {
         totalItems: 0,
         totalQuantity: 0,
         lowStockItems: 0,
-        outOfStockItems: 0,
-        estimatedValue: 0,
-        recentTransactions: 0,
-        transactionsByType: {
-          add: 0,
-          transfer: 0,
-          dispatch: 0
-        }
+        recentTransactions: 0
       };
     },
     
@@ -495,6 +639,17 @@ export default {
     setInterval(() => {
       this.lastUpdate = new Date();
     }, 60000);
+    
+    // Listen for auth state changes
+    this.$store.watch(
+      state => state.user,
+      (newUser, oldUser) => {
+        if (!newUser && oldUser) {
+          // User logged out
+          this.$router.push('/login');
+        }
+      }
+    );
   },
   
   mounted() {
@@ -503,6 +658,10 @@ export default {
   },
   
   methods: {
+    toggleSidebar() {
+      this.sidebarOpen = !this.sidebarOpen;
+    },
+    
     toggleDarkMode() {
       this.isDarkMode = !this.isDarkMode;
       document.documentElement.classList.toggle('dark', this.isDarkMode);
@@ -529,7 +688,10 @@ export default {
     
     async navigateTo(path) {
       try {
-        console.log('Navigating to:', path);
+        // Close sidebar if open
+        if (this.sidebarOpen) {
+          this.sidebarOpen = false;
+        }
         
         // Check if user has permission for the route
         const canAccess = await this.checkRoutePermission(path);
@@ -558,59 +720,33 @@ export default {
     
     async checkRoutePermission(path) {
       try {
-        // Resolve the route
-        const route = this.$router.resolve(path).route;
-        
-        // Public routes
-        if (route.meta?.public) {
-          return true;
-        }
-        
-        // Get current user from Firebase
-        if (!this.$store.getters.isAuthenticated) {
+        // Check if user is authenticated
+        if (!auth.currentUser) {
           return false;
         }
         
-        // Routes without auth requirement
-        if (!route.meta?.requiresAuth) {
+        // Public routes
+        if (['/login', '/register', '/forgot-password'].includes(path)) {
           return true;
         }
         
-        // Check user role from store
+        // Get user role from store
         const userRole = this.$store.getters.userRole;
         if (!userRole) {
           return false;
         }
         
-        // Check if role is allowed
-        if (route.meta.allowedRoles) {
-          if (!route.meta.allowedRoles.includes(userRole)) {
-            return false;
-          }
+        // Check role-based access
+        if (path.includes('/admin') && !['superadmin', 'company_manager'].includes(userRole)) {
+          return false;
         }
         
-        // Check specific permissions
-        if (route.meta.permissions) {
-          const permission = route.meta.permissions[userRole];
-          if (permission === 'none') {
-            return false;
-          }
+        if (path.includes('/users') && !['superadmin'].includes(userRole)) {
+          return false;
         }
         
-        // Additional checks for warehouse managers
-        if (userRole === 'warehouse_manager') {
-          const allowedWarehouses = this.$store.state.userProfile?.allowed_warehouses || [];
-          
-          if (path.includes('/inventory') && allowedWarehouses.length === 0) {
-            return false;
-          }
-          
-          if (path.includes('/dispatch')) {
-            const canDispatch = this.$store.getters.canDispatch;
-            if (!canDispatch) {
-              return false;
-            }
-          }
+        if (path.includes('/warehouses') && !['superadmin', 'company_manager'].includes(userRole)) {
+          return false;
         }
         
         return true;
@@ -651,8 +787,7 @@ export default {
       const items = this.inventory.filter(item => item.warehouse_id === warehouseId);
       return {
         items: items.length,
-        quantity: items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-        lowStock: items.filter(item => (item.remaining_quantity || 0) < 10).length
+        quantity: items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0)
       };
     },
     
@@ -728,27 +863,22 @@ export default {
 </script>
 
 <style scoped>
-/* Mobile-specific styles */
-@media (max-width: 640px) {
-  .grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* Animation for sidebar */
+.transform {
+  transition: transform 0.3s ease-in-out;
 }
 
-/* Safe area for iPhone X and above */
-@supports (padding: max(0px)) {
-  .fixed.bottom-0 {
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  }
+.translate-x-full {
+  transform: translateX(100%);
 }
 
-/* Animation for notifications dropdown */
-.fixed.inset-0 {
-  animation: fadeIn 0.2s ease;
+.translate-x-0 {
+  transform: translateX(0);
 }
 
-.absolute.bottom-0 {
-  animation: slideUp 0.3s ease;
+/* Animation for notifications */
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
 }
 
 @keyframes slide-down {
@@ -762,50 +892,20 @@ export default {
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Safe area for mobile navigation */
+@supports (padding: max(0px)) {
+  .fixed.bottom-0 {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
 }
 
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-.animate-slide-down {
-  animation: slide-down 0.3s ease-out;
-}
-
-/* Navigation active states */
+/* Active navigation states */
 .text-blue-600 {
   color: #2563eb;
 }
 
 .dark .text-blue-400 {
   color: #60a5fa;
-}
-
-/* Hover effects */
-.cursor-pointer:hover {
-  opacity: 0.9;
-}
-
-/* Gradient text for dark mode */
-.dark .bg-gradient-to-r {
-  background-size: 200% 200%;
-  animation: gradient 3s ease infinite;
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
 /* Loading spinner */
@@ -822,15 +922,9 @@ export default {
   }
 }
 
-/* Transition for all interactive elements */
-button, a {
-  transition: all 0.2s ease;
-}
-
-/* Ensure buttons are accessible */
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Hover effects */
+.cursor-pointer:hover {
+  opacity: 0.9;
 }
 
 /* Scrollbar styling */
@@ -854,30 +948,5 @@ button:disabled {
 
 .dark .overflow-y-auto::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-}
-
-/* Print styles */
-@media print {
-  header, nav, button {
-    display: none !important;
-  }
-  
-  main {
-    margin: 0;
-    padding: 0;
-  }
-  
-  .bg-gradient-to-r {
-    background: white !important;
-    color: black !important;
-  }
-  
-  .dark\:bg-gray-800 {
-    background: white !important;
-  }
-  
-  .text-white {
-    color: black !important;
-  }
 }
 </style>
