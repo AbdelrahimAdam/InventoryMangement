@@ -30,7 +30,8 @@ export const FIELD_LABELS = {
   updated_at: 'تاريخ التحديث',
   created_by: 'تم الإنشاء بواسطة',
   updated_by: 'تم التحديث بواسطة',
-  notes: 'ملاحظات'
+  notes: 'ملاحظات',
+  photo_url: 'صورة الصنف'
 };
 
 export const WAREHOUSES = {
@@ -44,7 +45,9 @@ export const WAREHOUSE_LABELS = {
   main_warehouse: 'مخزن شارع الشيخ',
   tera_warehouse: 'مخزن الترعه',
   shobeen_warehouse: 'مخزن موقف شبين',
-  hyper_warehouse: 'مخزن هايبر التهامي'
+  hyper_warehouse: 'مخزن هايبر التهامي',
+  matbaa_warehouse: 'مخزن المطبعه',
+  ghabashi_warehouse: 'مخزن الغباشي'
 };
 
 export const DESTINATIONS = {
@@ -60,7 +63,8 @@ export const DESTINATION_LABELS = {
 export const TRANSACTION_TYPES = {
   ADD: 'ADD',
   TRANSFER: 'TRANSFER',
-  DISPATCH: 'DISPATCH'
+  DISPATCH: 'DISPATCH',
+  UPDATE: 'UPDATE'
 };
 
 // Error messages in Arabic
@@ -76,12 +80,13 @@ const ERROR_MESSAGES = {
 
 export class InventoryService {
   /**
-   * Add or update item with business logic
+   * Add or update item with business logic (now supports photos)
    * @param {Object} itemData - Item data with English field names
    * @param {string} userId - User ID performing the action
    * @param {boolean} isAddingCartons - Whether user is adding cartons or single bottles
+   * @param {string} photoUrl - Optional photo URL (Firebase Storage URL or base64)
    */
-  static async addOrUpdateItem(itemData, userId, isAddingCartons = true) {
+  static async addOrUpdateItem(itemData, userId, isAddingCartons = true, photoUrl = null) {
     try {
       const { warehouse_id, code, color, name } = itemData;
       
@@ -95,7 +100,7 @@ export class InventoryService {
       }
 
       // Clean and validate data
-      const cleanedData = this._cleanItemData(itemData);
+      const cleanedData = this._cleanItemData(itemData, photoUrl);
       
       // First, check if item exists without using transaction (since transactions don't support queries)
       const existingItem = await this._findExistingItem(cleanedData);
@@ -146,9 +151,9 @@ export class InventoryService {
   }
 
   /**
-   * Clean and validate item data
+   * Clean and validate item data with photo support
    */
-  static _cleanItemData(itemData) {
+  static _cleanItemData(itemData, photoUrl = null) {
     const cleaned = { ...itemData };
     
     // Trim string fields and ensure they're not empty
@@ -158,6 +163,13 @@ export class InventoryService {
     cleaned.supplier = cleaned.supplier?.trim() || '';
     cleaned.item_location = cleaned.item_location?.trim() || '';
     cleaned.notes = cleaned.notes?.trim() || '';
+    
+    // Handle photo URL
+    if (photoUrl) {
+      cleaned.photo_url = photoUrl;
+    } else if (itemData.photo_url !== undefined) {
+      cleaned.photo_url = itemData.photo_url;
+    }
     
     // Validate required fields after trimming
     if (!cleaned.name) {
@@ -180,6 +192,7 @@ export class InventoryService {
     cleaned.supplier = cleaned.supplier || '';
     cleaned.item_location = cleaned.item_location || '';
     cleaned.notes = cleaned.notes || '';
+    cleaned.photo_url = cleaned.photo_url || null;
     
     // Validate quantities
     if (cleaned.cartons_count < 0) {
@@ -254,6 +267,14 @@ export class InventoryService {
     if (newData.notes !== undefined) updates.notes = newData.notes;
     if (newData.supplier !== undefined) updates.supplier = newData.supplier;
     if (newData.item_location !== undefined) updates.item_location = newData.item_location;
+    
+    // Handle photo URL - only update if provided
+    if (newData.photo_url !== undefined) {
+      updates.photo_url = newData.photo_url;
+    } else if (existingItem.photo_url) {
+      // Keep existing photo if not updated
+      updates.photo_url = existingItem.photo_url;
+    }
 
     // Validate quantities
     if (updates.remaining_quantity < 0) {
@@ -272,24 +293,33 @@ export class InventoryService {
     const transactionRef = doc(collection(db, 'transactions'));
     batch.set(transactionRef, {
       item_id: existingItem.id,
+      item_name: existingItem.name,
+      item_code: existingItem.code,
       from_warehouse: null,
       to_warehouse: newData.warehouse_id,
-      type: TRANSACTION_TYPES.ADD,
+      type: TRANSACTION_TYPES.UPDATE,
       cartons_delta: isAddingCartons ? (newData.cartons_count || 0) : 0,
       single_delta: isAddingCartons ? 0 : (newData.single_bottles_count || 0),
       per_carton_updated: newData.per_carton_count,
+      total_delta: addedQuantity,
       previous_remaining: oldRemaining,
       new_remaining: updates.remaining_quantity,
       timestamp: now,
       user_id: userId,
       notes: newData.notes || (isAddingCartons ? 'إضافة كراتين للمخزن' : 'إضافة قزاز فردي للمخزن'),
+      photo_updated: newData.photo_url !== undefined,
       created_at: now
     });
     
     // Commit the batch
     await batch.commit();
     
-    return { type: 'updated', id: existingItem.id, addedQuantity };
+    return { 
+      type: 'updated', 
+      id: existingItem.id, 
+      addedQuantity,
+      photoUpdated: newData.photo_url !== undefined
+    };
   }
 
   static async _createNewItem(itemData, userId) {
@@ -325,6 +355,7 @@ export class InventoryService {
       supplier: itemData.supplier || '',
       item_location: itemData.item_location || '',
       notes: itemData.notes || '',
+      photo_url: itemData.photo_url || null,
       created_at: now,
       created_by: userId,
       updated_at: now,
@@ -339,28 +370,37 @@ export class InventoryService {
     const transactionRef = doc(collection(db, 'transactions'));
     batch.set(transactionRef, {
       item_id: itemRef.id,
+      item_name: itemData.name,
+      item_code: itemData.code,
       from_warehouse: null,
       to_warehouse: itemData.warehouse_id,
       type: TRANSACTION_TYPES.ADD,
       cartons_delta: cartonsQty,
       single_delta: singleBottles,
       per_carton_updated: perCarton,
+      total_delta: totalAddedQty,
       previous_remaining: 0,
       new_remaining: totalAddedQty,
       timestamp: now,
       user_id: userId,
       notes: itemData.notes || 'إنشاء صنف جديد',
+      photo_added: !!itemData.photo_url,
       created_at: now
     });
     
     // Commit the batch
     await batch.commit();
     
-    return { type: 'created', id: itemRef.id, addedQuantity: totalAddedQty };
+    return { 
+      type: 'created', 
+      id: itemRef.id, 
+      addedQuantity: totalAddedQty,
+      photoAdded: !!itemData.photo_url 
+    };
   }
 
   /**
-   * Transfer items between warehouses
+   * Transfer items between warehouses with photo preservation
    */
   static async transferItem(transferData, userId) {
     try {
@@ -423,7 +463,7 @@ export class InventoryService {
         
         await transaction.update(itemRef, sourceUpdates);
         
-        // Handle destination item - use add/update logic for destination
+        // Handle destination item - preserve photo and all other data
         await this._handleDestinationItem(
           transaction, 
           item, 
@@ -438,17 +478,20 @@ export class InventoryService {
         const transactionRef = doc(collection(db, 'transactions'));
         await transaction.set(transactionRef, {
           item_id,
+          item_name: item.name,
+          item_code: item.code,
           from_warehouse,
           to_warehouse,
           type: TRANSACTION_TYPES.TRANSFER,
           cartons_delta: -cartonsQty,
           single_delta: -singleBottlesQty,
           per_carton_updated: item.per_carton_count,
+          total_delta: -transferQty,
           previous_remaining: item.remaining_quantity,
           new_remaining: sourceUpdates.remaining_quantity,
           timestamp: new Date(),
           user_id: userId,
-          notes: notes || `نقل من ${WAREHOUSE_LABELS[from_warehouse]} إلى ${WAREHOUSE_LABELS[to_warehouse]}`,
+          notes: notes || `نقل من ${WAREHOUSE_LABELS[from_warehouse] || from_warehouse} إلى ${WAREHOUSE_LABELS[to_warehouse] || to_warehouse}`,
           created_at: new Date()
         });
         
@@ -466,66 +509,85 @@ export class InventoryService {
   }
 
   static async _handleDestinationItem(transaction, sourceItem, to_warehouse, cartons, single_bottles, transferQty, userId) {
-    // For destination item, we need to find it by querying outside the transaction first
-    // Since transactions don't support queries, we'll handle this differently
-    
-    const destItemsRef = collection(db, 'items');
-    const destQuery = query(
-      destItemsRef,
-      where('warehouse_id', '==', to_warehouse),
-      where('code', '==', sourceItem.code),
-      where('color', '==', sourceItem.color),
-      where('name', '==', sourceItem.name)
-    );
-    
-    const destSnapshot = await getDocs(destQuery); // Query outside transaction
-    const now = new Date();
-    
-    if (!destSnapshot.empty && destSnapshot.docs.length > 0) {
-      // Update existing destination item
-      const destItem = destSnapshot.docs[0];
-      const destData = destItem.data();
+    try {
+      // For destination item, we need to find it by querying outside the transaction first
+      // Since transactions don't support queries, we'll handle this differently
       
-      const destUpdates = {
-        total_added: (destData.total_added || 0) + transferQty,
-        remaining_quantity: (destData.remaining_quantity || 0) + transferQty,
-        cartons_count: (destData.cartons_count || 0) + cartons,
-        single_bottles_count: (destData.single_bottles_count || 0) + single_bottles,
-        updated_at: now,
-        updated_by: userId
-      };
+      const destItemsRef = collection(db, 'items');
+      const destQuery = query(
+        destItemsRef,
+        where('warehouse_id', '==', to_warehouse),
+        where('code', '==', sourceItem.code),
+        where('color', '==', sourceItem.color),
+        where('name', '==', sourceItem.name)
+      );
       
-      const destItemRef = doc(db, 'items', destItem.id);
-      await transaction.update(destItemRef, destUpdates);
+      const destSnapshot = await getDocs(destQuery); // Query outside transaction
+      const now = new Date();
       
-    } else {
-      // Create new destination item
-      const newDestItem = {
-        name: sourceItem.name,
-        code: sourceItem.code,
-        color: sourceItem.color,
-        warehouse_id: to_warehouse,
-        cartons_count: cartons,
-        per_carton_count: sourceItem.per_carton_count || 1,
-        single_bottles_count: single_bottles,
-        total_added: transferQty,
-        remaining_quantity: transferQty,
-        supplier: sourceItem.supplier || '',
-        item_location: sourceItem.item_location || '',
-        notes: sourceItem.notes || '',
-        created_at: now,
-        created_by: userId,
-        updated_at: now,
-        updated_by: userId
-      };
-      
-      const destItemRef = doc(collection(db, 'items'));
-      await transaction.set(destItemRef, newDestItem);
+      if (!destSnapshot.empty && destSnapshot.docs.length > 0) {
+        // Update existing destination item - preserve photo and other data
+        const destItem = destSnapshot.docs[0];
+        const destData = destItem.data();
+        
+        const destUpdates = {
+          total_added: (destData.total_added || 0) + transferQty,
+          remaining_quantity: (destData.remaining_quantity || 0) + transferQty,
+          cartons_count: (destData.cartons_count || 0) + cartons,
+          single_bottles_count: (destData.single_bottles_count || 0) + single_bottles,
+          updated_at: now,
+          updated_by: userId
+        };
+        
+        // Preserve existing photo if destination has one, otherwise use source photo
+        if (!destData.photo_url && sourceItem.photo_url) {
+          destUpdates.photo_url = sourceItem.photo_url;
+        }
+        
+        // Preserve other fields from source if destination doesn't have them
+        if (!destData.supplier && sourceItem.supplier) {
+          destUpdates.supplier = sourceItem.supplier;
+        }
+        if (!destData.item_location && sourceItem.item_location) {
+          destUpdates.item_location = sourceItem.item_location;
+        }
+        
+        const destItemRef = doc(db, 'items', destItem.id);
+        await transaction.update(destItemRef, destUpdates);
+        
+      } else {
+        // Create new destination item - copy all data including photo from source
+        const newDestItem = {
+          name: sourceItem.name,
+          code: sourceItem.code,
+          color: sourceItem.color,
+          warehouse_id: to_warehouse,
+          cartons_count: cartons,
+          per_carton_count: sourceItem.per_carton_count || 1,
+          single_bottles_count: single_bottles,
+          total_added: transferQty,
+          remaining_quantity: transferQty,
+          supplier: sourceItem.supplier || '',
+          item_location: sourceItem.item_location || '',
+          notes: sourceItem.notes || '',
+          photo_url: sourceItem.photo_url || null, // Copy photo from source
+          created_at: now,
+          created_by: userId,
+          updated_at: now,
+          updated_by: userId
+        };
+        
+        const destItemRef = doc(collection(db, 'items'));
+        await transaction.set(destItemRef, newDestItem);
+      }
+    } catch (error) {
+      console.error('Error handling destination item:', error);
+      throw error;
     }
   }
 
   /**
-   * Dispatch items to external destinations
+   * Dispatch items to external destinations (photos remain with source item)
    */
   static async dispatchItem(dispatchData, userId) {
     try {
@@ -586,18 +648,26 @@ export class InventoryService {
           updates.single_bottles_count = Math.max(0, (item.single_bottles_count || 0) - singleBottlesQty);
         }
         
+        // Photo remains unchanged during dispatch
+        if (item.photo_url) {
+          updates.photo_url = item.photo_url;
+        }
+        
         await transaction.update(itemRef, updates);
         
         // Create transaction record
         const transactionRef = doc(collection(db, 'transactions'));
         await transaction.set(transactionRef, {
           item_id,
+          item_name: item.name,
+          item_code: item.code,
           from_warehouse,
           to_warehouse: to_destination,
           type: TRANSACTION_TYPES.DISPATCH,
           cartons_delta: -cartonsQty,
           single_delta: -singleBottlesQty,
           per_carton_updated: item.per_carton_count,
+          total_delta: -dispatchQty,
           previous_remaining: item.remaining_quantity,
           new_remaining: updates.remaining_quantity,
           timestamp: new Date(),
@@ -620,6 +690,99 @@ export class InventoryService {
   }
 
   /**
+   * Get item with photo by ID
+   */
+  static async getItemWithPhoto(itemId) {
+    try {
+      if (!itemId) {
+        throw new Error('معرف الصنف مطلوب');
+      }
+
+      const itemDoc = await getDoc(doc(db, 'items', itemId));
+      
+      if (!itemDoc.exists()) {
+        throw new Error(ERROR_MESSAGES.ITEM_NOT_FOUND);
+      }
+
+      const itemData = itemDoc.data();
+      
+      return {
+        id: itemDoc.id,
+        ...itemData,
+        _display: {
+          warehouse: WAREHOUSE_LABELS[itemData.warehouse_id] || itemData.warehouse_id,
+          has_photo: !!itemData.photo_url,
+          photo_type: itemData.photo_url ? this._getPhotoType(itemData.photo_url) : null
+        }
+      };
+    } catch (error) {
+      console.error('Error in getItemWithPhoto:', error);
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Update item photo
+   */
+  static async updateItemPhoto(itemId, photoUrl, userId) {
+    try {
+      if (!itemId || !userId) {
+        throw new Error('معرف الصنف ومعرف المستخدم مطلوبان');
+      }
+
+      if (!photoUrl) {
+        throw new Error('رابط الصورة مطلوب');
+      }
+
+      const itemRef = doc(db, 'items', itemId);
+      const itemDoc = await getDoc(itemRef);
+      
+      if (!itemDoc.exists()) {
+        throw new Error(ERROR_MESSAGES.ITEM_NOT_FOUND);
+      }
+
+      const oldItem = itemDoc.data();
+      const updates = {
+        photo_url: photoUrl,
+        updated_at: new Date(),
+        updated_by: userId
+      };
+
+      await updateDoc(itemRef, updates);
+      
+      // Create transaction record
+      const transactionRef = doc(collection(db, 'transactions'));
+      await addDoc(transactionRef, {
+        item_id: itemId,
+        item_name: oldItem.name,
+        item_code: oldItem.code,
+        from_warehouse: null,
+        to_warehouse: oldItem.warehouse_id,
+        type: TRANSACTION_TYPES.UPDATE,
+        cartons_delta: 0,
+        single_delta: 0,
+        total_delta: 0,
+        previous_remaining: oldItem.remaining_quantity,
+        new_remaining: oldItem.remaining_quantity,
+        timestamp: new Date(),
+        user_id: userId,
+        notes: 'تحديث صورة الصنف',
+        photo_updated: true,
+        created_at: new Date()
+      });
+
+      return { 
+        success: true, 
+        itemId,
+        photoUpdated: true 
+      };
+    } catch (error) {
+      console.error('Error in updateItemPhoto:', error);
+      throw this._handleError(error);
+    }
+  }
+
+  /**
    * Get low stock items (less than 10 remaining)
    */
   static async getLowStockItems(warehouseId = null) {
@@ -637,13 +800,17 @@ export class InventoryService {
       }
       
       const snapshot = await getDocs(itemsQuery);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        _display: {
-          warehouse: WAREHOUSE_LABELS[doc.data().warehouse_id] || doc.data().warehouse_id,
-        }
-      }));
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          _display: {
+            warehouse: WAREHOUSE_LABELS[data.warehouse_id] || data.warehouse_id,
+            has_photo: !!data.photo_url
+          }
+        };
+      });
     } catch (error) {
       console.error('Error in getLowStockItems:', error);
       throw this._handleError(error);
@@ -698,13 +865,17 @@ export class InventoryService {
       );
       
       const snapshot = await getDocs(itemsQuery);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        _display: {
-          warehouse: WAREHOUSE_LABELS[doc.data().warehouse_id] || doc.data().warehouse_id,
-        }
-      }));
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          _display: {
+            warehouse: WAREHOUSE_LABELS[data.warehouse_id] || data.warehouse_id,
+            has_photo: !!data.photo_url
+          }
+        };
+      });
     } catch (error) {
       console.error('Error in getWarehouseItems:', error);
       throw this._handleError(error);
@@ -731,6 +902,7 @@ export class InventoryService {
         ...item,
         _display: {
           warehouse: WAREHOUSE_LABELS[item.warehouse_id] || item.warehouse_id,
+          has_photo: !!item.photo_url
         }
       }));
     } catch (error) {
@@ -784,11 +956,14 @@ export class InventoryService {
         throw new Error(ERROR_MESSAGES.ITEM_NOT_FOUND);
       }
 
+      const itemData = itemDoc.data();
+      
       return {
         id: itemDoc.id,
-        ...itemDoc.data(),
+        ...itemData,
         _display: {
-          warehouse: WAREHOUSE_LABELS[itemDoc.data().warehouse_id] || itemDoc.data().warehouse_id,
+          warehouse: WAREHOUSE_LABELS[itemData.warehouse_id] || itemData.warehouse_id,
+          has_photo: !!itemData.photo_url
         }
       };
     } catch (error) {
@@ -806,7 +981,7 @@ export class InventoryService {
         throw new Error('معرف الصنف ومعرف المستخدم مطلوبان');
       }
 
-      const allowedFields = ['supplier', 'item_location', 'notes', 'per_carton_count'];
+      const allowedFields = ['supplier', 'item_location', 'notes', 'per_carton_count', 'photo_url'];
       const filteredUpdates = {};
       
       // Only allow specific fields to be updated
@@ -827,7 +1002,11 @@ export class InventoryService {
       const itemRef = doc(db, 'items', itemId);
       await updateDoc(itemRef, filteredUpdates);
 
-      return { success: true, itemId };
+      return { 
+        success: true, 
+        itemId,
+        photoUpdated: filteredUpdates.photo_url !== undefined 
+      };
     } catch (error) {
       console.error('Error in updateItemDetails:', error);
       throw this._handleError(error);
@@ -852,12 +1031,14 @@ export class InventoryService {
       const totalQuantity = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
       const lowStockItems = items.filter(item => (item.remaining_quantity || 0) < 10).length;
       const outOfStockItems = items.filter(item => (item.remaining_quantity || 0) === 0).length;
+      const itemsWithPhotos = items.filter(item => !!item.photo_url).length;
       
       return {
         totalItems,
         totalQuantity,
         lowStockItems,
         outOfStockItems,
+        itemsWithPhotos,
         warehouse: warehouseId ? WAREHOUSE_LABELS[warehouseId] : 'جميع المخازن'
       };
     } catch (error) {
@@ -867,7 +1048,7 @@ export class InventoryService {
   }
 
   /**
-   * Helper function to convert data for UI display (add Arabic labels)
+   * Helper function to convert data for UI display (add Arabic labels and photo info)
    */
   static convertForDisplay(data) {
     if (Array.isArray(data)) {
@@ -883,8 +1064,31 @@ export class InventoryService {
       ...item,
       _display: {
         warehouse: WAREHOUSE_LABELS[item.warehouse_id] || item.warehouse_id,
+        has_photo: !!item.photo_url,
+        photo_type: item.photo_url ? this._getPhotoType(item.photo_url) : null
       }
     };
+  }
+
+  /**
+   * Utility to detect photo type from URL
+   */
+  static _getPhotoType(photoUrl) {
+    if (!photoUrl) return null;
+    
+    if (photoUrl.startsWith('data:image/')) {
+      return photoUrl.split(';')[0].split('/')[1];
+    }
+    
+    if (photoUrl.startsWith('https://firebasestorage.googleapis.com')) {
+      const extension = photoUrl.split('.').pop().split('?')[0].toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+        return extension;
+      }
+      return 'unknown';
+    }
+    
+    return 'unknown';
   }
 
   /**
@@ -953,5 +1157,62 @@ export class InventoryService {
     }
 
     return true;
+  }
+
+  /**
+   * Format photo URL for display - handles both Firebase Storage and base64 URLs
+   */
+  static formatPhotoUrl(photoUrl) {
+    if (!photoUrl) return '';
+    
+    // Firebase Storage URL
+    if (photoUrl.startsWith('https://firebasestorage.googleapis.com')) {
+      return photoUrl;
+    }
+    
+    // Base64 Data URL
+    if (photoUrl.startsWith('data:image/')) {
+      return photoUrl;
+    }
+    
+    // Raw base64 string (without data URL prefix)
+    if (typeof photoUrl === 'string' && photoUrl.length > 100) {
+      // Try to detect image type
+      let mimeType = 'image/jpeg';
+      if (photoUrl.includes('iVBORw')) mimeType = 'image/png';
+      if (photoUrl.includes('R0lGOD')) mimeType = 'image/gif';
+      if (photoUrl.includes('UklGR')) mimeType = 'image/webp';
+      
+      return `data:${mimeType};base64,${photoUrl}`;
+    }
+    
+    // Return as-is for other cases
+    return photoUrl;
+  }
+
+  /**
+   * Validate photo URL format
+   */
+  static isValidPhotoUrl(photoUrl) {
+    if (!photoUrl) return false;
+    
+    // Check for Firebase Storage URL
+    if (photoUrl.startsWith('https://firebasestorage.googleapis.com')) {
+      return true;
+    }
+    
+    // Check for Data URL
+    if (photoUrl.startsWith('data:image/')) {
+      return true;
+    }
+    
+    // Check for base64 string (might be without prefix)
+    if (typeof photoUrl === 'string' && photoUrl.length > 100) {
+      // Simple base64 validation
+      const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+      return base64Regex.test(photoUrl.replace(/\s/g, ''));
+    }
+    
+    return false;
   }
 }

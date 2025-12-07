@@ -444,47 +444,68 @@ export default createStore({
       }
     },
 
-    async createUser({ commit, dispatch, getters }, userData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+    async createUser({ commit, dispatch, getters, state }, userData) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        console.log('Store.createUser called with:', userData);
-        
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
-        }
+  try {
+    console.log('Store.createUser called with:', userData);
+    
+    // IMPORTANT: Get current superadmin info BEFORE any user creation
+    const currentUser = state.user;
+    const currentUserProfile = state.userProfile;
+    
+    console.log('Current superadmin info:', {
+      uid: currentUser?.uid,
+      email: currentUser?.email,
+      role: currentUserProfile?.role
+    });
+    
+    if (!currentUser || !currentUserProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+    
+    if (currentUserProfile.role !== 'superadmin') {
+      throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
+    }
 
-        // Use UserService for ALL user creation
-        const result = await UserService.createUser(userData);
+    // Store superadmin credentials temporarily
+    const superadminCredentials = {
+      uid: currentUser.uid,
+      email: currentUser.email,
+      role: currentUserProfile.role
+    };
 
-        console.log('UserService.createUser result:', result);
+    // Use UserService for ALL user creation
+    const result = await UserService.createUser(userData, superadminCredentials);
 
-        if (result.success) {
-          // Show success notification
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
-          });
+    console.log('UserService.createUser result:', result);
 
-          return { success: true, data: result.data, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في إنشاء المستخدم');
-        }
-      } catch (error) {
-        console.error('Error creating user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
+    if (result.success) {
+      // Show success notification
+      dispatch('showNotification', {
+        type: 'success',
+        message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
+      });
 
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في إضافة المستخدم'
-        });
+      return { success: true, data: result.data, message: result.message };
+    } else {
+      throw new Error(result.error || 'فشل في إنشاء المستخدم');
+    }
+  } catch (error) {
+    console.error('Error creating user:', error);
+    commit('SET_OPERATION_ERROR', error.message);
 
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ في إضافة المستخدم'
+    });
+
+    return { success: false, error: error.message };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
 
     async updateUser({ commit, dispatch, getters }, { userId, userData }) {
       commit('SET_OPERATION_LOADING', true);
@@ -627,6 +648,204 @@ export default createStore({
           message: error.message || 'حدث خطأ في تحميل إحصائيات المستخدمين'
         });
         throw error;
+      }
+    },
+
+    // NEW: Check existing item action
+    async checkExistingItem({ state }, itemData) {
+      try {
+        const itemsRef = collection(db, 'items');
+        const q = query(
+          itemsRef,
+          where('name', '==', itemData.name.trim()),
+          where('code', '==', itemData.code.trim()),
+          where('color', '==', itemData.color.trim()),
+          where('warehouse_id', '==', itemData.warehouse_id)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0];
+          return {
+            exists: true,
+            item: { id: doc.id, ...doc.data() }
+          };
+        }
+        
+        return { exists: false, item: null };
+      } catch (error) {
+        console.error('Error checking existing item:', error);
+        // في حالة خطأ (مثل الحاجة إلى فهرس مركب)، نعود بنتيجة سلبية
+        return { exists: false, item: null };
+      }
+    },
+
+    // NEW: Atomic add inventory item with photo support
+    async addInventoryItemAtomic({ commit, dispatch, state }, { itemData, userId, isAddingCartons = true }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لإضافة أصناف');
+        }
+
+        if (!userId) {
+          throw new Error('معرف المستخدم غير متوفر');
+        }
+
+        if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.color?.trim() || !itemData.warehouse_id) {
+          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+        }
+
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
+            throw new Error('ليس لديك صلاحية لإضافة أصناف في هذا المخزن');
+          }
+        }
+
+        // التحقق من الصورة
+        if (itemData.photo_url && typeof itemData.photo_url !== 'string') {
+          throw new Error('صيغة الصورة غير صحيحة');
+        }
+
+        // احسب الكمية الإجمالية
+        const totalQuantity = InventoryService.calculateTotalQuantity(
+          itemData.cartons_count,
+          itemData.per_carton_count,
+          itemData.single_bottles_count
+        );
+
+        if (totalQuantity <= 0) {
+          throw new Error('يجب إدخال كمية صحيحة');
+        }
+
+        // نظف البيانات
+        const cleanedData = {
+          name: itemData.name.trim(),
+          code: itemData.code.trim(),
+          color: itemData.color.trim(),
+          warehouse_id: itemData.warehouse_id,
+          cartons_count: Number(itemData.cartons_count) || 0,
+          per_carton_count: Number(itemData.per_carton_count) || 12,
+          single_bottles_count: Number(itemData.single_bottles_count) || 0,
+          supplier: itemData.supplier?.trim() || '',
+          item_location: itemData.item_location?.trim() || '',
+          notes: itemData.notes?.trim() || '',
+          photo_url: itemData.photo_url || null,
+          created_by: userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        console.log('Adding/Updating item with data:', {
+          ...cleanedData,
+          photo_url_length: cleanedData.photo_url?.length || 0
+        });
+
+        // تحقق من وجود العنصر المكرر
+        let existingItem = null;
+        try {
+          const itemsRef = collection(db, 'items');
+          const q = query(
+            itemsRef,
+            where('name', '==', cleanedData.name),
+            where('code', '==', cleanedData.code),
+            where('color', '==', cleanedData.color),
+            where('warehouse_id', '==', cleanedData.warehouse_id)
+          );
+          
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            existingItem = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            console.log('Found existing item:', existingItem);
+          }
+        } catch (error) {
+          console.warn('Error checking existing item (might need composite index):', error);
+        }
+
+        let result;
+        if (existingItem) {
+          // تحديث العنصر الموجود
+          const itemRef = doc(db, 'items', existingItem.id);
+          
+          const updateData = {
+            ...cleanedData,
+            cartons_count: existingItem.cartons_count + cleanedData.cartons_count,
+            single_bottles_count: existingItem.single_bottles_count + cleanedData.single_bottles_count,
+            remaining_quantity: existingItem.remaining_quantity + totalQuantity,
+            total_added: existingItem.total_added + totalQuantity,
+            updated_at: new Date().toISOString()
+          };
+
+          // احتفظ بالصورة القديمة إذا لم يتم تقديم صورة جديدة
+          if (!cleanedData.photo_url && existingItem.photo_url) {
+            updateData.photo_url = existingItem.photo_url;
+          }
+
+          await updateDoc(itemRef, updateData);
+          result = { type: 'updated', id: existingItem.id, data: updateData };
+        } else {
+          // إضافة عنصر جديد
+          const newItemData = {
+            ...cleanedData,
+            remaining_quantity: totalQuantity,
+            total_added: totalQuantity
+          };
+
+          const docRef = await addDoc(collection(db, 'items'), newItemData);
+          result = { type: 'created', id: docRef.id, data: newItemData };
+        }
+
+        // سجل الحركة
+        const transactionData = {
+          type: existingItem ? 'UPDATE' : 'ADD',
+          item_id: result.id,
+          item_name: cleanedData.name,
+          item_code: cleanedData.code,
+          from_warehouse: null,
+          to_warehouse: cleanedData.warehouse_id,
+          cartons_delta: cleanedData.cartons_count,
+          per_carton_updated: cleanedData.per_carton_count,
+          single_delta: cleanedData.single_bottles_count,
+          total_delta: totalQuantity,
+          new_remaining: result.data.remaining_quantity,
+          user_id: userId,
+          timestamp: new Date(),
+          notes: cleanedData.notes || (existingItem ? 'تحديث كميات' : 'إضافة صنف جديد'),
+          photo_changed: !!cleanedData.photo_url
+        };
+
+        await addDoc(collection(db, 'transactions'), transactionData);
+
+        console.log(`Item ${result.type} successfully with photo:`, !!cleanedData.photo_url);
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${cleanedData.name}" بنجاح`
+        });
+
+        return result;
+
+      } catch (error) {
+        console.error('Error in addInventoryItemAtomic:', error);
+        const errorMessage = error.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
+        commit('SET_OPERATION_ERROR', errorMessage);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: errorMessage
+        });
+
+        throw error;
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
       }
     },
 

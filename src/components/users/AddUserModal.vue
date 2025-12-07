@@ -524,10 +524,35 @@
 <script>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useStore } from 'vuex';
-import { auth, db } from '@/firebase/config';
+import { auth, db, firebaseConfig } from '@/firebase/config'; // Make sure firebaseConfig is exported
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import WarehouseModal from '@/components/WarehouseModal.vue';
+
+// 🔥 SECONDARY AUTH SETUP - FIXES AUTO-LOGIN ISSUE 🔥
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+// Create a secondary Firebase app instance
+// This prevents Firebase from auto-logging us in when we create a new user
+let secondaryAuth;
+
+// Check if firebaseConfig is available
+if (firebaseConfig && Object.keys(firebaseConfig).length > 0) {
+  try {
+    const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+    secondaryAuth = getAuth(secondaryApp);
+    console.log('✅ Secondary auth initialized successfully for user creation');
+  } catch (error) {
+    console.error('Failed to initialize secondary auth:', error);
+    // Fall back to main auth if secondary fails
+    secondaryAuth = auth;
+  }
+} else {
+  console.warn('Firebase config not found, using main auth as fallback');
+  secondaryAuth = auth;
+}
+// 🔥 END OF SECONDARY AUTH SETUP 🔥
 
 export default {
   name: 'AddUserModal',
@@ -544,7 +569,7 @@ export default {
       default: null
     }
   },
-  emits: ['close', 'save', 'warehouse-updated'],
+  emits: ['close', 'save', 'warehouse-updated', 'success'],
   setup(props, { emit }) {
     const store = useStore();
     
@@ -884,7 +909,8 @@ export default {
         }
       }
     };
-const handleSubmit = async () => {
+
+   const handleSubmit = async () => {
   if (!isFormValid.value) return;
 
   loading.value = true;
@@ -892,57 +918,59 @@ const handleSubmit = async () => {
   validationErrors.value = [];
 
   try {
-    console.log('Starting user submission process...');
+    console.log('=== DEBUG: Starting user submission ===');
 
-    // Get current user ID (superadmin creating the user)
-    const currentUserId = store.state.user?.uid;
-    if (!currentUserId) {
+    // Get current user ID (must be superadmin)
+    const currentUser = store.state.user;
+    if (!currentUser || !currentUser.uid) {
       throw new Error('يجب تسجيل الدخول أولاً');
     }
 
-    // Prepare COMPLETE user data that matches Firebase rules
+    // Prepare user data EXACTLY as Firestore rules expect
     const userData = {
       name: formData.value.name.trim(),
       email: formData.value.email.trim().toLowerCase(),
       role: formData.value.role,
-      is_active: formData.value.is_active !== false, // Ensure boolean
-      phone: formData.value.phone.trim() || null,
+      is_active: formData.value.is_active !== false,
+      phone: formData.value.phone.trim() || '',
       allowed_warehouses: formData.value.role === 'warehouse_manager' 
         ? formData.value.allowed_warehouses 
         : [],
       permissions: Array.isArray(formData.value.permissions) 
         ? formData.value.permissions 
         : [],
-      // CRITICAL: Add fields required by Firebase rules
+      // REQUIRED FIELDS for Firestore rules validation
       profile_complete: true,
       email_verified: false,
-      created_by: currentUserId,
-      // Timestamps
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_by: currentUser.uid,
       last_login: null
     };
 
-    console.log('Prepared user data for Firestore:', userData);
+    console.log('User data prepared:', userData);
 
     let result;
+    let userId;
     
     if (props.user) {
       // UPDATE EXISTING USER
       console.log('Updating existing user:', props.user.id);
+      userId = props.user.id;
       
-      // Don't include created_at and created_by for updates
-      delete userData.created_at;
-      delete userData.created_by;
-      delete userData.profile_complete;
-      delete userData.email_verified;
+      // For updates, only include fields that can be updated
+      const updateData = { 
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        is_active: userData.is_active,
+        phone: userData.phone,
+        allowed_warehouses: userData.allowed_warehouses,
+        permissions: userData.permissions
+      };
       
-      userData.updated_at = new Date();
-      
-      // Use store dispatch for updating user
+      // Update via store
       result = await store.dispatch('updateUser', {
-        userId: props.user.id,
-        userData: userData
+        userId: userId,
+        userData: updateData
       });
       
       if (!result.success) {
@@ -967,23 +995,45 @@ const handleSubmit = async () => {
         throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
       }
 
-      // Create Firebase Auth user first
-      const firebaseUser = await createUserWithEmailAndPassword(
-        auth,
+      // 🔥 FIXED: Use secondaryAuth to prevent auto-login 🔥
+      console.log('Creating Firebase Auth user with email:', userData.email);
+      console.log('Using secondary auth to prevent auto-login...');
+      
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth, // ← CHANGED FROM auth TO secondaryAuth
         userData.email,
         formData.value.password
       );
       
-      // Add user ID to data
-      userData.id = firebaseUser.uid;
+      userId = userCredential.user.uid;
+      console.log('✅ Firebase Auth user created with ID:', userId);
       
-      console.log('Firebase Auth user created:', firebaseUser.uid);
-      console.log('Saving to Firestore:', userData);
+      // Add ID fields - CRITICAL for Firestore rules
+      userData.id = userId;
+      userData.uid = userId; // Required for Firestore rules to work
+      
+      console.log('Final user data with IDs:', userData);
 
-      // Save user profile to Firestore
-      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      // Check if db is available
+      if (!db) {
+        throw new Error('Firestore database not initialized');
+      }
       
-      // Store the password for display
+      // Save to Firestore
+      console.log('Saving to Firestore at path: users/', userId);
+      const userDocRef = doc(db, 'users', userId);
+      await setDoc(userDocRef, userData);
+      console.log('✅ User saved successfully to Firestore');
+      
+      // 🔥 Clean up secondary auth session 🔥
+      try {
+        await secondaryAuth.signOut();
+        console.log('✅ Cleaned up secondary auth session');
+      } catch (signOutError) {
+        console.log('Secondary auth cleanup:', signOutError);
+      }
+      
+      // Success notification
       const resultData = {
         ...userData,
         temporary_password: formData.value.password
@@ -997,47 +1047,41 @@ const handleSubmit = async () => {
       result = { success: true, data: resultData };
     }
 
-    // Emit save event with result data
+    // Emit success and close modal
     if (result && result.success) {
       emit('save', result.data || userData);
+      emit('success', result.data || userData);
       
-      // Close modal
       setTimeout(() => {
         emit('close');
-      }, 500);
-    } else {
-      throw new Error('فشل في عملية الحفظ');
+        resetForm();
+      }, 1000);
     }
     
   } catch (error) {
-    console.error('Error in form submission:', error);
-    console.error('Error details:', error.message, error.code);
+    console.error('❌ Error in form submission:', error);
+    console.error('Error name:', error.name);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
     let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
     
-    // Translate specific validation errors
-    if (error.message.includes('الاسم يجب أن يكون على الأقل حرفين')) {
-      errorMsg = 'الاسم يجب أن يكون على الأقل حرفين';
-    } else if (error.message.includes('البريد الإلكتروني غير صالح')) {
-      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-    } else if (error.code === 'auth/email-already-in-use' || error.message.includes('البريد الإلكتروني مستخدم بالفعل')) {
+    // Handle specific Firebase errors
+    if (error.code === 'auth/email-already-in-use') {
       errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
     } else if (error.code === 'auth/invalid-email') {
       errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-    } else if (error.code === 'auth/weak-password' || error.message.includes('كلمة المرور يجب أن تكون 8 أحرف على الأقل')) {
-      errorMsg = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
-    } else if (error.message.includes('يجب اختيار مخزن واحد على الأقل لمدير المخازن')) {
-      errorMsg = 'يجب اختيار مخزن واحد على الأقل لمدير المخازن';
-    } else if (error.message.includes('يجب تسجيل الدخول أولاً')) {
-      errorMsg = 'يجب تسجيل الدخول أولاً';
-    } else if (error.code === 'permission-denied') {
-      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء';
-    } else if (error.code === 'invalid-argument') {
-      errorMsg = 'بيانات غير صالحة. يرجى التحقق من الحقول';
-    } else if (error.code === 'firestore/permission-denied') {
-      errorMsg = 'ليس لديك صلاحية لإجراء هذا الإجراء. تأكد من أنك سوبر أدمن';
-    } else if (error.message.includes('profile_complete')) {
-      errorMsg = 'بيانات المستخدم غير مكتملة. يرجى التحقق من الحقول المطلوبة';
+    } else if (error.code === 'auth/weak-password') {
+      errorMsg = 'كلمة المرور ضعيفة جداً. يجب أن تكون 8 أحرف على الأقل';
+    } else if (error.code === 'permission-denied' || error.code === 'firestore/permission-denied') {
+      errorMsg = 'صلاحيات غير كافية. تحقق من أنك مسجل كـ مشرف عام';
+    } else if (error.message.includes('indexOf')) {
+      errorMsg = 'خطأ في إنشاء مسار المستخدم. يرجى المحاولة مرة أخرى';
+    } else if (error.message.includes('Firestore database not initialized')) {
+      errorMsg = 'خطأ في تهيئة قاعدة البيانات. يرجى تحديث الصفحة';
+    } else if (error.message.includes('secondaryAuth is not defined')) {
+      errorMsg = 'خطأ في تهيئة النظام. يرجى تحديث الصفحة وإعادة المحاولة';
     }
     
     errorMessage.value = errorMsg;
@@ -1051,7 +1095,6 @@ const handleSubmit = async () => {
     loading.value = false;
   }
 };
-
     watch(() => props.isOpen, async (newVal) => {
       if (newVal) {
         resetForm();

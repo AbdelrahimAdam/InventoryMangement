@@ -226,50 +226,73 @@
             </p>
           </div>
 
-          <!-- Mobile Items Grid -->
+          <!-- Mobile Items Grid with Photo Support -->
           <div v-else>
             <div 
               v-for="item in filteredItems"
               :key="item.id"
               class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 p-4 hover:shadow-md transition-all duration-200"
             >
-              <!-- Item Header -->
-              <div class="flex justify-between items-start mb-3">
-                <div>
-                  <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1">{{ item.name }}</h3>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
-                      {{ item.code }}
-                    </span>
-                    <span :class="getStockStatusClass(item.remaining_quantity)" class="text-xs px-2 py-0.5 rounded-full">
-                      {{ getStockStatus(item.remaining_quantity) }}
-                    </span>
+              <!-- Item Header with Photo -->
+              <div class="flex gap-3 mb-3">
+                <!-- Photo Container -->
+                <div v-if="item.photo_url" class="flex-shrink-0">
+                  <div class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-gray-200/50 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-700">
+                    <img 
+                      :src="item.photo_url" 
+                      :alt="item.name"
+                      class="w-full h-full object-cover"
+                      @error="handleImageError"
+                      loading="lazy"
+                    >
+                    <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                      <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
                   </div>
                 </div>
-                <span :class="getQuantityClass(item.remaining_quantity)" class="text-lg font-bold">
-                  {{ item.remaining_quantity }}
-                </span>
-              </div>
-
-              <!-- Item Details -->
-              <div class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-                <div class="flex items-center gap-2">
-                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                  </svg>
-                  <span>{{ getWarehouseLabel(item.warehouse_id) }} • {{ item.item_location || 'بدون مكان' }}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                  </svg>
-                  <span>اللون: {{ item.color || 'بدون' }}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                  </svg>
-                  <span>المورد: {{ item.supplier || 'بدون' }}</span>
+                
+                <!-- Item Details -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                      <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1 truncate">{{ item.name }}</h3>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+                          {{ item.code }}
+                        </span>
+                        <span :class="getStockStatusClass(item.remaining_quantity)" class="text-xs px-2 py-0.5 rounded-full">
+                          {{ getStockStatus(item.remaining_quantity) }}
+                        </span>
+                      </div>
+                    </div>
+                    <span :class="getQuantityClass(item.remaining_quantity)" class="text-lg font-bold ml-2">
+                      {{ item.remaining_quantity }}
+                    </span>
+                  </div>
+                  
+                  <!-- Item Details -->
+                  <div class="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                      </svg>
+                      <span class="truncate">{{ getWarehouseLabel(item.warehouse_id) }} • {{ item.item_location || 'بدون مكان' }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                      </svg>
+                      <span>اللون: {{ item.color || 'بدون' }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                      </svg>
+                      <span class="truncate">المورد: {{ item.supplier || 'بدون' }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -314,12 +337,13 @@
           </div>
         </div>
 
-        <!-- Desktop Table View -->
+        <!-- Desktop Table View with Photo Support -->
         <div class="hidden lg:block bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
           <!-- Table Header -->
           <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200/50 dark:border-gray-700/50">
-            <div class="grid grid-cols-12 gap-2 px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300">
-              <div class="col-span-3">الاسم والتفاصيل</div>
+            <div class="grid grid-cols-13 gap-2 px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300">
+              <div class="col-span-1 text-center">الصورة</div>
+              <div class="col-span-2">الاسم والتفاصيل</div>
               <div class="col-span-1 text-center">الكود</div>
               <div class="col-span-1 text-center">اللون</div>
               <div class="col-span-1 text-center">المخزن</div>
@@ -363,16 +387,40 @@
               </p>
             </div>
 
-            <!-- Items List -->
+            <!-- Items List with Photos -->
             <div v-else>
               <div 
                 v-for="item in filteredItems"
                 :key="item.id"
-                class="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100/50 dark:border-gray-700/50 hover:bg-gray-50/50 dark:hover:bg-gray-750 transition-colors duration-200"
+                class="grid grid-cols-13 gap-2 px-4 py-3 border-b border-gray-100/50 dark:border-gray-700/50 hover:bg-gray-50/50 dark:hover:bg-gray-750 transition-colors duration-200"
               >
+                <!-- Photo -->
+                <div class="col-span-1 flex items-center justify-center">
+                  <div v-if="item.photo_url" class="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border border-gray-200/50 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-700">
+                    <img 
+                      :src="item.photo_url" 
+                      :alt="item.name"
+                      class="w-full h-full object-cover"
+                      @error="handleImageError"
+                      loading="lazy"
+                      @load="imageLoaded[item.id] = true"
+                    >
+                    <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                      <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div v-else class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                  </div>
+                </div>
+
                 <!-- Item Name and Details -->
-                <div class="col-span-3">
-                  <div class="font-medium text-sm text-gray-900 dark:text-white mb-1">
+                <div class="col-span-2">
+                  <div class="font-medium text-sm text-gray-900 dark:text-white mb-1 truncate">
                     {{ item.name }}
                   </div>
                   <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -380,7 +428,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    {{ item.item_location }}
+                    <span class="truncate">{{ item.item_location }}</span>
                   </div>
                   <div class="flex items-center gap-2 mt-1">
                     <div class="text-xs text-gray-500">
@@ -413,12 +461,12 @@
 
                 <!-- Supplier -->
                 <div class="col-span-1 text-center">
-                  <div class="text-sm text-gray-600 dark:text-gray-400">{{ item.supplier || '-' }}</div>
+                  <div class="text-sm text-gray-600 dark:text-gray-400 truncate px-2">{{ item.supplier || '-' }}</div>
                 </div>
 
                 <!-- Location -->
                 <div class="col-span-1 text-center">
-                  <div class="text-sm text-gray-600 dark:text-gray-400">{{ item.item_location || '-' }}</div>
+                  <div class="text-sm text-gray-600 dark:text-gray-400 truncate px-2">{{ item.item_location || '-' }}</div>
                 </div>
 
                 <!-- Quantity -->
@@ -539,8 +587,69 @@
       @success="handleTransferSuccess"
     />
 
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-200/50 dark:border-gray-700/50">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">تأكيد الحذف</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400">سيتم حذف الصنف نهائياً</p>
+          </div>
+        </div>
+        
+        <div class="mb-6">
+          <p class="text-gray-700 dark:text-gray-300 mb-2">
+            هل أنت متأكد من حذف الصنف:
+          </p>
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+            <div class="flex items-center gap-3 mb-2">
+              <div v-if="itemToDelete?.photo_url" class="w-10 h-10 rounded overflow-hidden border border-gray-200 dark:border-gray-600">
+                <img :src="itemToDelete.photo_url" :alt="itemToDelete?.name" class="w-full h-full object-cover">
+              </div>
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">{{ itemToDelete?.name }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ itemToDelete?.code }} - {{ itemToDelete?.color }}</p>
+              </div>
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              <p>المخزن: {{ getWarehouseLabel(itemToDelete?.warehouse_id) }}</p>
+              <p>الكمية المتبقية: {{ itemToDelete?.remaining_quantity }}</p>
+            </div>
+          </div>
+          <p class="text-sm text-red-600 dark:text-red-400 mt-3">
+            ⚠️ هذا الإجراء لا يمكن التراجع عنه.
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            @click="confirmDelete"
+            :disabled="deleteLoading"
+            class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <svg v-if="deleteLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>{{ deleteLoading ? 'جاري الحذف...' : 'نعم، احذف' }}</span>
+          </button>
+          <button
+            @click="showDeleteConfirm = false"
+            :disabled="deleteLoading"
+            class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            إلغاء
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading Overlay -->
-    <div v-if="operationLoading" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div v-if="operationLoading || deleteLoading" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-xl p-6 sm:p-8 flex flex-col items-center shadow-2xl m-4 border border-gray-200/50 dark:border-gray-700/50">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
         <p class="text-gray-700 dark:text-gray-300 font-medium">جاري المعالجة...</p>
@@ -551,7 +660,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
@@ -578,12 +687,17 @@ export default {
     const showEditModal = ref(false);
     const showTransferModal = ref(false);
     const showDispatchModal = ref(false);
+    const showDeleteConfirm = ref(false);
     const searchTerm = ref('');
     const statusFilter = ref('');
     const selectedWarehouse = ref('');
     const selectedItemForEdit = ref(null);
     const selectedItemForTransfer = ref(null);
     const selectedItemForDispatch = ref(null);
+    const itemToDelete = ref(null);
+    const deleteLoading = ref(false);
+    const imageLoaded = reactive({});
+    const searchTimeout = ref(null);
     
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
@@ -641,7 +755,7 @@ export default {
       return canEditItem(item);
     };
     
-    // Filtered items
+    // Filtered items with photo support
     const filteredItems = computed(() => {
       let filtered = [...inventory.value];
       
@@ -668,7 +782,8 @@ export default {
           item.name?.toLowerCase().includes(term) ||
           item.code?.toLowerCase().includes(term) ||
           item.color?.toLowerCase().includes(term) ||
-          item.supplier?.toLowerCase().includes(term)
+          item.supplier?.toLowerCase().includes(term) ||
+          item.item_location?.toLowerCase().includes(term)
         );
       }
       
@@ -705,38 +820,76 @@ export default {
     
     const formatDate = (date) => {
       if (!date) return '-';
-      const dateObj = date.toDate ? date.toDate() : new Date(date);
-      return new Intl.DateTimeFormat('ar-EG', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(dateObj);
+      try {
+        const dateObj = date.toDate ? date.toDate() : new Date(date);
+        return new Intl.DateTimeFormat('ar-EG', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(dateObj);
+      } catch (e) {
+        return '-';
+      }
+    };
+    
+    const handleImageError = (event) => {
+      const img = event.target;
+      img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
+      img.onerror = null; // Prevent infinite loop
     };
     
     // Action Methods
     const updateWarehouseFilter = () => {
-      // Filter update logic
+      store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
     };
     
     const updateStatusFilter = () => {
-      // Filter update logic
+      // Status filter is local to this component
     };
     
     const handleSearch = () => {
-      // Search logic
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
+      
+      searchTimeout.value = setTimeout(() => {
+        store.dispatch('updateFilters', { search: searchTerm.value });
+      }, 300);
     };
     
-    const refreshData = () => {
-      searchTerm.value = '';
-      statusFilter.value = '';
-      selectedWarehouse.value = '';
-      error.value = '';
-      store.dispatch('fetchInventory');
+    const refreshData = async () => {
+      try {
+        loading.value = true;
+        searchTerm.value = '';
+        statusFilter.value = '';
+        selectedWarehouse.value = '';
+        error.value = '';
+        
+        // Clear store filters
+        store.dispatch('updateFilters', { search: '', warehouse: '' });
+        
+        // Refresh subscriptions
+        await store.dispatch('subscribeToInventory');
+        await store.dispatch('getRecentTransactions');
+        
+        // Reset image loaded state
+        Object.keys(imageLoaded).forEach(key => {
+          delete imageLoaded[key];
+        });
+        
+      } catch (err) {
+        error.value = 'حدث خطأ في تحديث البيانات: ' + err.message;
+      } finally {
+        loading.value = false;
+      }
     };
     
     const exportInventory = () => {
       try {
         const headers = [
+          'الصورة',
           'اسم الصنف',
           'الكود',
           'اللون',
@@ -753,6 +906,7 @@ export default {
         ];
         
         const csvData = filteredItems.value.map(item => [
+          item.photo_url || '',
           item.name || '',
           item.code || '',
           item.color || '',
@@ -789,7 +943,10 @@ export default {
     
     const handleTransfer = (item) => {
       if (!canTransferItem(item)) {
-        alert('ليس لديك صلاحية النقل من هذا المخزن');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية النقل من هذا المخزن'
+        });
         return;
       }
       selectedItemForTransfer.value = item;
@@ -798,7 +955,10 @@ export default {
     
     const handleDispatch = (item) => {
       if (!canDispatchItem(item)) {
-        alert('ليس لديك صلاحية الصرف من هذا المخزن');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية الصرف من هذا المخزن'
+        });
         return;
       }
       selectedItemForDispatch.value = item;
@@ -807,7 +967,10 @@ export default {
     
     const handleEdit = (item) => {
       if (!canEditItem(item)) {
-        alert('ليس لديك صلاحية التعديل على هذا المخزن');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية التعديل على هذا المخزن'
+        });
         return;
       }
       selectedItemForEdit.value = item;
@@ -816,40 +979,84 @@ export default {
     
     const handleDelete = (item) => {
       if (!canDeleteItem(item)) {
-        alert('ليس لديك صلاحية الحذف من هذا المخزن');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية الحذف من هذا المخزن'
+        });
         return;
       }
       
-      if (confirm(`هل أنت متأكد من حذف الصنف "${item.name}" (${item.code})؟`)) {
-        store.dispatch('deleteInventoryItem', item.id).then(() => {
-          alert('تم حذف الصنف بنجاح');
-        }).catch(err => {
-          error.value = 'فشل في حذف الصنف: ' + err.message;
+      if (item.remaining_quantity > 0) {
+        const confirmMessage = `هل أنت متأكد من حذف الصنف "${item.name}" (${item.code})؟ 
+        
+        ⚠️ يوجد ${item.remaining_quantity} قطعة متبقية في المخزون.
+        
+        سيتم حذف الصنف نهائياً مع جميع سجلاته.`;
+        
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+      }
+      
+      itemToDelete.value = item;
+      showDeleteConfirm.value = true;
+    };
+    
+    const confirmDelete = async () => {
+      try {
+        deleteLoading.value = true;
+        
+        // Import the inventory service
+        const { deleteItem } = await import('@/services/inventoryService');
+        
+        // Call delete from inventory service
+        const result = await deleteItem(itemToDelete.value.id, store.state.user?.uid);
+        
+        if (result.success) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم حذف الصنف "${itemToDelete.value.name}" بنجاح`
+          });
+          
+          // Refresh data
+          await refreshData();
+        } else {
+          throw new Error(result.error || 'فشل في حذف الصنف');
+        }
+      } catch (err) {
+        console.error('Error deleting item:', err);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'فشل في حذف الصنف: ' + err.message
         });
+      } finally {
+        deleteLoading.value = false;
+        showDeleteConfirm.value = false;
+        itemToDelete.value = null;
       }
     };
     
     const handleItemSaved = () => {
       showAddModal.value = false;
-      alert('تم إضافة الصنف بنجاح');
+      refreshData();
     };
     
     const handleItemUpdated = () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
-      alert('تم تحديث الصنف بنجاح');
+      refreshData();
     };
     
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
-      alert('تم النقل بنجاح');
+      refreshData();
     };
     
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
-      alert('تم الصرف بنجاح');
+      refreshData();
     };
     
     // Lifecycle
@@ -857,12 +1064,27 @@ export default {
       // Set initial warehouse filter based on user's allowed warehouses
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
+        updateWarehouseFilter();
       }
       
       // Check if we're in add mode from route
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
+      
+      // Initialize image loaded state
+      inventory.value.forEach(item => {
+        if (item.photo_url) {
+          const img = new Image();
+          img.src = item.photo_url;
+          img.onload = () => {
+            imageLoaded[item.id] = true;
+          };
+          img.onerror = () => {
+            imageLoaded[item.id] = false;
+          };
+        }
+      });
     });
     
     // Watch for operation errors
@@ -876,6 +1098,22 @@ export default {
       }
     });
     
+    // Watch for inventory changes to update image loaded state
+    watch(inventory, (newInventory) => {
+      newInventory.forEach(item => {
+        if (item.photo_url && !imageLoaded[item.id]) {
+          const img = new Image();
+          img.src = item.photo_url;
+          img.onload = () => {
+            imageLoaded[item.id] = true;
+          };
+          img.onerror = () => {
+            imageLoaded[item.id] = false;
+          };
+        }
+      });
+    }, { deep: true });
+    
     return {
       // State
       loading,
@@ -884,12 +1122,16 @@ export default {
       showEditModal,
       showTransferModal,
       showDispatchModal,
+      showDeleteConfirm,
       searchTerm,
       statusFilter,
       selectedWarehouse,
       selectedItemForEdit,
       selectedItemForTransfer,
       selectedItemForDispatch,
+      itemToDelete,
+      deleteLoading,
+      imageLoaded,
       
       // Computed
       userRole,
@@ -913,6 +1155,7 @@ export default {
       getStockStatusClass,
       getQuantityClass,
       formatDate,
+      handleImageError,
       
       // Permission Methods
       canEditItem,
@@ -930,6 +1173,7 @@ export default {
       handleDispatch,
       handleEdit,
       handleDelete,
+      confirmDelete,
       handleItemSaved,
       handleItemUpdated,
       handleTransferSuccess,
@@ -1144,5 +1388,64 @@ button:hover:not(:disabled) {
 /* Active state for buttons */
 .active\:scale-\[0\.98\]:active {
   transform: scale(0.98);
+}
+
+/* Image loading animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Responsive image container */
+.img-container {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+.dark .img-container {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Grid columns for responsive layout */
+.grid-cols-13 {
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+}
+
+/* Ensure images maintain aspect ratio */
+img {
+  max-width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* Truncate text for long content */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive font sizes for mobile */
+@media (max-width: 640px) {
+  .text-xs-mobile {
+    font-size: 0.75rem;
+  }
+  
+  .text-sm-mobile {
+    font-size: 0.875rem;
+  }
 }
 </style>
