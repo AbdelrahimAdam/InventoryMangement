@@ -1,80 +1,25 @@
 <template>
-  <!-- Mobile Layout -->
-  <MobileLayout v-if="isMobile && !initializing" />
-
-  <!-- Desktop Layout -->
-  <DesktopLayout v-else-if="!initializing" />
-
   <!-- Loading State -->
-  <div v-else class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
+  <div v-if="initializing" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-950">
     <div class="text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
       <p class="mt-4 text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
     </div>
   </div>
 
-  <!-- Debug Panel (Development Only) -->
-  <div v-if="isDevelopment && !initializing" class="fixed bottom-20 right-4 z-50">
-    <button 
-      @click="toggleDebugPanel"
-      class="bg-gray-800 text-white p-2 rounded-full shadow-lg"
-      aria-label="فتح لوحة التصحيح"
-    >
-      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-      </svg>
-    </button>
-    
-    <div v-if="showDebugPanel" class="absolute bottom-full right-0 mb-2 bg-gray-900 text-white rounded-lg shadow-xl p-4 w-80 max-h-96 overflow-auto">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="font-bold">لوحة التصحيح</h3>
-        <button @click="toggleDebugPanel" class="text-gray-400 hover:text-white">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-      
-      <div class="space-y-3 text-sm">
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-gray-800 p-2 rounded">
-            <p class="text-gray-400">النظام</p>
-            <p>{{ isMobile ? 'جوال' : 'سطح مكتب' }}</p>
-          </div>
-          <div class="bg-gray-800 p-2 rounded">
-            <p class="text-gray-400">المسار</p>
-            <p class="truncate">{{ currentRoutePath }}</p>
-          </div>
-        </div>
-        
-        <div class="bg-gray-800 p-2 rounded">
-          <p class="text-gray-400">معلومات المستخدم</p>
-          <p v-if="userName">{{ userName }}</p>
-          <p v-else class="text-gray-500">غير مسجل</p>
-        </div>
-        
-        <div class="space-y-2">
-          <button @click="testNavigation" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded text-sm">
-            اختبار التنقل
-          </button>
-          <button @click="reloadApp" class="w-full bg-yellow-600 hover:bg-yellow-700 p-2 rounded text-sm">
-            إعادة تحميل
-          </button>
-          <button @click="clearCache" class="w-full bg-red-600 hover:bg-red-700 p-2 rounded text-sm">
-            مسح الذاكرة
-          </button>
-        </div>
-        
-        <div class="bg-gray-800 p-2 rounded">
-          <p class="text-gray-400 mb-1">سجل الأحداث</p>
-          <div class="space-y-1 max-h-32 overflow-y-auto">
-            <div v-for="(log, index) in debugLogs" :key="index" class="text-xs p-1 bg-gray-700 rounded">
-              {{ log }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- Main App Content -->
+  <div v-else>
+    <!-- Authenticated User - Show Layouts -->
+    <template v-if="isAuthenticated">
+      <!-- Mobile Layout -->
+      <MobileLayout v-if="isMobile" />
+
+      <!-- Desktop Layout -->
+      <DesktopLayout v-else />
+    </template>
+
+    <!-- Not Authenticated - Show Router View (Login Page) -->
+    <router-view v-else />
   </div>
 
   <!-- Toast Notification -->
@@ -86,6 +31,20 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
       </button>
+    </div>
+  </div>
+
+  <!-- Development Tools -->
+  <div v-if="isDevelopment && !initializing" class="fixed bottom-4 right-4 z-50">
+    <div class="bg-gray-800 text-white text-xs p-2 rounded-lg opacity-75">
+      <div class="grid grid-cols-2 gap-1">
+        <span>النظام:</span>
+        <span>{{ isMobile ? 'جوال' : 'سطح مكتب' }}</span>
+        <span>الحالة:</span>
+        <span>{{ isAuthenticated ? 'مسجل' : 'غير مسجل' }}</span>
+        <span>المستخدم:</span>
+        <span class="truncate max-w-[100px]">{{ userName || '---' }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -111,10 +70,6 @@ export default {
     
     const initializing = ref(true);
     const isMobile = ref(false);
-    const showDebugPanel = ref(false);
-    
-    // Development mode check
-    const isDevelopment = ref(process.env.NODE_ENV === 'development');
     
     // Toast notification
     const toast = ref({
@@ -123,21 +78,14 @@ export default {
       type: 'info'
     });
     
-    // Debug logs
-    const debugLogs = ref([]);
+    // Development mode check
+    const isDevelopment = ref(process.env.NODE_ENV === 'development');
     
-    // Add debug log
-    const addDebugLog = (message) => {
-      if (!isDevelopment.value) return;
-      
-      const timestamp = new Date().toLocaleTimeString('ar-EG');
-      debugLogs.value.unshift(`[${timestamp}] ${message}`);
-      
-      // Keep only last 10 logs
-      if (debugLogs.value.length > 10) {
-        debugLogs.value = debugLogs.value.slice(0, 10);
-      }
-    };
+    // Computed properties
+    const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const userProfile = computed(() => store.state.userProfile);
+    const userName = computed(() => store.getters.userName);
+    const userRole = computed(() => store.getters.userRole);
     
     // Show toast
     const showToast = (message, type = 'info', duration = 3000) => {
@@ -146,8 +94,6 @@ export default {
         message,
         type
       };
-      
-      addDebugLog(`Toast: ${message}`);
       
       setTimeout(() => {
         if (toast.value.message === message) {
@@ -172,266 +118,127 @@ export default {
       return classes[toast.value.type] || 'bg-blue-500';
     });
     
-    // Check if mobile with debounce
+    // Check if mobile
     const checkIfMobile = () => {
       isMobile.value = window.innerWidth < 1024;
-      addDebugLog(`Device check: ${isMobile.value ? 'Mobile' : 'Desktop'} (${window.innerWidth}px)`);
+      console.log('Device check:', isMobile.value ? 'Mobile' : 'Desktop', window.innerWidth);
     };
     
-    // Handle online/offline status
-    const updateOnlineStatus = () => {
-      const isOnline = navigator.onLine;
-      addDebugLog(`Network: ${isOnline ? 'Online' : 'Offline'}`);
-      
-      if (!isOnline) {
-        showToast('أنت غير متصل بالإنترنت', 'warning', 5000);
-      } else if (initializing.value === false) {
-        showToast('تم استعادة الاتصال بالإنترنت', 'success');
-      }
-    };
-    
-    // Test navigation
-    const testNavigation = async () => {
-      addDebugLog('Testing navigation to /test');
-      try {
-        await router.push('/test');
-        showToast('✅ اختبار التنقل ناجح', 'success');
-      } catch (error) {
-        addDebugLog(`Navigation test failed: ${error.message}`);
-        showToast('❌ فشل اختبار التنقل', 'error');
-      }
-    };
-    
-    // Reload app
-    const reloadApp = () => {
-      addDebugLog('Reloading application');
-      showToast('جاري إعادة تحميل التطبيق...', 'info');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    };
-    
-    // Clear cache
-    const clearCache = async () => {
-      try {
-        // Clear localStorage
-        localStorage.clear();
-        
-        // Clear sessionStorage
-        sessionStorage.clear();
-        
-        // Clear IndexedDB (if used)
-        if ('indexedDB' in window) {
-          const databases = await window.indexedDB.databases();
-          databases.forEach(db => {
-            if (db.name) window.indexedDB.deleteDatabase(db.name);
-          });
-        }
-        
-        // Clear service worker cache
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map(name => caches.delete(name)));
-        }
-        
-        addDebugLog('Cache cleared successfully');
-        showToast('✅ تم مسح الذاكرة المؤقتة', 'success');
-        
-        // Reload after clearing cache
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-        
-      } catch (error) {
-        addDebugLog(`Cache clear failed: ${error.message}`);
-        showToast('❌ فشل في مسح الذاكرة المؤقتة', 'error');
-      }
-    };
-    
-    // Toggle debug panel
-    const toggleDebugPanel = () => {
-      showDebugPanel.value = !showDebugPanel.value;
-      addDebugLog(`Debug panel ${showDebugPanel.value ? 'opened' : 'closed'}`);
-    };
-    
-    // Handle authentication state changes
-    const setupAuthListener = () => {
-      const unsubscribe = store.subscribe((mutation, state) => {
-        addDebugLog(`Store mutation: ${mutation.type}`);
-        
-        if (mutation.type === 'SET_AUTH_STATE') {
-          const isAuthenticated = state.isAuthenticated;
-          const currentRoute = router.currentRoute.value;
-          
-          addDebugLog(`Auth state changed: ${isAuthenticated ? 'Authenticated' : 'Not authenticated'}`);
-          
-          // Handle logout
-          if (!isAuthenticated && !currentRoute.meta?.public) {
-            addDebugLog('User logged out, redirecting to login');
-            router.push('/login');
-          }
-          
-          // Handle login
-          if (isAuthenticated && currentRoute.name === 'Login') {
-            addDebugLog('User logged in, redirecting to dashboard');
-            router.push('/dashboard');
-          }
-        }
-        
-        // Handle loading states
-        if (mutation.type.includes('LOADING')) {
-          addDebugLog(`Loading: ${mutation.payload || mutation.type}`);
-        }
-        
-        // Handle errors
-        if (mutation.type.includes('ERROR')) {
-          const errorMessage = mutation.payload?.message || 'حدث خطأ غير معروف';
-          addDebugLog(`Error: ${errorMessage}`);
-          showToast(errorMessage, 'error');
-        }
+    // Handle authentication and routing
+    const handleAuthAndRouting = () => {
+      console.log('Auth state changed:', {
+        isAuthenticated: isAuthenticated.value,
+        currentRoute: route.path,
+        routeName: route.name,
+        userProfile: userProfile.value
       });
       
-      // Store unsubscribe for cleanup
-      store.state.unsubscribeAuthListener = unsubscribe;
-    };
-    
-    // Handle route changes
-    const setupRouteWatcher = () => {
-      watch(
-        () => route.path,
-        (newPath, oldPath) => {
-          addDebugLog(`Route changed: ${oldPath} → ${newPath}`);
-          
-          // Update page title
-          if (route.meta?.title) {
-            document.title = `${route.meta.title} - نظام إدارة المخازن`;
-          }
-          
-          // Scroll to top on route change (except for hash links)
-          if (!route.hash) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        },
-        { immediate: true }
-      );
-    };
-    
-    // Handle visibility change (tab switching)
-    const handleVisibilityChange = () => {
-      const isVisible = !document.hidden;
-      addDebugLog(`App ${isVisible ? 'visible' : 'hidden'}`);
-      
-      if (isVisible) {
-        // Refresh data when app becomes visible again
-        store.dispatch('refreshData').catch(console.error);
+      // If not authenticated and trying to access protected route
+      if (!isAuthenticated.value && route.meta?.requiresAuth) {
+        console.log('Not authenticated, redirecting to login');
+        router.replace('/login');
+        return;
       }
+      
+      // If authenticated and trying to access login page
+      if (isAuthenticated.value && route.name === 'Login') {
+        console.log('Already authenticated, redirecting to dashboard');
+        router.replace('/dashboard');
+        return;
+      }
+      
+      // If authenticated but user profile is not loaded yet
+      if (isAuthenticated.value && !userProfile.value) {
+        console.log('Authenticated but profile not loaded, staying on current page');
+        // The profile will load automatically via the auth listener
+        return;
+      }
+      
+      // If authenticated and user profile is loaded but inactive
+      if (isAuthenticated.value && userProfile.value && userProfile.value.is_active === false) {
+        console.log('User account is inactive');
+        // The store will handle logout automatically
+        return;
+      }
+      
+      console.log('Auth and routing check passed');
     };
     
-    // Handle beforeunload (save state)
-    const handleBeforeUnload = (event) => {
-      // Save any unsaved data to localStorage
-      const unsavedChanges = store.state.unsavedChanges;
-      if (unsavedChanges) {
-        event.preventDefault();
-        event.returnValue = 'لديك تغييرات غير محفوظة. هل تريد المتابعة؟';
-        return event.returnValue;
+    // Initialize the app
+    const initializeApp = async () => {
+      console.log('Starting app initialization...');
+      
+      try {
+        // Check if mobile
+        checkIfMobile();
+        window.addEventListener('resize', checkIfMobile);
+        
+        // Initialize authentication via store
+        console.log('Initializing auth via store...');
+        await store.dispatch('initializeAuth');
+        
+        console.log('Auth initialization complete', {
+          isAuthenticated: isAuthenticated.value,
+          hasUser: !!store.state.user,
+          hasProfile: !!userProfile.value
+        });
+        
+        // Watch for authentication changes
+        watch(isAuthenticated, (newVal, oldVal) => {
+          console.log('Authentication state changed:', { old: oldVal, new: newVal });
+          handleAuthAndRouting();
+        }, { immediate: true });
+        
+        // Watch for route changes
+        watch(() => route.path, (newPath, oldPath) => {
+          console.log('Route changed:', { from: oldPath, to: newPath });
+          handleAuthAndRouting();
+        });
+        
+        // Initial check
+        setTimeout(() => {
+          handleAuthAndRouting();
+        }, 100);
+        
+      } catch (error) {
+        console.error('App initialization error:', error);
+        showToast('حدث خطأ في تحميل النظام', 'error');
+      } finally {
+        setTimeout(() => {
+          initializing.value = false;
+          console.log('App initialization complete');
+          
+          // Show welcome message if authenticated
+          if (isAuthenticated.value && userName.value) {
+            showToast(`مرحباً ${userName.value}!`, 'success');
+          }
+        }, 500);
       }
     };
     
     // Lifecycle
     onMounted(async () => {
-      addDebugLog('App mounting...');
-      
-      try {
-        // Initialize auth
-        addDebugLog('Initializing authentication...');
-        await store.dispatch('initializeAuth');
-        addDebugLog('Authentication initialized');
-        
-        // Check if mobile
-        checkIfMobile();
-        window.addEventListener('resize', checkIfMobile);
-        
-        // Set up event listeners
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        
-        // Set up auth listener
-        setupAuthListener();
-        
-        // Set up route watcher
-        setupRouteWatcher();
-        
-        // Check initial online status
-        updateOnlineStatus();
-        
-        // Add initial debug info
-        addDebugLog(`App initialized - Mobile: ${isMobile.value}, Authenticated: ${store.getters.isAuthenticated}`);
-        addDebugLog(`Current route: ${route.path}`);
-        
-        // Show welcome message if authenticated
-        if (store.getters.isAuthenticated) {
-          const userName = store.getters.userName;
-          if (userName) {
-            setTimeout(() => {
-              showToast(`مرحباً ${userName}!`, 'success');
-            }, 1000);
-          }
-        }
-        
-      } catch (error) {
-        console.error('App initialization error:', error);
-        addDebugLog(`Initialization error: ${error.message}`);
-        showToast('حدث خطأ في تحميل النظام', 'error');
-      } finally {
-        setTimeout(() => {
-          initializing.value = false;
-          addDebugLog('App initialization complete');
-        }, 500);
-      }
+      await initializeApp();
     });
     
     onUnmounted(() => {
-      addDebugLog('App unmounting...');
-      
-      // Remove event listeners
       window.removeEventListener('resize', checkIfMobile);
-      window.removeEventListener('online', updateOnlineStatus);
-      window.removeEventListener('offline', updateOnlineStatus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      
-      // Unsubscribe from store
-      if (store.state.unsubscribeAuthListener) {
-        store.state.unsubscribeAuthListener();
-      }
     });
-    
-    // Computed properties
-    const currentRoutePath = computed(() => route.path);
-    const userName = computed(() => store.getters.userName);
     
     return {
       // State
       initializing,
       isMobile,
-      showDebugPanel,
-      isDevelopment,
       toast,
-      debugLogs,
+      isDevelopment,
       
       // Computed
-      currentRoutePath,
+      isAuthenticated,
       userName,
+      userRole,
       toastClasses,
       
       // Methods
-      testNavigation,
-      reloadApp,
-      clearCache,
-      toggleDebugPanel,
       hideToast
     };
   }
@@ -679,18 +486,6 @@ export default {
   }
 }
 
-/* Debug panel animations */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Mobile tap highlight */
 button, 
 [role="button"],
@@ -724,45 +519,6 @@ button:disabled,
   
   a[href]:after {
     content: " (" attr(href) ")";
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --sky-light: #ffffff;
-    --sky-mid: #cccccc;
-    --sky-dark: #999999;
-  }
-}
-
-/* Reduced transparency */
-@media (prefers-reduced-transparency: reduce) {
-  .bg-white\/90,
-  .bg-gray-900\/90,
-  .backdrop-blur-lg {
-    background-color: rgba(255, 255, 255, 1) !important;
-    backdrop-filter: none !important;
-  }
-  
-  .dark .bg-white\/90,
-  .dark .bg-gray-900\/90 {
-    background-color: rgba(17, 24, 39, 1) !important;
-  }
-}
-
-/* Mobile orientation warnings */
-@media (orientation: portrait) and (max-width: 768px) {
-  .orientation-warning {
-    display: none; /* You can add orientation warning if needed */
-  }
-}
-
-@media (orientation: landscape) and (max-height: 500px) {
-  /* Adjust layout for landscape mobile */
-  .mobile-layout {
-    max-height: 100vh;
-    overflow-y: auto;
   }
 }
 </style>
