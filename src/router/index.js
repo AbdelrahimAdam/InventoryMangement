@@ -59,7 +59,7 @@ const routes = [
   {
     path: '/inventory/add',
     name: 'AddInventory',
-    component: () => import('@/views/AddItem.vue'),
+    component: () => import('@/views/inventory/AddItemModal.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -72,7 +72,7 @@ const routes = [
   {
     path: '/inventory/edit/:id',
     name: 'EditInventory',
-    component: () => import('@/views/EditItem.vue'),
+    component: () => import('@/views/inventory/EditItemModal.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
