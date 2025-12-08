@@ -335,11 +335,11 @@
             <router-view />
           </main>
 
-          <!-- Mobile Bottom Navigation -->
+                    <!-- Mobile Bottom Navigation -->
           <div 
             ref="bottomNav"
             :class="[
-              'fixed bottom-0 left-0 right-0 z-40 pb-safe transition-transform duration-300',
+              'fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300',
               bottomNavHidden ? 'translate-y-full' : 'translate-y-0'
             ]"
           >
@@ -411,7 +411,7 @@
                 <button 
                   v-if="canModifyItems"
                   @click="openAddItemModal" 
-                  class="flex flex-col items-center p-2 rounded-xl transition-all duration-200 group"
+                  class="flex flex-col items-center p-2 rounded-xl transition-all duration-200 group relative -top-3"
                 >
                   <div class="relative">
                     <!-- Outer Glow Effect -->
@@ -454,8 +454,10 @@
                 </button>
               </div>
             </div>
+            
+            <!-- Safe area spacer (only for iOS) -->
+            <div class="h-safe-bottom bg-transparent"></div>
           </div>
-        </div>
         <!-- ============================================== -->
         <!-- END MOBILE ONLY LAYOUT -->
         <!-- ============================================== -->
