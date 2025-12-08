@@ -1,5 +1,37 @@
 <template>
   <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <!-- Global Notifications (Real-time from store) -->
+    <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2">
+      <transition-group name="notification">
+        <div 
+          v-for="notification in notifications" 
+          :key="notification.id"
+          :class="[
+            'p-4 rounded-lg shadow-lg border transform transition-all duration-300',
+            notification.type === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' :
+            notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' :
+            notification.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' :
+            'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+          ]"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h3 v-if="notification.title" class="font-semibold mb-1">{{ notification.title }}</h3>
+              <p class="text-sm">{{ notification.message }}</p>
+            </div>
+            <button 
+              @click="removeNotification(notification.id)"
+              class="mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </transition-group>
+    </div>
+
     <!-- Show loading while initializing -->
     <div v-if="initializing" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
@@ -21,7 +53,7 @@
       <!-- Authenticated layout -->
       <template v-else>
         <!-- ============================================== -->
-        <!-- MOBILE ONLY LAYOUT (FIXED VERSION) -->
+        <!-- MOBILE ONLY LAYOUT (WITH REAL-TIME DATA) -->
         <!-- ============================================== -->
         <div class="lg:hidden h-full flex flex-col">
           <!-- Mobile Sidebar Overlay -->
@@ -62,19 +94,23 @@
                   </button>
                 </div>
 
-                <!-- User Profile -->
+                <!-- User Profile with Real Data -->
                 <div class="flex items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50">
                   <div class="h-9 w-9 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
                     <span class="text-white font-medium text-xs">
-                      {{ getUserInitials(userProfile?.name || userProfile?.email) }}
+                      {{ getUserInitials(userProfile?.name || userProfile?.email || user?.email || 'م') }}
                     </span>
                   </div>
                   <div class="text-right flex-1">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ userProfile?.name || userProfile?.email }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ getRoleName(userRole) }}</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {{ userProfile?.name || userProfile?.email || user?.email || 'مستخدم' }}
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {{ getRoleName(userRole) || 'مستخدم' }}
+                    </p>
                   </div>
                   <span :class="['px-2 py-1 rounded-full text-xs font-medium', roleBadgeClass]">
-                    {{ getRoleName(userRole) }}
+                    {{ getRoleName(userRole) || 'مستخدم' }}
                   </span>
                 </div>
               </div>
@@ -96,6 +132,24 @@
                     class="block w-full pr-10 pl-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                     aria-label="بحث عن صنف"
                   />
+                </div>
+              </div>
+
+              <!-- Real-time Stats in Sidebar -->
+              <div v-if="dashboardStats" class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/10 dark:to-yellow-800/5">
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="text-center">
+                    <div class="text-xs text-gray-600 dark:text-gray-400">الأصناف</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">
+                      {{ dashboardStats.totalItems || 0 }}
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-xs text-gray-600 dark:text-gray-400">منخفضة</div>
+                    <div class="text-lg font-bold text-red-600 dark:text-red-400">
+                      {{ dashboardStats.lowStockItems || 0 }}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -259,17 +313,17 @@
                   </svg>
                 </button>
 
-                <!-- Center: Clean page title -->
+                <!-- Center: Clean page title with real data -->
                 <div class="flex-1 text-center px-2">
                   <h1 class="text-lg font-bold text-gray-900 dark:text-white truncate">
                     {{ getPageTitle() }}
                   </h1>
-                  <p v-if="currentWarehouse" class="text-xs text-yellow-600 dark:text-yellow-400 truncate">
-                    {{ currentWarehouse?.name || '' }}
+                  <p v-if="currentWarehouseName" class="text-xs text-yellow-600 dark:text-yellow-400 truncate">
+                    {{ currentWarehouseName }}
                   </p>
                 </div>
 
-                <!-- Right: Actions -->
+                <!-- Right: Actions with real notification count -->
                 <div class="flex items-center space-x-2 space-x-reverse">
                   <button 
                     @click="toggleDarkMode"
@@ -284,6 +338,7 @@
                     </svg>
                   </button>
 
+                  <!-- Real-time notifications button -->
                   <button 
                     @click="showNotifications"
                     class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -292,15 +347,15 @@
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    <span v-if="notificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
-                      {{ notificationCount > 9 ? '9+' : notificationCount }}
+                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                      {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
                     </span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- Mobile Stats Bar (Only on Dashboard) -->
+            <!-- Mobile Stats Bar (Real-time data from store) -->
             <div v-if="dashboardStats && $route.path === '/'" class="px-4 pb-3">
               <div class="grid grid-cols-2 gap-3">
                 <div class="bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 p-3 rounded-xl border border-yellow-100 dark:border-yellow-900/20">
@@ -334,9 +389,36 @@
             </div>
           </header>
 
-          <!-- Mobile Main Content (Fixed Scrolling) -->
+          <!-- Mobile Main Content with Real-time Data -->
           <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-            <!-- Special handling for scrolling issues -->
+            <!-- Show operation loading if any store operation is loading -->
+            <div v-if="operationLoading" class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
+              <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
+                <p class="mt-4 text-gray-700 dark:text-gray-300">جاري المعالجة...</p>
+              </div>
+            </div>
+
+            <!-- Show operation error if any -->
+            <div v-if="operationError" class="fixed top-4 left-4 right-4 z-50">
+              <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg shadow-lg">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-red-800 dark:text-red-200 text-sm">{{ operationError }}</p>
+                  </div>
+                  <button 
+                    @click="clearOperationError"
+                    class="mr-2 text-red-600 dark:text-red-400"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content area with proper scrolling -->
             <div :class="{'h-full': $route.name === 'ItemDetails' || $route.name === 'AddItem'}">
               <div class="h-full overflow-y-auto pb-20">
                 <router-view />
@@ -344,7 +426,7 @@
             </div>
           </main>
 
-          <!-- Mobile Bottom Navigation (Simplified) -->
+          <!-- Mobile Bottom Navigation -->
           <div v-if="isAuthenticated && showBottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg pb-safe">
             <div class="grid grid-cols-4 gap-1 p-2">
               <!-- Home -->
@@ -451,9 +533,35 @@ export default {
     const isDarkMode = ref(false);
     const mobileSearchTerm = ref('');
 
-    // Check authentication status
+    // REAL-TIME DATA from Vuex store
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const user = computed(() => store.state.user);
+    const userProfile = computed(() => store.state.userProfile);
+    const userRole = computed(() => store.getters.userRole);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
+    const notifications = computed(() => store.state.notifications);
+    const realNotificationCount = computed(() => store.state.notifications.length);
+    const operationLoading = computed(() => store.state.operationLoading);
+    const operationError = computed(() => store.state.operationError);
+    const warehouses = computed(() => store.state.warehouses);
+    const mainWarehouse = computed(() => store.getters.mainWarehouse);
     
+    // Current warehouse name (from real data)
+    const currentWarehouseName = computed(() => {
+      if (mainWarehouse.value) {
+        return mainWarehouse.value.name_ar;
+      }
+      
+      // If user has allowed warehouses, show the first one
+      const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0) {
+        const firstWarehouse = warehouses.value.find(w => w.id === allowedWarehouses[0]);
+        return firstWarehouse?.name_ar || '';
+      }
+      
+      return '';
+    });
+
     // Check if current route is public
     const isPublicRoute = computed(() => {
       const publicRoutes = ['Login', 'Unauthorized', 'NotFound'];
@@ -465,14 +573,6 @@ export default {
       const hideBottomNavRoutes = ['/login', '/unauthorized', '/notfound'];
       return !hideBottomNavRoutes.includes(route.path) && isAuthenticated.value;
     });
-    
-    // Get user info for permissions
-    const userRole = computed(() => store.getters.userRole);
-    const userProfile = computed(() => store.state.userProfile);
-    const dashboardStats = computed(() => store.getters.dashboardStats);
-    
-    // Notification count from store
-    const notificationCount = computed(() => store.getters.dashboardStats?.lowStockItems || 0);
     
     // Permissions from store getters
     const canModifyItems = computed(() => {
@@ -501,6 +601,7 @@ export default {
         'Dashboard': 'لوحة التحكم',
         'Inventory': 'الأصناف',
         'ItemDetails': 'تفاصيل الصنف',
+        'AddItem': 'إضافة صنف جديد',
         'Transactions': 'سجل الحركات',
         'Warehouses': 'المخازن',
         'Users': 'المستخدمين',
@@ -514,13 +615,14 @@ export default {
       const names = {
         superadmin: 'المشرف العام',
         warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركة'
+        company_manager: 'مدير الشركة',
+        user: 'مستخدم'
       };
       return names[role] || role;
     };
 
     const getUserInitials = (name) => {
-      if (!name) return '؟';
+      if (!name) return 'م';
       return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     };
 
@@ -528,7 +630,8 @@ export default {
       const classes = {
         superadmin: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white',
         warehouse_manager: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
-        company_manager: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+        company_manager: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white',
+        user: 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
       };
       return classes[userRole.value] || 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
     });
@@ -568,11 +671,22 @@ export default {
       if (mobileMenuOpen.value) mobileMenuOpen.value = false;
     };
 
+    // Show notifications - uses real data from store
     const showNotifications = () => {
       router.push('/transactions');
       mobileMenuOpen.value = false;
     };
 
+    // Notification actions using store
+    const removeNotification = (notificationId) => {
+      store.commit('REMOVE_NOTIFICATION', notificationId);
+    };
+
+    const clearOperationError = () => {
+      store.commit('CLEAR_OPERATION_ERROR');
+    };
+
+    // Modal actions using store events
     const openAddItemModal = () => {
       mobileMenuOpen.value = false;
       window.dispatchEvent(new CustomEvent('open-add-item-modal'));
@@ -615,7 +729,7 @@ export default {
       return new Intl.NumberFormat('ar-EG').format(num);
     };
 
-    // Fixed logout function
+    // Fixed logout function using store
     const logout = async () => {
       try {
         mobileMenuOpen.value = false;
@@ -632,14 +746,25 @@ export default {
 
     onMounted(async () => {
       try {
+        // Initialize authentication using store
         await store.dispatch('initializeAuth');
         
+        // Wait for authentication to complete
         if (store.getters.isAuthenticated) {
+          // Load warehouses if authenticated
           await store.dispatch('loadWarehouses');
+          
+          // Show welcome notification
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'مرحباً بك في نظام المخزون!'
+          });
         }
         
+        // Initialize dark mode
         initializeDarkMode();
         
+        // Listen for dark mode changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
           if (!localStorage.getItem('theme')) {
             if (e.matches) {
@@ -652,15 +777,35 @@ export default {
           }
         });
 
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
+          // Close menus on escape
           if (e.key === 'Escape') {
             mobileMenuOpen.value = false;
             profileMenuOpen.value = false;
+          }
+          
+          // Ctrl/Cmd + K for search
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            if (window.innerWidth >= 1024) {
+              document.querySelector('input[type="search"]')?.focus();
+            } else {
+              // Focus on mobile search
+              const mobileSearchInput = document.querySelector('input[placeholder*="ابحث"]');
+              if (mobileSearchInput) {
+                mobileSearchInput.focus();
+              }
+            }
           }
         });
 
       } catch (error) {
         console.error('App initialization error:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل النظام'
+        });
       } finally {
         setTimeout(() => {
           initializing.value = false;
@@ -674,23 +819,42 @@ export default {
       profileMenuOpen.value = false;
     });
 
+    // Watch for store notifications and show them
+    watch(notifications, (newNotifications) => {
+      if (newNotifications.length > 0) {
+        console.log('New notifications:', newNotifications);
+      }
+    });
+
     return {
+      // Refs
       initializing,
-      isAuthenticated,
-      isPublicRoute,
-      showBottomNav,
       mobileMenuOpen,
       profileMenuOpen,
       isDarkMode,
       mobileSearchTerm,
-      notificationCount,
-      dashboardStats,
-      userRole,
+      
+      // Real-time data from store
+      isAuthenticated,
+      user,
       userProfile,
+      userRole,
+      dashboardStats,
+      notifications,
+      realNotificationCount,
+      operationLoading,
+      operationError,
+      currentWarehouseName,
+      
+      // Computed
+      isPublicRoute,
+      showBottomNav,
       canModifyItems,
       canManageUsers,
       canManageWarehouses,
       canViewReports,
+      
+      // Methods
       getPageTitle,
       getRoleName,
       getUserInitials,
@@ -699,6 +863,8 @@ export default {
       toggleMobileMenu,
       toggleProfileMenu,
       showNotifications,
+      removeNotification,
+      clearOperationError,
       openAddItemModal,
       openTransferModal,
       openDispatchModal,
@@ -772,6 +938,18 @@ a:focus-visible {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(100%);
+}
+
+/* Notification animations */
+.notification-enter-active,
+.notification-leave-active {
+  transition: all 0.3s ease;
+}
+
+.notification-enter-from,
+.notification-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* Animation for notifications */
