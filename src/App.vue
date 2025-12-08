@@ -408,8 +408,8 @@
                   <span class="text-white font-bold text-lg">م</span>
                 </div>
                 <div>
-                  <h1 class="text-xl font-bold text-gray-900 dark:text-white">نظام المخزون</h1>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">مونوفيا</p>
+                  <h1 class="text-xl font-bold text-gray-900 dark:text-white">نظام ادارة المخازن</h1>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">البران للعطور</p>
                 </div>
               </div>
             </div>
@@ -559,7 +559,7 @@
                     <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
-                    صرف إلى خارجي
+                    صرف خارجي
                   </button>
 
                   <!-- Add Warehouse Button -->
@@ -699,7 +699,7 @@ export default {
       const names = {
         superadmin: 'المشرف العام',
         warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركة',
+        company_manager: 'مدير الشركه',
         user: 'مستخدم'
       };
       return names[userRole.value] || 'مستخدم';
