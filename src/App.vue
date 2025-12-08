@@ -1,5 +1,5 @@
 <template>
-  <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+  <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
     <!-- Global Notifications - Fixed to show only one welcome notification -->
     <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2 max-w-md mx-auto">
       <transition-group name="notification">
@@ -8,10 +8,10 @@
           :key="notification.id"
           :class="[
             'p-4 rounded-lg shadow-lg border transform transition-all duration-300',
-            notification.type === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' :
-            notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' :
-            notification.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' :
-            'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+            notification.type === 'error' ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 shadow-red-200/20 dark:shadow-red-900/20' :
+            notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 shadow-green-200/20 dark:shadow-green-900/20' :
+            notification.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 shadow-yellow-200/20 dark:shadow-yellow-900/20' :
+            'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 shadow-blue-200/20 dark:shadow-blue-900/20'
           ]"
         >
           <div class="flex items-start justify-between">
@@ -56,53 +56,55 @@
         <!-- MOBILE ONLY LAYOUT -->
         <!-- ============================================== -->
         <div class="lg:hidden h-full flex flex-col">
-          <!-- Mobile Header (Fixed at top) -->
-          <header class="sticky top-0 z-30 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-            <div class="px-4 py-3">
+          <!-- Mobile Header (Compact) -->
+          <header class="sticky top-0 z-30 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="px-3 py-2.5">
               <div class="flex items-center justify-between">
                 <!-- Left: Menu button -->
                 <button 
                   @click="mobileMenuOpen = !mobileMenuOpen"
-                  class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
                   aria-label="القائمة"
                 >
-                  <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
 
                 <!-- Center: Page title -->
                 <div class="flex-1 text-center px-2">
-                  <h1 class="text-lg font-bold text-gray-900 dark:text-white truncate">
+                  <h1 class="text-base font-bold text-gray-800 dark:text-gray-100 truncate">
                     {{ getPageTitle() }}
                   </h1>
-                  <p v-if="currentWarehouseName" class="text-xs text-yellow-500 dark:text-yellow-400 truncate">
+                  <p v-if="currentWarehouseName" class="text-xs text-yellow-600 dark:text-yellow-400 truncate mt-0.5">
                     {{ currentWarehouseName }}
                   </p>
                 </div>
 
                 <!-- Right: Actions -->
-                <div class="flex items-center space-x-2 space-x-reverse">
+                <div class="flex items-center space-x-1 space-x-reverse">
                   <button 
                     @click="toggleDarkMode"
-                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
+                    aria-label="تبديل الوضع"
                   >
                     <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
                     </svg>
-                    <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-else class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
                     </svg>
                   </button>
 
                   <button 
                     @click="showNotifications"
-                    class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    class="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
+                    aria-label="الإشعارات"
                   >
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center shadow-md">
                       {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
                     </span>
                   </button>
@@ -115,7 +117,7 @@
           <transition name="fade">
             <div 
               v-if="mobileMenuOpen"
-              class="fixed inset-0 bg-black bg-opacity-50 z-40"
+              class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
               @click="mobileMenuOpen = false"
             ></div>
           </transition>
@@ -124,23 +126,23 @@
           <transition name="slide">
             <aside 
               v-if="mobileMenuOpen"
-              class="fixed top-0 right-0 z-50 h-full w-4/5 max-w-sm bg-white dark:bg-gray-800 shadow-2xl overflow-y-auto"
+              class="fixed top-0 right-0 z-50 h-full w-4/5 max-w-sm bg-white dark:bg-gray-800 shadow-2xl overflow-y-auto border-l border-gray-200 dark:border-gray-700"
             >
               <!-- Sidebar Header -->
               <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
                 <div class="flex items-center justify-between mb-4">
                   <div class="flex items-center space-x-3 space-x-reverse">
-                    <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                    <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
                       <span class="text-white font-bold text-sm">م</span>
                     </div>
                     <div>
                       <h1 class="text-base font-bold text-gray-900 dark:text-white">نظام المخزون</h1>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">البران للعطور</p>
+                      <p class="text-xs text-gray-600 dark:text-gray-400">البران للعطور</p>
                     </div>
                   </div>
                   <button 
                     @click="mobileMenuOpen = false"
-                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                   >
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -149,7 +151,7 @@
                 </div>
 
                 <!-- User Info -->
-                <div class="flex items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                <div class="flex items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 shadow-sm">
                   <div class="h-9 w-9 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
                     <span class="text-white font-medium text-xs">
                       {{ getUserInitials() }}
@@ -159,7 +161,7 @@
                     <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {{ userName }}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
                       {{ roleName }}
                     </p>
                   </div>
@@ -172,8 +174,8 @@
                 <router-link 
                   to="/" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -186,8 +188,8 @@
                   v-if="canManageWarehouses"
                   to="/warehouses" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/warehouses'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
@@ -200,8 +202,8 @@
                   v-if="canManageUsers"
                   to="/users" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/users'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/users', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/users'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -213,8 +215,8 @@
                 <router-link 
                   to="/inventory" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path.includes('/inventory'), 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': !$route.path.includes('/inventory')}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path.includes('/inventory'), 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/inventory')}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
@@ -226,8 +228,8 @@
                 <router-link 
                   to="/transactions" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/transactions'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/transactions', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/transactions'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -240,8 +242,8 @@
                   v-if="canViewReports"
                   to="/reports" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/reports'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/reports', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/reports'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -253,8 +255,8 @@
                 <router-link 
                   to="/profile" 
                   @click="mobileMenuOpen = false"
-                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/profile'}"
+                  class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/profile', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/profile'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -264,26 +266,27 @@
                 </router-link>
 
                 <!-- Quick Actions Section -->
-                <div v-if="canModifyItems" class="mt-4 mb-2">
-                  <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+                <div v-if="canModifyItems" class="mt-6 mb-2">
+                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
                     إجراءات سريعة
                   </p>
                   <div class="space-y-2">
-                    <!-- Add Item Button -->
-                    <button 
-                      @click="openAddItemModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                    <!-- Add Item Button - Now properly linked to Add Item page -->
+                    <router-link 
+                      to="/add-item"
+                      @click="mobileMenuOpen = false"
+                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 hover:from-yellow-100 hover:to-yellow-50 dark:hover:from-yellow-900/30 dark:hover:to-yellow-900/20 text-yellow-700 dark:text-yellow-300 hover:border-yellow-300 dark:hover:border-yellow-700 shadow-sm"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                       </svg>
                       إضافة صنف جديد
-                    </button>
+                    </router-link>
 
-                    <!-- Transfer Button -->
+                    <!-- Transfer Button - Link to Transfer page or open modal -->
                     <button 
                       @click="openTransferModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 hover:from-blue-100 hover:to-blue-50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
@@ -291,10 +294,10 @@
                       نقل بين المخازن
                     </button>
 
-                    <!-- Dispatch Button -->
+                    <!-- Dispatch Button - Link to Dispatch page or open modal -->
                     <button 
                       @click="openDispatchModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -307,7 +310,7 @@
                 <!-- Logout Button -->
                 <button 
                   @click="logout"
-                  class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 mt-2"
+                  class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 mt-4 border border-transparent bg-gradient-to-l from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-50 dark:hover:from-red-900/30 dark:hover:to-red-900/20 text-red-700 dark:text-red-300 hover:border-red-300 dark:hover:border-red-700 shadow-sm"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -319,8 +322,10 @@
           </transition>
 
           <!-- Mobile Main Content -->
-          <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-            <router-view />
+          <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+            <div class="max-w-full mx-auto">
+              <router-view />
+            </div>
           </main>
 
           <!-- Mobile Bottom Navigation -->
@@ -334,7 +339,7 @@
             <!-- Glassmorphism Background with Shadow -->
             <div class="relative">
               <!-- Blurred Background -->
-              <div class="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50"></div>
+              <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-t border-gray-200/80 dark:border-gray-700/80"></div>
               
               <!-- Shadow Effect -->
               <div class="absolute inset-0 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.3)]"></div>
@@ -346,12 +351,12 @@
                   to="/" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
                   :class="{
-                    'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path === '/', 
-                    'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': $route.path !== '/'
+                    'text-yellow-700 dark:text-yellow-300 bg-white/80 dark:bg-gray-800/80 shadow-md border border-yellow-200 dark:border-yellow-800': $route.path === '/', 
+                    'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/'
                   }"
                 >
                   <div class="relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
                     <div v-if="$route.path === '/'" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
@@ -364,12 +369,12 @@
                   to="/inventory" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
                   :class="{
-                    'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path.includes('/inventory'), 
-                    'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': !$route.path.includes('/inventory')
+                    'text-yellow-700 dark:text-yellow-300 bg-white/80 dark:bg-gray-800/80 shadow-md border border-yellow-200 dark:border-yellow-800': $route.path.includes('/inventory'), 
+                    'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/inventory')
                   }"
                 >
                   <div class="relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                     </svg>
                     <div v-if="$route.path.includes('/inventory')" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
@@ -382,12 +387,12 @@
                   to="/transactions" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
                   :class="{
-                    'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path === '/transactions', 
-                    'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': $route.path !== '/transactions'
+                    'text-yellow-700 dark:text-yellow-300 bg-white/80 dark:bg-gray-800/80 shadow-md border border-yellow-200 dark:border-yellow-800': $route.path === '/transactions', 
+                    'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/transactions'
                   }"
                 >
                   <div class="relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
                     <div v-if="$route.path === '/transactions'" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
@@ -395,10 +400,10 @@
                   <span class="text-xs mt-1 font-medium">الحركات</span>
                 </router-link>
 
-                <!-- Quick Add -->
-                <button 
+                <!-- Quick Add - Now properly linked to Add Item page -->
+                <router-link 
                   v-if="canModifyItems"
-                  @click="openAddItemModal" 
+                  to="/add-item" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200 group"
                 >
                   <div class="relative">
@@ -406,8 +411,8 @@
                     <div class="absolute inset-0 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full blur-md opacity-60 group-hover:opacity-80 transition-opacity"></div>
                     
                     <!-- Main Button -->
-                    <div class="relative h-12 w-12 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200 transform group-hover:scale-105 active:scale-95">
-                      <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="relative h-10 w-10 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200 transform group-hover:scale-105 active:scale-95">
+                      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                       </svg>
                       
@@ -419,27 +424,27 @@
                     <div class="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 animate-ping opacity-20"></div>
                   </div>
                   <span class="text-xs mt-1 font-medium text-gray-700 dark:text-gray-300">إضافة</span>
-                </button>
+                </router-link>
                 <div v-else class="p-2"></div>
 
                 <!-- Settings -->
-                <button 
-                  @click="toggleProfileMenu" 
+                <router-link 
+                  to="/profile" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
                   :class="{
-                    'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': profileMenuOpen, 
-                    'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': !profileMenuOpen
+                    'text-yellow-700 dark:text-yellow-300 bg-white/80 dark:bg-gray-800/80 shadow-md border border-yellow-200 dark:border-yellow-800': $route.path === '/profile', 
+                    'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/profile'
                   }"
                 >
                   <div class="relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <div v-if="profileMenuOpen" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+                    <div v-if="$route.path === '/profile'" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
                   </div>
                   <span class="text-xs mt-1 font-medium">الإعدادات</span>
-                </button>
+                </router-link>
               </div>
             </div>
           </div>
@@ -454,35 +459,35 @@
         <div class="hidden lg:flex h-full">
           <!-- Desktop Sidebar -->
           <aside :class="[
-            'bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300',
+            'bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 shadow-lg',
             sidebarCollapsed ? 'w-20' : 'w-64'
           ]">
             <!-- Sidebar Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
               <div class="flex items-center space-x-3 space-x-reverse" :class="{'justify-center': sidebarCollapsed}">
-                <div class="h-12 w-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <span class="text-white font-bold text-lg">م</span>
+                <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
+                  <span class="text-white font-bold text-base">م</span>
                 </div>
                 <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
-                  <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate">نظام المخزون</h1>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">البران للعطور</p>
+                  <h1 class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">نظام المخزون</h1>
+                  <p class="text-xs text-gray-600 dark:text-gray-400 truncate">البران للعطور</p>
                 </div>
               </div>
             </div>
 
             <!-- User Profile -->
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
               <div class="flex items-center" :class="{'justify-center': sidebarCollapsed}">
-                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm" :class="{'ml-3': !sidebarCollapsed}">
-                  <span class="text-white font-medium text-sm">
+                <div class="h-9 w-9 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm" :class="{'ml-3': !sidebarCollapsed}">
+                  <span class="text-white font-medium text-xs">
                     {{ getUserInitials() }}
                   </span>
                 </div>
                 <div v-if="!sidebarCollapsed" class="text-right flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
                     {{ userName }}
                   </p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
                     {{ roleName }}
                   </p>
                 </div>
@@ -493,31 +498,31 @@
             <div class="p-2 border-b border-gray-200 dark:border-gray-700">
               <button 
                 @click="toggleSidebar"
-                class="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                class="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 flex items-center justify-center border border-gray-200 dark:border-gray-600 shadow-sm"
               >
-                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform" 
+                <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 transform transition-transform" 
                      :class="{'rotate-180': sidebarCollapsed}" 
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
-                <span v-if="!sidebarCollapsed" class="mr-2 text-sm text-gray-500 dark:text-gray-400">طي</span>
+                <span v-if="!sidebarCollapsed" class="mr-2 text-xs text-gray-600 dark:text-gray-400">طي</span>
               </button>
             </div>
 
             <!-- Navigation Links -->
-            <div class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <div class="flex-1 p-3 space-y-1 overflow-y-auto">
               <!-- Dashboard Link -->
               <router-link 
                 to="/" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'لوحة التحكم' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">لوحة التحكم</span>
@@ -527,15 +532,15 @@
               <router-link 
                 v-if="canManageWarehouses"
                 to="/warehouses" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/warehouses', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/warehouses',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/warehouses', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/warehouses',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'إدارة المخازن' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">إدارة المخازن</span>
@@ -545,15 +550,15 @@
               <router-link 
                 v-if="canManageUsers"
                 to="/users" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/users',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/users', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/users',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'إدارة المستخدمين' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">إدارة المستخدمين</span>
@@ -562,15 +567,15 @@
               <!-- Inventory Link -->
               <router-link 
                 to="/inventory" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path.includes('/inventory'), 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': !$route.path.includes('/inventory'),
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path.includes('/inventory'), 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/inventory'),
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'الأصناف' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">الأصناف</span>
@@ -579,15 +584,15 @@
               <!-- Transactions Link -->
               <router-link 
                 to="/transactions" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/transactions',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/transactions', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/transactions',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'سجل الحركات' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">سجل الحركات</span>
@@ -597,15 +602,15 @@
               <router-link 
                 v-if="canViewReports"
                 to="/reports" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/reports',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/reports', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/reports',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'التقارير' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">التقارير</span>
@@ -614,15 +619,15 @@
               <!-- Profile Link -->
               <router-link 
                 to="/profile" 
-                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
                 :class="{
-                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile', 
-                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/profile',
+                  'bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/profile', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/profile',
                   'justify-center': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? 'إعدادات الحساب' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
@@ -630,39 +635,39 @@
               </router-link>
 
               <!-- Quick Actions Section -->
-              <div v-if="canModifyItems && !sidebarCollapsed" class="mt-6 mb-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+              <div v-if="canModifyItems && !sidebarCollapsed" class="mt-4 mb-2">
+                <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
                   إجراءات سريعة
                 </p>
-                <div class="space-y-2">
-                  <!-- Add Item Button -->
-                  <button 
-                    @click="openAddItemModal"
-                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+                <div class="space-y-1.5">
+                  <!-- Add Item Button - Now properly linked to Add Item page -->
+                  <router-link 
+                    to="/add-item"
+                    class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 hover:from-yellow-100 hover:to-yellow-50 dark:hover:from-yellow-900/30 dark:hover:to-yellow-900/20 text-yellow-700 dark:text-yellow-300 hover:border-yellow-300 dark:hover:border-yellow-700 shadow-sm"
                   >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     <span class="mr-2">إضافة صنف</span>
-                  </button>
+                  </router-link>
 
-                  <!-- Transfer Button -->
+                  <!-- Transfer Button - Link to Transfer page or open modal -->
                   <button 
                     @click="openTransferModal"
-                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+                    class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 hover:from-blue-100 hover:to-blue-50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
                   >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                     </svg>
                     <span class="mr-2">نقل</span>
                   </button>
 
-                  <!-- Dispatch Button -->
+                  <!-- Dispatch Button - Link to Dispatch page or open modal -->
                   <button 
                     @click="openDispatchModal"
-                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+                    class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
                   >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
                     <span class="mr-2">صرف</span>
@@ -673,11 +678,11 @@
               <!-- Logout Button -->
               <button 
                 @click="logout"
-                class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors mt-4"
+                class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 mt-2 border border-transparent bg-gradient-to-l from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-50 dark:hover:from-red-900/30 dark:hover:to-red-900/20 text-red-700 dark:text-red-300 hover:border-red-300 dark:hover:border-red-700 shadow-sm"
                 :class="{'justify-center': sidebarCollapsed}"
                 :title="sidebarCollapsed ? 'تسجيل خروج' : ''"
               >
-                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                 </svg>
                 <span v-if="!sidebarCollapsed" class="mr-2">تسجيل خروج</span>
@@ -686,30 +691,30 @@
           </aside>
 
           <!-- Main Content Area -->
-          <div class="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
-            <!-- Desktop Header -->
-            <header class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div class="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
+            <!-- Desktop Header - Compact -->
+            <header class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 shadow-sm">
               <div class="flex items-center justify-between">
                 <!-- Breadcrumb and Title -->
-                <div class="flex items-center space-x-4 space-x-reverse">
+                <div class="flex items-center space-x-3 space-x-reverse">
                   <button 
                     @click="toggleSidebar"
-                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm lg:hidden"
                   >
-                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   </button>
                   
                   <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    <h1 class="text-lg font-bold text-gray-800 dark:text-gray-100">
                       {{ getPageTitle() }}
                     </h1>
-                    <div class="flex items-center space-x-2 space-x-reverse mt-1">
-                      <p v-if="currentWarehouseName" class="text-sm text-yellow-600 dark:text-yellow-400">
+                    <div class="flex items-center space-x-2 space-x-reverse mt-0.5">
+                      <p v-if="currentWarehouseName" class="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
                         {{ currentWarehouseName }}
                       </p>
-                      <span v-if="userRole" class="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                      <span v-if="userRole" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                         {{ roleName }}
                       </span>
                     </div>
@@ -717,31 +722,31 @@
                 </div>
 
                 <!-- Header Actions -->
-                <div class="flex items-center space-x-4 space-x-reverse">
+                <div class="flex items-center space-x-2 space-x-reverse">
                   <!-- Search -->
                   <div class="relative hidden md:block">
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                       </svg>
                     </div>
                     <input
                       type="search"
                       placeholder="ابحث..."
-                      class="w-64 pr-10 pl-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 backdrop-blur-sm"
+                      class="w-48 pr-9 pl-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 text-gray-800 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 backdrop-blur-sm shadow-sm"
                     />
                   </div>
 
                   <!-- Dark Mode -->
                   <button 
                     @click="toggleDarkMode"
-                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
                     title="تبديل الوضع"
                   >
-                    <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-if="isDarkMode" class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
                     </svg>
-                    <svg v-else class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-else class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
                     </svg>
                   </button>
@@ -749,13 +754,13 @@
                   <!-- Notifications -->
                   <button 
                     @click="showNotifications"
-                    class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    class="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
                     title="الإشعارات"
                   >
-                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    <span v-if="realNotificationCount > 0" class="absolute -top-0.5 -left-0.5 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center shadow-md">
                       {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
                     </span>
                   </button>
@@ -764,22 +769,22 @@
                   <div class="relative">
                     <button 
                       @click="profileMenuOpen = !profileMenuOpen"
-                      class="flex items-center space-x-2 space-x-reverse p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      class="flex items-center space-x-2 space-x-reverse p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-600 shadow-sm"
                     >
-                      <div class="h-8 w-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
+                      <div class="h-7 w-7 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
                         <span class="text-white text-xs font-medium">
                           {{ getUserInitials() }}
                         </span>
                       </div>
                       <div class="text-right hidden md:block">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        <p class="text-xs font-medium text-gray-800 dark:text-gray-100">
                           {{ userName }}
                         </p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <p class="text-xs text-gray-600 dark:text-gray-400">
                           {{ roleName }}
                         </p>
                       </div>
-                      <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-3 h-3 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                       </svg>
                     </button>
@@ -787,15 +792,15 @@
                     <!-- Dropdown Menu -->
                     <div 
                       v-if="profileMenuOpen"
-                      class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                      class="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
                       @click.self="profileMenuOpen = false"
                     >
                       <router-link 
                         to="/profile" 
                         @click="profileMenuOpen = false"
-                        class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        class="flex items-center px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                       >
-                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
@@ -803,9 +808,9 @@
                       </router-link>
                       <button 
                         @click="logout"
-                        class="w-full flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        class="w-full flex items-center px-3 py-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
                       >
-                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                         </svg>
                         تسجيل خروج
@@ -817,7 +822,7 @@
             </header>
 
             <!-- Main Content -->
-            <main class="flex-1 overflow-y-auto p-6">
+            <main class="flex-1 overflow-y-auto p-4">
               <div class="max-w-full mx-auto">
                 <router-view />
               </div>
@@ -1052,29 +1057,29 @@ export default {
       lastScrollPosition.value = 0;
     };
 
-    // Modal actions
+    // Modal actions - Updated to use router links instead of modals
     const openAddItemModal = () => {
+      router.push('/add-item');
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
-      window.dispatchEvent(new CustomEvent('open-add-item-modal'));
     };
 
     const openTransferModal = () => {
+      // If you have a dedicated transfer page, use:
+      // router.push('/transfer');
+      // Otherwise, emit event for modal
+      window.dispatchEvent(new CustomEvent('open-transfer-modal'));
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
-      window.dispatchEvent(new CustomEvent('open-transfer-modal'));
     };
 
     const openDispatchModal = () => {
-      mobileMenuOpen.value = false;
-      profileMenuOpen.value = false;
+      // If you have a dedicated dispatch page, use:
+      // router.push('/dispatch');
+      // Otherwise, emit event for modal
       window.dispatchEvent(new CustomEvent('open-dispatch-modal'));
-    };
-
-    const openAddWarehouseModal = () => {
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
-      window.dispatchEvent(new CustomEvent('open-add-warehouse-modal'));
     };
 
     const logout = async () => {
@@ -1230,7 +1235,6 @@ export default {
       openAddItemModal,
       openTransferModal,
       openDispatchModal,
-      openAddWarehouseModal,
       logout
     };
   }
@@ -1238,10 +1242,20 @@ export default {
 </script>
 
 <style scoped>
+/* Improved font clarity and colors */
+* {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Mobile sidebar animation */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-enter-from,
@@ -1274,7 +1288,7 @@ export default {
   transform: translateY(0);
 }
 
-/* Glassmorphism effects */
+/* Glassmorphism effects with improved performance */
 .backdrop-blur-sm {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -1285,16 +1299,15 @@ export default {
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Smooth glassmorphism transition */
-.transition-transform {
-  transition-property: transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Notification animations */
 .notification-enter-active,
 .notification-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notification-enter-from,
@@ -1338,14 +1351,17 @@ export default {
 @media (max-width: 640px) {
   .text-lg {
     font-size: 1.125rem;
+    line-height: 1.75rem;
   }
   
   .text-sm {
     font-size: 0.875rem;
+    line-height: 1.25rem;
   }
   
   .text-xs {
     font-size: 0.75rem;
+    line-height: 1rem;
   }
 }
 
@@ -1355,16 +1371,18 @@ button:focus-visible,
 a:focus-visible {
   outline: 2px solid #f59e0b;
   outline-offset: 2px;
+  border-radius: 0.75rem;
 }
 
 /* Smooth transitions */
 * {
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 /* Mobile scrollbar improvements */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 /* Enhance button press feedback */
@@ -1387,7 +1405,6 @@ button:active {
 
 .bg-gradient-to-br {
   background-size: 200% 200%;
-  animation: gradient-shift 3s ease infinite;
 }
 
 /* Custom scrollbar */
@@ -1397,60 +1414,56 @@ button:active {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(243, 244, 246, 0.5);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.5);
+  background: rgba(156, 163, 175, 0.7);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.8);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(107, 114, 128, 0.5);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.8);
 }
 
-/* Tooltip styles for collapsed sidebar */
-.group:hover .group-hover\:block {
-  display: block;
+.dark ::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
 }
 
-/* Hover effects for sidebar items */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* Improved selection styles */
+::selection {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: inherit;
+}
+
+/* Better border rendering */
+.border {
+  border-style: solid;
+}
+
+/* Improved hover effects with gradients */
 .hover\:bg-yellow-50:hover {
-  background-color: rgba(254, 252, 232, 0.8);
+  background: linear-gradient(to left, #fefce8, #fef9c3);
 }
 
 .dark .hover\:bg-yellow-900\/20:hover {
-  background-color: rgba(120, 53, 15, 0.2);
+  background: linear-gradient(to left, rgba(120, 53, 15, 0.2), rgba(120, 53, 15, 0.1));
 }
 
-/* Text truncation */
+/* Text truncation with better handling */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Gradient backgrounds with smooth transitions */
-.bg-gradient-to-b {
-  background-size: 100% 200%;
-  transition: background-position 0.3s ease;
-}
-
-.bg-gradient-to-b:hover {
-  background-position: 0 100%;
-}
-
-/* Shadow effects */
-.shadow-glow {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
 }
 
 /* Loading spinner */
@@ -1470,14 +1483,7 @@ button:active {
 /* Focus styles */
 .focus\:ring-2:focus {
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
-}
-
-.focus\:ring-yellow-500:focus {
-  --tw-ring-color: rgba(245, 158, 11, 0.5);
-}
-
-.focus\:border-yellow-500:focus {
-  border-color: #f59e0b;
+  outline: none;
 }
 
 /* Responsive adjustments */
@@ -1496,10 +1502,12 @@ button:active {
 /* Smooth sidebar collapse */
 .w-64 {
   width: 16rem;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .w-20 {
   width: 5rem;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Ensure content doesn't overflow */
@@ -1519,16 +1527,72 @@ img {
   image-rendering: crisp-edges;
 }
 
-/* Selection styles */
-::selection {
-  background-color: rgba(245, 158, 11, 0.3);
-  color: inherit;
-}
-
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
   }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* Improved shadow effects */
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.dark .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* Border radius consistency */
+.rounded-xl {
+  border-radius: 0.75rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+/* Improved color contrast for dark mode */
+.dark .text-gray-300 {
+  color: #d1d5db;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af;
+}
+
+/* Better background gradients */
+.bg-gradient-to-b {
+  background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+}
+
+/* Hover scale effects */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.active\:scale-95:active {
+  transform: scale(0.95);
 }
 </style>
