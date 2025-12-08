@@ -336,61 +336,125 @@
           </main>
 
           <!-- Mobile Bottom Navigation -->
-          <div v-if="showBottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-safe">
-            <div class="grid grid-cols-4 gap-1 p-2">
-              <!-- Home -->
-              <router-link 
-                to="/" 
-                class="flex flex-col items-center p-2 rounded-lg transition-colors"
-                :class="{'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': $route.path === '/', 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/'}"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-                <span class="text-xs mt-1">الرئيسية</span>
-              </router-link>
-
-              <!-- Inventory -->
-              <router-link 
-                to="/inventory" 
-                class="flex flex-col items-center p-2 rounded-lg transition-colors"
-                :class="{'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': $route.path.includes('/inventory'), 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': !$route.path.includes('/inventory')}"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                </svg>
-                <span class="text-xs mt-1">الأصناف</span>
-              </router-link>
-
-              <!-- Quick Add -->
-              <button 
-                v-if="canModifyItems"
-                @click="openAddItemModal" 
-                class="flex flex-col items-center p-2 rounded-lg bg-gradient-to-b from-yellow-500 to-orange-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
-              >
-                <div class="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center mb-1">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                  </svg>
-                </div>
-                <span class="text-xs">إضافة</span>
-              </button>
-              <div v-else class="p-2"></div>
-
-              <!-- Profile -->
-              <button 
-                @click="toggleProfileMenu" 
-                class="flex flex-col items-center p-2 rounded-lg transition-colors"
-                :class="{'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20': profileMenuOpen, 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700': !profileMenuOpen}"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <span class="text-xs mt-1">حسابي</span>
-              </button>
-            </div>
-          </div>
+<div 
+  ref="bottomNav"
+  :class="[
+    'fixed bottom-0 left-0 right-0 z-40 pb-safe transition-transform duration-300',
+    bottomNavHidden ? 'translate-y-full' : 'translate-y-0'
+  ]"
+>
+  <!-- Glassmorphism Background with Shadow -->
+  <div class="relative">
+    <!-- Blurred Background -->
+    <div class="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50"></div>
+    
+    <!-- Shadow Effect -->
+    <div class="absolute inset-0 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.3)]"></div>
+    
+    <!-- Navigation Items -->
+    <div class="relative grid grid-cols-5 gap-1 p-2">
+      <!-- Home -->
+      <router-link 
+        to="/" 
+        class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
+        :class="{
+          'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path === '/', 
+          'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': $route.path !== '/'
+        }"
+      >
+        <div class="relative">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <div v-if="$route.path === '/'" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
         </div>
+        <span class="text-xs mt-1 font-medium">الرئيسية</span>
+      </router-link>
+
+      <!-- Inventory -->
+      <router-link 
+        to="/inventory" 
+        class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
+        :class="{
+          'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path.includes('/inventory'), 
+          'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': !$route.path.includes('/inventory')
+        }"
+      >
+        <div class="relative">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+          </svg>
+          <div v-if="$route.path.includes('/inventory')" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+        </div>
+        <span class="text-xs mt-1 font-medium">الأصناف</span>
+      </router-link>
+
+      <!-- Transactions (NEW LINK) -->
+      <router-link 
+        to="/transactions" 
+        class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
+        :class="{
+          'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': $route.path === '/transactions', 
+          'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': $route.path !== '/transactions'
+        }"
+      >
+        <div class="relative">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          <div v-if="$route.path === '/transactions'" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+        </div>
+        <span class="text-xs mt-1 font-medium">الحركات</span>
+      </router-link>
+
+      <!-- Quick Add -->
+      <button 
+        v-if="canModifyItems"
+        @click="openAddItemModal" 
+        class="flex flex-col items-center p-2 rounded-xl transition-all duration-200 group"
+      >
+        <div class="relative">
+          <!-- Outer Glow Effect -->
+          <div class="absolute inset-0 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full blur-md opacity-60 group-hover:opacity-80 transition-opacity"></div>
+          
+          <!-- Main Button -->
+          <div class="relative h-12 w-12 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200 transform group-hover:scale-105 active:scale-95">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            
+            <!-- Inner Glow -->
+            <div class="absolute inset-0 rounded-full border-2 border-white/20"></div>
+          </div>
+          
+          <!-- Pulsing Animation -->
+          <div class="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 animate-ping opacity-20"></div>
+        </div>
+        <span class="text-xs mt-1 font-medium text-gray-700 dark:text-gray-300">إضافة</span>
+      </button>
+      <div v-else class="p-2"></div>
+
+      <!-- Settings (REPLACED حسابي with الإعدادات) -->
+      <button 
+        @click="toggleProfileMenu" 
+        class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
+        :class="{
+          'text-yellow-600 dark:text-yellow-400 bg-white/50 dark:bg-gray-800/50 shadow-sm': profileMenuOpen, 
+          'text-gray-600 dark:text-gray-400 hover:bg-white/30 dark:hover:bg-gray-700/30': !profileMenuOpen
+        }"
+      >
+        <div class="relative">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <div v-if="profileMenuOpen" class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+        </div>
+        <span class="text-xs mt-1 font-medium">الإعدادات</span>
+      </button>
+    </div>
+  </div>
+</div>
         <!-- ============================================== -->
         <!-- END MOBILE ONLY LAYOUT -->
         <!-- ============================================== -->
@@ -664,7 +728,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -679,6 +743,12 @@ export default {
     const mobileMenuOpen = ref(false);
     const profileMenuOpen = ref(false);
     const isDarkMode = ref(false);
+    
+    // Bottom navigation scroll behavior
+    const bottomNavHidden = ref(false);
+    const lastScrollPosition = ref(0);
+    const scrollThreshold = 10;
+    const touchStartY = ref(0);
 
     // Store data
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
@@ -813,6 +883,56 @@ export default {
       store.commit('REMOVE_NOTIFICATION', notificationId);
     };
 
+    // Bottom navigation scroll handling
+    const handleScroll = () => {
+      const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Don't hide/show if the change is too small
+      if (Math.abs(currentScrollPosition - lastScrollPosition.value) < scrollThreshold) {
+        return;
+      }
+      
+      // Scrolling down and past threshold - hide bottom nav
+      if (currentScrollPosition > lastScrollPosition.value && currentScrollPosition > 100) {
+        bottomNavHidden.value = true;
+      } 
+      // Scrolling up - show bottom nav
+      else if (currentScrollPosition < lastScrollPosition.value) {
+        bottomNavHidden.value = false;
+      }
+      
+      lastScrollPosition.value = currentScrollPosition;
+    };
+    
+    // Touch handling for mobile
+    const handleTouchStart = (event) => {
+      touchStartY.value = event.touches[0].clientY;
+    };
+    
+    const handleTouchMove = (event) => {
+      if (!touchStartY.value) return;
+      
+      const touchY = event.touches[0].clientY;
+      const diff = touchStartY.value - touchY;
+      
+      // Swiping down (showing nav)
+      if (diff < -50 && bottomNavHidden.value) {
+        bottomNavHidden.value = false;
+        touchStartY.value = null;
+      }
+      // Swiping up (hiding nav)
+      else if (diff > 50 && !bottomNavHidden.value && window.pageYOffset > 100) {
+        bottomNavHidden.value = true;
+        touchStartY.value = null;
+      }
+    };
+    
+    // Reset nav when route changes
+    const resetBottomNav = () => {
+      bottomNavHidden.value = false;
+      lastScrollPosition.value = 0;
+    };
+
     // Modal actions
     const openAddItemModal = () => {
       mobileMenuOpen.value = false;
@@ -863,6 +983,18 @@ export default {
         
         initializeDarkMode();
         
+        // Add scroll event listener for bottom nav
+        if (showBottomNav.value) {
+          window.addEventListener('scroll', handleScroll);
+          window.addEventListener('touchstart', handleTouchStart);
+          window.addEventListener('touchmove', handleTouchMove);
+          
+          // Smooth appearance on mount
+          setTimeout(() => {
+            bottomNavHidden.value = false;
+          }, 300);
+        }
+
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
           if (!localStorage.getItem('theme')) {
             if (e.matches) {
@@ -888,10 +1020,34 @@ export default {
       }
     });
 
+    // Clean up event listeners
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    });
+
     // Close mobile menu when route changes
     watch(() => route.path, () => {
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
+      resetBottomNav();
+    });
+    
+    // Watch for bottom nav visibility changes
+    watch(showBottomNav, (newValue) => {
+      if (newValue) {
+        // Bottom nav should be shown - add event listeners
+        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('touchstart', handleTouchStart);
+        window.addEventListener('touchmove', handleTouchMove);
+        resetBottomNav();
+      } else {
+        // Bottom nav should be hidden - remove event listeners
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
+      }
     });
 
     return {
@@ -900,6 +1056,9 @@ export default {
       mobileMenuOpen,
       profileMenuOpen,
       isDarkMode,
+      bottomNavHidden,
+      lastScrollPosition,
+      touchStartY,
       
       // Computed
       isAuthenticated,
@@ -925,6 +1084,10 @@ export default {
       toggleProfileMenu,
       showNotifications,
       removeNotification,
+      handleScroll,
+      handleTouchStart,
+      handleTouchMove,
+      resetBottomNav,
       openAddItemModal,
       openTransferModal,
       openDispatchModal,
@@ -963,6 +1126,27 @@ export default {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Bottom navigation animations */
+.translate-y-full {
+  transform: translateY(100%);
+}
+
+.translate-y-0 {
+  transform: translateY(0);
+}
+
+/* Glassmorphism effects */
+.backdrop-blur-xl {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Smooth glassmorphism transition */
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Notification animations */
 .notification-enter-active,
 .notification-leave-active {
@@ -987,6 +1171,23 @@ export default {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Apple-style smooth animations */
+@keyframes smooth-appear {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Add smooth appearance to bottom nav */
+.fixed.bottom-0 {
+  animation: smooth-appear 0.3s ease-out;
 }
 
 /* Improved responsive typography */
@@ -1020,5 +1221,33 @@ a:focus-visible {
 /* Mobile scrollbar improvements */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Enhance button press feedback */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Gradient animation for add button */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.bg-gradient-to-br {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Subtle glow effect */
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
 }
 </style>
