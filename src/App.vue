@@ -271,9 +271,9 @@
                     إجراءات سريعة
                   </p>
                   <div class="space-y-2">
-                    <!-- Add Item Button - Now properly linked to Add Item page -->
+                    <!-- Add Item Button - FIXED: Now points to correct route -->
                     <router-link 
-                      to="/add-item"
+                      to="/inventory/add"
                       @click="mobileMenuOpen = false"
                       class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 hover:from-yellow-100 hover:to-yellow-50 dark:hover:from-yellow-900/30 dark:hover:to-yellow-900/20 text-yellow-700 dark:text-yellow-300 hover:border-yellow-300 dark:hover:border-yellow-700 shadow-sm"
                     >
@@ -283,33 +283,35 @@
                       إضافة صنف جديد
                     </router-link>
 
-                    <!-- Transfer Button - Link to Transfer page or open modal -->
-                    <button 
-                      @click="openTransferModal"
+                    <!-- Transfer Button - FIXED: Points to correct route -->
+                    <router-link 
+                      to="/transfers"
+                      @click="mobileMenuOpen = false"
                       class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 hover:from-blue-100 hover:to-blue-50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                       </svg>
                       نقل بين المخازن
-                    </button>
+                    </router-link>
 
-                    <!-- Dispatch Button - Link to Dispatch page or open modal -->
-                    <button 
-                      @click="openDispatchModal"
+                    <!-- Dispatch Button - FIXED: Points to correct route -->
+                    <router-link 
+                      to="/dispatch"
+                      @click="mobileMenuOpen = false"
                       class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                       </svg>
                       صرف خارجي
-                    </button>
+                    </router-link>
                   </div>
                 </div>
 
                 <!-- Logout Button -->
                 <button 
-                  @click="logout"
+                  @click="handleLogout"
                   class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 mt-4 border border-transparent bg-gradient-to-l from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-50 dark:hover:from-red-900/30 dark:hover:to-red-900/20 text-red-700 dark:text-red-300 hover:border-red-300 dark:hover:border-red-700 shadow-sm"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,10 +402,10 @@
                   <span class="text-xs mt-1 font-medium">الحركات</span>
                 </router-link>
 
-                <!-- Quick Add - Now properly linked to Add Item page -->
+                <!-- Quick Add - FIXED: Points to correct route -->
                 <router-link 
                   v-if="canModifyItems"
-                  to="/add-item" 
+                  to="/inventory/add" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200 group"
                 >
                   <div class="relative">
@@ -640,9 +642,9 @@
                   إجراءات سريعة
                 </p>
                 <div class="space-y-1.5">
-                  <!-- Add Item Button - Now properly linked to Add Item page -->
+                  <!-- Add Item Button - FIXED -->
                   <router-link 
-                    to="/add-item"
+                    to="/inventory/add"
                     class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 hover:from-yellow-100 hover:to-yellow-50 dark:hover:from-yellow-900/30 dark:hover:to-yellow-900/20 text-yellow-700 dark:text-yellow-300 hover:border-yellow-300 dark:hover:border-yellow-700 shadow-sm"
                   >
                     <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -651,33 +653,33 @@
                     <span class="mr-2">إضافة صنف</span>
                   </router-link>
 
-                  <!-- Transfer Button - Link to Transfer page or open modal -->
-                  <button 
-                    @click="openTransferModal"
+                  <!-- Transfer Button - FIXED -->
+                  <router-link 
+                    to="/transfers"
                     class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 hover:from-blue-100 hover:to-blue-50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
                   >
                     <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                     </svg>
                     <span class="mr-2">نقل</span>
-                  </button>
+                  </router-link>
 
-                  <!-- Dispatch Button - Link to Dispatch page or open modal -->
-                  <button 
-                    @click="openDispatchModal"
+                  <!-- Dispatch Button - FIXED -->
+                  <router-link 
+                    to="/dispatch"
                     class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
                   >
                     <svg class="w-4 h-4 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
                     <span class="mr-2">صرف</span>
-                  </button>
+                  </router-link>
                 </div>
               </div>
 
               <!-- Logout Button -->
               <button 
-                @click="logout"
+                @click="handleLogout"
                 class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 mt-2 border border-transparent bg-gradient-to-l from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-50 dark:hover:from-red-900/30 dark:hover:to-red-900/20 text-red-700 dark:text-red-300 hover:border-red-300 dark:hover:border-red-700 shadow-sm"
                 :class="{'justify-center': sidebarCollapsed}"
                 :title="sidebarCollapsed ? 'تسجيل خروج' : ''"
@@ -807,7 +809,7 @@
                         إعدادات الحساب
                       </router-link>
                       <button 
-                        @click="logout"
+                        @click="handleLogout"
                         class="w-full flex items-center px-3 py-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
                       >
                         <svg class="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -940,12 +942,14 @@ export default {
         'Dashboard': 'لوحة التحكم',
         'Inventory': 'الأصناف',
         'ItemDetails': 'تفاصيل الصنف',
-        'AddItem': 'إضافة صنف جديد',
+        'AddInventory': 'إضافة صنف جديد',
         'Transactions': 'سجل الحركات',
         'Warehouses': 'المخازن',
         'Users': 'المستخدمين',
         'Reports': 'التقارير',
-        'Profile': 'الملف الشخصي'
+        'Profile': 'الملف الشخصي',
+        'Transfers': 'نقل المخزون',
+        'Dispatch': 'الصرف الخارجي'
       };
       return titles[route.name] || 'نظام المخزون';
     };
@@ -1007,7 +1011,7 @@ export default {
       store.commit('REMOVE_NOTIFICATION', notificationId);
     };
 
-    // Bottom navigation scroll handling
+    // Bottom navigation scroll handling - FIXED: Removed handleStart reference error
     const handleScroll = () => {
       const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
       
@@ -1028,7 +1032,7 @@ export default {
       lastScrollPosition.value = currentScrollPosition;
     };
     
-    // Touch handling for mobile
+    // Touch handling for mobile - FIXED: Proper function names
     const handleTouchStart = (event) => {
       touchStartY.value = event.touches[0].clientY;
     };
@@ -1057,43 +1061,31 @@ export default {
       lastScrollPosition.value = 0;
     };
 
-    // Modal actions - Updated to use router links instead of modals
-    const openAddItemModal = () => {
-      router.push('/add-item');
-      mobileMenuOpen.value = false;
-      profileMenuOpen.value = false;
-    };
-
-    const openTransferModal = () => {
-      // If you have a dedicated transfer page, use:
-      // router.push('/transfer');
-      // Otherwise, emit event for modal
-      window.dispatchEvent(new CustomEvent('open-transfer-modal'));
-      mobileMenuOpen.value = false;
-      profileMenuOpen.value = false;
-    };
-
-    const openDispatchModal = () => {
-      // If you have a dedicated dispatch page, use:
-      // router.push('/dispatch');
-      // Otherwise, emit event for modal
-      window.dispatchEvent(new CustomEvent('open-dispatch-modal'));
-      mobileMenuOpen.value = false;
-      profileMenuOpen.value = false;
-    };
-
-    const logout = async () => {
+    // Fixed logout function to prevent errors
+    const handleLogout = async () => {
       try {
         mobileMenuOpen.value = false;
         profileMenuOpen.value = false;
+        
+        // Clean up event listeners before logout
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
         
         await store.dispatch('logout');
         router.push('/login');
         
       } catch (error) {
         console.error('Logout error:', error);
+        // Even if there's an error, redirect to login
         router.push('/login');
       }
+    };
+
+    const openAddItemModal = () => {
+      router.push('/inventory/add');
+      mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
     };
 
     onMounted(async () => {
@@ -1118,9 +1110,9 @@ export default {
         
         // Add scroll event listener for bottom nav
         if (showBottomNav.value) {
-          window.addEventListener('scroll', handleScroll);
-          window.addEventListener('touchstart', handleTouchStart);
-          window.addEventListener('touchmove', handleTouchMove);
+          window.addEventListener('scroll', handleScroll, { passive: true });
+          window.addEventListener('touchstart', handleTouchStart, { passive: true });
+          window.addEventListener('touchmove', handleTouchMove, { passive: true });
           
           // Smooth appearance on mount
           setTimeout(() => {
@@ -1171,14 +1163,14 @@ export default {
     watch(showBottomNav, (newValue) => {
       if (newValue) {
         // Bottom nav should be shown - add event listeners
-        window.addEventListener('scroll', handleScroll);
-        window.addEventListener('touchstart', handleTouchStart);
-        window.addEventListener('touchmove', handleTouchMove);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
         resetBottomNav();
       } else {
         // Bottom nav should be hidden - remove event listeners
         window.removeEventListener('scroll', handleScroll);
-        window.removeEventListener('touchstart', handleStart);
+        window.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
       }
     });
@@ -1233,9 +1225,7 @@ export default {
       showNotifications,
       removeNotification,
       openAddItemModal,
-      openTransferModal,
-      openDispatchModal,
-      logout
+      handleLogout
     };
   }
 };
