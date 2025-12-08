@@ -3,7 +3,6 @@
     <!-- Global Notifications -->
     <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2">
       <transition-group name="notification">
-        <!-- Notification items remain the same -->
         <div 
           v-for="notification in notifications" 
           :key="notification.id"
@@ -15,7 +14,20 @@
             'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
           ]"
         >
-          <!-- Notification content -->
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h3 v-if="notification.title" class="font-semibold mb-1">{{ notification.title }}</h3>
+              <p class="text-sm">{{ notification.message }}</p>
+            </div>
+            <button 
+              @click="removeNotification(notification.id)"
+              class="mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </transition-group>
     </div>
@@ -75,14 +87,24 @@
                     @click="toggleDarkMode"
                     class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <!-- Dark mode icon -->
+                    <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                    <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
                   </button>
 
                   <button 
                     @click="showNotifications"
                     class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <!-- Notification icon -->
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                      {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -106,7 +128,6 @@
             >
               <!-- Sidebar Header -->
               <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-                <!-- Logo and close button -->
                 <div class="flex items-center justify-between mb-4">
                   <div class="flex items-center space-x-3 space-x-reverse">
                     <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
@@ -145,7 +166,7 @@
                 </div>
               </div>
 
-              <!-- Navigation Links (MOVED FROM DASHBOARD) -->
+              <!-- Navigation Links -->
               <div class="p-4 space-y-1">
                 <!-- Dashboard Link -->
                 <router-link 
@@ -166,7 +187,7 @@
                   to="/warehouses" 
                   @click="mobileMenuOpen = false"
                   class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'}"
+                  :class="{'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
@@ -412,7 +433,7 @@
               </div>
             </div>
 
-            <!-- Navigation Links (MOVED FROM DASHBOARD) -->
+            <!-- Navigation Links -->
             <div class="flex-1 p-6 space-y-2 overflow-y-auto">
               <!-- Dashboard Link -->
               <router-link 
@@ -604,7 +625,12 @@
                     @click="toggleDarkMode"
                     class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <!-- Dark mode icon -->
+                    <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                    <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
                   </button>
 
                   <!-- Notifications -->
@@ -612,7 +638,12 @@
                     @click="showNotifications"
                     class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <!-- Notification icon -->
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span v-if="realNotificationCount > 0" class="absolute -top-1 -left-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -631,3 +662,373 @@
     </div>
   </div>
 </template>
+
+<script>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useStore } from 'vuex';
+import { useRoute, useRouter } from 'vue-router';
+
+export default {
+  name: 'App',
+  setup() {
+    const store = useStore();
+    const route = useRoute();
+    const router = useRouter();
+    
+    const initializing = ref(true);
+    const mobileMenuOpen = ref(false);
+    const profileMenuOpen = ref(false);
+    const isDarkMode = ref(false);
+
+    // Store data
+    const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const user = computed(() => store.state.user);
+    const userProfile = computed(() => store.state.userProfile);
+    const userRole = computed(() => store.getters.userRole);
+    const notifications = computed(() => store.state.notifications || []);
+    const realNotificationCount = computed(() => notifications.value.length);
+    const mainWarehouse = computed(() => store.getters.mainWarehouse);
+    const warehouses = computed(() => store.state.warehouses || []);
+
+    // Computed properties with safe defaults
+    const userName = computed(() => {
+      return userProfile.value?.name || userProfile.value?.email || user.value?.email || 'مستخدم';
+    });
+
+    const roleName = computed(() => {
+      const names = {
+        superadmin: 'المشرف العام',
+        warehouse_manager: 'مدير المخازن',
+        company_manager: 'مدير الشركة',
+        user: 'مستخدم'
+      };
+      return names[userRole.value] || 'مستخدم';
+    });
+
+    const currentWarehouseName = computed(() => {
+      if (mainWarehouse.value) {
+        return mainWarehouse.value.name_ar || '';
+      }
+      
+      const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0 && warehouses.value.length > 0) {
+        const firstWarehouse = warehouses.value.find(w => w.id === allowedWarehouses[0]);
+        return firstWarehouse?.name_ar || '';
+      }
+      
+      return '';
+    });
+
+    const isPublicRoute = computed(() => {
+      const publicRoutes = ['Login', 'Unauthorized', 'NotFound'];
+      return publicRoutes.includes(route.name);
+    });
+    
+    const showBottomNav = computed(() => {
+      const hideBottomNavRoutes = ['/login', '/unauthorized', '/notfound'];
+      return !hideBottomNavRoutes.includes(route.path) && isAuthenticated.value;
+    });
+
+    // Permissions
+    const canModifyItems = computed(() => {
+      const role = userRole.value;
+      const profile = userProfile.value;
+      
+      if (role === 'superadmin') return true;
+      
+      if (role === 'warehouse_manager') {
+        const hasWarehouses = profile?.allowed_warehouses?.length > 0;
+        const hasPermission = profile?.permissions?.includes('full_access') || 
+                              profile?.permissions?.includes('manage_inventory');
+        return hasWarehouses && hasPermission;
+      }
+      
+      return false;
+    });
+    
+    const canManageUsers = computed(() => store.getters.userRole === 'superadmin');
+    const canManageWarehouses = computed(() => store.getters.userRole === 'superadmin');
+    const canViewReports = computed(() => {
+      const role = store.getters.userRole;
+      return ['superadmin', 'company_manager'].includes(role);
+    });
+
+    // Methods
+    const getPageTitle = () => {
+      const titles = {
+        'Dashboard': 'لوحة التحكم',
+        'Inventory': 'الأصناف',
+        'ItemDetails': 'تفاصيل الصنف',
+        'AddItem': 'إضافة صنف جديد',
+        'Transactions': 'سجل الحركات',
+        'Warehouses': 'المخازن',
+        'Users': 'المستخدمين',
+        'Reports': 'التقارير',
+        'Profile': 'الملف الشخصي'
+      };
+      return titles[route.name] || 'نظام المخزون';
+    };
+
+    const getUserInitials = () => {
+      const name = userName.value;
+      if (!name || name === 'مستخدم') return 'م';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    };
+
+    const initializeDarkMode = () => {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
+      } else {
+        isDarkMode.value = false;
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    const toggleDarkMode = () => {
+      isDarkMode.value = !isDarkMode.value;
+      if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    };
+
+    const toggleProfileMenu = () => {
+      profileMenuOpen.value = !profileMenuOpen.value;
+      if (mobileMenuOpen.value) mobileMenuOpen.value = false;
+    };
+
+    const showNotifications = () => {
+      router.push('/transactions');
+      mobileMenuOpen.value = false;
+    };
+
+    const removeNotification = (notificationId) => {
+      store.commit('REMOVE_NOTIFICATION', notificationId);
+    };
+
+    // Modal actions
+    const openAddItemModal = () => {
+      mobileMenuOpen.value = false;
+      window.dispatchEvent(new CustomEvent('open-add-item-modal'));
+    };
+
+    const openTransferModal = () => {
+      mobileMenuOpen.value = false;
+      window.dispatchEvent(new CustomEvent('open-transfer-modal'));
+    };
+
+    const openDispatchModal = () => {
+      mobileMenuOpen.value = false;
+      window.dispatchEvent(new CustomEvent('open-dispatch-modal'));
+    };
+
+    const openAddWarehouseModal = () => {
+      mobileMenuOpen.value = false;
+      window.dispatchEvent(new CustomEvent('open-add-warehouse-modal'));
+    };
+
+    const logout = async () => {
+      try {
+        mobileMenuOpen.value = false;
+        profileMenuOpen.value = false;
+        
+        await store.dispatch('logout');
+        router.push('/login');
+        
+      } catch (error) {
+        console.error('Logout error:', error);
+        router.push('/login');
+      }
+    };
+
+    onMounted(async () => {
+      try {
+        await store.dispatch('initializeAuth');
+        
+        if (store.getters.isAuthenticated) {
+          await store.dispatch('loadWarehouses');
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'مرحباً بك في نظام المخزون!'
+          });
+        }
+        
+        initializeDarkMode();
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+          if (!localStorage.getItem('theme')) {
+            if (e.matches) {
+              document.documentElement.classList.add('dark');
+              isDarkMode.value = true;
+            } else {
+              document.documentElement.classList.remove('dark');
+              isDarkMode.value = false;
+            }
+          }
+        });
+
+        // Listen for modal events
+        window.addEventListener('open-add-item-modal', openAddItemModal);
+        window.addEventListener('open-add-warehouse-modal', openAddWarehouseModal);
+
+      } catch (error) {
+        console.error('App initialization error:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل النظام'
+        });
+      } finally {
+        setTimeout(() => {
+          initializing.value = false;
+        }, 300);
+      }
+    });
+
+    // Close mobile menu when route changes
+    watch(() => route.path, () => {
+      mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
+    });
+
+    // Clean up event listeners
+    onUnmounted(() => {
+      window.removeEventListener('open-add-item-modal', openAddItemModal);
+      window.removeEventListener('open-add-warehouse-modal', openAddWarehouseModal);
+    });
+
+    return {
+      // Refs
+      initializing,
+      mobileMenuOpen,
+      profileMenuOpen,
+      isDarkMode,
+      
+      // Computed
+      isAuthenticated,
+      user,
+      userProfile,
+      userRole,
+      notifications,
+      realNotificationCount,
+      currentWarehouseName,
+      userName,
+      roleName,
+      isPublicRoute,
+      showBottomNav,
+      canModifyItems,
+      canManageUsers,
+      canManageWarehouses,
+      canViewReports,
+      
+      // Methods
+      getPageTitle,
+      getUserInitials,
+      toggleDarkMode,
+      toggleProfileMenu,
+      showNotifications,
+      removeNotification,
+      openAddItemModal,
+      openTransferModal,
+      openDispatchModal,
+      openAddWarehouseModal,
+      logout
+    };
+  }
+};
+</script>
+
+<style scoped>
+/* Mobile sidebar animation */
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+}
+
+/* Fade animation for overlay */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Safe area for mobile bottom nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Notification animations */
+.notification-enter-active,
+.notification-leave-active {
+  transition: all 0.3s ease;
+}
+
+.notification-enter-from,
+.notification-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Animation for notifications */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Improved responsive typography */
+@media (max-width: 640px) {
+  .text-lg {
+    font-size: 1.125rem;
+  }
+  
+  .text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .text-xs {
+    font-size: 0.75rem;
+  }
+}
+
+/* Better focus states for accessibility */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Mobile scrollbar improvements */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+</style>
