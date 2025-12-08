@@ -60,9 +60,24 @@
         background: #f5f5f5;
       }
 
-      /* Hide loading when Vue mounts */
       body.vue-loaded #app-loading {
         display: none;
+      }
+
+      /* Install button */
+      #install-btn {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 10000;
       }
     </style>
   </head>
@@ -77,6 +92,9 @@
 
     <!-- Vue app root -->
     <div id="app"></div>
+
+    <!-- Install button -->
+    <button id="install-btn">تثبيت التطبيق</button>
 
     <!-- Auto-hide loader when Vue mounts -->
     <script>
@@ -113,26 +131,42 @@
       });
     </script>
 
-    <!-- ⚠️ REMOVE this line for Vue CLI -->
-    <!-- <script type="module" src="/src/main.js"></script> -->
-
-    <!-- ================================
-         REGISTER SERVICE WORKER (Added)
-    ==================================-->
+    <!-- REGISTER SERVICE WORKER -->
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("/service-worker.js")
-            .then(reg => {
-              console.log("Service Worker registered:", reg);
-            })
-            .catch(err => {
-              console.error("Service Worker registration failed:", err);
-            });
+            .then(reg => console.log("Service Worker registered:", reg))
+            .catch(err => console.error("Service Worker registration failed:", err));
         });
       }
     </script>
 
+    <!-- PWA INSTALL PROMPT -->
+    <script>
+      let deferredPrompt;
+      const installBtn = document.getElementById("install-btn");
+
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault(); // Prevent Chrome mini-infobar
+        deferredPrompt = e;
+        installBtn.style.display = "inline-block"; // Show install button
+      });
+
+      installBtn.addEventListener("click", async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt(); // Show the install popup
+          const choice = await deferredPrompt.userChoice;
+          if (choice.outcome === "accepted") {
+            console.log("User accepted the install prompt");
+          } else {
+            console.log("User dismissed the install prompt");
+          }
+          deferredPrompt = null;
+          installBtn.style.display = "none"; // Hide button after click
+        }
+      });
+    </script>
   </body>
 </html>
