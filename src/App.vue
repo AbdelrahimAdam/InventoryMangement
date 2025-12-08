@@ -1,10 +1,10 @@
 <template>
   <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-    <!-- Global Notifications -->
-    <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2">
+    <!-- Global Notifications - Fixed to show only one welcome notification -->
+    <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2 max-w-md mx-auto">
       <transition-group name="notification">
         <div 
-          v-for="notification in notifications" 
+          v-for="notification in notifications.slice(0, 3)" 
           :key="notification.id"
           :class="[
             'p-4 rounded-lg shadow-lg border transform transition-all duration-300',
@@ -16,12 +16,12 @@
         >
           <div class="flex items-start justify-between">
             <div class="flex-1">
-              <h3 v-if="notification.title" class="font-semibold mb-1">{{ notification.title }}</h3>
+              <h3 v-if="notification.title" class="font-semibold mb-1 text-sm">{{ notification.title }}</h3>
               <p class="text-sm">{{ notification.message }}</p>
             </div>
             <button 
               @click="removeNotification(notification.id)"
-              class="mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              class="mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -33,9 +33,9 @@
     </div>
 
     <!-- Show loading while initializing -->
-    <div v-if="initializing" class="flex items-center justify-center min-h-screen">
+    <div v-if="initializing" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
         <p class="mt-4 text-gray-600 dark:text-gray-400">جاري التحميل...</p>
       </div>
     </div>
@@ -76,7 +76,7 @@
                   <h1 class="text-lg font-bold text-gray-900 dark:text-white truncate">
                     {{ getPageTitle() }}
                   </h1>
-                  <p v-if="currentWarehouseName" class="text-xs text-yellow-600 dark:text-yellow-400 truncate">
+                  <p v-if="currentWarehouseName" class="text-xs text-yellow-500 dark:text-yellow-400 truncate">
                     {{ currentWarehouseName }}
                   </p>
                 </div>
@@ -187,7 +187,7 @@
                   to="/warehouses" 
                   @click="mobileMenuOpen = false"
                   class="flex items-center px-4 py-3 rounded-xl text-sm font-medium"
-                  :class="{'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'}"
+                  :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700': $route.path !== '/warehouses'}"
                 >
                   <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
@@ -283,7 +283,7 @@
                     <!-- Transfer Button -->
                     <button 
                       @click="openTransferModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
@@ -294,24 +294,12 @@
                     <!-- Dispatch Button -->
                     <button 
                       @click="openDispatchModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
                     >
                       <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                       </svg>
                       صرف خارجي
-                    </button>
-
-                    <!-- Add Warehouse Button -->
-                    <button 
-                      v-if="canManageWarehouses"
-                      @click="openAddWarehouseModal"
-                      class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                    >
-                      <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                      </svg>
-                      إضافة مخزن جديد
                     </button>
                   </div>
                 </div>
@@ -331,7 +319,7 @@
           </transition>
 
           <!-- Mobile Main Content -->
-          <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
             <router-view />
           </main>
 
@@ -389,7 +377,7 @@
                   <span class="text-xs mt-1 font-medium">الأصناف</span>
                 </router-link>
 
-                <!-- Transactions (NEW LINK) -->
+                <!-- Transactions -->
                 <router-link 
                   to="/transactions" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
@@ -434,7 +422,7 @@
                 </button>
                 <div v-else class="p-2"></div>
 
-                <!-- Settings (REPLACED حسابي with الإعدادات) -->
+                <!-- Settings -->
                 <button 
                   @click="toggleProfileMenu" 
                   class="flex flex-col items-center p-2 rounded-xl transition-all duration-200"
@@ -465,29 +453,32 @@
         <!-- ============================================== -->
         <div class="hidden lg:flex h-full">
           <!-- Desktop Sidebar -->
-          <aside class="w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+          <aside :class="[
+            'bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300',
+            sidebarCollapsed ? 'w-20' : 'w-64'
+          ]">
             <!-- Sidebar Header -->
             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center space-x-3 space-x-reverse">
+              <div class="flex items-center space-x-3 space-x-reverse" :class="{'justify-center': sidebarCollapsed}">
                 <div class="h-12 w-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
                   <span class="text-white font-bold text-lg">م</span>
                 </div>
-                <div>
-                  <h1 class="text-xl font-bold text-gray-900 dark:text-white">نظام ادارة المخازن</h1>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">البران للعطور</p>
+                <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
+                  <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate">نظام المخزون</h1>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">البران للعطور</p>
                 </div>
               </div>
             </div>
 
             <!-- User Profile -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center">
-                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm ml-3">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div class="flex items-center" :class="{'justify-center': sidebarCollapsed}">
+                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center shadow-sm" :class="{'ml-3': !sidebarCollapsed}">
                   <span class="text-white font-medium text-sm">
                     {{ getUserInitials() }}
                   </span>
                 </div>
-                <div class="text-right flex-1">
+                <div v-if="!sidebarCollapsed" class="text-right flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {{ userName }}
                   </p>
@@ -498,98 +489,148 @@
               </div>
             </div>
 
+            <!-- Collapse Button -->
+            <div class="p-2 border-b border-gray-200 dark:border-gray-700">
+              <button 
+                @click="toggleSidebar"
+                class="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+              >
+                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform" 
+                     :class="{'rotate-180': sidebarCollapsed}" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span v-if="!sidebarCollapsed" class="mr-2 text-sm text-gray-500 dark:text-gray-400">طي</span>
+              </button>
+            </div>
+
             <!-- Navigation Links -->
-            <div class="flex-1 p-6 space-y-2 overflow-y-auto">
+            <div class="flex-1 p-4 space-y-1 overflow-y-auto">
               <!-- Dashboard Link -->
               <router-link 
                 to="/" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'لوحة التحكم' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
-                لوحة التحكم
+                <span v-if="!sidebarCollapsed" class="mr-2">لوحة التحكم</span>
               </router-link>
 
               <!-- Warehouse Management (Superadmin only) -->
               <router-link 
                 v-if="canManageWarehouses"
                 to="/warehouses" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/warehouses'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/warehouses', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/warehouses',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'إدارة المخازن' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
-                إدارة المخازن
+                <span v-if="!sidebarCollapsed" class="mr-2">إدارة المخازن</span>
               </router-link>
 
               <!-- User Management (Superadmin only) -->
               <router-link 
                 v-if="canManageUsers"
                 to="/users" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/users'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/users', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/users',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'إدارة المستخدمين' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                 </svg>
-                إدارة المستخدمين
+                <span v-if="!sidebarCollapsed" class="mr-2">إدارة المستخدمين</span>
               </router-link>
 
               <!-- Inventory Link -->
               <router-link 
                 to="/inventory" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path.includes('/inventory'), 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': !$route.path.includes('/inventory')}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path.includes('/inventory'), 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': !$route.path.includes('/inventory'),
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'الأصناف' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                 </svg>
-                الأصناف
+                <span v-if="!sidebarCollapsed" class="mr-2">الأصناف</span>
               </router-link>
 
               <!-- Transactions Link -->
               <router-link 
                 to="/transactions" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/transactions'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/transactions', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/transactions',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'سجل الحركات' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
-                سجل الحركات
+                <span v-if="!sidebarCollapsed" class="mr-2">سجل الحركات</span>
               </router-link>
 
               <!-- Reports Link -->
               <router-link 
                 v-if="canViewReports"
                 to="/reports" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/reports'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/reports', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/reports',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'التقارير' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
-                التقارير
+                <span v-if="!sidebarCollapsed" class="mr-2">التقارير</span>
               </router-link>
 
               <!-- Profile Link -->
               <router-link 
                 to="/profile" 
-                class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/profile'}"
+                class="flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400': $route.path === '/profile', 
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50': $route.path !== '/profile',
+                  'justify-center': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? 'إعدادات الحساب' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
-                إعدادات الحساب
+                <span v-if="!sidebarCollapsed" class="mr-2">إعدادات الحساب</span>
               </router-link>
 
               <!-- Quick Actions Section -->
-              <div v-if="canModifyItems" class="mt-6 mb-4">
+              <div v-if="canModifyItems && !sidebarCollapsed" class="mt-6 mb-4">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
                   إجراءات سريعة
                 </p>
@@ -597,46 +638,34 @@
                   <!-- Add Item Button -->
                   <button 
                     @click="openAddItemModal"
-                    class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
                   >
                     <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    إضافة صنف جديد
+                    <span class="mr-2">إضافة صنف</span>
                   </button>
 
                   <!-- Transfer Button -->
                   <button 
                     @click="openTransferModal"
-                    class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
                   >
                     <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                     </svg>
-                    نقل بين المخازن
+                    <span class="mr-2">نقل</span>
                   </button>
 
                   <!-- Dispatch Button -->
                   <button 
                     @click="openDispatchModal"
-                    class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                    class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
                   >
                     <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
-                    صرف خارجي
-                  </button>
-
-                  <!-- Add Warehouse Button -->
-                  <button 
-                    v-if="canManageWarehouses"
-                    @click="openAddWarehouseModal"
-                    class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                  >
-                    <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    إضافة مخزن جديد
+                    <span class="mr-2">صرف</span>
                   </button>
                 </div>
               </div>
@@ -644,35 +673,53 @@
               <!-- Logout Button -->
               <button 
                 @click="logout"
-                class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors mt-4"
+                class="w-full flex items-center px-3 py-3 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors mt-4"
+                :class="{'justify-center': sidebarCollapsed}"
+                :title="sidebarCollapsed ? 'تسجيل خروج' : ''"
               >
-                <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" :class="{'ml-3': !sidebarCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                 </svg>
-                تسجيل خروج
+                <span v-if="!sidebarCollapsed" class="mr-2">تسجيل خروج</span>
               </button>
             </div>
           </aside>
 
           <!-- Main Content Area -->
-          <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
             <!-- Desktop Header -->
-            <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+            <header class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4">
               <div class="flex items-center justify-between">
-                <!-- Page Title -->
-                <div>
-                  <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ getPageTitle() }}
-                  </h1>
-                  <p v-if="currentWarehouseName" class="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
-                    {{ currentWarehouseName }}
-                  </p>
+                <!-- Breadcrumb and Title -->
+                <div class="flex items-center space-x-4 space-x-reverse">
+                  <button 
+                    @click="toggleSidebar"
+                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
+                  >
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                      {{ getPageTitle() }}
+                    </h1>
+                    <div class="flex items-center space-x-2 space-x-reverse mt-1">
+                      <p v-if="currentWarehouseName" class="text-sm text-yellow-600 dark:text-yellow-400">
+                        {{ currentWarehouseName }}
+                      </p>
+                      <span v-if="userRole" class="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                        {{ roleName }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Header Actions -->
                 <div class="flex items-center space-x-4 space-x-reverse">
                   <!-- Search -->
-                  <div class="relative w-64">
+                  <div class="relative hidden md:block">
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -680,8 +727,8 @@
                     </div>
                     <input
                       type="search"
-                      placeholder="ابحث عن صنف، حركة، أو مستخدم..."
-                      class="block w-full pr-10 pl-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                      placeholder="ابحث..."
+                      class="w-64 pr-10 pl-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 backdrop-blur-sm"
                     />
                   </div>
 
@@ -689,11 +736,12 @@
                   <button 
                     @click="toggleDarkMode"
                     class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    title="تبديل الوضع"
                   >
                     <svg v-if="isDarkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
                     </svg>
-                    <svg v-else class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-else class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
                     </svg>
                   </button>
@@ -702,6 +750,7 @@
                   <button 
                     @click="showNotifications"
                     class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    title="الإشعارات"
                   >
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -710,13 +759,68 @@
                       {{ realNotificationCount > 9 ? '9+' : realNotificationCount }}
                     </span>
                   </button>
+
+                  <!-- User Profile Dropdown -->
+                  <div class="relative">
+                    <button 
+                      @click="profileMenuOpen = !profileMenuOpen"
+                      class="flex items-center space-x-2 space-x-reverse p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div class="h-8 w-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
+                        <span class="text-white text-xs font-medium">
+                          {{ getUserInitials() }}
+                        </span>
+                      </div>
+                      <div class="text-right hidden md:block">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                          {{ userName }}
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ roleName }}
+                        </p>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div 
+                      v-if="profileMenuOpen"
+                      class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                      @click.self="profileMenuOpen = false"
+                    >
+                      <router-link 
+                        to="/profile" 
+                        @click="profileMenuOpen = false"
+                        class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        إعدادات الحساب
+                      </router-link>
+                      <button 
+                        @click="logout"
+                        class="w-full flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        تسجيل خروج
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </header>
 
             <!-- Main Content -->
-            <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6">
-              <router-view />
+            <main class="flex-1 overflow-y-auto p-6">
+              <div class="max-w-full mx-auto">
+                <router-view />
+              </div>
             </main>
           </div>
         </div>
@@ -744,6 +848,7 @@ export default {
     const mobileMenuOpen = ref(false);
     const profileMenuOpen = ref(false);
     const isDarkMode = ref(false);
+    const sidebarCollapsed = ref(false);
     
     // Bottom navigation scroll behavior
     const bottomNavHidden = ref(false);
@@ -770,7 +875,7 @@ export default {
       const names = {
         superadmin: 'المشرف العام',
         warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركه',
+        company_manager: 'مدير الشركة',
         user: 'مستخدم'
       };
       return names[userRole.value] || 'مستخدم';
@@ -870,6 +975,18 @@ export default {
       }
     };
 
+    const toggleSidebar = () => {
+      sidebarCollapsed.value = !sidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value.toString());
+    };
+
+    const initializeSidebar = () => {
+      const savedState = localStorage.getItem('sidebarCollapsed');
+      if (savedState !== null) {
+        sidebarCollapsed.value = savedState === 'true';
+      }
+    };
+
     const toggleProfileMenu = () => {
       profileMenuOpen.value = !profileMenuOpen.value;
       if (mobileMenuOpen.value) mobileMenuOpen.value = false;
@@ -878,6 +995,7 @@ export default {
     const showNotifications = () => {
       router.push('/transactions');
       mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
     };
 
     const removeNotification = (notificationId) => {
@@ -937,21 +1055,25 @@ export default {
     // Modal actions
     const openAddItemModal = () => {
       mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
       window.dispatchEvent(new CustomEvent('open-add-item-modal'));
     };
 
     const openTransferModal = () => {
       mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
       window.dispatchEvent(new CustomEvent('open-transfer-modal'));
     };
 
     const openDispatchModal = () => {
       mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
       window.dispatchEvent(new CustomEvent('open-dispatch-modal'));
     };
 
     const openAddWarehouseModal = () => {
       mobileMenuOpen.value = false;
+      profileMenuOpen.value = false;
       window.dispatchEvent(new CustomEvent('open-add-warehouse-modal'));
     };
 
@@ -976,13 +1098,18 @@ export default {
         if (store.getters.isAuthenticated) {
           await store.dispatch('loadWarehouses');
           
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'مرحباً بك في نظام المخزون!'
-          });
+          // Show only one welcome notification
+          if (!localStorage.getItem('welcomeShown')) {
+            store.dispatch('showNotification', {
+              type: 'success',
+              message: 'مرحباً بك في نظام المخزون!'
+            });
+            localStorage.setItem('welcomeShown', 'true');
+          }
         }
         
         initializeDarkMode();
+        initializeSidebar();
         
         // Add scroll event listener for bottom nav
         if (showBottomNav.value) {
@@ -1046,9 +1173,24 @@ export default {
       } else {
         // Bottom nav should be hidden - remove event listeners
         window.removeEventListener('scroll', handleScroll);
-        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchstart', handleStart);
         window.removeEventListener('touchmove', handleTouchMove);
       }
+    });
+
+    // Close profile menu when clicking outside
+    const handleClickOutside = (event) => {
+      if (profileMenuOpen.value && !event.target.closest('.relative')) {
+        profileMenuOpen.value = false;
+      }
+    };
+
+    onMounted(() => {
+      document.addEventListener('click', handleClickOutside);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('click', handleClickOutside);
     });
 
     return {
@@ -1057,9 +1199,8 @@ export default {
       mobileMenuOpen,
       profileMenuOpen,
       isDarkMode,
+      sidebarCollapsed,
       bottomNavHidden,
-      lastScrollPosition,
-      touchStartY,
       
       // Computed
       isAuthenticated,
@@ -1082,13 +1223,10 @@ export default {
       getPageTitle,
       getUserInitials,
       toggleDarkMode,
+      toggleSidebar,
       toggleProfileMenu,
       showNotifications,
       removeNotification,
-      handleScroll,
-      handleTouchStart,
-      handleTouchMove,
-      resetBottomNav,
       openAddItemModal,
       openTransferModal,
       openDispatchModal,
@@ -1137,6 +1275,11 @@ export default {
 }
 
 /* Glassmorphism effects */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 .backdrop-blur-xl {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1174,7 +1317,7 @@ export default {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Apple-style smooth animations */
+/* Smooth animations */
 @keyframes smooth-appear {
   from {
     opacity: 0;
@@ -1247,8 +1390,145 @@ button:active {
   animation: gradient-shift 3s ease infinite;
 }
 
-/* Subtle glow effect */
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8);
+}
+
+/* Tooltip styles for collapsed sidebar */
+.group:hover .group-hover\:block {
+  display: block;
+}
+
+/* Hover effects for sidebar items */
+.hover\:bg-yellow-50:hover {
+  background-color: rgba(254, 252, 232, 0.8);
+}
+
+.dark .hover\:bg-yellow-900\/20:hover {
+  background-color: rgba(120, 53, 15, 0.2);
+}
+
+/* Text truncation */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Gradient backgrounds with smooth transitions */
+.bg-gradient-to-b {
+  background-size: 100% 200%;
+  transition: background-position 0.3s ease;
+}
+
+.bg-gradient-to-b:hover {
+  background-position: 0 100%;
+}
+
+/* Shadow effects */
 .shadow-glow {
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus styles */
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+}
+
+.focus\:ring-yellow-500:focus {
+  --tw-ring-color: rgba(245, 158, 11, 0.5);
+}
+
+.focus\:border-yellow-500:focus {
+  border-color: #f59e0b;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hidden.md\:block {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:hidden {
+    display: none !important;
+  }
+}
+
+/* Smooth sidebar collapse */
+.w-64 {
+  width: 16rem;
+}
+
+.w-20 {
+  width: 5rem;
+}
+
+/* Ensure content doesn't overflow */
+.max-w-full {
+  max-width: 100%;
+}
+
+/* Improve button accessibility */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Better image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Selection styles */
+::selection {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: inherit;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }
 </style>
