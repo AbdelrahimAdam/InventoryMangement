@@ -8,7 +8,6 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "prebuild": "",
-    "postinstall": "chmod +x node_modules/.bin/vue-cli-service",
     "deploy": "npm run build && firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy:firestore": "firebase deploy --only firestore",
@@ -20,6 +19,7 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^1.0.6",
+    "chart.js": "^4.5.1",
     "core-js": "^3.8.0",
     "date-fns": "^2.30.0",
     "exceljs": "^4.4.0",
