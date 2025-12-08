@@ -269,7 +269,7 @@
             <p class="text-sm">لم يتم تسجيل أي حركات حتى الآن.</p>
           </div>
           
-          <div v-else class="divide-y divide-gray-200 dark:divide-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
+          <div v-else class="divide-y divide-gray-200 dark:divide-gray-700 mobile-transaction-list">
             <div 
               v-for="transaction in paginatedTransactions" 
               :key="transaction.id"
@@ -325,7 +325,7 @@
             </div>
             
             <!-- Mobile Pagination -->
-            <div v-if="totalPages > 1" class="p-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0">
+            <div v-if="totalPages > 1" class="p-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
@@ -873,6 +873,7 @@ export default {
   background: #555;
 }
 
+/* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-track {
   background: #374151;
 }
@@ -923,8 +924,9 @@ tr {
 
 /* Better mobile card spacing */
 @media (max-width: 1024px) {
-  .lg\\:hidden > div {
-    min-height: 200px;
+  .mobile-transaction-list {
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
   }
 }
 
@@ -937,13 +939,6 @@ tr {
 /* Ensure table cells have proper padding */
 td, th {
   padding: 0.75rem 1.5rem;
-}
-
-/* Fix mobile scrolling */
-@media (max-width: 768px) {
-  .max-h-\\[calc\\(100vh-300px\\)\\] {
-    max-height: calc(100vh - 300px) !important;
-  }
 }
 
 /* Improve button touch targets on mobile */
@@ -964,5 +959,69 @@ button:not(.disabled) {
 /* Fix modal content z-index */
 .relative.w-full.max-w-2xl {
   z-index: 50;
+}
+
+/* Animation for loading spinner */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Transition effects */
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.duration-150 {
+  transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+/* Hover effects */
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb;
+}
+
+.dark .hover\:bg-gray-700:hover {
+  background-color: #374151;
+}
+
+.dark .hover\:bg-gray-600:hover {
+  background-color: #4b5563;
+}
+
+/* Disabled state styles */
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+/* Focus rings */
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+}
+
+.focus\:ring-yellow-500:focus {
+  --tw-ring-color: rgba(245, 158, 11, 0.5);
+}
+
+.focus\:border-yellow-500:focus {
+  border-color: #f59e0b;
 }
 </style>
