@@ -43,30 +43,7 @@
         </div>
       </div>
 
-      <!-- Stats Summary -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">إجمالي الحركات</div>
-          <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ filteredTransactions.length }}</div>
-        </div>
-        
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">الإضافات</div>
-          <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.added }}</div>
-        </div>
-        
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">النقلات</div>
-          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ stats.transferred }}</div>
-        </div>
-        
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">الصرف</div>
-          <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">{{ stats.dispatched }}</div>
-        </div>
-      </div>
-
-      <!-- Filters -->
+      <!-- Filters Section Only -->
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div class="md:col-span-2">
@@ -149,104 +126,102 @@
         </div>
       </div>
 
-      <!-- Transactions Table -->
+      <!-- Transactions Table Container -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Desktop Table -->
-        <div class="hidden lg:block">
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">النوع</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">من</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">إلى</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الصنف</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الكمية</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">التاريخ</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-if="filteredTransactions.length === 0">
-                  <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    <div class="flex flex-col items-center">
-                      <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                      </svg>
-                      <h3 class="text-lg font-medium mb-2">لا توجد حركات</h3>
-                      <p class="text-sm">لم يتم تسجيل أي حركات حتى الآن.</p>
-                    </div>
-                  </td>
-                </tr>
+        <div class="hidden lg:block overflow-x-auto">
+          <table class="w-full min-w-[800px]">
+            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+              <tr>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">النوع</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">من</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">إلى</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الصنف</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الكمية</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">التاريخ</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              <tr v-if="filteredTransactions.length === 0">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <h3 class="text-lg font-medium mb-2">لا توجد حركات</h3>
+                    <p class="text-sm">لم يتم تسجيل أي حركات حتى الآن.</p>
+                  </div>
+                </td>
+              </tr>
+              
+              <tr 
+                v-for="transaction in paginatedTransactions" 
+                :key="transaction.id"
+                class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
+              >
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="getTransactionTypeClass(transaction.type)" 
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
+                    {{ getTransactionType(transaction.type) }}
+                  </span>
+                </td>
                 
-                <tr 
-                  v-for="transaction in paginatedTransactions" 
-                  :key="transaction.id"
-                  class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
-                >
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span :class="getTransactionTypeClass(transaction.type)" 
-                          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
-                      {{ getTransactionType(transaction.type) }}
-                    </span>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 dark:text-white font-medium">
-                      {{ getWarehouseLabel(transaction.from_warehouse) || '-' }}
-                    </div>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 dark:text-white font-medium">
-                      {{ getWarehouseLabel(transaction.to_warehouse) || '-' }}
-                    </div>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 dark:text-white font-medium">
-                      {{ transaction.item_name || '-' }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ transaction.item_code || '' }}
-                    </div>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold" :class="getQuantityClass(transaction)">
-                      {{ getTotalQuantity(transaction) }}
-                    </div>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 dark:text-white">
-                      {{ formatDate(transaction.timestamp) }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ formatTime(transaction.timestamp) }}
-                    </div>
-                  </td>
-                  
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <button
-                      @click="viewTransactionDetails(transaction)"
-                      class="inline-flex items-center px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-                      title="عرض التفاصيل"
-                    >
-                      <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                      </svg>
-                      عرض
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white font-medium">
+                    {{ getWarehouseLabel(transaction.from_warehouse) || '-' }}
+                  </div>
+                </td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white font-medium">
+                    {{ getWarehouseLabel(transaction.to_warehouse) || '-' }}
+                  </div>
+                </td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white font-medium">
+                    {{ transaction.item_name || '-' }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ transaction.item_code || '' }}
+                  </div>
+                </td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-bold" :class="getQuantityClass(transaction)">
+                    {{ getTotalQuantity(transaction) }}
+                  </div>
+                </td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white">
+                    {{ formatDate(transaction.timestamp) }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ formatTime(transaction.timestamp) }}
+                  </div>
+                </td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <button
+                    @click.stop="viewTransactionDetails(transaction)"
+                    class="inline-flex items-center px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                    title="عرض التفاصيل"
+                  >
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    عرض
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
           
-          <!-- Pagination -->
-          <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <!-- Desktop Pagination -->
+          <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0">
             <div class="text-sm text-gray-500 dark:text-gray-400">
               عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredTransactions.length) }} من {{ filteredTransactions.length }}
             </div>
@@ -294,12 +269,11 @@
             <p class="text-sm">لم يتم تسجيل أي حركات حتى الآن.</p>
           </div>
           
-          <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+          <div v-else class="divide-y divide-gray-200 dark:divide-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
             <div 
               v-for="transaction in paginatedTransactions" 
               :key="transaction.id"
               class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
-              @click="viewTransactionDetails(transaction)"
             >
               <div class="flex justify-between items-start mb-3">
                 <span :class="getTransactionTypeClass(transaction.type)" 
@@ -334,10 +308,24 @@
                   <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getWarehouseLabel(transaction.to_warehouse) }}</span>
                 </div>
               </div>
+              
+              <div class="mt-4">
+                <button
+                  @click.stop="viewTransactionDetails(transaction)"
+                  class="w-full inline-flex items-center justify-center px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  title="عرض التفاصيل"
+                >
+                  <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  عرض التفاصيل
+                </button>
+              </div>
             </div>
             
             <!-- Mobile Pagination -->
-            <div v-if="totalPages > 1" class="p-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+            <div v-if="totalPages > 1" class="p-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0">
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
@@ -369,7 +357,7 @@
       
       <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700">
         <!-- Header -->
-        <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-xl">
+        <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-xl z-20">
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">تفاصيل الحركة</h2>
             <button 
@@ -629,20 +617,6 @@ export default {
       }
     })
 
-    // Calculate statistics
-    const stats = computed(() => {
-      try {
-        const trans = transactionsData.value
-        return {
-          added: trans.filter(t => t.type === 'ADD').length,
-          transferred: trans.filter(t => t.type === 'TRANSFER').length,
-          dispatched: trans.filter(t => t.type === 'DISPATCH').length
-        }
-      } catch {
-        return { added: 0, transferred: 0, dispatched: 0 }
-      }
-    })
-
     // Filter transactions
     const filteredTransactions = computed(() => {
       try {
@@ -840,7 +814,6 @@ export default {
       currentPage,
       
       // Computed
-      stats,
       filteredTransactions,
       paginatedTransactions,
       totalPages,
@@ -928,6 +901,68 @@ export default {
 @media (max-width: 1024px) {
   .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
+}
+
+/* Fix table header and pagination sticking */
+.sticky {
+  position: sticky;
+  z-index: 10;
+}
+
+/* Ensure table rows have consistent height */
+tr {
+  height: 64px;
+}
+
+/* Fix modal z-index conflicts */
+.fixed {
+  isolation: isolate;
+}
+
+/* Better mobile card spacing */
+@media (max-width: 1024px) {
+  .lg\\:hidden > div {
+    min-height: 200px;
+  }
+}
+
+/* Prevent text overflow in table cells */
+.whitespace-nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure table cells have proper padding */
+td, th {
+  padding: 0.75rem 1.5rem;
+}
+
+/* Fix mobile scrolling */
+@media (max-width: 768px) {
+  .max-h-\\[calc\\(100vh-300px\\)\\] {
+    max-height: calc(100vh - 300px) !important;
+  }
+}
+
+/* Improve button touch targets on mobile */
+button:not(.disabled) {
+  cursor: pointer;
+}
+
+/* Fix RTL text alignment */
+.text-right {
+  text-align: right;
+}
+
+/* Ensure modal backdrop covers everything */
+.absolute.inset-0 {
+  z-index: 40;
+}
+
+/* Fix modal content z-index */
+.relative.w-full.max-w-2xl {
+  z-index: 50;
 }
 </style>
