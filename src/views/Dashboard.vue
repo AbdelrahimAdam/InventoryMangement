@@ -12,7 +12,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats.totalItems }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats?.totalItems || 0 }}</dd>
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalQuantity) }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats?.totalQuantity || 0) }}</dd>
             </div>
           </div>
         </div>
@@ -44,7 +44,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ dashboardStats.lowStockItems }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ dashboardStats?.lowStockItems || 0 }}</dd>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats.recentTransactions }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats?.recentTransactions || 0 }}</dd>
             </div>
           </div>
         </div>
@@ -97,7 +97,7 @@
             v-model="selectedWarehouse"
             @change="handleWarehouseChange"
             class="block w-full lg:w-auto pl-3 pr-10 py-2 text-sm lg:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors duration-200"
-            :disabled="loading || accessibleWarehouses.length === 0"
+            :disabled="loading || !accessibleWarehouses || accessibleWarehouses.length === 0"
           >
             <option value="">جميع المخازن</option>
             <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
@@ -193,20 +193,18 @@ export default {
     const showDispatchModal = ref(false);
     const selectedItemForAction = ref(null);
 
-    // Computed properties
-    const userRole = computed(() => store.getters.userRole);
-    const dashboardStats = computed(() => store.getters.dashboardStats);
+    // Computed properties with safe defaults
+    const userRole = computed(() => store.getters.userRole || '');
+    const dashboardStats = computed(() => store.getters.dashboardStats || {});
     const inventory = computed(() => store.state.inventory || []);
     
     // Permission getters
     const canModifyItems = computed(() => {
-      const role = store.getters.userRole;
-      const profile = store.state.userProfile;
+      const role = userRole.value;
+      const profile = store.state.userProfile || {};
       
-      // Superadmin always has permission
       if (role === 'superadmin') return true;
       
-      // Warehouse manager has permission if they have allowed warehouses
       if (role === 'warehouse_manager') {
         const hasWarehouses = profile?.allowed_warehouses?.length > 0;
         const hasPermission = profile?.permissions?.includes('full_access') || 
@@ -254,7 +252,7 @@ export default {
     // Transform inventory data to match InventoryTable component structure
     const transformedInventory = computed(() => {
       return filteredInventory.value.map(item => ({
-        id: item.id,
+        id: item.id || item.ID,
         name: item.name || item.الاسم || 'غير محدد',
         code: item.code || item.الكود || '-',
         color: item.color || item.اللون || '-',
@@ -272,6 +270,7 @@ export default {
 
     // Helper functions
     const formatNumber = (num) => {
+      if (isNaN(num) || num === null || num === undefined) return '0';
       return new Intl.NumberFormat('ar-EG').format(num);
     };
 
@@ -338,9 +337,9 @@ export default {
 
     onMounted(() => {
       // Set default warehouse if accessible warehouses exist
-      if (accessibleWarehouses.value.length > 0) {
+      if (accessibleWarehouses.value && accessibleWarehouses.value.length > 0) {
         const mainWarehouse = store.getters.mainWarehouse;
-        selectedWarehouse.value = mainWarehouse?.id || accessibleWarehouses.value[0].id;
+        selectedWarehouse.value = mainWarehouse?.id || accessibleWarehouses.value[0]?.id || '';
       }
       
       // Subscribe to real-time data
@@ -383,3 +382,48 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+/* Custom scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 5px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+</style>
