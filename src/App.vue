@@ -265,7 +265,7 @@
                   إعدادات الحساب
                 </router-link>
 
-                <!-- Quick Actions Section -->
+                <!-- Quick Actions Section - UPDATED WITH STORE-BASED PERMISSIONS -->
                 <div v-if="canModifyItems" class="mt-6 mb-2">
                   <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
                     إجراءات سريعة
@@ -295,8 +295,9 @@
                       نقل بين المخازن
                     </router-link>
 
-                    <!-- Dispatch Button - FIXED: Points to correct route -->
+                    <!-- Dispatch Button - FIXED: Points to correct route AND checks dispatch permission -->
                     <router-link 
+                      v-if="canDispatch"
                       to="/dispatch"
                       @click="mobileMenuOpen = false"
                       class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
@@ -402,7 +403,7 @@
                   <span class="text-xs mt-1 font-medium">الحركات</span>
                 </router-link>
 
-                <!-- Quick Add - FIXED: Points to correct route -->
+                <!-- Quick Add - FIXED: Points to correct route AND checks modify permission -->
                 <router-link 
                   v-if="canModifyItems"
                   to="/inventory/add" 
@@ -636,7 +637,7 @@
                 <span v-if="!sidebarCollapsed" class="mr-2">إعدادات الحساب</span>
               </router-link>
 
-              <!-- Quick Actions Section -->
+              <!-- Quick Actions Section - UPDATED WITH STORE-BASED PERMISSIONS -->
               <div v-if="canModifyItems && !sidebarCollapsed" class="mt-4 mb-2">
                 <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
                   إجراءات سريعة
@@ -664,8 +665,9 @@
                     <span class="mr-2">نقل</span>
                   </router-link>
 
-                  <!-- Dispatch Button - FIXED -->
+                  <!-- Dispatch Button - FIXED: Checks dispatch permission -->
                   <router-link 
+                    v-if="canDispatch"
                     to="/dispatch"
                     class="w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 hover:from-green-100 hover:to-green-50 dark:hover:from-green-900/30 dark:hover:to-green-900/20 text-green-700 dark:text-green-300 hover:border-green-300 dark:hover:border-green-700 shadow-sm"
                   >
@@ -863,7 +865,7 @@ export default {
     const scrollThreshold = 10;
     const touchStartY = ref(0);
 
-    // Store data
+    // Firebase store getters - UPDATED to use store getters
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
     const user = computed(() => store.state.user);
     const userProfile = computed(() => store.state.userProfile);
@@ -872,6 +874,8 @@ export default {
     const realNotificationCount = computed(() => notifications.value.length);
     const mainWarehouse = computed(() => store.getters.mainWarehouse);
     const warehouses = computed(() => store.state.warehouses || []);
+    const allowedWarehouses = computed(() => store.getters.allowedWarehouses || []);
+    const userPermissions = computed(() => store.getters.userPermissions || []);
 
     // Computed properties with safe defaults
     const userName = computed(() => {
@@ -893,9 +897,8 @@ export default {
         return mainWarehouse.value.name_ar || '';
       }
       
-      const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
-      if (allowedWarehouses.length > 0 && warehouses.value.length > 0) {
-        const firstWarehouse = warehouses.value.find(w => w.id === allowedWarehouses[0]);
+      if (allowedWarehouses.value.length > 0 && warehouses.value.length > 0) {
+        const firstWarehouse = warehouses.value.find(w => w.id === allowedWarehouses.value[0]);
         return firstWarehouse?.name_ar || '';
       }
       
@@ -912,7 +915,7 @@ export default {
       return !hideBottomNavRoutes.includes(route.path) && isAuthenticated.value;
     });
 
-    // Permissions
+    // Permission getters from store - UPDATED to use store getters
     const canModifyItems = computed(() => {
       const role = userRole.value;
       const profile = userProfile.value;
@@ -920,19 +923,20 @@ export default {
       if (role === 'superadmin') return true;
       
       if (role === 'warehouse_manager') {
-        const hasWarehouses = profile?.allowed_warehouses?.length > 0;
-        const hasPermission = profile?.permissions?.includes('full_access') || 
-                              profile?.permissions?.includes('manage_inventory');
+        const hasWarehouses = allowedWarehouses.value.length > 0;
+        const hasPermission = userPermissions.value.includes('full_access') || 
+                              userPermissions.value.includes('manage_inventory');
         return hasWarehouses && hasPermission;
       }
       
       return false;
     });
     
-    const canManageUsers = computed(() => store.getters.userRole === 'superadmin');
-    const canManageWarehouses = computed(() => store.getters.userRole === 'superadmin');
+    const canManageUsers = computed(() => store.getters.canManageUsers);
+    const canManageWarehouses = computed(() => store.getters.canManageWarehouses);
+    const canDispatch = computed(() => store.getters.canDispatch);
     const canViewReports = computed(() => {
-      const role = store.getters.userRole;
+      const role = userRole.value;
       return ['superadmin', 'company_manager'].includes(role);
     });
 
@@ -1011,7 +1015,7 @@ export default {
       store.commit('REMOVE_NOTIFICATION', notificationId);
     };
 
-    // Bottom navigation scroll handling - FIXED: Removed handleStart reference error
+    // Bottom navigation scroll handling
     const handleScroll = () => {
       const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
       
@@ -1032,7 +1036,7 @@ export default {
       lastScrollPosition.value = currentScrollPosition;
     };
     
-    // Touch handling for mobile - FIXED: Proper function names
+    // Touch handling for mobile
     const handleTouchStart = (event) => {
       touchStartY.value = event.touches[0].clientY;
     };
@@ -1214,6 +1218,7 @@ export default {
       canModifyItems,
       canManageUsers,
       canManageWarehouses,
+      canDispatch,
       canViewReports,
       
       // Methods
