@@ -875,10 +875,6 @@ export default {
           }
         });
 
-        // Listen for modal events
-        window.addEventListener('open-add-item-modal', openAddItemModal);
-        window.addEventListener('open-add-warehouse-modal', openAddWarehouseModal);
-
       } catch (error) {
         console.error('App initialization error:', error);
         store.dispatch('showNotification', {
@@ -896,12 +892,6 @@ export default {
     watch(() => route.path, () => {
       mobileMenuOpen.value = false;
       profileMenuOpen.value = false;
-    });
-
-    // Clean up event listeners
-    onUnmounted(() => {
-      window.removeEventListener('open-add-item-modal', openAddItemModal);
-      window.removeEventListener('open-add-warehouse-modal', openAddWarehouseModal);
     });
 
     return {
