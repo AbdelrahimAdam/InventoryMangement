@@ -117,6 +117,8 @@
               v-model="formData.name"
               class="form-input"
               placeholder="أدخل اسم الصنف"
+              ref="nameInput"
+              @keydown.enter.prevent="focusNextField('codeInput')"
             />
           </div>
 
@@ -132,6 +134,8 @@
                 v-model="formData.code"
                 class="form-input"
                 placeholder="كود الصنف"
+                ref="codeInput"
+                @keydown.enter.prevent="focusNextField('colorInput')"
               />
             </div>
 
@@ -145,6 +149,8 @@
                 v-model="formData.color"
                 class="form-input"
                 placeholder="لون الصنف"
+                ref="colorInput"
+                @keydown.enter.prevent="focusNextField('warehouseSelect')"
               />
             </div>
           </div>
@@ -158,6 +164,7 @@
               v-model="formData.warehouse_id"
               class="form-select"
               required
+              ref="warehouseSelect"
             >
               <option value="">اختر المخزن</option>
               <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
@@ -177,6 +184,7 @@
                 v-model="formData.supplier"
                 class="form-input"
                 placeholder="اسم المورد"
+                ref="supplierInput"
               />
             </div>
 
@@ -189,6 +197,7 @@
                 v-model="formData.item_location"
                 class="form-input"
                 placeholder="مكان الصنف داخل المخزن"
+                ref="locationInput"
               />
             </div>
           </div>
@@ -235,6 +244,7 @@
                 required
                 v-model.number="formData.cartons_count"
                 class="form-input"
+                ref="cartonsCountInput"
               />
             </div>
 
@@ -248,6 +258,7 @@
                 required
                 v-model.number="formData.per_carton_count"
                 class="form-input"
+                ref="perCartonInput"
               />
             </div>
           </div>
@@ -263,6 +274,7 @@
               required
               v-model.number="formData.single_bottles_count"
               class="form-input"
+              ref="singleBottlesInput"
             />
           </div>
 
@@ -276,6 +288,7 @@
               rows="2"
               class="form-textarea"
               placeholder="ملاحظات إضافية (اختياري)"
+              ref="notesInput"
             ></textarea>
           </div>
 
@@ -336,12 +349,21 @@
                 @click="closeModal"
                 class="btn-secondary"
               >
-                إلغاء
+                إغلاق
+              </button>
+              <button
+                type="button"
+                @click="resetForm"
+                class="btn-secondary"
+                :disabled="loading || storeOperationLoading || uploadingPhoto"
+              >
+                مسح النموذج
               </button>
               <button
                 type="submit"
                 :disabled="loading || storeOperationLoading || !isFormValid || uploadingPhoto"
                 class="btn-primary"
+                ref="submitButton"
               >
                 <svg v-if="loading || storeOperationLoading || uploadingPhoto" class="spinner spinner-sm" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -361,7 +383,7 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 
 export default {
@@ -386,7 +408,21 @@ export default {
     const selectedFile = ref(null);
     const previewPhoto = ref('');
     const fileInput = ref(null);
+    const isFormResetting = ref(false);
     
+    // Refs for form inputs
+    const nameInput = ref(null);
+    const codeInput = ref(null);
+    const colorInput = ref(null);
+    const warehouseSelect = ref(null);
+    const supplierInput = ref(null);
+    const locationInput = ref(null);
+    const cartonsCountInput = ref(null);
+    const perCartonInput = ref(null);
+    const singleBottlesInput = ref(null);
+    const notesInput = ref(null);
+    const submitButton = ref(null);
+
     const formData = ref({
       name: '',
       code: '',
@@ -424,6 +460,7 @@ export default {
     });
 
     const isFormValid = computed(() => {
+      if (isFormResetting.value) return false;
       if (!formData.value.name.trim()) return false;
       if (!formData.value.code.trim()) return false;
       if (!formData.value.color.trim()) return false;
@@ -448,10 +485,15 @@ export default {
     // Watchers
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
-        resetForm();
+        // Don't reset form when modal opens, just focus on first input
+        setTimeout(() => {
+          if (nameInput.value) {
+            nameInput.value.focus();
+          }
+        }, 100);
         
         // Set default warehouse if accessible warehouses exist
-        if (accessibleWarehouses.value.length > 0) {
+        if (accessibleWarehouses.value.length > 0 && !formData.value.warehouse_id) {
           const mainWarehouse = store.getters.mainWarehouse;
           formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
         }
@@ -463,18 +505,23 @@ export default {
         const mainWarehouse = store.getters.mainWarehouse;
         formData.value.warehouse_id = mainWarehouse?.id || newWarehouses[0].id;
       }
-    });
+    }, { immediate: true });
 
     // Watch for form changes to check for existing items
+    const checkExistingItemDebounced = debounce(async () => {
+      if (isFormResetting.value) return;
+      
+      if (formData.value.name && formData.value.code && formData.value.color && formData.value.warehouse_id) {
+        await checkExistingItem();
+      } else {
+        existingItem.value = null;
+      }
+    }, 300);
+
     watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
-      async ([name, code, color, warehouseId]) => {
-        if (name && code && color && warehouseId) {
-          await checkExistingItem();
-        } else {
-          existingItem.value = null;
-        }
-      }, 
-      { immediate: true }
+      () => {
+        checkExistingItemDebounced();
+      }
     );
 
     // Methods
@@ -484,12 +531,17 @@ export default {
     };
 
     const resetForm = () => {
+      isFormResetting.value = true;
+      
+      // Store current warehouse_id to preserve it
+      const currentWarehouseId = formData.value.warehouse_id;
+      
       formData.value = {
         name: '',
         code: '',
         color: '',
-        warehouse_id: accessibleWarehouses.value.length > 0 ? 
-          (store.getters.mainWarehouse?.id || accessibleWarehouses.value[0].id) : '',
+        warehouse_id: currentWarehouseId || (accessibleWarehouses.value.length > 0 ? 
+          (store.getters.mainWarehouse?.id || accessibleWarehouses.value[0].id) : ''),
         supplier: '',
         item_location: '',
         cartons_count: 0,
@@ -498,6 +550,7 @@ export default {
         notes: '',
         photo_url: null
       };
+      
       addMode.value = 'both';
       errorMessage.value = '';
       successMessage.value = '';
@@ -505,6 +558,50 @@ export default {
       selectedFile.value = null;
       previewPhoto.value = '';
       store.dispatch('clearOperationError');
+      
+      // Focus on name input after reset
+      nextTick(() => {
+        isFormResetting.value = false;
+        if (nameInput.value) {
+          nameInput.value.focus();
+        }
+      });
+    };
+
+    const clearFormAfterSuccess = () => {
+      isFormResetting.value = true;
+      
+      // Preserve warehouse selection
+      const currentWarehouseId = formData.value.warehouse_id;
+      
+      formData.value = {
+        name: '',
+        code: '',
+        color: '',
+        warehouse_id: currentWarehouseId,
+        supplier: '',
+        item_location: '',
+        cartons_count: 0,
+        per_carton_count: 12,
+        single_bottles_count: 0,
+        notes: '',
+        photo_url: null
+      };
+      
+      addMode.value = 'both';
+      errorMessage.value = '';
+      existingItem.value = null;
+      selectedFile.value = null;
+      previewPhoto.value = '';
+      store.dispatch('clearOperationError');
+      
+      // Focus on name input
+      nextTick(() => {
+        isFormResetting.value = false;
+        if (nameInput.value) {
+          nameInput.value.focus();
+        }
+      });
     };
 
     const formatFileSize = (bytes) => {
@@ -637,6 +734,8 @@ export default {
     };
 
     const checkExistingItem = async () => {
+      if (isFormResetting.value) return;
+      
       if (!formData.value.name || !formData.value.code || !formData.value.color || !formData.value.warehouse_id) {
         existingItem.value = null;
         return;
@@ -673,18 +772,22 @@ export default {
 
       if (!formData.value.name.trim()) {
         errorMessage.value = 'يرجى إدخال اسم الصنف';
+        if (nameInput.value) nameInput.value.focus();
         return false;
       }
       if (!formData.value.code.trim()) {
         errorMessage.value = 'يرجى إدخال كود الصنف';
+        if (codeInput.value) codeInput.value.focus();
         return false;
       }
       if (!formData.value.color.trim()) {
         errorMessage.value = 'يرجى إدخال لون الصنف';
+        if (colorInput.value) colorInput.value.focus();
         return false;
       }
       if (!formData.value.warehouse_id) {
         errorMessage.value = 'يرجى اختيار المخزن';
+        if (warehouseSelect.value) warehouseSelect.value.focus();
         return false;
       }
 
@@ -704,15 +807,18 @@ export default {
       if (addMode.value === 'cartons') {
         if (!formData.value.cartons_count || formData.value.cartons_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد كراتين صحيح';
+          if (cartonsCountInput.value) cartonsCountInput.value.focus();
           return false;
         }
         if (!formData.value.per_carton_count || formData.value.per_carton_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد صحيح في الكرتونة';
+          if (perCartonInput.value) perCartonInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'single') {
         if (!formData.value.single_bottles_count || formData.value.single_bottles_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد فردي صحيح';
+          if (singleBottlesInput.value) singleBottlesInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'both') {
@@ -732,6 +838,26 @@ export default {
       }
 
       return true;
+    };
+
+    const focusNextField = (fieldRef) => {
+      const field = {
+        nameInput,
+        codeInput,
+        colorInput,
+        warehouseSelect,
+        supplierInput,
+        locationInput,
+        cartonsCountInput,
+        perCartonInput,
+        singleBottlesInput,
+        notesInput,
+        submitButton
+      }[fieldRef];
+      
+      if (field && field.value) {
+        field.value.focus();
+      }
     };
 
     const handleSubmit = async () => {
@@ -803,11 +929,11 @@ export default {
           successMessage.value = 'تم حفظ التغييرات بنجاح!';
         }
 
-        // Wait a moment to show success message, then close modal
+        // Clear the form after successful submission but keep modal open
         setTimeout(() => {
           emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
-          closeModal();
-        }, 1500);
+          clearFormAfterSuccess();
+        }, 1000);
         
       } catch (error) {
         console.error('Error in handleSubmit:', error);
@@ -832,6 +958,19 @@ export default {
       }
     };
 
+    // Debounce helper function
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
     return {
       loading,
       errorMessage,
@@ -851,13 +990,26 @@ export default {
       selectedFile,
       previewPhoto,
       fileInput,
+      nameInput,
+      codeInput,
+      colorInput,
+      warehouseSelect,
+      supplierInput,
+      locationInput,
+      cartonsCountInput,
+      perCartonInput,
+      singleBottlesInput,
+      notesInput,
+      submitButton,
       closeModal,
       handleSubmit,
+      resetForm,
       formatFileSize,
       openFilePicker,
       handleFileUpload,
       handlePasteFromClipboard,
-      removePhoto
+      removePhoto,
+      focusNextField
     };
   }
 };
@@ -897,7 +1049,7 @@ export default {
 
 /* Modal header */
 .modal-header {
-    position: sticky;
+  position: sticky;
   top: 0;
   background-color: white;
   z-index: 10;
@@ -1353,7 +1505,6 @@ export default {
 }
 
 .btn-secondary {
-  flex: 1;
   padding: 0.5rem 1rem;
   background-color: #e5e7eb;
   color: #1f2937;
@@ -1363,6 +1514,7 @@ export default {
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 .dark .btn-secondary {
@@ -1370,12 +1522,17 @@ export default {
   color: #e5e7eb;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background-color: #d1d5db;
 }
 
-.dark .btn-secondary:hover {
+.dark .btn-secondary:hover:not(:disabled) {
   background-color: #4b5563;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Gap utility */
@@ -1545,6 +1702,15 @@ export default {
     margin-right: -0.5rem;
     margin-left: -0.5rem;
     padding: 0.75rem;
+  }
+  
+  .modal-footer .flex {
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn-secondary,
+  .modal-footer .btn-primary {
+    width: 100%;
   }
 }
 

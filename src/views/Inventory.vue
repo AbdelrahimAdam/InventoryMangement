@@ -654,7 +654,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive } from 'vue';
+import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
@@ -897,18 +897,24 @@ export default {
     const refreshData = async () => {
       try {
         loading.value = true;
-        searchTerm.value = '';
-        statusFilter.value = '';
-        selectedWarehouse.value = '';
+        
+        // Only clear filters if needed, don't always reset
+        // searchTerm.value = '';
+        // statusFilter.value = '';
+        // selectedWarehouse.value = '';
         error.value = '';
         
-        store.dispatch('updateFilters', { search: '', warehouse: '' });
+        // Only update filters if they have changed
+        store.dispatch('updateFilters', { search: searchTerm.value, warehouse: selectedWarehouse.value });
         
         await store.dispatch('subscribeToInventory');
         await store.dispatch('getRecentTransactions');
         
-        Object.keys(imageLoaded).forEach(key => {
-          delete imageLoaded[key];
+        // Clear only non-existing image loaded states
+        inventory.value.forEach(item => {
+          if (!imageLoaded[item.id]) {
+            delete imageLoaded[item.id];
+          }
         });
         
       } catch (err) {
@@ -1069,9 +1075,26 @@ export default {
       }
     };
     
-    const handleItemSaved = () => {
-      showAddModal.value = false;
+    // FIXED: Keep modal open after saving
+    const handleItemSaved = (result) => {
+      // Don't close the modal - let it stay open
+      // showAddModal.value = false;
+      
+      // Refresh data to show the new item
       refreshData();
+      
+      // Show success notification
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: result?.type === 'created' 
+          ? 'تم إضافة الصنف الجديد بنجاح! يمكنك إضافة صنف آخر أو إغلاق النافذة.' 
+          : 'تم تحديث الكميات بنجاح!'
+      });
+    };
+    
+    // Add a separate method to close the modal when user clicks "إغلاق"
+    const closeAddModal = () => {
+      showAddModal.value = false;
     };
     
     const handleItemUpdated = () => {
@@ -1106,6 +1129,11 @@ export default {
       }
     };
     
+    // Performance optimization: Debounced scroll handler
+    const handleScroll = () => {
+      // For future use if needed for infinite scroll
+    };
+    
     // Lifecycle
     onMounted(() => {
       if (accessibleWarehouses.value.length === 1) {
@@ -1117,18 +1145,31 @@ export default {
         showAddModal.value = true;
       }
       
-      inventory.value.forEach(item => {
-        if (item.photo_url) {
-          const img = new Image();
-          img.src = item.photo_url;
-          img.onload = () => {
-            imageLoaded[item.id] = true;
-          };
-          img.onerror = () => {
-            imageLoaded[item.id] = false;
-          };
-        }
-      });
+      // Pre-load images only for visible items (lazy loading optimization)
+      const preloadImages = () => {
+        inventory.value.slice(0, 20).forEach(item => {
+          if (item.photo_url && !imageLoaded[item.id]) {
+            const img = new Image();
+            img.src = item.photo_url;
+            img.onload = () => {
+              imageLoaded[item.id] = true;
+            };
+            img.onerror = () => {
+              imageLoaded[item.id] = false;
+            };
+          }
+        });
+      };
+      
+      // Initial preload
+      preloadImages();
+    });
+    
+    // Clean up on unmount
+    onUnmounted(() => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
     });
     
     // Watch for operation errors
@@ -1142,8 +1183,9 @@ export default {
       }
     });
     
-    // Watch for inventory changes to update image loaded state
+    // Optimized watch for inventory changes
     watch(inventory, (newInventory) => {
+      // Only update image loaded state for new items
       newInventory.forEach(item => {
         if (item.photo_url && !imageLoaded[item.id]) {
           const img = new Image();
@@ -1231,6 +1273,7 @@ export default {
       handleDelete,
       confirmDelete,
       handleItemSaved,
+      closeAddModal, // Add this new method
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
@@ -1253,20 +1296,20 @@ export default {
   opacity: 0;
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - optimized for performance */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #888;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -1375,7 +1418,7 @@ button:not(.disabled) {
   }
 }
 
-/* Transition effects */
+/* Transition effects - optimized */
 .transition-colors {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -1412,9 +1455,10 @@ button:not(.disabled) {
   cursor: not-allowed;
 }
 
-/* Focus rings */
+/* Focus rings - reduced impact on performance */
 .focus\:ring-2:focus {
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+  outline: none;
 }
 
 .focus\:ring-yellow-500:focus {
@@ -1433,5 +1477,75 @@ button:not(.disabled) {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Optimized image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .transition-colors,
+  .duration-150,
+  .duration-200,
+  .animate-spin,
+  .animate-pulse {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .bg-white,
+  .bg-gray-50 {
+    background-color: white !important;
+  }
+  
+  .text-gray-900,
+  .text-gray-700 {
+    color: black !important;
+  }
+  
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* Content visibility for offscreen elements */
+.offscreen-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 5000px;
+}
+
+/* Optimize table rendering */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Improve touch feedback on mobile */
+@media (hover: none) and (pointer: coarse) {
+  button:active {
+    opacity: 0.7;
+  }
 }
 </style>

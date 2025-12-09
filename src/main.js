@@ -9,6 +9,9 @@ import './styles/globals.css';
 import { auth } from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
+// Import Performance Directives and Services
+import { lazyImageDirective } from './directives/lazyImage';
+
 console.log('🚀 Starting Warehouse Management System...');
 
 // ==================== REGISTER SERVICE WORKER ====================
@@ -142,6 +145,10 @@ async function initializeApp() {
     app.use(store);
     app.use(router);
 
+    // ==================== REGISTER PERFORMANCE DIRECTIVES ====================
+    // Register lazy image directive
+    app.directive('lazy-image', lazyImageDirective);
+
     // Global error handler
     app.config.errorHandler = (err, vm, info) => {
       console.error('Vue Error:', err, info);
@@ -150,6 +157,9 @@ async function initializeApp() {
         message: 'حدث خطأ في النظام'
       });
     };
+
+    // Performance monitoring
+    app.config.performance = true;
 
     app.mount('#app');
 
@@ -168,6 +178,21 @@ async function initializeApp() {
       isAuthenticated: authResult.isAuthenticated,
       user: authResult.user?.email
     });
+
+    // ==================== SETUP PERFORMANCE MONITORING ====================
+    if (process.env.NODE_ENV === 'development') {
+      // Monitor initial load performance
+      const loadTime = window.performance.timing.domContentLoadedEventEnd - window.performance.timing.navigationStart;
+      console.log(`⚡ Initial app load time: ${loadTime}ms`);
+      
+      // Monitor memory usage
+      if ('memory' in window.performance) {
+        setInterval(() => {
+          const memory = window.performance.memory;
+          console.log(`💾 Memory: ${Math.round(memory.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(memory.totalJSHeapSize / 1024 / 1024)}MB`);
+        }, 30000);
+      }
+    }
 
     return { app, router, store };
   } catch (error) {
@@ -227,8 +252,83 @@ if (process.env.NODE_ENV === 'development') {
       isAuthenticated: store.getters.isAuthenticated
     }),
     store: () => store.state,
-    reload: () => window.location.reload()
+    reload: () => window.location.reload(),
+    // Performance testing helpers
+    clearCache: () => {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('🧹 Cache cleared');
+    },
+    measurePerformance: () => {
+      const metrics = window.performance.getEntriesByType('navigation')[0];
+      console.log('📊 Performance Metrics:', {
+        'DOM Load': metrics.domComplete - metrics.domInteractive,
+        'Page Load': metrics.loadEventEnd - metrics.loadEventStart,
+        'Total Load': metrics.loadEventEnd - metrics.fetchStart
+      });
+    }
   };
 }
 
-console.log('📄 Main.js loaded');
+// ==================== 6. OFFLINE SUPPORT ====================
+// Listen for offline/online events
+window.addEventListener('offline', () => {
+  console.log('📶 App is offline');
+  store.dispatch('showNotification', {
+    type: 'warning',
+    message: 'أنت غير متصل بالإنترنت. يتم عرض البيانات المحفوظة.',
+    duration: 5000
+  });
+});
+
+window.addEventListener('online', () => {
+  console.log('📶 App is online');
+  store.dispatch('showNotification', {
+    type: 'success',
+    message: 'تم استعادة الاتصال بالإنترنت. يتم تحديث البيانات.',
+    duration: 3000
+  });
+});
+
+// ==================== 7. MEMORY MANAGEMENT ====================
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  // Clear any temporary data
+  sessionStorage.removeItem('temp_inventory_data');
+  console.log('🧹 Cleaning up before unload');
+});
+
+// ==================== 8. ERROR BOUNDARY ====================
+// Global error listener for unhandled errors
+window.addEventListener('error', (event) => {
+  console.error('🌍 Global error:', event.error);
+  
+  // Don't show notification for chunk loading errors (users can refresh)
+  if (event.error && event.error.toString().includes('ChunkLoadError')) {
+    return;
+  }
+  
+  store.dispatch('showNotification', {
+    type: 'error',
+    message: 'حدث خطأ غير متوقع. الرجاء تحديث الصفحة.',
+    duration: 10000
+  });
+});
+
+// Handle promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🌍 Unhandled promise rejection:', event.reason);
+  
+  // Ignore navigation aborted errors
+  if (event.reason && event.reason.toString().includes('navigation aborted')) {
+    return;
+  }
+  
+  store.dispatch('showNotification', {
+    type: 'error',
+    message: 'حدث خطأ في المعالجة. الرجاء المحاولة مرة أخرى.',
+    duration: 8000
+  });
+});
+
+console.log('📄 Main.js loaded successfully');

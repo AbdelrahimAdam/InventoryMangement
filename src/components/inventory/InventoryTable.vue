@@ -2708,7 +2708,6 @@ img {
 .grid > div:nth-child(6) { animation-delay: 0.3s; }
 .grid > div:nth-child(7) { animation-delay: 0.35s; }
 .grid > div:nth-child(8) { animation-delay: 0.4s; }
-}
 
 /* Performance optimization styles */
 img[v-lazy-image] {
