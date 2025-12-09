@@ -134,11 +134,11 @@
           <!-- Table Body -->
           <div class="table-body max-h-[calc(100vh-200px)] min-h-[500px] overflow-y-auto bg-yellow-50 dark:bg-yellow-900/10">
             <!-- Loading State -->
-            <div v-if="loading" class="flex items-center justify-center p-12">
+            <div v-if="loading && filteredItems.length === 0" class="flex items-center justify-center p-12">
               <div class="text-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
                 <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل البيانات...</p>
-                <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">يرجى الانتظار</p>
+                <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">جاري تحميل الصفحة {{ currentPage }} من {{ totalPages }}</p>
               </div>
             </div>
 
@@ -162,7 +162,7 @@
             </div>
 
             <!-- Empty State -->
-            <div v-else-if="filteredItems.length === 0" class="flex items-center justify-center p-12">
+            <div v-else-if="filteredItems.length === 0 && !loading" class="flex items-center justify-center p-12">
               <div class="text-center">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
                   <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,6 +188,12 @@
 
             <!-- Items List - Desktop Table Rows -->
             <div v-else>
+              <!-- Infinite Scroll Loader -->
+              <div v-if="loadingMore" class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                <span class="mr-2 text-sm text-gray-600 dark:text-gray-400">جاري تحميل المزيد...</span>
+              </div>
+
               <div 
                 v-for="item in filteredItems"
                 :key="item.id"
@@ -206,6 +212,7 @@
                       @error="handleImageError"
                       loading="lazy"
                       @load="() => handleImageLoad(item.id)"
+                      v-lazy-image
                     >
                     <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-600/20">
                       <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,18 +386,84 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Pagination Footer -->
+              <div v-if="totalPages > 1" class="sticky bottom-0 z-10 bg-yellow-300/95 dark:bg-yellow-900/70 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50">
+                <div class="px-6 py-3 flex items-center justify-between">
+                  <div class="flex items-center gap-4">
+                    <button 
+                      @click="prevPage" 
+                      :disabled="currentPage === 1 || loading"
+                      class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      السابق
+                    </button>
+                    
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">الصفحة</span>
+                      <input 
+                        v-model="pageInput"
+                        @keyup.enter="goToPage"
+                        @blur="goToPage"
+                        type="number"
+                        min="1"
+                        :max="totalPages"
+                        class="w-16 px-2 py-1 text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300"
+                      >
+                      <span class="text-sm text-gray-600 dark:text-gray-400">من {{ totalPages }}</span>
+                    </div>
+                    
+                    <button 
+                      @click="nextPage" 
+                      :disabled="currentPage === totalPages || loadingMore"
+                      class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                  
+                  <div class="flex items-center gap-4">
+                    <select 
+                      v-model="pageSize" 
+                      @change="changePageSize"
+                      class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300"
+                    >
+                      <option value="20">20 لكل صفحة</option>
+                      <option value="50">50 لكل صفحة</option>
+                      <option value="100">100 لكل صفحة</option>
+                      <option value="200">200 لكل صفحة</option>
+                    </select>
+                    
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      إظهار <span class="font-semibold text-gray-900 dark:text-white">{{ showingFrom }}-{{ showingTo }}</span> 
+                      من <span class="font-semibold text-gray-900 dark:text-white">{{ totalItems }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Table Footer -->
-          <div class="sticky bottom-0 z-10 bg-yellow-300/95 dark:bg-yellow-900/70 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50">
+          <div v-if="!loading && filteredItems.length > 0" class="sticky bottom-0 z-10 bg-yellow-300/95 dark:bg-yellow-900/70 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50">
             <div class="px-6 py-3 flex items-center justify-between">
               <div class="text-sm text-gray-600 dark:text-gray-400">
-                عرض <span class="font-semibold text-gray-900 dark:text-white">{{ filteredItems.length }}</span> 
-                من <span class="font-semibold text-gray-900 dark:text-white">{{ inventory.length }}</span> صنف
+                <div v-if="fromCache" class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <span>تم التحميل من التخزين المحلي</span>
+                </div>
+                <div v-else class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  <span>تم التحميل من السحابة</span>
+                </div>
               </div>
               <div class="text-xs text-gray-500 dark:text-gray-500">
                 آخر تحديث: {{ lastUpdateTime }}
+                <span v-if="cacheAge" class="mr-2">(عمر التخزين: {{ formatCacheAge(cacheAge) }})</span>
               </div>
             </div>
           </div>
@@ -399,7 +472,7 @@
         <!-- Mobile Cards View (shown on mobile) -->
         <div class="lg:hidden">
           <!-- Mobile Loading State -->
-          <div v-if="loading" class="flex items-center justify-center p-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
+          <div v-if="loading && filteredItems.length === 0" class="flex items-center justify-center p-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
             <div class="text-center">
               <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
               <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل البيانات...</p>
@@ -427,7 +500,7 @@
           </div>
 
           <!-- Mobile Empty State -->
-          <div v-else-if="filteredItems.length === 0" class="flex items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
+          <div v-else-if="filteredItems.length === 0 && !loading" class="flex items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
             <div class="text-center">
               <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
                 <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -453,6 +526,12 @@
 
           <!-- Mobile Cards Grid -->
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Infinite Scroll Trigger -->
+            <div v-if="loadingMore" class="col-span-full flex items-center justify-center p-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+              <span class="mr-2 text-sm text-gray-600 dark:text-gray-400">جاري تحميل المزيد...</span>
+            </div>
+
             <div 
               v-for="(item, index) in filteredItems"
               :key="item.id"
@@ -472,6 +551,7 @@
                         class="w-full h-full object-cover"
                         @error="handleImageError"
                         loading="lazy"
+                        v-lazy-image
                       >
                       <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-600/20">
                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -636,14 +716,57 @@
                 </div>
               </div>
             </div>
+
+            <!-- Mobile Pagination -->
+            <div v-if="totalPages > 1" class="col-span-full mt-4">
+              <div class="bg-yellow-300 dark:bg-yellow-900/50 rounded-2xl shadow-lg p-4">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div class="flex items-center gap-2">
+                    <button 
+                      @click="prevPage" 
+                      :disabled="currentPage === 1 || loading"
+                      class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      السابق
+                    </button>
+                    
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      الصفحة {{ currentPage }} من {{ totalPages }}
+                    </div>
+                    
+                    <button 
+                      @click="nextPage" 
+                      :disabled="currentPage === totalPages || loadingMore"
+                      class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                  
+                  <div class="text-sm text-gray-600 dark:text-gray-400">
+                    إظهار {{ showingFrom }}-{{ showingTo }} من {{ totalItems }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Mobile Footer -->
           <div v-if="filteredItems.length > 0" class="mt-4 p-4 bg-yellow-300 dark:bg-yellow-900/50 rounded-2xl shadow-lg">
             <div class="flex items-center justify-between">
               <div class="text-sm text-gray-700 dark:text-gray-300">
-                عرض <span class="font-bold">{{ filteredItems.length }}</span> 
-                من <span class="font-bold">{{ inventory.length }}</span> صنف
+                <div v-if="fromCache" class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <span>تم التحميل من التخزين المحلي</span>
+                </div>
+                <div v-else class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  <span>تم التحميل من السحابة</span>
+                </div>
               </div>
               <div class="text-xs text-gray-600 dark:text-gray-400">
                 {{ lastUpdateTime }}
@@ -680,6 +803,7 @@
                   :alt="selectedItem?.name"
                   class="w-full h-full object-cover"
                   @load="detailImageLoaded = true"
+                  v-lazy-image
                 >
                 <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-600/20">
                   <svg class="w-20 h-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -839,7 +963,10 @@
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ transaction.notes }}</p>
                         <div class="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-500">
-                          <span>بواسطة: {{ transaction.user_name }}</span>
+                          <span>بواسطة: {{ transaction.user_name || 'غير معروف' }}</span>
+                          <span v-if="transaction.user_email" class="text-xs text-gray-500 dark:text-gray-500">
+                            ({{ transaction.user_email }})
+                          </span>
                           <span class="flex items-center gap-1">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
@@ -976,14 +1103,145 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive } from 'vue';
+import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import { utils, writeFile } from 'xlsx';
+import { debounce } from 'lodash';
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import EditItemModal from '@/components/inventory/EditItemModal.vue';
 import TransferModal from '@/components/inventory/TransferModal.vue';
+
+// Custom lazy load directive
+const lazyImageDirective = {
+  mounted(el) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = el;
+          const src = img.getAttribute('src');
+          if (src && !img.loaded) {
+            img.loaded = true;
+            // Preload image in background
+            const tempImg = new Image();
+            tempImg.src = src;
+            tempImg.onload = () => {
+              img.src = src;
+            };
+          }
+          observer.unobserve(el);
+        }
+      });
+    }, {
+      rootMargin: '50px',
+      threshold: 0.1
+    });
+    
+    el.imageObserver = observer;
+    observer.observe(el);
+  },
+  unmounted(el) {
+    if (el.imageObserver) {
+      el.imageObserver.unobserve(el);
+    }
+  }
+};
+
+// Local Storage Service
+const StorageService = {
+  set(key, data, expiry = 5 * 60 * 1000) { // 5 minutes default
+    const item = {
+      data,
+      expiry: Date.now() + expiry,
+      timestamp: new Date().toISOString()
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(item));
+      return true;
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+      return false;
+    }
+  },
+  
+  get(key) {
+    try {
+      const itemStr = localStorage.getItem(key);
+      if (!itemStr) return null;
+      
+      const item = JSON.parse(itemStr);
+      if (Date.now() > item.expiry) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      
+      return item.data;
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return null;
+    }
+  },
+  
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing from localStorage:', error);
+    }
+  },
+  
+  clearByPattern(pattern) {
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes(pattern)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('Error clearing localStorage by pattern:', error);
+    }
+  }
+};
+
+// Performance Metrics
+const PerformanceMetrics = {
+  startTime: null,
+  itemsLoaded: 0,
+  cacheHits: 0,
+  networkRequests: 0,
+  
+  start() {
+    this.startTime = Date.now();
+    this.itemsLoaded = 0;
+    this.cacheHits = 0;
+    this.networkRequests = 0;
+  },
+  
+  logCacheHit() {
+    this.cacheHits++;
+  },
+  
+  logNetworkRequest() {
+    this.networkRequests++;
+  },
+  
+  logItemsLoaded(count) {
+    this.itemsLoaded = count;
+  },
+  
+  getMetrics() {
+    const loadTime = Date.now() - this.startTime;
+    return {
+      loadTime,
+      itemsLoaded: this.itemsLoaded,
+      cacheHits: this.cacheHits,
+      networkRequests: this.networkRequests,
+      cacheHitRate: this.itemsLoaded > 0 ? (this.cacheHits / this.itemsLoaded) * 100 : 0
+    };
+  }
+};
 
 export default {
   name: 'InventoryTable',
@@ -993,12 +1251,16 @@ export default {
     EditItemModal,
     TransferModal
   },
+  directives: {
+    'lazy-image': lazyImageDirective
+  },
   setup() {
     const store = useStore();
     const route = useRoute();
     
     // State
     const loading = ref(false);
+    const loadingMore = ref(false);
     const error = ref('');
     const showAddModal = ref(false);
     const showEditModal = ref(false);
@@ -1020,6 +1282,22 @@ export default {
     const showActionMenu = ref(null);
     const activeTab = ref('details');
     const searchTimeout = ref(null);
+    const fromCache = ref(false);
+    const cacheAge = ref(0);
+    
+    // Pagination State
+    const currentPage = ref(1);
+    const totalPages = ref(1);
+    const pageSize = ref(50);
+    const totalItems = ref(0);
+    const pageInput = ref(1);
+    
+    // Performance state
+    const performanceMetrics = reactive({ ...PerformanceMetrics });
+    
+    // Intersection Observer for infinite scroll
+    const observer = ref(null);
+    const lastElementRef = ref(null);
     
     // Color mapping for common colors
     const colorMap = {
@@ -1058,12 +1336,22 @@ export default {
     const allWarehouses = computed(() => store.state.warehouses || []);
     const transactions = computed(() => store.state.transactions || []);
     
+    // Pagination computed
+    const showingFrom = computed(() => {
+      return ((currentPage.value - 1) * pageSize.value) + 1;
+    });
+    
+    const showingTo = computed(() => {
+      const to = currentPage.value * pageSize.value;
+      return to > totalItems.value ? totalItems.value : to;
+    });
+    
     // Selected item details
     const selectedItem = computed(() => {
       return inventory.value.find(item => item.id === selectedItemId.value);
     });
     
-    // Item transactions
+    // Item transactions with enhanced user info
     const itemTransactions = computed(() => {
       if (!selectedItemId.value) return [];
       return transactions.value.filter(transaction => 
@@ -1120,7 +1408,7 @@ export default {
       return canEditItem(item);
     };
     
-    // Filtered items
+    // Filtered items with pagination
     const filteredItems = computed(() => {
       let filtered = [...inventory.value];
       
@@ -1149,7 +1437,15 @@ export default {
         );
       }
       
-      return filtered;
+      // Update total items for pagination
+      totalItems.value = filtered.length;
+      totalPages.value = Math.ceil(totalItems.value / pageSize.value);
+      
+      // Apply pagination
+      const startIndex = (currentPage.value - 1) * pageSize.value;
+      const endIndex = startIndex + pageSize.value;
+      
+      return filtered.slice(startIndex, endIndex);
     });
     
     // Helper Methods
@@ -1224,6 +1520,12 @@ export default {
       }
     };
     
+    const formatCacheAge = (ageInSeconds) => {
+      if (ageInSeconds < 60) return `${ageInSeconds} ثانية`;
+      if (ageInSeconds < 3600) return `${Math.floor(ageInSeconds / 60)} دقيقة`;
+      return `${Math.floor(ageInSeconds / 3600)} ساعة`;
+    };
+    
     const getColorHex = (colorName) => {
       return colorMap[colorName] || '#6b7280';
     };
@@ -1234,7 +1536,8 @@ export default {
         'EDIT': 'تعديل',
         'TRANSFER': 'نقل',
         'DISPATCH': 'صرف',
-        'DELETE': 'حذف'
+        'DELETE': 'حذف',
+        'RESTOCK': 'إعادة تخزين'
       };
       return labels[type] || type;
     };
@@ -1245,7 +1548,8 @@ export default {
         'EDIT': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
         'TRANSFER': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
         'DISPATCH': 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
-        'DELETE': 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
+        'DELETE': 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+        'RESTOCK': 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
       };
       return icons[type] || 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
     };
@@ -1256,7 +1560,8 @@ export default {
         'EDIT': 'bg-yellow-500',
         'TRANSFER': 'bg-blue-500',
         'DISPATCH': 'bg-purple-500',
-        'DELETE': 'bg-red-500'
+        'DELETE': 'bg-red-500',
+        'RESTOCK': 'bg-indigo-500'
       };
       return classes[type] || 'bg-gray-500';
     };
@@ -1296,46 +1601,188 @@ export default {
     
     // Action Methods
     const updateWarehouseFilter = () => {
+      currentPage.value = 1;
+      pageInput.value = 1;
       store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
     };
     
     const updateStatusFilter = () => {
-      // Status filter is local to this component
+      currentPage.value = 1;
+      pageInput.value = 1;
     };
     
-    const handleSearch = () => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value);
+    // Debounced search with 500ms delay
+    const handleSearch = debounce(() => {
+      currentPage.value = 1;
+      pageInput.value = 1;
+      store.dispatch('updateFilters', { search: searchTerm.value });
+    }, 500);
+    
+    // Pagination methods
+    const nextPage = () => {
+      if (currentPage.value < totalPages.value) {
+        currentPage.value++;
+        pageInput.value = currentPage.value;
+        scrollToTop();
       }
-      
-      searchTimeout.value = setTimeout(() => {
-        store.dispatch('updateFilters', { search: searchTerm.value });
-      }, 300);
     };
     
-    const refreshData = async () => {
+    const prevPage = () => {
+      if (currentPage.value > 1) {
+        currentPage.value--;
+        pageInput.value = currentPage.value;
+        scrollToTop();
+      }
+    };
+    
+    const goToPage = () => {
+      let page = parseInt(pageInput.value);
+      if (isNaN(page) || page < 1) page = 1;
+      if (page > totalPages.value) page = totalPages.value;
+      
+      currentPage.value = page;
+      pageInput.value = page;
+      scrollToTop();
+    };
+    
+    const changePageSize = () => {
+      currentPage.value = 1;
+      pageInput.value = 1;
+    };
+    
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    
+    // Enhanced refresh with caching
+    const refreshData = async (forceRefresh = false) => {
       try {
+        performanceMetrics.start();
         loading.value = true;
+        fromCache.value = false;
+        cacheAge.value = 0;
+        
+        // Reset filters
         searchTerm.value = '';
         statusFilter.value = '';
         selectedWarehouse.value = '';
-        error.value = '';
+        currentPage.value = 1;
+        pageInput.value = 1;
         
         store.dispatch('updateFilters', { search: '', warehouse: '' });
         
-        await store.dispatch('subscribeToInventory');
-        await store.dispatch('getRecentTransactions');
+        // Check cache first
+        if (!forceRefresh) {
+          const cacheKey = `inventory_${userRole.value}_${selectedWarehouse.value || 'all'}`;
+          const cachedData = StorageService.get(cacheKey);
+          
+          if (cachedData && cachedData.items) {
+            performanceMetrics.logCacheHit();
+            fromCache.value = true;
+            cacheAge.value = Math.floor((Date.now() - new Date(cachedData.timestamp).getTime()) / 1000);
+            
+            store.commit('SET_INVENTORY', cachedData.items);
+            performanceMetrics.logItemsLoaded(cachedData.items.length);
+            
+            // Load fresh data in background
+            setTimeout(() => loadFreshData(), 1000);
+          } else {
+            await loadFreshData();
+          }
+        } else {
+          await loadFreshData();
+        }
         
+        // Load transactions with enhanced user info
+        await loadTransactions();
+        
+        // Clear old image cache
         Object.keys(imageLoaded).forEach(key => {
           delete imageLoaded[key];
         });
         
         lastUpdateTime.value = new Date().toLocaleTimeString('ar-EG');
         
+        // Log performance metrics
+        const metrics = performanceMetrics.getMetrics();
+        console.log('Performance Metrics:', metrics);
+        
       } catch (err) {
         error.value = 'حدث خطأ في تحديث البيانات: ' + err.message;
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'فشل في تحميل البيانات'
+        });
       } finally {
         loading.value = false;
+      }
+    };
+    
+    const loadFreshData = async () => {
+      performanceMetrics.logNetworkRequest();
+      
+      try {
+        const { db } = await import('@/firebase/config');
+        const { collection, query, where, orderBy, limit, getDocs } = await import('firebase/firestore');
+        
+        let itemsQuery = query(
+          collection(db, 'items'),
+          orderBy('updated_at', 'desc')
+        );
+        
+        if (selectedWarehouse.value) {
+          itemsQuery = query(itemsQuery, where('warehouse_id', '==', selectedWarehouse.value));
+        }
+        
+        // Limit initial load for performance
+        itemsQuery = query(itemsQuery, limit(1000));
+        
+        const snapshot = await getDocs(itemsQuery);
+        const items = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        performanceMetrics.logItemsLoaded(items.length);
+        
+        // Store in Vuex
+        store.commit('SET_INVENTORY', items);
+        
+        // Cache the data
+        const cacheKey = `inventory_${userRole.value}_${selectedWarehouse.value || 'all'}`;
+        StorageService.set(cacheKey, {
+          items,
+          timestamp: new Date().toISOString(),
+          totalCount: items.length
+        }, 5 * 60 * 1000); // 5 minutes cache
+        
+      } catch (error) {
+        console.error('Error loading fresh data:', error);
+        throw error;
+      }
+    };
+    
+    const loadTransactions = async () => {
+      try {
+        const { db } = await import('@/firebase/config');
+        const { collection, query, orderBy, limit, getDocs } = await import('firebase/firestore');
+        
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(100) // Limit to recent transactions
+        );
+        
+        const snapshot = await getDocs(transactionsQuery);
+        const transactions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        store.commit('SET_TRANSACTIONS', transactions);
+        
+      } catch (error) {
+        console.error('Error loading transactions:', error);
       }
     };
     
@@ -1404,6 +1851,7 @@ export default {
         const itemRef = doc(db, 'items', item.id);
         await deleteDoc(itemRef);
         
+        // Enhanced transaction with user details
         const transactionData = {
           type: 'DELETE',
           item_id: item.id,
@@ -1417,13 +1865,19 @@ export default {
           total_delta: -item.remaining_quantity,
           new_remaining: 0,
           user_id: store.state.user?.uid,
-          user_name: store.getters.userName,
+          user_name: store.getters.userName || 'مستخدم غير معروف',
+          user_email: store.state.user?.email,
+          user_role: store.state.userRole,
+          department: userProfile.value?.department || '',
           timestamp: new Date(),
           notes: `تم حذف الصنف نهائياً. الكمية المحذوفة: ${item.remaining_quantity}`,
           photo_url: item.photo_url || null
         };
         
         await addDoc(collection(db, 'transactions'), transactionData);
+        
+        // Clear cache
+        StorageService.clearByPattern('inventory_');
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1433,6 +1887,9 @@ export default {
         if (showDetailsModal.value) {
           closeDetailsModal();
         }
+        
+        // Refresh data
+        refreshData(true);
         
       } catch (err) {
         console.error('Error deleting item:', err);
@@ -1447,25 +1904,25 @@ export default {
     
     const handleItemSaved = () => {
       showAddModal.value = false;
-      refreshData();
+      refreshData(true);
     };
     
     const handleItemUpdated = () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
-      refreshData();
+      refreshData(true);
     };
     
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
-      refreshData();
+      refreshData(true);
     };
     
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
-      refreshData();
+      refreshData(true);
     };
     
     // FIXED Excel Export Function - Simple and Reliable
@@ -1624,6 +2081,8 @@ export default {
     
     // Lifecycle
     onMounted(() => {
+      performanceMetrics.start();
+      
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
         updateWarehouseFilter();
@@ -1633,17 +2092,56 @@ export default {
         showAddModal.value = true;
       }
       
-      inventory.value.forEach(item => {
-        if (item.photo_url) {
-          const img = new Image();
-          img.src = item.photo_url;
-          img.onload = () => {
-            imageLoaded[item.id] = true;
-          };
-          img.onerror = () => {
-            imageLoaded[item.id] = false;
-          };
+      // Load cached data first for instant display
+      refreshData(false);
+      
+      // Setup infinite scroll observer
+      observer.value = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !loadingMore.value && currentPage.value < totalPages.value) {
+          loadingMore.value = true;
+          setTimeout(() => {
+            nextPage();
+            loadingMore.value = false;
+          }, 500);
         }
+      }, {
+        rootMargin: '100px',
+        threshold: 0.1
+      });
+      
+      // Preload images for visible items
+      const preloadImages = () => {
+        const visibleItems = filteredItems.value.slice(0, 10); // Preload first 10 items
+        visibleItems.forEach(item => {
+          if (item.photo_url && !imageLoaded[item.id]) {
+            const img = new Image();
+            img.src = item.photo_url;
+            img.onload = () => {
+              imageLoaded[item.id] = true;
+            };
+            img.onerror = () => {
+              imageLoaded[item.id] = false;
+            };
+          }
+        });
+      };
+      
+      // Delay preloading to avoid blocking initial render
+      setTimeout(preloadImages, 1000);
+    });
+    
+    // Cleanup
+    onUnmounted(() => {
+      if (observer.value) {
+        observer.value.disconnect();
+      }
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
+      
+      // Clean up image observers
+      Object.keys(imageLoaded).forEach(key => {
+        delete imageLoaded[key];
       });
     });
     
@@ -1660,7 +2158,11 @@ export default {
     
     // Watch for inventory changes
     watch(inventory, (newInventory) => {
-      newInventory.forEach(item => {
+      // Update performance metrics
+      performanceMetrics.logItemsLoaded(newInventory.length);
+      
+      // Preload images for new items
+      newInventory.slice(0, 20).forEach(item => {
         if (item.photo_url && !imageLoaded[item.id]) {
           const img = new Image();
           img.src = item.photo_url;
@@ -1674,6 +2176,11 @@ export default {
       });
     }, { deep: true });
     
+    // Watch for page changes
+    watch(currentPage, () => {
+      pageInput.value = currentPage.value;
+    });
+    
     // Close action menu when clicking outside
     const handleClickOutside = (event) => {
       if (showActionMenu.value && !event.target.closest('.relative')) {
@@ -1685,9 +2192,14 @@ export default {
       document.addEventListener('click', handleClickOutside);
     });
     
+    onUnmounted(() => {
+      document.removeEventListener('click', handleClickOutside);
+    });
+    
     return {
       // State
       loading,
+      loadingMore,
       error,
       showAddModal,
       showEditModal,
@@ -1709,6 +2221,15 @@ export default {
       showActionMenu,
       activeTab,
       tabs,
+      fromCache,
+      cacheAge,
+      currentPage,
+      totalPages,
+      pageSize,
+      totalItems,
+      pageInput,
+      showingFrom,
+      showingTo,
       
       // Computed
       userRole,
@@ -1735,6 +2256,7 @@ export default {
       getProgressBarColor,
       formatDate,
       formatRelativeTime,
+      formatCacheAge,
       getColorHex,
       getTransactionLabel,
       getTransactionIcon,
@@ -1765,6 +2287,10 @@ export default {
       toggleActionMenu,
       showItemDetails,
       closeDetailsModal,
+      nextPage,
+      prevPage,
+      goToPage,
+      changePageSize,
       
       // Export Methods
       generateReport
@@ -2182,4 +2708,141 @@ img {
 .grid > div:nth-child(6) { animation-delay: 0.3s; }
 .grid > div:nth-child(7) { animation-delay: 0.35s; }
 .grid > div:nth-child(8) { animation-delay: 0.4s; }
+}
+
+/* Performance optimization styles */
+img[v-lazy-image] {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+img[v-lazy-image].loaded {
+  opacity: 1;
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #ef4444;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Cache status indicator */
+.cache-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.cache-status.cache-hit {
+  background: rgba(34, 197, 94, 0.1);
+  color: #10b981;
+}
+
+/* Loading bar for infinite scroll */
+.infinite-scroll-loader {
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
+  background-size: 200% 100%;
+  animation: loadingBar 1.5s infinite;
+}
+
+@keyframes loadingBar {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Optimized table row hover */
+.table-row-enter-active,
+.table-row-leave-active {
+  transition: all 0.3s ease;
+}
+
+.table-row-enter-from,
+.table-row-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Performance metrics display */
+.performance-metrics {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* Mobile performance optimizations */
+@media (max-width: 640px) {
+  .performance-metrics {
+    display: none;
+  }
+  
+  /* Reduce animations on mobile for better performance */
+  * {
+    animation-duration: 0.3s !important;
+    transition-duration: 0.2s !important;
+  }
+  
+  /* Optimize images for mobile */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .table-body {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  
+  .sticky {
+    position: static !important;
+  }
+  
+  /* Ensure table prints properly */
+  table {
+    page-break-inside: auto;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
 </style>
