@@ -1,20 +1,17 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <!-- Main Container -->
+    <!-- Header -->
     <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-      <!-- Header -->
+      <!-- Page Header -->
       <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-              المخزون
-            </h1>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              إدارة وتتبع جميع الأصناف في النظام
-            </p>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">المخزون</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة وتتبع جميع الأصناف في النظام</p>
           </div>
 
           <div class="flex items-center gap-3">
+            <!-- Refresh Button -->
             <button
               @click="refreshData"
               :disabled="loading"
@@ -26,6 +23,7 @@
               تحديث
             </button>
 
+            <!-- Export Button -->
             <button
               v-if="canExport"
               @click="exportInventory"
@@ -41,8 +39,9 @@
               {{ exporting ? 'جاري التصدير...' : 'تصدير' }}
             </button>
 
+            <!-- Add Item Button -->
             <button 
-              v-if="canAddItem"
+              v-if="canAddItem && showActions"
               @click="showAddModal = true"
               class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-colors duration-150"
             >
@@ -195,18 +194,18 @@
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Desktop Table -->
         <div class="hidden lg:block overflow-x-auto">
-          <table class="w-full">
+          <table class="w-full min-w-[1200px]">
             <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
               <tr>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الصورة</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الاسم والكود</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">اللون</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">المخزن</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">المورد</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الكميات</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">المتبقي</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة</th>
-                <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الصورة</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الاسم والكود</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">اللون</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المخزن</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المورد</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الكميات</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المتبقي</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الحالة</th>
+                <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الإجراءات</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -366,7 +365,7 @@
             </tbody>
           </table>
 
-          <!-- Pagination -->
+          <!-- Desktop Pagination -->
           <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div class="text-sm text-gray-500 dark:text-gray-400">
               عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredItems.length) }} من {{ filteredItems.length }}
@@ -379,9 +378,21 @@
               >
                 السابق
               </button>
-              <span class="text-sm text-gray-500 dark:text-gray-400">
-                الصفحة {{ currentPage }} من {{ totalPages }}
-              </span>
+              <div class="flex items-center gap-1">
+                <button
+                  v-for="page in visiblePages"
+                  :key="page"
+                  @click="currentPage = page"
+                  :class="[
+                    'w-8 h-8 rounded-lg transition-colors text-sm',
+                    currentPage === page 
+                      ? 'bg-blue-600 text-white border border-blue-600' 
+                      : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ]"
+                >
+                  {{ page }}
+                </button>
+              </div>
               <button
                 @click="nextPage"
                 :disabled="currentPage === totalPages"
@@ -603,7 +614,7 @@ export default {
     const store = useStore();
     const route = useRoute();
     
-    // State - Minimal and efficient
+    // State
     const loading = ref(false);
     const error = ref('');
     const showAddModal = ref(false);
@@ -671,11 +682,11 @@ export default {
       return canEditItem(item);
     };
     
-    // Filtered items - OPTIMIZED VERSION
+    // Filtered items
     const filteredItems = computed(() => {
       if (!inventory.value.length) return [];
       
-      let filtered = inventory.value; // Reference, not copy
+      let filtered = inventory.value;
       
       // Apply warehouse filter
       if (selectedWarehouse.value) {
@@ -693,12 +704,14 @@ export default {
         });
       }
       
-      // Apply search filter (optimized)
+      // Apply search filter
       if (searchTerm.value) {
         const term = searchTerm.value.toLowerCase();
         filtered = filtered.filter(item => 
           (item.name || '').toLowerCase().includes(term) ||
-          (item.code || '').toLowerCase().includes(term)
+          (item.code || '').toLowerCase().includes(term) ||
+          (item.supplier || '').toLowerCase().includes(term) ||
+          (item.color || '').toLowerCase().includes(term)
         );
       }
       
@@ -720,6 +733,22 @@ export default {
 
     const paginatedItems = computed(() => {
       return filteredItems.value.slice(startIndex.value, endIndex.value);
+    });
+
+    const visiblePages = computed(() => {
+      const pages = [];
+      const maxVisible = 5;
+      let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2));
+      let end = Math.min(totalPages.value, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      return pages;
     });
     
     // Helper Methods
@@ -750,90 +779,26 @@ export default {
       event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
     };
     
-    // Action Methods - OPTIMIZED
+    // Action Methods
     const handleFilterChange = () => {
-      currentPage.value = 1; // Reset to first page on filter change
+      currentPage.value = 1;
     };
     
     const handleSearchInput = debounce(() => {
       currentPage.value = 1;
     }, 300);
     
-    // OPTIMIZED: Add item without refreshing entire page
-    const handleItemSaved = async (newItem) => {
-      showAddModal.value = false;
-      
-      // OPTIMISTIC UPDATE: Add to local state immediately
-      store.commit('ADD_INVENTORY_ITEM', newItem);
-      
-      // Show success message
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: `تم إضافة "${newItem.name}" بنجاح`
-      });
-      
-      // Don't refresh entire data - just update locally
-      // The Firestore listener will sync automatically in background
-    };
-    
-    // Handle edit success
-    const handleItemUpdated = async (updatedItem) => {
-      showEditModal.value = false;
-      selectedItemForEdit.value = null;
-      
-      // Update local state
-      store.commit('UPDATE_INVENTORY_ITEM', updatedItem);
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تحديث الصنف بنجاح'
-      });
-    };
-    
-    // Handle transfer success
-    const handleTransferSuccess = async (result) => {
-      showTransferModal.value = false;
-      selectedItemForTransfer.value = null;
-      
-      // Update local state
-      if (result.sourceItem) {
-        store.commit('UPDATE_INVENTORY_ITEM', result.sourceItem);
-      }
-      if (result.targetItem) {
-        store.commit('UPDATE_INVENTORY_ITEM', result.targetItem);
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم النقل بنجاح'
-      });
-    };
-    
-    // Handle dispatch success
-    const handleDispatchSuccess = async (updatedItem) => {
-      showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
-      
-      // Update local state
-      store.commit('UPDATE_INVENTORY_ITEM', updatedItem);
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم الصرف بنجاح'
-      });
-    };
-    
-    // Refresh data - OPTIMIZED VERSION
     const refreshData = async () => {
       try {
         loading.value = true;
         error.value = '';
         
-        // Only fetch fresh data, don't reset everything
         await store.dispatch('fetchInventory');
         
-        // Update stats
-        store.dispatch('calculateInventoryStats');
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تحديث البيانات بنجاح'
+        });
         
       } catch (err) {
         console.error('Error refreshing data:', err);
@@ -843,7 +808,6 @@ export default {
       }
     };
     
-    // Export to Excel
     const exportInventory = async () => {
       try {
         exporting.value = true;
@@ -912,7 +876,6 @@ export default {
       }
     };
     
-    // Action handlers
     const handleTransfer = (item) => {
       if (!canTransferItem(item)) {
         store.dispatch('showNotification', {
@@ -949,7 +912,83 @@ export default {
       showEditModal.value = true;
     };
     
-    // Pagination methods
+    // Optimized: No page reload when adding items
+    const handleItemSaved = async (newItem) => {
+      showAddModal.value = false;
+      
+      // Update local state immediately (optimistic update)
+      if (store.state.inventory) {
+        store.state.inventory.unshift(newItem);
+      }
+      
+      // Update stats
+      store.dispatch('calculateInventoryStats');
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: `تم إضافة "${newItem.name}" بنجاح`
+      });
+      
+      // Firestore real-time listener will update automatically
+    };
+    
+    const handleItemUpdated = async (updatedItem) => {
+      showEditModal.value = false;
+      selectedItemForEdit.value = null;
+      
+      // Update local state
+      const index = store.state.inventory?.findIndex(item => item.id === updatedItem.id);
+      if (index !== -1) {
+        store.state.inventory[index] = updatedItem;
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم تحديث الصنف بنجاح'
+      });
+    };
+    
+    const handleTransferSuccess = async (result) => {
+      showTransferModal.value = false;
+      selectedItemForTransfer.value = null;
+      
+      // Update local state
+      if (result.sourceItem) {
+        const sourceIndex = store.state.inventory?.findIndex(item => item.id === result.sourceItem.id);
+        if (sourceIndex !== -1) {
+          store.state.inventory[sourceIndex] = result.sourceItem;
+        }
+      }
+      
+      if (result.targetItem) {
+        const targetIndex = store.state.inventory?.findIndex(item => item.id === result.targetItem.id);
+        if (targetIndex !== -1) {
+          store.state.inventory[targetIndex] = result.targetItem;
+        }
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم النقل بنجاح'
+      });
+    };
+    
+    const handleDispatchSuccess = async (updatedItem) => {
+      showDispatchModal.value = false;
+      selectedItemForDispatch.value = null;
+      
+      // Update local state
+      const index = store.state.inventory?.findIndex(item => item.id === updatedItem.id);
+      if (index !== -1) {
+        store.state.inventory[index] = updatedItem;
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم الصرف بنجاح'
+      });
+    };
+    
     const nextPage = () => {
       if (currentPage.value < totalPages.value) {
         currentPage.value++;
@@ -966,12 +1005,10 @@ export default {
     
     // Lifecycle
     onMounted(() => {
-      // Set default warehouse if user only has access to one
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
       }
       
-      // Check if we should open add modal from route
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
@@ -980,17 +1017,15 @@ export default {
       refreshData();
     });
     
-    // Cleanup
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
     });
     
-    // Watch for filter changes to reset pagination
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
       currentPage.value = 1;
-    }, { deep: false }); // Shallow watch for performance
+    });
     
     // Preload images for visible items
     watch(paginatedItems, (items) => {
@@ -1039,6 +1074,7 @@ export default {
       totalPages,
       startIndex,
       endIndex,
+      visiblePages,
       
       // Helper Methods
       getWarehouseLabel,
@@ -1072,25 +1108,24 @@ export default {
 </script>
 
 <style scoped>
-/* Performance-optimized CSS */
+/* Performance optimized styles */
 .container {
   max-width: 100%;
 }
 
-/* Optimize table rendering */
 table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
 }
 
-/* Reduce animations for performance */
+/* Reduced animations */
 .transition-colors {
   transition-property: background-color, border-color, color;
   transition-duration: 150ms;
 }
 
-/* Optimize hover states */
+/* Optimized hover states */
 .hover\:bg-gray-50:hover {
   background-color: #f9fafb;
 }
@@ -1099,14 +1134,7 @@ table {
   background-color: rgba(55, 65, 81, 0.5);
 }
 
-/* Improve touch targets on mobile */
-@media (max-width: 768px) {
-  button {
-    min-height: 44px;
-  }
-}
-
-/* Optimize scrollbar */
+/* Scrollbar optimization */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1141,6 +1169,13 @@ img {
   image-rendering: crisp-edges;
 }
 
+/* Mobile touch targets */
+@media (max-width: 768px) {
+  button {
+    min-height: 44px;
+  }
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .transition-colors,
@@ -1163,5 +1198,22 @@ img {
   th, td {
     border: 1px solid #ddd;
   }
+}
+
+/* Table cell alignment fix */
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+/* Ensure text doesn't overflow in table cells */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Modal z-index fix */
+.fixed {
+  isolation: isolate;
 }
 </style>
