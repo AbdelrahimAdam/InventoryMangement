@@ -1,5 +1,5 @@
 <template>
-  <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+  <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Global Notifications -->
     <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2 max-w-md mx-auto">
       <transition-group name="notification">
@@ -8,10 +8,10 @@
           :key="notification.id"
           :class="[
             'p-4 rounded-lg shadow-lg border transform transition-all duration-300',
-            notification.type === 'error' ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 shadow-red-200/20 dark:shadow-red-900/20' :
-            notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 shadow-green-200/20 dark:shadow-green-900/20' :
-            notification.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 shadow-yellow-200/20 dark:shadow-yellow-900/20' :
-            'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 shadow-blue-200/20 dark:shadow-blue-900/20'
+            notification.type === 'error' ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' :
+            notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' :
+            notification.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' :
+            'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
           ]"
         >
           <div class="flex items-start justify-between">
@@ -32,18 +32,44 @@
       </transition-group>
     </div>
 
-    <!-- Show loading while initializing -->
-    <div v-if="initializing" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-        <p class="mt-4 text-gray-600 dark:text-gray-400">جاري التحميل...</p>
+    <!-- Minimal Initial Loading -->
+    <div v-if="initializing && !isPublicRoute && !isMobileRoute" class="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div class="flex flex-col items-center justify-center h-full">
+        <!-- Logo or App Name -->
+        <div class="mb-8">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400 mb-4"></div>
+        
+        <!-- Loading Text -->
+        <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
+        <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">يرجى الانتظار لحظات</p>
+        
+        <!-- Preloaded Inventory Status -->
+        <div v-if="preloadedItems > 0" class="mt-8">
+          <div class="w-64 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div 
+              class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+              :style="{ width: `${preloadedProgress}%` }"
+            ></div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            تم تحميل {{ preloadedItems }} صنف
+          </p>
+        </div>
       </div>
     </div>
 
     <!-- Main app content -->
     <div v-else class="h-screen flex flex-col">
       <!-- Check if current route is public (login, unauthorized, notfound) -->
-      <template v-if="isPublicRoute">
+      <template v-if="isPublicRoute || isMobileRoute">
         <!-- Public pages - show only router view -->
         <div class="flex-1 overflow-y-auto">
           <router-view />
@@ -56,7 +82,7 @@
         <div v-if="isMobile" class="lg:hidden h-full flex flex-col">
           <!-- Mobile Header -->
           <MobileHeader @toggle-menu="toggleMobileMenu" />
-          
+
           <!-- Mobile Sidebar Overlay -->
           <transition name="fade">
             <div 
@@ -86,15 +112,39 @@
         <div v-else class="hidden lg:flex h-full">
           <!-- Desktop Sidebar -->
           <DesktopSidebar :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
-          
+
           <!-- Main Content Area -->
-          <div class="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
+          <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
             <!-- Desktop Header -->
             <DesktopHeader @toggle-sidebar="toggleSidebar" />
-            
+
             <!-- Main Content -->
             <main class="flex-1 overflow-y-auto p-4">
               <div class="max-w-full mx-auto">
+                <!-- Preload Indicator (Only show briefly) -->
+                <div v-if="showPreloadIndicator && !initialDataLoaded" class="mb-4">
+                  <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-3">
+                      <div class="animate-pulse w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">جاري تحميل المخزون...</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-500">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
+                      </div>
+                    </div>
+                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        class="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+                        :style="{ width: `${preloadedProgress}%` }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Router View -->
                 <router-view />
               </div>
             </main>
@@ -133,8 +183,12 @@ export default {
     const mobileMenuOpen = ref(false);
     const sidebarCollapsed = ref(false);
     const isMobile = ref(false);
+    const preloadedItems = ref(0);
+    const preloadedTarget = ref(20); // Target to preload
+    const initialDataLoaded = ref(false);
+    const showPreloadIndicator = ref(false);
     
-    // Store getters - direct access without watchers
+    // Store getters
     const notifications = computed(() => store.state.notifications || []);
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
     
@@ -142,6 +196,14 @@ export default {
     const isPublicRoute = computed(() => {
       const publicRoutes = ['Login', 'Unauthorized', 'NotFound'];
       return publicRoutes.includes(route.name);
+    });
+
+    const isMobileRoute = computed(() => {
+      return route.name === 'MobileLogin' || route.name === 'MobileUnauthorized';
+    });
+
+    const preloadedProgress = computed(() => {
+      return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
     });
 
     // Check mobile on mount and resize
@@ -163,34 +225,168 @@ export default {
       mobileMenuOpen.value = !mobileMenuOpen.value;
     };
 
-    onMounted(async () => {
+    // ✅ CRITICAL: Preload essential data for instant display
+    const preloadEssentialData = async () => {
       try {
-        // Check mobile first
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
+        const { db } = await import('@/firebase/config');
+        const { collection, query, orderBy, limit, getDocs, where } = await import('firebase/firestore');
         
+        // 1. Preload warehouses (small, essential data)
+        const warehousesQuery = query(
+          collection(db, 'warehouses'),
+          limit(10)
+        );
+        
+        const warehousesSnapshot = await getDocs(warehousesQuery);
+        const warehouses = warehousesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Store warehouses immediately
+        store.commit('SET_WAREHOUSES', warehouses);
+        
+        // 2. If user is authenticated, preload minimal inventory
+        if (isAuthenticated.value) {
+          // Get user's accessible warehouses
+          const userWarehouses = store.getters.accessibleWarehouses || [];
+          const warehouseIds = userWarehouses.map(w => w.id);
+          
+          let itemsQuery;
+          
+          if (warehouseIds.length > 0) {
+            // Preload from user's warehouses only
+            itemsQuery = query(
+              collection(db, 'items'),
+              where('warehouse_id', 'in', warehouseIds.slice(0, 10)), // Firestore limit: 10 values in 'in' array
+              orderBy('updated_at', 'desc'),
+              limit(15) // Start with only 15 items for instant display
+            );
+          } else {
+            // Fallback: preload recent items
+            itemsQuery = query(
+              collection(db, 'items'),
+              orderBy('updated_at', 'desc'),
+              limit(15)
+            );
+          }
+          
+          const itemsSnapshot = await getDocs(itemsQuery);
+          const items = itemsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Store preloaded items immediately
+          store.commit('inventory/SET_INVENTORY', items);
+          preloadedItems.value = items.length;
+          
+          // Update progress indicator
+          items.forEach((item, index) => {
+            setTimeout(() => {
+              preloadedItems.value = index + 1;
+            }, index * 50); // Stagger loading for visual effect
+          });
+          
+          // Calculate initial stats from preloaded items
+          if (items.length > 0) {
+            const stats = {
+              totalItems: items.length,
+              totalQuantity: items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+              lowStockItems: items.filter(item => {
+                const qty = item.remaining_quantity || 0;
+                return qty > 0 && qty < 10;
+              }).length,
+              recentTransactions: 0 // Will be loaded later
+            };
+            store.commit('inventory/SET_STATS', stats);
+          }
+          
+          // Mark initial data as loaded
+          initialDataLoaded.value = true;
+          
+          // Show preload indicator briefly
+          showPreloadIndicator.value = true;
+          setTimeout(() => {
+            showPreloadIndicator.value = false;
+          }, 2000); // Hide after 2 seconds
+          
+          // ✅ Start background loading of remaining data
+          setTimeout(() => {
+            loadRemainingDataInBackground();
+          }, 1000);
+        }
+        
+      } catch (error) {
+        console.warn('Preload warning (non-critical):', error.message);
+        // Continue anyway - this is just preloading
+      }
+    };
+
+    // ✅ Load remaining data in background
+    const loadRemainingDataInBackground = async () => {
+      try {
+        // 1. Load full inventory in background
+        store.dispatch('inventory/fetchInventory');
+        
+        // 2. Load recent transactions
+        const { db } = await import('@/firebase/config');
+        const { collection, query, orderBy, limit, getDocs } = await import('firebase/firestore');
+        
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(50)
+        );
+        
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        const transactions = transactionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        store.commit('SET_TRANSACTIONS', transactions);
+        
+        // 3. Load user profile details
+        if (store.state.user?.uid) {
+          store.dispatch('fetchUserProfile');
+        }
+        
+      } catch (error) {
+        console.error('Background load error:', error);
+        // Silently fail - user already has data to work with
+      }
+    };
+
+    // ✅ Optimized initialization
+    const initializeApp = async () => {
+      try {
+        // Start preloading immediately (before auth check)
+        const preloadPromise = preloadEssentialData();
+        
+        // Initialize auth
         await store.dispatch('initializeAuth');
         
-        if (isAuthenticated.value) {
-          // Show only one welcome notification
-          if (!localStorage.getItem('welcomeShown')) {
+        // Wait for preload to complete (but don't block if it's slow)
+        await Promise.race([
+          preloadPromise,
+          new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds wait
+        ]);
+        
+        // Show welcome notification only once
+        if (isAuthenticated.value && !localStorage.getItem('welcomeShown')) {
+          setTimeout(() => {
             store.dispatch('showNotification', {
               type: 'success',
-              message: 'مرحباً بك في نظام المخزون!'
+              message: 'مرحباً بك في نظام المخزون!',
+              duration: 3000
             });
             localStorage.setItem('welcomeShown', 'true');
-          }
+          }, 500);
         }
         
-        // Initialize dark mode
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        // Initialize theme
+        initializeTheme();
         
         // Initialize sidebar state
         const savedState = localStorage.getItem('sidebarCollapsed');
@@ -200,14 +396,63 @@ export default {
 
       } catch (error) {
         console.error('App initialization error:', error);
+        
+        // Still show notification even if preload failed
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تحميل النظام'
+          message: 'حدث خطأ في تحميل بعض البيانات. يمكنك الاستمرار في العمل.',
+          duration: 5000
         });
       } finally {
+        // Always hide loading screen after max 1.5 seconds
         setTimeout(() => {
           initializing.value = false;
-        }, 300);
+        }, 300); // Short delay for smoother transition
+      }
+    };
+
+    // ✅ Optimized theme initialization
+    const initializeTheme = () => {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      
+      // Listen for theme changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+          if (e.matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+      });
+    };
+
+    onMounted(async () => {
+      // Check mobile first
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      
+      // Start initialization immediately
+      initializeApp();
+      
+      // Performance monitoring (dev only)
+      if (process.env.NODE_ENV === 'development') {
+        setTimeout(() => {
+          const performance = window.performance;
+          const timing = performance?.timing;
+          if (timing) {
+            const loadTime = timing.loadEventEnd - timing.navigationStart;
+            const domReadyTime = timing.domContentLoadedEventEnd - timing.navigationStart;
+            console.log(`🚀 App loaded in ${loadTime}ms, DOM ready in ${domReadyTime}ms`);
+          }
+        }, 1000);
       }
     });
 
@@ -220,6 +465,16 @@ export default {
       mobileMenuOpen.value = false;
     });
 
+    // Watch for auth changes to trigger additional data loading
+    watch(isAuthenticated, (authenticated) => {
+      if (authenticated && !initialDataLoaded.value) {
+        // If user logs in after initial load, preload data
+        setTimeout(() => {
+          preloadEssentialData();
+        }, 100);
+      }
+    });
+
     // Provide data to child components
     return {
       // Refs
@@ -227,11 +482,17 @@ export default {
       mobileMenuOpen,
       sidebarCollapsed,
       isMobile,
+      preloadedItems,
+      preloadedTarget,
+      initialDataLoaded,
+      showPreloadIndicator,
       
       // Computed
       isAuthenticated,
       isPublicRoute,
+      isMobileRoute,
       notifications,
+      preloadedProgress,
       
       // Methods
       removeNotification,
@@ -246,7 +507,7 @@ export default {
 /* Mobile sidebar animation */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-enter-from,
@@ -257,7 +518,7 @@ export default {
 /* Fade animation for overlay */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .fade-enter-from,
@@ -275,5 +536,63 @@ export default {
 .notification-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Performance optimizations */
+#app {
+  font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize scroll performance */
+main {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Reduce motion where supported */
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-leave-active,
+  .fade-enter-active,
+  .fade-leave-active,
+  .notification-enter-active,
+  .notification-leave-active {
+    transition: none !important;
+  }
+  
+  .notification-enter-from,
+  .notification-leave-to {
+    transform: none !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  #app {
+    background: white !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Optimize for mobile */
+@media (max-width: 640px) {
+  #app {
+    font-size: 14px;
+  }
+}
+
+/* Dark mode optimizations */
+.dark .bg-gradient-to-b {
+  background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+}
+
+/* Ensure proper stacking context */
+.fixed {
+  isolation: isolate;
 }
 </style>
