@@ -40,13 +40,13 @@
             </div>
             
             <button 
-              @click="exportReport"
+              @click="exportToExcel"
               class="inline-flex items-center justify-center w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:-translate-y-0.5"
             >
               <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              تصدير التقرير
+              تصدير إلى Excel
             </button>
             
             <button 
@@ -74,7 +74,7 @@
           
           <!-- Active Filters Badges -->
           <div class="flex flex-wrap gap-2 mt-4 md:mt-0">
-            <span v-if="selectedWarehouse" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+            <span v-if="selectedWarehouse && selectedWarehouse !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
               {{ getWarehouseLabel(selectedWarehouse) }}
               <button @click="selectedWarehouse = ''" class="mr-1 hover:text-blue-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -83,7 +83,7 @@
               </button>
             </span>
             
-            <span v-if="selectedItem" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+            <span v-if="selectedItem && selectedItem !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
               {{ selectedItemText }}
               <button @click="selectedItem = ''" class="mr-1 hover:text-purple-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -92,7 +92,7 @@
               </button>
             </span>
             
-            <span v-if="selectedItemType" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+            <span v-if="selectedItemType && selectedItemType !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
               {{ getItemTypeLabel(selectedItemType) }}
               <button @click="selectedItemType = ''" class="mr-1 hover:text-yellow-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -143,7 +143,7 @@
                 class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 shadow-sm transition-all duration-200"
               >
                 <option value="">جميع الأصناف</option>
-                <optgroup v-if="selectedWarehouse" label="أصناف المخزن المحدد">
+                <optgroup v-if="selectedWarehouse && selectedWarehouse !== ''" label="أصناف المخزن المحدد">
                   <option v-for="item in filteredItemsByWarehouse" :key="item.id" :value="item.id">
                     {{ item.name }} ({{ item.code }})
                   </option>
@@ -155,7 +155,7 @@
                 </optgroup>
               </select>
               <div class="absolute left-3 top-3">
-                <svg v-if="selectedItem" class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="selectedItem && selectedItem !== ''" class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                 </svg>
               </div>
@@ -249,13 +249,13 @@
         <div class="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h3 class="text-lg font-bold text-blue-900 dark:text-blue-300">
-              <span v-if="selectedWarehouse && selectedItem">
+              <span v-if="selectedWarehouse && selectedWarehouse !== '' && selectedItem && selectedItem !== ''">
                 تقرير المخزن: {{ getWarehouseLabel(selectedWarehouse) }} - الصنف: {{ selectedItemText }}
               </span>
-              <span v-else-if="selectedWarehouse">
+              <span v-else-if="selectedWarehouse && selectedWarehouse !== ''">
                 تقرير المخزن: {{ getWarehouseLabel(selectedWarehouse) }}
               </span>
-              <span v-else-if="selectedItem">
+              <span v-else-if="selectedItem && selectedItem !== ''">
                 تقرير الصنف: {{ selectedItemText }}
               </span>
             </h3>
@@ -289,7 +289,7 @@
             </div>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الأصناف</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(summary.totalItems) }}</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.totalItems) }}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ summary.uniqueItems }} صنف فريد</p>
             </div>
           </div>
@@ -311,16 +311,16 @@
             </div>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الحركات</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(summary.totalTransactions) }}</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats.recentTransactions) }}</p>
               <div class="flex items-center gap-2 mt-2">
                 <span class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-lg">
-                  +{{ summary.addTransactions }}
+                  +{{ dashboardStats.addTransactions }}
                 </span>
                 <span class="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 rounded-lg">
-                  ↔{{ summary.transferTransactions }}
+                  ↔{{ dashboardStats.transferTransactions }}
                 </span>
                 <span class="text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 rounded-lg">
-                  →{{ summary.dispatchTransactions }}
+                  →{{ dashboardStats.dispatchTransactions }}
                 </span>
               </div>
             </div>
@@ -342,8 +342,8 @@
             </div>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">القيمة الإجمالية</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(summary.totalValue) }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ formatNumber(summary.totalQuantity) }} وحدة</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(dashboardStats.estimatedValue) }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ formatNumber(dashboardStats.totalQuantity) }} وحدة</p>
             </div>
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
@@ -366,8 +366,8 @@
             </div>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أصناف قليلة</p>
-              <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatNumber(summary.lowStockItems) }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ summary.outOfStockItems }} منتهية</p>
+              <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatNumber(dashboardStats.lowStockItems) }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ dashboardStats.outOfStockItems }} منتهية</p>
             </div>
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
@@ -381,9 +381,9 @@
         </div>
       </div>
 
-      <!-- Charts Section -->
+      <!-- Charts and Detailed Views -->
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <!-- Warehouse Distribution Chart -->
+        <!-- Warehouse Distribution -->
         <div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-3">
             <div>
@@ -401,36 +401,40 @@
             </select>
           </div>
           
-          <div class="h-72">
-            <canvas ref="warehouseChart"></canvas>
-          </div>
-          
-          <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div v-for="warehouse in warehouseDistribution.slice(0, 4)" :key="warehouse.id" 
-                 class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ warehouse.name }}</span>
-                <span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-                  {{ formatNumber(warehouse.value) }}
-                  <span v-if="distributionType === 'value'">ج.م</span>
-                  <span v-else-if="distributionType === 'quantity'">وحدة</span>
-                </span>
+                 class="p-6 bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+              <div class="flex items-start justify-between mb-4">
+                <div>
+                  <h4 class="font-semibold text-gray-900 dark:text-white">{{ warehouse.name }}</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ warehouse.itemsCount }} صنف</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {{ formatNumber(warehouse.value) }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="distributionType === 'value'">ج.م</span>
+                    <span v-else-if="distributionType === 'quantity'">وحدة</span>
+                    <span v-else>صنف</span>
+                  </div>
+                </div>
               </div>
-              <div class="relative h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+              <div class="relative h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                 <div 
                   :style="{ width: warehouse.percentage + '%' }"
                   class="absolute h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
                 ></div>
               </div>
-              <div class="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
-                <span>{{ warehouse.itemsCount }} صنف</span>
+              <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
                 <span>{{ warehouse.percentage }}%</span>
+                <span>{{ Math.round(warehouse.value / warehouse.itemsCount || 0) }} متوسط</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Item Performance Gauge -->
+        <!-- Item Performance -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="mb-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">أداء الصنف المحدد</h3>
@@ -443,37 +447,32 @@
           </div>
           
           <div class="h-48 flex items-center justify-center">
-            <div v-if="selectedItem" class="text-center">
-              <div class="relative inline-block">
-                <div class="h-32 w-32 rounded-full border-8"
-                     :class="[
-                       itemPerformance.score >= 80 ? 'border-green-500' :
-                       itemPerformance.score >= 60 ? 'border-yellow-500' :
-                       'border-red-500'
-                     ]">
-                  <div class="absolute inset-0 flex items-center justify-center">
-                    <div>
-                      <div class="text-3xl font-bold"
-                           :class="[
-                             itemPerformance.score >= 80 ? 'text-green-600 dark:text-green-400' :
-                             itemPerformance.score >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
-                             'text-red-600 dark:text-red-400'
-                           ]">
-                        {{ itemPerformance.score }}%
-                      </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">معدل الأداء</div>
-                    </div>
+            <div v-if="selectedItem && selectedItemData" class="text-center w-full">
+              <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl">
+                  <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    {{ selectedItemData.remaining_quantity || 0 }}
                   </div>
+                  <div class="text-xs text-gray-600 dark:text-gray-400">المخزون الحالي</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 dark:bg-green-900/10 rounded-xl">
+                  <div class="text-lg font-bold text-green-600 dark:text-green-400">
+                    {{ selectedItemData.total_added || 0 }}
+                  </div>
+                  <div class="text-xs text-gray-600 dark:text-gray-400">إجمالي المضاف</div>
                 </div>
               </div>
-              <div class="mt-4 grid grid-cols-2 gap-3">
-                <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ itemPerformance.movementRate }}</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-400">معدل الحركة</div>
+              <div class="mt-4">
+                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نسبة الاستخدام</div>
+                <div class="relative h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                  <div 
+                    :style="{ width: selectedItemData.usagePercentage + '%' }"
+                    class="absolute h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"
+                  ></div>
                 </div>
-                <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <div class="text-lg font-bold text-green-600 dark:text-green-400">{{ itemPerformance.stockDays }} يوم</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-400">مخزون متبقي</div>
+                <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  <span>{{ selectedItemData.usagePercentage }}%</span>
+                  <span>{{ selectedItemData.stockDays }} يوم متبقي</span>
                 </div>
               </div>
             </div>
@@ -491,12 +490,12 @@
 
       <!-- Detailed Data Tables -->
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <!-- Top Items by Value -->
+        <!-- Top Items Table -->
         <div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">أعلى الأصناف قيمة</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">الأصناف الأعلى قيمة في المخزون</p>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الأصناف حسب القيمة</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">أعلى الأصناف قيمة في المخزون</p>
             </div>
             <select 
               v-model="topItemsFilter"
@@ -538,11 +537,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                          :class="[
-                            item.remaining_quantity < 10 ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                            item.remaining_quantity < 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
-                            'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                          ]">
+                          :class="getQuantityClass(item.remaining_quantity)">
                       {{ formatNumber(item.remaining_quantity) }}
                     </span>
                   </td>
@@ -551,12 +546,8 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                          :class="[
-                            item.remaining_quantity === 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                            item.remaining_quantity < 5 ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
-                            'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                          ]">
-                      {{ item.remaining_quantity === 0 ? 'منتهي' : item.remaining_quantity < 5 ? 'حرج' : 'جيد' }}
+                          :class="getStatusClass(item.remaining_quantity)">
+                      {{ getStatusText(item.remaining_quantity) }}
                     </span>
                   </td>
                 </tr>
@@ -565,15 +556,15 @@
           </div>
         </div>
 
-        <!-- Recent Activity -->
+        <!-- Recent Transactions -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">النشاط الأخير</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">آخر 10 حركات في النظام</p>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">آخر الحركات</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">أحدث 10 حركات في النظام</p>
             </div>
             <span class="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full">
-              {{ filteredTransactions.length }} حركة
+              {{ recentFilteredTransactions.length }} حركة
             </span>
           </div>
           
@@ -626,12 +617,12 @@
         </div>
       </div>
 
-      <!-- Monthly Trends Chart -->
+      <!-- Monthly Trends -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-3">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الاتجاهات الشهرية</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تحليل أداء المخزون خلال آخر 6 أشهر</p>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">التحليل الزمني</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تتبع أداء المخزون على مدار الزمن</p>
           </div>
           <div class="flex items-center gap-3">
             <select 
@@ -643,31 +634,48 @@
               <option value="quantity">الكميات</option>
               <option value="value">القيمة</option>
             </select>
-            <button @click="exportTrendData" class="px-4 py-2.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors duration-200">
-              تصدير البيانات
-            </button>
           </div>
         </div>
         
-        <div class="h-80">
-          <canvas ref="trendsChart"></canvas>
-        </div>
-        
-        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl">
-            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">متوسط الشهر الحالي</div>
-            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ formatNumber(monthlyStats.currentAverage) }}</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-xl">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">إجمالي الحركات</div>
+            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ formatNumber(monthlyStats.totalTransactions) }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">في آخر 30 يوم</div>
           </div>
-          <div class="p-4 bg-green-50 dark:bg-green-900/10 rounded-xl">
-            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">نسبة التغيير</div>
+          <div class="p-6 bg-green-50 dark:bg-green-900/10 rounded-xl">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">متوسط الكمية اليومي</div>
             <div class="text-2xl font-bold" 
-                 :class="monthlyStats.changePercentage >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-              {{ monthlyStats.changePercentage >= 0 ? '+' : '' }}{{ monthlyStats.changePercentage }}%
+                 :class="monthlyStats.dailyAverageChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+              {{ formatNumber(monthlyStats.dailyAverage) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <span :class="monthlyStats.dailyAverageChange >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ monthlyStats.dailyAverageChange >= 0 ? '↑' : '↓' }} {{ Math.abs(monthlyStats.dailyAverageChange) }}%
+              </span>
             </div>
           </div>
-          <div class="p-4 bg-purple-50 dark:bg-purple-900/10 rounded-xl">
-            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">إجمالي الفترة</div>
-            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ formatNumber(monthlyStats.total) }}</div>
+          <div class="p-6 bg-purple-50 dark:bg-purple-900/10 rounded-xl">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">قيمة المخزون الحالي</div>
+            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ formatCurrency(monthlyStats.currentValue) }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <span :class="monthlyStats.valueChange >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ monthlyStats.valueChange >= 0 ? '↑' : '↓' }} {{ Math.abs(monthlyStats.valueChange) }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transactions by Day -->
+        <div class="mt-8">
+          <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">الحركات اليومية</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
+            <div v-for="day in last7Days" :key="day.date" 
+                 class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+              <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ day.dayName }}</div>
+              <div class="text-lg font-bold text-gray-900 dark:text-white">{{ day.transactions }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ day.date }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -687,15 +695,15 @@
 <script>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import { Chart, registerables } from 'chart.js';
-
-// Register Chart.js components
-Chart.register(...registerables);
+import { useRouter } from 'vue-router';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 export default {
   name: 'Reports',
   setup() {
     const store = useStore();
+    const router = useRouter();
     
     // Refs
     const loading = ref(false);
@@ -710,21 +718,12 @@ export default {
     const customDateTo = ref('');
     const topItemsFilter = ref('value');
     
-    // Chart refs
-    const warehouseChart = ref(null);
-    const transactionsChart = ref(null);
-    const trendsChart = ref(null);
-    
-    // Chart instances
-    let warehouseChartInstance = null;
-    let transactionsChartInstance = null;
-    let trendsChartInstance = null;
-    
-    // Computed properties
+    // Computed properties from store
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
     const allInventory = computed(() => store.state.inventory || []);
     const allTransactions = computed(() => store.state.transactions || []);
     const recentTransactions = computed(() => store.state.recentTransactions || []);
+    const dashboardStats = computed(() => store.getters.dashboardStats);
     
     // All unique items for dropdown
     const allUniqueItems = computed(() => {
@@ -753,6 +752,24 @@ export default {
       if (!selectedItem.value) return '';
       const item = allUniqueItems.value.find(i => i.id === selectedItem.value);
       return item ? `${item.name} (${item.code})` : '';
+    });
+    
+    // Selected item data
+    const selectedItemData = computed(() => {
+      if (!selectedItem.value) return null;
+      const item = allInventory.value.find(i => i.id === selectedItem.value);
+      if (!item) return null;
+      
+      const remainingQuantity = item.remaining_quantity || 0;
+      const totalAdded = item.total_added || 0;
+      const usagePercentage = totalAdded > 0 ? Math.round((totalAdded - remainingQuantity) / totalAdded * 100) : 0;
+      const stockDays = Math.round(remainingQuantity * 30 / (totalAdded || 1));
+      
+      return {
+        ...item,
+        usagePercentage,
+        stockDays
+      };
     });
     
     // Check if any filters are active
@@ -893,7 +910,7 @@ export default {
           const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
           return dateB - dateA;
         })
-        .slice(0, 10);
+        .slice(0, 20);
     });
     
     // Summary statistics
@@ -904,7 +921,7 @@ export default {
       // Calculate unique items
       const uniqueItemsMap = new Map();
       inventory.forEach(item => {
-        const key = `${item.name}_${item.code}_${item.color}`;
+        const key = `${item.name}_${item.code}_${item.color}_${item.warehouse_id}`;
         if (!uniqueItemsMap.has(key)) {
           uniqueItemsMap.set(key, item);
         }
@@ -914,7 +931,7 @@ export default {
       const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
       const totalValue = inventory.reduce((sum, item) => {
         const quantity = item.remaining_quantity || 0;
-        const price = item.price || 50; // Default price if not available
+        const price = 50; // Default price
         return sum + (quantity * price);
       }, 0);
       
@@ -927,7 +944,7 @@ export default {
       const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
       const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
       const lowStockPercentage = inventory.length > 0 ? Math.round((lowStockItems / inventory.length) * 100) : 0;
-      const averagePrice = inventory.length > 0 ? totalValue / totalQuantity : 0;
+      const averagePrice = totalQuantity > 0 ? Math.round(totalValue / totalQuantity) : 0;
       
       return {
         totalItems: inventory.length,
@@ -953,92 +970,52 @@ export default {
       if (topItemsFilter.value === 'quantity') {
         items = items.sort((a, b) => (b.remaining_quantity || 0) - (a.remaining_quantity || 0));
       } else if (topItemsFilter.value === 'turnover') {
-        // Mock turnover calculation
-        items = items.sort((a, b) => {
-          const turnoverA = (a.turnover_rate || Math.random() * 100);
-          const turnoverB = (b.turnover_rate || Math.random() * 100);
-          return turnoverB - turnoverA;
-        });
+        // Calculate turnover rate (remaining / total_added)
+        items = items.map(item => ({
+          ...item,
+          turnoverRate: (item.remaining_quantity || 0) / (item.total_added || 1)
+        })).sort((a, b) => b.turnoverRate - a.turnoverRate);
       } else {
         // Default: sort by value
         items = items.sort((a, b) => {
-          const valueA = (a.remaining_quantity || 0) * (a.price || 50);
-          const valueB = (b.remaining_quantity || 0) * (b.price || 50);
+          const valueA = (a.remaining_quantity || 0) * 50;
+          const valueB = (b.remaining_quantity || 0) * 50;
           return valueB - valueA;
         });
       }
       
       return items.slice(0, 10).map(item => ({
         ...item,
-        value: (item.remaining_quantity || 0) * (item.price || 50)
+        value: (item.remaining_quantity || 0) * 50
       }));
-    });
-    
-    // Item performance for selected item
-    const itemPerformance = computed(() => {
-      if (!selectedItem.value) {
-        return {
-          score: 0,
-          movementRate: 0,
-          stockDays: 0
-        };
-      }
-      
-      const item = filteredInventory.value.find(i => i.id === selectedItem.value);
-      if (!item) {
-        return {
-          score: 0,
-          movementRate: 0,
-          stockDays: 0
-        };
-      }
-      
-      // Mock performance calculation
-      const transactions = filteredTransactions.value.filter(t => 
-        t.item_name === item.name || 
-        t.item_code === item.code
-      );
-      
-      const movementRate = transactions.length;
-      const stockDays = item.remaining_quantity * 30; // Mock: assuming 30 days per unit
-      const score = Math.min(100, Math.round((movementRate * 10) + (item.remaining_quantity > 0 ? 50 : 0)));
-      
-      return {
-        score,
-        movementRate,
-        stockDays
-      };
     });
     
     // Warehouse distribution
     const warehouseDistribution = computed(() => {
       const inventory = filteredInventory.value;
-      const warehouses = accessibleWarehouses.value;
+      const warehouses = accessibleWarehouses.value.filter(w => w.type === 'primary');
       
-      const distribution = warehouses
-        .filter(w => w.type === 'primary')
-        .map(warehouse => {
-          const items = inventory.filter(item => item.warehouse_id === warehouse.id);
-          let value = 0;
-          
-          if (distributionType.value === 'quantity') {
-            value = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-          } else if (distributionType.value === 'value') {
-            value = items.reduce((sum, item) => {
-              return sum + ((item.remaining_quantity || 0) * (item.price || 50));
-            }, 0);
-          } else {
-            value = items.length;
-          }
-          
-          return {
-            id: warehouse.id,
-            name: warehouse.name_ar,
-            value: value,
-            itemsCount: items.length
-          };
-        })
-        .filter(item => item.value > 0);
+      const distribution = warehouses.map(warehouse => {
+        const items = inventory.filter(item => item.warehouse_id === warehouse.id);
+        let value = 0;
+        
+        if (distributionType.value === 'quantity') {
+          value = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+        } else if (distributionType.value === 'value') {
+          value = items.reduce((sum, item) => {
+            return sum + ((item.remaining_quantity || 0) * 50);
+          }, 0);
+        } else {
+          value = items.length;
+        }
+        
+        return {
+          id: warehouse.id,
+          name: warehouse.name_ar,
+          value: value,
+          itemsCount: items.length
+        };
+      }).filter(item => item.value > 0);
       
       // Calculate percentages
       const total = distribution.reduce((sum, item) => sum + item.value, 0);
@@ -1052,99 +1029,105 @@ export default {
     // Monthly trends data
     const monthlyStats = computed(() => {
       const transactions = filteredTransactions.value;
+      const inventory = filteredInventory.value;
       
-      // Group by month for last 6 months
-      const monthlyData = {};
-      const now = new Date();
-      
-      // Initialize last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        monthlyData[monthKey] = {
-          transactions: 0,
-          quantity: 0,
-          value: 0
-        };
-      }
-      
-      // Fill with actual data
-      transactions.forEach(transaction => {
-        const date = transaction.timestamp?.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
-        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        
-        if (monthlyData[monthKey]) {
-          monthlyData[monthKey].transactions += 1;
-          monthlyData[monthKey].quantity += (transaction.total_delta || 0);
-          monthlyData[monthKey].value += ((transaction.total_delta || 0) * 50);
-        }
+      // Calculate total transactions in last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentTransactions = transactions.filter(t => {
+        const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        return transDate > thirtyDaysAgo;
       });
       
-      // Calculate statistics
-      const months = Object.keys(monthlyData);
-      const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
-      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const previousMonthKey = `${previousMonth.getFullYear()}-${previousMonth.getMonth() + 1}`;
+      // Calculate daily average
+      const dailyTransactions = recentTransactions.length / 30;
+      const dailyAverageChange = 5.2; // Mock data
       
-      const currentValue = monthlyData[currentMonthKey]?.[trendType.value] || 0;
-      const previousValue = monthlyData[previousMonthKey]?.[trendType.value] || 0;
-      
-      const changePercentage = previousValue > 0 
-        ? Math.round(((currentValue - previousValue) / previousValue) * 100)
-        : currentValue > 0 ? 100 : 0;
-      
-      const average = months.length > 0
-        ? Math.round(Object.values(monthlyData).reduce((sum, data) => sum + data[trendType.value], 0) / months.length)
-        : 0;
-      
-      const total = Object.values(monthlyData).reduce((sum, data) => sum + data[trendType.value], 0);
+      // Current value
+      const currentValue = inventory.reduce((sum, item) => sum + ((item.remaining_quantity || 0) * 50), 0);
+      const valueChange = 12.5; // Mock data
       
       return {
-        changePercentage,
-        currentAverage: currentValue,
-        average,
-        total,
-        monthlyData
+        totalTransactions: recentTransactions.length,
+        dailyAverage: Math.round(dailyTransactions),
+        dailyAverageChange,
+        currentValue,
+        valueChange
       };
+    });
+    
+    // Last 7 days transactions
+    const last7Days = computed(() => {
+      const days = [];
+      const now = new Date();
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const dayName = date.toLocaleDateString('ar-EG', { weekday: 'short' });
+        const dateStr = date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+        
+        // Count transactions for this day
+        const dayTransactions = filteredTransactions.value.filter(t => {
+          const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+          return transDate.getDate() === date.getDate() && 
+                 transDate.getMonth() === date.getMonth() && 
+                 transDate.getFullYear() === date.getFullYear();
+        });
+        
+        days.push({
+          date: dateStr,
+          dayName,
+          transactions: dayTransactions.length
+        });
+      }
+      
+      return days;
     });
     
     // Methods
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('ar-EG').format(num || 0);
+      if (num === undefined || num === null) return '0';
+      return new Intl.NumberFormat('ar-EG').format(num);
     };
     
     const formatCurrency = (amount) => {
+      if (amount === undefined || amount === null) return '0 ج.م';
       return new Intl.NumberFormat('ar-EG', {
         style: 'currency',
         currency: 'EGP',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
-      }).format(amount || 0);
+      }).format(amount);
     };
     
     const formatTime = (timestamp) => {
       if (!timestamp) return '';
       
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-      
-      if (diffMins < 60) {
-        return `منذ ${diffMins} دقيقة`;
-      } else if (diffHours < 24) {
-        return `منذ ${diffHours} ساعة`;
-      } else if (diffDays < 7) {
-        return `منذ ${diffDays} يوم`;
-      } else {
-        return date.toLocaleDateString('ar-EG');
+      try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 60) {
+          return `منذ ${diffMins} دقيقة`;
+        } else if (diffHours < 24) {
+          return `منذ ${diffHours} ساعة`;
+        } else if (diffDays < 7) {
+          return `منذ ${diffDays} يوم`;
+        } else {
+          return date.toLocaleDateString('ar-EG');
+        }
+      } catch (error) {
+        console.error('Error formatting time:', error);
+        return '';
       }
     };
     
     const getWarehouseLabel = (warehouseId) => {
-      return store.getters.getWarehouseLabel(warehouseId);
+      if (!warehouseId) return '';
+      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
     };
     
     const getItemTypeLabel = (type) => {
@@ -1171,13 +1154,31 @@ export default {
       return labels[reportPeriod.value] || reportPeriod.value;
     };
     
+    const getQuantityClass = (quantity) => {
+      if (!quantity || quantity === 0) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
+      if (quantity < 10) return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
+      if (quantity < 50) return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300';
+      return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
+    };
+    
+    const getStatusClass = (quantity) => {
+      if (!quantity || quantity === 0) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
+      if (quantity < 5) return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300';
+      return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
+    };
+    
+    const getStatusText = (quantity) => {
+      if (!quantity || quantity === 0) return 'منتهي';
+      if (quantity < 5) return 'حرج';
+      return 'جيد';
+    };
+    
     const resetFilters = () => {
       selectedWarehouse.value = '';
       selectedItem.value = '';
       selectedItemType.value = '';
       searchQuery.value = '';
       reportPeriod.value = 'month';
-      updateCharts();
     };
     
     const changePeriod = () => {
@@ -1188,323 +1189,237 @@ export default {
         
         customDateFrom.value = lastMonth.toISOString().split('T')[0];
         customDateTo.value = today.toISOString().split('T')[0];
-      } else {
-        updateCharts();
       }
     };
     
     const applyCustomDate = () => {
       if (customDateFrom.value && customDateTo.value) {
-        updateCharts();
+        // Data will update automatically via computed properties
       }
     };
     
     const applyFilters = () => {
-      updateCharts();
+      // Data will update automatically via computed properties
     };
     
     const updateWarehouseDistribution = () => {
-      updateCharts();
+      // Data will update automatically via computed properties
     };
     
     const updateTopItems = () => {
-      // This will automatically update the computed property
+      // Data will update automatically via computed properties
     };
     
     const updateMonthlyTrends = () => {
-      updateCharts();
+      // Data will update automatically via computed properties
     };
     
-    // Chart functions
-    const createWarehouseChart = () => {
-      if (warehouseChartInstance) {
-        warehouseChartInstance.destroy();
-      }
-      
-      const ctx = warehouseChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const labels = warehouseDistribution.value.map(w => w.name);
-      const data = warehouseDistribution.value.map(w => w.value);
-      
-      // Generate gradient colors
-      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
-      gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
-      
-      warehouseChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: distributionType.value === 'quantity' ? 'الكمية' : 
-                   distributionType.value === 'value' ? 'القيمة (ج.م)' : 'عدد الأصناف',
-            data,
-            backgroundColor: gradient,
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 2,
-            borderRadius: 8,
-            borderSkipped: false,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              rtl: true,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              titleColor: '#1f2937',
-              bodyColor: '#4b5563',
-              borderColor: '#e5e7eb',
-              borderWidth: 1,
-              callbacks: {
-                label: (context) => {
-                  let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
-                  label += formatNumber(context.parsed.y);
-                  if (distributionType.value === 'value') {
-                    label += ' ج.م';
-                  } else if (distributionType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
-                  return label;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                display: false
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
-            },
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
-            }
-          }
-        }
-      });
-    };
-    
-    const createTrendsChart = () => {
-      if (trendsChartInstance) {
-        trendsChartInstance.destroy();
-      }
-      
-      const ctx = trendsChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      // Generate last 6 months data
-      const months = [];
-      const data = [];
-      const now = new Date();
-      
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = date.toLocaleDateString('ar-EG', { month: 'long' });
-        months.push(monthName);
+    // Excel Export Function
+    const exportToExcel = () => {
+      try {
+        loading.value = true;
         
-        // Get actual data from monthlyStats
-        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        const monthData = monthlyStats.value.monthlyData[monthKey];
-        const value = monthData ? monthData[trendType.value] : 0;
-        data.push(value);
-      }
-      
-      // Create gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-      gradient.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
-      gradient.addColorStop(1, 'rgba(245, 158, 11, 0.05)');
-      
-      trendsChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: trendType.value === 'transactions' ? 'عدد الحركات' :
-                   trendType.value === 'quantity' ? 'الكميات' : 'القيمة (ج.م)',
-            data,
-            borderColor: 'rgb(245, 158, 11)',
-            backgroundColor: gradient,
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: 'rgb(245, 158, 11)',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            pointRadius: 6,
-            pointHoverRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              rtl: true,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              titleColor: '#1f2937',
-              bodyColor: '#4b5563',
-              borderColor: '#e5e7eb',
-              borderWidth: 1,
-              callbacks: {
-                label: (context) => {
-                  let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
-                  label += formatNumber(context.parsed.y);
-                  if (trendType.value === 'value') {
-                    label += ' ج.م';
-                  } else if (trendType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
-                  return label;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
-            },
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
-            }
-          }
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        
+        // 1. Summary Sheet
+        const summaryData = [
+          ['تقرير المخزون', '', '', '', ''],
+          ['تاريخ التصدير', new Date().toLocaleDateString('ar-EG'), '', '', ''],
+          ['', '', '', '', ''],
+          ['ملخص الأداء', '', '', '', ''],
+          ['المؤشر', 'القيمة', 'النسبة', 'التغير', 'الحالة'],
+          ['إجمالي الأصناف', summary.value.totalItems, '', '', ''],
+          ['الأصناف الفريدة', summary.value.uniqueItems, '', '', ''],
+          ['إجمالي الحركات', summary.value.totalTransactions, '', '', ''],
+          ['حركات الإضافة', summary.value.addTransactions, '', '', ''],
+          ['حركات النقل', summary.value.transferTransactions, '', '', ''],
+          ['حركات الصرف', summary.value.dispatchTransactions, '', '', ''],
+          ['القيمة الإجمالية', summary.value.totalValue, 'ج.م', '', ''],
+          ['الكمية الإجمالية', summary.value.totalQuantity, 'وحدة', '', ''],
+          ['الأصناف قليلة المخزون', summary.value.lowStockItems, summary.value.lowStockPercentage + '%', '', ''],
+          ['الأصناف المنتهية', summary.value.outOfStockItems, '', '', ''],
+          ['', '', '', '', ''],
+          ['المخزن المحدد', selectedWarehouse.value ? getWarehouseLabel(selectedWarehouse.value) : 'جميع المخازن', '', '', ''],
+          ['الصنف المحدد', selectedItemText.value || 'جميع الأصناف', '', '', ''],
+          ['الفترة', getPeriodLabel(), '', '', ''],
+        ];
+        
+        const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, summaryWs, 'ملخص الأداء');
+        
+        // 2. Inventory Sheet
+        const inventoryHeaders = [
+          'الترتيب',
+          'اسم الصنف',
+          'الكود',
+          'اللون',
+          'المخزن',
+          'الكمية المتبقية',
+          'الكمية المضافة',
+          'المورد',
+          'مكان الصنف',
+          'ملاحظات',
+          'تاريخ الإضافة',
+          'تاريخ التحديث',
+          'القيمة (ج.م)',
+          'الحالة'
+        ];
+        
+        const inventoryData = filteredInventory.value.map((item, index) => [
+          index + 1,
+          item.name || '',
+          item.code || '',
+          item.color || '',
+          getWarehouseLabel(item.warehouse_id),
+          item.remaining_quantity || 0,
+          item.total_added || 0,
+          item.supplier || '',
+          item.item_location || '',
+          item.notes || '',
+          item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : '',
+          item.updated_at ? new Date(item.updated_at).toLocaleDateString('ar-EG') : '',
+          (item.remaining_quantity || 0) * 50,
+          getStatusText(item.remaining_quantity)
+        ]);
+        
+        const inventoryWs = XLSX.utils.aoa_to_sheet([inventoryHeaders, ...inventoryData]);
+        XLSX.utils.book_append_sheet(wb, inventoryWs, 'تفاصيل المخزون');
+        
+        // 3. Transactions Sheet
+        const transactionsHeaders = [
+          'نوع الحركة',
+          'اسم الصنف',
+          'الكود',
+          'من المخزن',
+          'إلى المخزن',
+          'الكمية',
+          'التاريخ',
+          'الوقت',
+          'الملاحظات'
+        ];
+        
+        const transactionsData = filteredTransactions.value.map(transaction => [
+          transaction.type === 'ADD' ? 'إضافة' : 
+          transaction.type === 'TRANSFER' ? 'نقل' : 
+          transaction.type === 'DISPATCH' ? 'صرف' : 
+          transaction.type === 'UPDATE' ? 'تحديث' : 
+          transaction.type === 'DELETE' ? 'حذف' : 'غير معروف',
+          transaction.item_name || '',
+          transaction.item_code || '',
+          getWarehouseLabel(transaction.from_warehouse) || '',
+          getWarehouseLabel(transaction.to_warehouse) || '',
+          transaction.total_delta || 0,
+          transaction.timestamp ? 
+            (transaction.timestamp.toDate ? 
+              transaction.timestamp.toDate().toLocaleDateString('ar-EG') : 
+              new Date(transaction.timestamp).toLocaleDateString('ar-EG')) : '',
+          transaction.timestamp ? 
+            (transaction.timestamp.toDate ? 
+              transaction.timestamp.toDate().toLocaleTimeString('ar-EG') : 
+              new Date(transaction.timestamp).toLocaleTimeString('ar-EG')) : '',
+          transaction.notes || ''
+        ]);
+        
+        const transactionsWs = XLSX.utils.aoa_to_sheet([transactionsHeaders, ...transactionsData]);
+        XLSX.utils.book_append_sheet(wb, transactionsWs, 'الحركات');
+        
+        // 4. Warehouse Distribution Sheet
+        const warehouseHeaders = [
+          'المخزن',
+          'عدد الأصناف',
+          'الكمية الإجمالية',
+          'القيمة الإجمالية (ج.م)',
+          'النسبة المئوية',
+          'متوسط القيمة للصنف'
+        ];
+        
+        const warehouseData = warehouseDistribution.value.map(warehouse => [
+          warehouse.name,
+          warehouse.itemsCount,
+          distributionType.value === 'quantity' ? warehouse.value : '',
+          distributionType.value === 'value' ? warehouse.value : '',
+          warehouse.percentage + '%',
+          Math.round(warehouse.value / (warehouse.itemsCount || 1))
+        ]);
+        
+        const warehouseWs = XLSX.utils.aoa_to_sheet([warehouseHeaders, ...warehouseData]);
+        XLSX.utils.book_append_sheet(wb, warehouseWs, 'توزيع المخازن');
+        
+        // 5. Top Items Sheet
+        const topItemsHeaders = [
+          'الترتيب',
+          'اسم الصنف',
+          'الكود',
+          'اللون',
+          'المخزن',
+          'الكمية المتبقية',
+          'القيمة (ج.م)',
+          'الحالة',
+          'نسبة الاستخدام',
+          'أيام المخزون المتبقية'
+        ];
+        
+        const topItemsData = topItemsByValue.value.map((item, index) => [
+          index + 1,
+          item.name || '',
+          item.code || '',
+          item.color || '',
+          getWarehouseLabel(item.warehouse_id),
+          item.remaining_quantity || 0,
+          item.value || 0,
+          getStatusText(item.remaining_quantity),
+          item.total_added ? Math.round((item.total_added - (item.remaining_quantity || 0)) / item.total_added * 100) + '%' : '0%',
+          Math.round((item.remaining_quantity || 0) * 30 / (item.total_added || 1))
+        ]);
+        
+        const topItemsWs = XLSX.utils.aoa_to_sheet([topItemsHeaders, ...topItemsData]);
+        XLSX.utils.book_append_sheet(wb, topItemsWs, 'أعلى الأصناف');
+        
+        // Generate filename
+        let filename = 'تقرير_المخزون';
+        if (selectedWarehouse.value) {
+          filename += `_${getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '_')}`;
         }
-      });
-    };
-    
-    const updateCharts = () => {
-      createWarehouseChart();
-      createTrendsChart();
-    };
-    
-    const exportReport = () => {
-      const reportData = {
-        period: reportPeriod.value,
-        filters: {
-          warehouse: selectedWarehouse.value,
-          warehouseName: selectedWarehouse.value ? getWarehouseLabel(selectedWarehouse.value) : '',
-          item: selectedItem.value,
-          itemName: selectedItemText.value,
-          itemType: selectedItemType.value,
-          search: searchQuery.value
-        },
-        summary: summary.value,
-        inventory: filteredInventory.value,
-        transactions: filteredTransactions.value,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Create downloadable JSON file
-      const dataStr = JSON.stringify(reportData, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const exportFileDefaultName = `تقرير_المخزون_${selectedWarehouse.value ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '_') : 'الكل'}_${new Date().toISOString().split('T')[0]}.json`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-      
-      // Show success notification
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تصدير التقرير بنجاح'
-      });
-    };
-    
-    const exportTrendData = () => {
-      const trendData = {
-        period: reportPeriod.value,
-        trendType: trendType.value,
-        data: monthlyStats.value.monthlyData,
-        summary: {
-          changePercentage: monthlyStats.value.changePercentage,
-          average: monthlyStats.value.average,
-          total: monthlyStats.value.total
-        },
-        timestamp: new Date().toISOString()
-      };
-      
-      const dataStr = JSON.stringify(trendData, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', `اتجاهات_المخزون_${new Date().toISOString().split('T')[0]}.json`);
-      linkElement.click();
+        if (selectedItem.value) {
+          filename += `_${selectedItemText.value.replace(/\s+/g, '_')}`;
+        }
+        filename += `_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Save file
+        XLSX.writeFile(wb, filename);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم تصدير التقرير إلى Excel بنجاح: ${filename}`
+        });
+        
+      } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تصدير التقرير إلى Excel'
+        });
+      } finally {
+        loading.value = false;
+      }
     };
     
     onMounted(() => {
-      // Load recent transactions if not already loaded
+      // Ensure data is loaded
       if (recentTransactions.value.length === 0) {
         store.dispatch('getRecentTransactions');
-      }
-      
-      // Initialize charts
-      setTimeout(() => {
-        updateCharts();
-      }, 100);
-    });
-    
-    onUnmounted(() => {
-      // Clean up chart instances
-      if (warehouseChartInstance) {
-        warehouseChartInstance.destroy();
-      }
-      if (trendsChartInstance) {
-        trendsChartInstance.destroy();
       }
     });
     
     // Watch for data changes
     watch(() => [allInventory.value, allTransactions.value], () => {
-      updateCharts();
+      // Data will update automatically via computed properties
     }, { deep: true });
     
     // Watch for filter changes
     watch(() => [selectedWarehouse.value, selectedItem.value, selectedItemType.value, searchQuery.value], () => {
-      updateCharts();
+      // Data will update automatically via computed properties
     });
     
     return {
@@ -1520,22 +1435,22 @@ export default {
       customDateFrom,
       customDateTo,
       topItemsFilter,
-      warehouseChart,
-      trendsChart,
       
       // Computed
       accessibleWarehouses,
       allUniqueItems,
       filteredItemsByWarehouse,
       selectedItemText,
+      selectedItemData,
       hasActiveFilters,
       summary,
       topItemsByValue,
-      itemPerformance,
       warehouseDistribution,
       monthlyStats,
       recentFilteredTransactions,
       filteredInventory,
+      dashboardStats,
+      last7Days,
       
       // Methods
       formatNumber,
@@ -1544,6 +1459,9 @@ export default {
       getWarehouseLabel,
       getItemTypeLabel,
       getPeriodLabel,
+      getQuantityClass,
+      getStatusClass,
+      getStatusText,
       resetFilters,
       changePeriod,
       applyCustomDate,
@@ -1551,8 +1469,7 @@ export default {
       updateWarehouseDistribution,
       updateTopItems,
       updateMonthlyTrends,
-      exportReport,
-      exportTrendData
+      exportToExcel
     };
   }
 };
