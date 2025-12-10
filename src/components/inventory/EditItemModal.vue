@@ -1001,90 +1001,87 @@ export default {
     };
 
     const handleSubmit = async () => {
-      if (loading.value || !validateForm()) {
-        console.log('Validation failed. Field errors:', fieldValidation);
-        return;
+  if (loading.value || !validateForm()) {
+    console.log('Validation failed. Field errors:', fieldValidation);
+    return;
+  }
+
+  loading.value = true;
+  error.value = '';
+
+  try {
+    if (isCreating.value) {
+      // Add new item using atomic action
+      const result = await store.dispatch('addInventoryItemAtomic', {
+        itemData: {
+          ...formData,
+          cartons_count: Number(formData.cartons_count) || 0,
+          per_carton_count: Number(formData.per_carton_count) || 12,
+          single_bottles_count: Number(formData.single_bottles_count) || 0
+        },
+        userId: store.state.user?.uid
+      });
+
+      if (result && (result.type === 'created' || result.type === 'updated')) {
+        emit('success', {
+          type: 'created',
+          message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${formData.name}" بنجاح`,
+          itemId: result.id
+        });
+        closeModal();
       }
-
-      loading.value = true;
-      error.value = '';
-
-      try {
-        if (isCreating.value) {
-          // Add new item using atomic action
-          const result = await store.dispatch('addInventoryItemAtomic', {
-            itemData: {
-              ...formData,
-              cartons_count: Number(formData.cartons_count) || 0,
-              per_carton_count: Number(formData.per_carton_count) || 12,
-              single_bottles_count: Number(formData.single_bottles_count) || 0
-            },
-            userId: store.state.user?.uid
-          });
-
-          if (result && (result.type === 'created' || result.type === 'updated')) {
-            emit('success', {
-              type: 'created',
-              message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${formData.name}" بنجاح`,
-              itemId: result.id
-            });
-            closeModal();
-          }
-        } else {
-          // Only update changed fields (modern editing best practice)
-          const updateData = {
-            id: selectedItem.value.id,
-            itemData: {}
-          };
-
-          // Add only changed fields to the update data
-          if (formData.name !== originalItem.value.name) updateData.itemData.name = formData.name;
-          if (formData.color !== originalItem.value.color) updateData.itemData.color = formData.color;
-          if (formData.warehouse_id !== originalItem.value.warehouse_id) updateData.itemData.warehouse_id = formData.warehouse_id;
-          if (Number(formData.cartons_count) !== Number(originalItem.value.cartons_count)) updateData.itemData.cartons_count = Number(formData.cartons_count);
-          if (Number(formData.per_carton_count) !== Number(originalItem.value.per_carton_count)) updateData.itemData.per_carton_count = Number(formData.per_carton_count);
-          if (Number(formData.single_bottles_count) !== Number(originalItem.value.single_bottles_count)) updateData.itemData.single_bottles_count = Number(formData.single_bottles_count);
-          if (formData.supplier !== originalItem.value.supplier) updateData.itemData.supplier = formData.supplier;
-          if (formData.item_location !== originalItem.value.item_location) updateData.itemData.item_location = formData.item_location;
-          if (formData.photo_url !== originalItem.value.photo_url) updateData.itemData.photo_url = formData.photo_url;
-          if (formData.notes !== originalItem.value.notes) updateData.itemData.notes = formData.notes;
-
-          // If no fields changed, just close the modal
-          if (Object.keys(updateData.itemData).length === 0) {
-            emit('success', {
-              type: 'no_changes',
-              message: 'لم يتم إجراء أي تغييرات'
-            });
-            closeModal();
-            return;
-          }
-
-          // Add total_added to preserve original addition tracking
-          updateData.itemData.total_added = originalItem.value.total_added;
-
-          console.log('Updating item with data:', updateData);
-
-          const result = await store.dispatch('updateItem', updateData);
-
-          if (result && result.success) {
-            emit('success', {
-              type: 'updated',
-              message: `تم تحديث الصنف "${formData.name}" بنجاح`,
-              changedFields: changedFields.value,
-              itemId: selectedItem.value.id
-            });
-            closeModal();
-          } else {
-            error.value = result?.error || 'حدث خطأ أثناء تحديث الصنف';
-          }
+    } else {
+      // Send ALL required fields to the store action
+      // The store action will merge with existing data
+      const updateData = {
+        id: selectedItem.value.id,
+        itemData: {
+          // Always send these fields (store will use existing if not provided)
+          name: formData.name,
+          code: formData.code,
+          color: formData.color,
+          warehouse_id: formData.warehouse_id,
+          
+          // Quantity fields
+          cartons_count: Number(formData.cartons_count) || 0,
+          per_carton_count: Number(formData.per_carton_count) || 12,
+          single_bottles_count: Number(formData.single_bottles_count) || 0,
+          
+          // Optional fields
+          supplier: formData.supplier,
+          item_location: formData.item_location,
+          photo_url: formData.photo_url,
+          notes: formData.notes,
+          
+          // Tracking
+          total_added: originalItem.value.total_added
         }
-      } catch (err) {
-        console.error('Error saving item:', err);
-        error.value = err.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
-      } finally {
-        loading.value = false;
+      };
+
+      console.log('Updating item with data:', updateData);
+
+      const result = await store.dispatch('updateItem', updateData);
+
+      if (result && result.success) {
+        emit('success', {
+          type: 'updated',
+          message: `تم تحديث الصنف "${formData.name}" بنجاح`,
+          changedFields: changedFields.value,
+          itemId: selectedItem.value.id
+        });
+        closeModal();
+      } else {
+        error.value = result?.error || 'حدث خطأ أثناء تحديث الصنف';
       }
-    };
+    }
+  } catch (err) {
+    console.error('Error saving item:', err);
+    error.value = err.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
+  } finally {
+    loading.value = false;
+  }
+};
+
 
     const confirmDelete = () => {
       if (!selectedItem.value?.id || !canDelete.value) return;
