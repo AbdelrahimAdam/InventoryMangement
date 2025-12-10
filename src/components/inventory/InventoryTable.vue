@@ -935,7 +935,6 @@ export default {
     const showActionMenu = ref(null);
     const tableHeight = ref('calc(100vh - 350px)');
     const tableBodyHeight = ref('calc(100vh - 450px)');
-    const allUsers = ref([]);
     
     // Color mapping
     const colorMap = {
@@ -963,61 +962,29 @@ export default {
     const transactions = computed(() => store.state.transactions || []);
     const currentUser = computed(() => store.state.user);
     
-    // Load all users on mount
-    onMounted(async () => {
-      try {
-        // Try to load all users if user has permission
-        if (userRole.value === 'superadmin') {
-          await store.dispatch('loadAllUsers');
-          allUsers.value = store.state.allUsers;
-        }
-      } catch (error) {
-        console.log('Could not load all users, will use fallback methods:', error);
-      }
-    });
-    
     // Current user info (FIXED: Gets proper user display name)
     const currentUserInfo = computed(() => {
-      // First priority: userProfile name (filter out role-based names)
-      if (userProfile.value?.name && 
-          !userProfile.value.name.includes('مدير') && 
-          !userProfile.value.name.includes('مشرف') &&
-          !userProfile.value.name.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
+      // First priority: userProfile name
+      if (userProfile.value?.name) {
         return userProfile.value.name;
       }
       
-      // Second priority: Firebase auth displayName
-      if (currentUser.value?.displayName && 
-          !currentUser.value.displayName.includes('مدير') &&
-          !currentUser.value.displayName.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
+      // Second priority: user displayName from Firebase
+      if (currentUser.value?.displayName) {
         return currentUser.value.displayName;
       }
       
-      // Third priority: userProfile email (extract name part)
+      // Third priority: userProfile email
       if (userProfile.value?.email) {
-        const emailName = userProfile.value.email.split('@')[0];
-        if (!emailName.includes('admin') && !emailName.includes('manager')) {
-          return emailName;
-        }
+        return userProfile.value.email.split('@')[0];
       }
       
       // Fourth priority: currentUser email
       if (currentUser.value?.email) {
-        const emailName = currentUser.value.email.split('@')[0];
-        if (!emailName.includes('admin') && !emailName.includes('manager')) {
-          return emailName;
-        }
+        return currentUser.value.email.split('@')[0];
       }
       
-      // Fallback based on role
-      switch(userRole.value) {
-        case 'superadmin': return 'مشرف النظام';
-        case 'company_manager': return 'مدير الشركة';
-        case 'warehouse_manager': return 'مدير المخزن';
-        case 'user': return 'مستخدم';
-        case 'viewer': return 'مشاهد';
-        default: return 'مستخدم النظام';
-      }
+      return 'مستخدم النظام';
     });
     
     // Permissions
@@ -1200,83 +1167,40 @@ export default {
       }
     };
     
-    // FIXED: Properly get last action user with intelligent fallbacks
+    // FIXED: Properly get last action user with fallbacks
     const getLastActionUser = (item) => {
       if (!item) return 'غير معروف';
       
-      // Common role names to filter out
-      const roleNames = ['مدير الشركه', 'مدير الشركة', 'مشرف النظام', 'مدير المخزن', 'مستخدم', 'مشاهد'];
-      
       // Priority 1: Check item's last_updated_by field
-      if (item.last_updated_by && 
-          typeof item.last_updated_by === 'string' && 
-          !item.last_updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12') &&
-          !roleNames.includes(item.last_updated_by)) {
+      if (item.last_updated_by && typeof item.last_updated_by === 'string' && !item.last_updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.last_updated_by;
       }
       
       // Priority 2: Check item's updated_by field
-      if (item.updated_by && 
-          typeof item.updated_by === 'string' && 
-          !item.updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12') &&
-          !roleNames.includes(item.updated_by)) {
+      if (item.updated_by && typeof item.updated_by === 'string' && !item.updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.updated_by;
       }
       
       // Priority 3: Check item's created_by field
-      if (item.created_by && 
-          typeof item.created_by === 'string' && 
-          !item.created_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12') &&
-          !roleNames.includes(item.created_by)) {
+      if (item.created_by && typeof item.created_by === 'string' && !item.created_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.created_by;
       }
       
-      // Priority 4: Find transaction for this item
+      // Priority 4: Find transaction for this item with user info
       const itemTransaction = transactions.value
         .filter(t => t.item_id === item.id)
         .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
       
-      if (itemTransaction?.user_id) {
-        // Try to find user name from allUsers if available
-        const user = allUsers.value.find(u => u.id === itemTransaction.user_id);
-        if (user?.name && 
-            !roleNames.includes(user.name) &&
-            !user.name.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
-          return user.name;
-        }
-        
-        // Check if transaction has user_name field
-        if (itemTransaction.user_name && 
-            typeof itemTransaction.user_name === 'string' &&
-            !roleNames.includes(itemTransaction.user_name) &&
-            !itemTransaction.user_name.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
-          return itemTransaction.user_name;
-        }
+      if (itemTransaction?.user_name && typeof itemTransaction.user_name === 'string' && !itemTransaction.user_name.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
+        return itemTransaction.user_name;
       }
       
-      // Priority 5: Try to extract from user_id if it's actually a name
-      if (itemTransaction?.user_id && 
-          typeof itemTransaction.user_id === 'string' &&
-          itemTransaction.user_id.includes('@')) {
-        // It's an email, extract name part
-        const emailName = itemTransaction.user_id.split('@')[0];
-        if (!roleNames.includes(emailName)) {
-          return emailName;
-        }
-      }
-      
-      // Priority 6: Return current user info as fallback (but filter role names)
-      const currentUserDisplay = currentUserInfo.value;
-      if (!roleNames.includes(currentUserDisplay)) {
-        return currentUserDisplay;
-      }
-      
-      // Final fallback
-      return 'مستخدم النظام';
+      // Priority 5: Return current user info as fallback
+      return currentUserInfo.value;
     };
     
     const handleImageError = (event) => {
-      event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+Cg==';
+      event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
     };
     
     // Action Methods
@@ -1310,12 +1234,6 @@ export default {
         
         await store.dispatch('subscribeToInventory');
         await store.dispatch('getRecentTransactions');
-        
-        // Reload users if superadmin
-        if (userRole.value === 'superadmin') {
-          await store.dispatch('loadAllUsers');
-          allUsers.value = store.state.allUsers;
-        }
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1476,7 +1394,7 @@ export default {
         
         const itemRef = doc(db, 'items', itemToDelete.value.id);
         
-        // Create transaction record with proper user info
+        // Create transaction record with FULL user info
         const transactionData = {
           type: 'DELETE',
           item_id: itemToDelete.value.id,
