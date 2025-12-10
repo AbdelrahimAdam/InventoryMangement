@@ -1877,59 +1877,124 @@ export default createStore({
     },
 
     async transferItem({ commit, dispatch, state }, transferData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لنقل الأصناف');
-        }
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
+  try {
+    console.log('Transfer item called with data:', transferData);
+    
+    // Add defensive checks for undefined/null values
+    if (!transferData) {
+      throw new Error('بيانات النقل غير موجودة');
+    }
 
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (!allowedWarehouses.includes(transferData.from_warehouse_id)) {
-            throw new Error('ليس لديك صلاحية للنقل من هذا المخزن');
-          }
-        }
+    // Log the data structure for debugging
+    console.log('Transfer data structure:', {
+      itemId: transferData.itemId,
+      item_id: transferData.item_id,
+      from_warehouse_id: transferData.from_warehouse_id,
+      from_warehouse: transferData.from_warehouse,
+      to_warehouse_id: transferData.to_warehouse_id,
+      to_warehouse: transferData.to_warehouse,
+      cartons: transferData.cartons,
+      single_bottles: transferData.single_bottles,
+      notes: transferData.notes,
+      item_name: transferData.item_name,
+      item_code: transferData.item_code,
+      item_color: transferData.item_color,
+      per_carton_count: transferData.per_carton_count
+    });
 
-        const result = await InventoryService.transferItem(transferData, state.user.uid);
+    // Ensure all required fields have default values - handle both naming conventions
+    const safeTransferData = {
+      itemId: transferData.itemId || transferData.item_id || '',
+      from_warehouse_id: transferData.from_warehouse_id || transferData.from_warehouse || '',
+      to_warehouse_id: transferData.to_warehouse_id || transferData.to_warehouse || '',
+      cartons: Number(transferData.cartons) || 0,
+      single_bottles: Number(transferData.single_bottles) || 0,
+      total_quantity: Number(transferData.total_quantity) || 0,
+      notes: transferData.notes || '',
+      item_name: transferData.item_name || '',
+      item_code: transferData.item_code || '',
+      item_color: transferData.item_color || '',
+      per_carton_count: Number(transferData.per_carton_count) || 12
+    };
 
-        console.log('Transfer completed successfully:', result.transferQty);
+    console.log('Safe transfer data prepared:', safeTransferData);
 
-        commit('ADD_RECENT_TRANSACTION', {
-          type: TRANSACTION_TYPES.TRANSFER,
-          item_id: transferData.itemId,
-          timestamp: new Date(),
-          notes: 'نقل بين المخازن'
-        });
+    // Validate required fields
+    if (!safeTransferData.itemId) {
+      throw new Error('معرف الصنف مطلوب');
+    }
+    if (!safeTransferData.from_warehouse_id) {
+      throw new Error('مخزن المصدر مطلوب');
+    }
+    if (!safeTransferData.to_warehouse_id) {
+      throw new Error('مخزن الوجهة مطلوب');
+    }
+    if (safeTransferData.from_warehouse_id === safeTransferData.to_warehouse_id) {
+      throw new Error('لا يمكن النقل إلى نفس المخزن');
+    }
+    if (safeTransferData.cartons < 0 || safeTransferData.single_bottles < 0) {
+      throw new Error('الكميات يجب أن تكون موجبة');
+    }
+    if (safeTransferData.cartons === 0 && safeTransferData.single_bottles === 0) {
+      throw new Error('يجب تحديد كمية للنقل');
+    }
 
-        dispatch('showNotification', {
-          type: 'success',
-          message: 'تم نقل الصنف بنجاح'
-        });
+    // Validate user permissions
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+      throw new Error('ليس لديك صلاحية لنقل الأصناف');
+    }
+    if (!state.user?.uid) {
+      throw new Error('معرف المستخدم غير متوفر');
+    }
 
-        return result;
-
-      } catch (error) {
-        console.error('Error transferring item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ أثناء نقل الصنف'
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
+    if (state.userProfile.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      if (!allowedWarehouses.includes(safeTransferData.from_warehouse_id)) {
+        throw new Error('ليس لديك صلاحية للنقل من هذا المخزن');
       }
-    },
+    }
+
+    console.log('Calling InventoryService.transferItem with safe data:', safeTransferData);
+
+    const result = await InventoryService.transferItem(safeTransferData, state.user.uid);
+
+    console.log('Transfer completed successfully:', result);
+
+    commit('ADD_RECENT_TRANSACTION', {
+      type: TRANSACTION_TYPES.TRANSFER,
+      item_id: safeTransferData.itemId,
+      timestamp: new Date(),
+      notes: safeTransferData.notes || 'نقل بين المخازن'
+    });
+
+    dispatch('showNotification', {
+      type: 'success',
+      message: `تم نقل ${result.transferQty || result.total_quantity || 'الكمية'} وحدة بنجاح`
+    });
+
+    return result;
+
+  } catch (error) {
+    console.error('Error transferring item:', error);
+    console.error('Error stack:', error.stack);
+    commit('SET_OPERATION_ERROR', error.message);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ أثناء نقل الصنف'
+    });
+
+    throw error;
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
 
     async dispatchItem({ commit, dispatch, state }, dispatchData) {
       commit('SET_OPERATION_LOADING', true);
