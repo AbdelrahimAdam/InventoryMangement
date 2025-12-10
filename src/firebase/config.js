@@ -3,8 +3,8 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
+// Firebase configuration (safe for client-side use)
+export const firebaseConfig = {
   apiKey: "AIzaSyDxpbXvFH6UvfE2I6OJ_wNFnA889Zu-NEQ",
   authDomain: "monofia-inventory.firebaseapp.com",
   projectId: "monofia-inventory",
@@ -16,12 +16,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
+// Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Set Arabic as default language
+// Optional: Set default language (Arabic)
 auth.languageCode = 'ar';
 
 export default app;
