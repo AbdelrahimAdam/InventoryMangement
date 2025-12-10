@@ -106,9 +106,9 @@
           </select>
 
           <!-- Add Item Button -->
-          <button 
+          <router-link 
             v-if="canModifyItems"
-            @click="openAddItemModal"
+            :to="'/inventory/add'"
             class="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg text-sm lg:text-base"
           >
             <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +116,7 @@
             </svg>
             <span class="hidden lg:inline">إضافة صنف</span>
             <span class="lg:hidden">إضافة</span>
-          </button>
+          </router-link>
         </div>
       </div>
 
@@ -149,25 +149,42 @@
         </svg>
         <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد بيانات</h3>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
-        <button 
+        <router-link 
           v-if="canModifyItems" 
-          @click="openAddItemModal" 
+          :to="'/inventory/add'" 
           class="mt-4 inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-colors duration-200 shadow-md text-sm lg:text-base"
         >
           إضافة صنف جديد
-        </button>
+        </router-link>
       </div>
     </div>
+
+    <!-- Transfer and Dispatch Modals -->
+    <TransferModal 
+      v-if="showTransferModal"
+      :isOpen="showTransferModal"
+      :item="selectedItemForAction"
+      @close="showTransferModal = false"
+      @success="handleTransferSuccess"
+    />
+
+    <DispatchModal 
+      v-if="showDispatchModal"
+      :isOpen="showDispatchModal"
+      :item="selectedItemForAction"
+      @close="showDispatchModal = false"
+      @success="handleDispatchSuccess"
+    />
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
+import { useRouter } from 'vue-router';
 import { debounce } from 'lodash';
 
 // Import inventory components
-import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import TransferModal from '@/components/inventory/TransferModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import InventoryTable from '@/components/inventory/InventoryTable.vue';
@@ -175,20 +192,19 @@ import InventoryTable from '@/components/inventory/InventoryTable.vue';
 export default {
   name: 'Dashboard',
   components: {
-    AddItemModal,
     TransferModal,
     DispatchModal,
     InventoryTable
   },
   setup() {
     const store = useStore();
+    const router = useRouter();
     
     const selectedWarehouse = ref('');
     const searchTerm = ref('');
     const loading = ref(true);
     
-    // Modal states
-    const showAddItemModal = ref(false);
+    // Modal states (only for transfer/dispatch)
     const showTransferModal = ref(false);
     const showDispatchModal = ref(false);
     const selectedItemForAction = ref(null);
@@ -197,26 +213,25 @@ export default {
     const userRole = computed(() => store.getters.userRole || '');
     const dashboardStats = computed(() => store.getters.dashboardStats || {});
     const inventory = computed(() => store.state.inventory || []);
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
-    // Permission getters
+    // Permission getters based on your store
     const canModifyItems = computed(() => {
       const role = userRole.value;
-      const profile = store.state.userProfile || {};
+      const userProfile = store.state.userProfile || {};
       
       if (role === 'superadmin') return true;
       
       if (role === 'warehouse_manager') {
-        const hasWarehouses = profile?.allowed_warehouses?.length > 0;
-        const hasPermission = profile?.permissions?.includes('full_access') || 
-                              profile?.permissions?.includes('manage_inventory');
+        const allowedWarehouses = userProfile?.allowed_warehouses || [];
+        const hasWarehouses = allowedWarehouses.length > 0;
+        const hasPermission = userProfile?.permissions?.includes('full_access') || 
+                              userProfile?.permissions?.includes('manage_inventory') ||
+                              userProfile?.permissions?.includes('add_items');
         return hasWarehouses && hasPermission;
       }
       
       return false;
-    });
-    
-    const accessibleWarehouses = computed(() => {
-      return store.state.warehouses || [];
     });
 
     // Filtered inventory based on search and warehouse selection
@@ -277,62 +292,71 @@ export default {
     // Search handler with debounce
     const handleSearch = debounce(() => {
       // Search is handled in computed property
+      store.dispatch('updateFilters', { search: searchTerm.value });
     }, 300);
 
     const handleWarehouseChange = () => {
       // Warehouse change is handled in computed property
+      store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
     };
 
     // Modal handlers
-    const openAddItemModal = () => {
-      if (!canModifyItems.value) {
-        alert('ليس لديك صلاحية لإضافة أصناف. يرجى التواصل مع المشرف العام.');
-        return;
-      }
-      showAddItemModal.value = true;
-    };
-
-    const openTransferModal = () => {
-      if (!canModifyItems.value) {
-        alert('ليس لديك صلاحية لنقل الأصناف. يرجى التواصل مع المشرف العام.');
-        return;
-      }
-      showTransferModal.value = true;
-    };
-
-    const openDispatchModal = () => {
-      if (!canModifyItems.value) {
-        alert('ليس لديك صلاحية لصرف الأصناف. يرجى التواصل مع المشرف العام.');
-        return;
-      }
-      showDispatchModal.value = true;
-    };
-
     const openTransferModalForItem = (item) => {
+      // Check if user has permission to transfer
+      if (!canModifyItems.value) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية لنقل الأصناف'
+        });
+        return;
+      }
       selectedItemForAction.value = item;
       showTransferModal.value = true;
     };
 
     const openDispatchModalForItem = (item) => {
+      // Check if user has permission to dispatch
+      const userProfile = store.state.userProfile || {};
+      const canDispatch = userRole.value === 'superadmin' || 
+                         (userRole.value === 'warehouse_manager' && 
+                          userProfile.permissions?.includes('dispatch_items'));
+      
+      if (!canDispatch) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية لصرف الأصناف'
+        });
+        return;
+      }
       selectedItemForAction.value = item;
       showDispatchModal.value = true;
-    };
-
-    const handleItemAdded = () => {
-      showAddItemModal.value = false;
-      // Inventory will update automatically via subscription
     };
 
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForAction.value = null;
-      // Inventory will update automatically via subscription
+      // Refresh data
+      store.dispatch('subscribeToInventory');
     };
 
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForAction.value = null;
-      // Inventory will update automatically via subscription
+      // Refresh data
+      store.dispatch('subscribeToInventory');
+    };
+
+    // Navigation functions
+    const navigateToInventoryAdd = () => {
+      router.push('/inventory/add');
+    };
+
+    const navigateToTransfers = () => {
+      router.push('/transfers');
+    };
+
+    const navigateToDispatch = () => {
+      router.push('/dispatch');
     };
 
     onMounted(() => {
@@ -340,11 +364,17 @@ export default {
       if (accessibleWarehouses.value && accessibleWarehouses.value.length > 0) {
         const mainWarehouse = store.getters.mainWarehouse;
         selectedWarehouse.value = mainWarehouse?.id || accessibleWarehouses.value[0]?.id || '';
+        
+        // Update filters in store
+        store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
       }
       
-      // Subscribe to real-time data
-      store.dispatch('subscribeToInventory');
+      // Subscribe to real-time data if not already subscribed
+      if (!store.state.inventory || store.state.inventory.length === 0) {
+        store.dispatch('subscribeToInventory');
+      }
       store.dispatch('subscribeToTransactions');
+      store.dispatch('getRecentTransactions');
       
       // Set loading to false after a short delay
       setTimeout(() => {
@@ -352,14 +382,31 @@ export default {
       }, 1000);
     });
 
+    // Watch for inventory changes
+    watch(() => store.state.inventory, (newInventory) => {
+      if (newInventory && newInventory.length > 0) {
+        loading.value = false;
+      }
+    }, { immediate: true });
+
+    // Watch for warehouse changes
+    watch(() => store.getters.mainWarehouse, (mainWarehouse) => {
+      if (mainWarehouse && !selectedWarehouse.value) {
+        selectedWarehouse.value = mainWarehouse.id;
+        store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
+      }
+    });
+
     return {
+      // State
       selectedWarehouse,
       searchTerm,
       loading,
-      showAddItemModal,
       showTransferModal,
       showDispatchModal,
       selectedItemForAction,
+      
+      // Computed
       userRole,
       dashboardStats,
       inventory,
@@ -367,17 +414,22 @@ export default {
       transformedInventory,
       canModifyItems,
       accessibleWarehouses,
+      
+      // Helper methods
       formatNumber,
       handleSearch,
       handleWarehouseChange,
-      openAddItemModal,
-      openTransferModal,
-      openDispatchModal,
+      
+      // Modal handlers
       openTransferModalForItem,
       openDispatchModalForItem,
-      handleItemAdded,
       handleTransferSuccess,
-      handleDispatchSuccess
+      handleDispatchSuccess,
+      
+      // Navigation functions
+      navigateToInventoryAdd,
+      navigateToTransfers,
+      navigateToDispatch
     };
   }
 };
