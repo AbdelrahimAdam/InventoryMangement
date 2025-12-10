@@ -669,128 +669,135 @@ export default createStore({
     // =============================================
 
     async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
+  try {
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
 
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
-        }
+    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+      throw new Error('ليس لديك صلاحية لتعديل الأصناف');
+    }
 
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
+    if (!state.user?.uid) {
+      throw new Error('معرف المستخدم غير متوفر');
+    }
 
-        // Validate required fields
-        if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.color?.trim() || !itemData.warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-        }
+    // Check if item exists
+    const itemRef = doc(db, 'items', itemId);
+    const itemDoc = await getDoc(itemRef);
+    
+    if (!itemDoc.exists()) {
+      throw new Error('الصنف غير موجود');
+    }
 
-        // Check if item exists
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-        
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
+    const existingItem = itemDoc.data();
 
-        const existingItem = itemDoc.data();
-
-        // Check permissions for warehouse managers
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
-            throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
-          }
-        }
-
-        // Calculate new quantities
-        const newCartonsCount = Number(itemData.cartons_count) || 0;
-        const newPerCartonCount = Number(itemData.per_carton_count) || 12;
-        const newSingleBottlesCount = Number(itemData.single_bottles_count) || 0;
-        const newTotalQuantity = InventoryService.calculateTotalQuantity(
-          newCartonsCount,
-          newPerCartonCount,
-          newSingleBottlesCount
-        );
-
-        if (newTotalQuantity < 0) {
-          throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
-        }
-
-        // Prepare update data
-        const updateData = {
-          name: itemData.name.trim(),
-          code: itemData.code.trim(),
-          color: itemData.color.trim(),
-          warehouse_id: itemData.warehouse_id,
-          cartons_count: newCartonsCount,
-          per_carton_count: newPerCartonCount,
-          single_bottles_count: newSingleBottlesCount,
-          remaining_quantity: newTotalQuantity,
-          total_added: itemData.total_added || existingItem.total_added,
-          supplier: itemData.supplier?.trim() || existingItem.supplier,
-          item_location: itemData.item_location?.trim() || existingItem.item_location,
-          notes: itemData.notes?.trim() || existingItem.notes,
-          photo_url: itemData.photo_url || existingItem.photo_url,
-          updated_at: new Date().toISOString(),
-          updated_by: state.user.uid
-        };
-
-        // Calculate quantity difference for transaction log
-        const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
-
-        // Update item in Firestore
-        await updateDoc(itemRef, updateData);
-
-        // Create transaction log if quantity changed
-        if (quantityDiff !== 0 || existingItem.warehouse_id !== itemData.warehouse_id) {
-          const transactionData = {
-            type: 'UPDATE',
-            item_id: itemId,
-            item_name: updateData.name,
-            item_code: updateData.code,
-            from_warehouse: existingItem.warehouse_id !== itemData.warehouse_id ? existingItem.warehouse_id : null,
-            to_warehouse: itemData.warehouse_id,
-            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
-            per_carton_updated: newPerCartonCount,
-            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
-            total_delta: quantityDiff,
-            new_remaining: newTotalQuantity,
-            user_id: state.user.uid,
-            timestamp: new Date(),
-            notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
-            photo_changed: !!itemData.photo_url
-          };
-
-          await addDoc(collection(db, 'transactions'), transactionData);
-        }
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
-        });
-
-        return { success: true, data: updateData };
-
-      } catch (error) {
-        console.error('Error updating item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث الصنف'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
+    // Check permissions for warehouse managers
+    if (state.userProfile.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
+      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
+        throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
       }
-    },
+    }
+
+    // Use existing values for fields not provided in update
+    const name = itemData.name?.trim() || existingItem.name;
+    const code = itemData.code?.trim() || existingItem.code;
+    const color = itemData.color?.trim() || existingItem.color;
+    const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
+
+    // Validate required fields
+    if (!name || !code || !color || !warehouse_id) {
+      throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+    }
+
+    // Calculate new quantities - use provided values or existing ones
+    const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
+    const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
+    const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
+    const newTotalQuantity = InventoryService.calculateTotalQuantity(
+      newCartonsCount,
+      newPerCartonCount,
+      newSingleBottlesCount
+    );
+
+    if (newTotalQuantity < 0) {
+      throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
+    }
+
+    // Prepare update data - merge existing with new data
+    const updateData = {
+      name: name,
+      code: code,
+      color: color,
+      warehouse_id: warehouse_id,
+      cartons_count: newCartonsCount,
+      per_carton_count: newPerCartonCount,
+      single_bottles_count: newSingleBottlesCount,
+      remaining_quantity: newTotalQuantity,
+      total_added: itemData.total_added || existingItem.total_added,
+      supplier: itemData.supplier?.trim() || existingItem.supplier || '',
+      item_location: itemData.item_location?.trim() || existingItem.item_location || '',
+      notes: itemData.notes?.trim() || existingItem.notes || '',
+      photo_url: itemData.photo_url || existingItem.photo_url || '',
+      updated_at: new Date().toISOString(),
+      updated_by: state.user.uid
+    };
+
+    // Calculate quantity difference for transaction log
+    const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
+
+    // Update item in Firestore
+    await updateDoc(itemRef, updateData);
+
+    // Create transaction log if quantity changed or warehouse changed
+    if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
+      const transactionData = {
+        type: 'UPDATE',
+        item_id: itemId,
+        item_name: updateData.name,
+        item_code: updateData.code,
+        from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
+        to_warehouse: warehouse_id,
+        cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
+        per_carton_updated: newPerCartonCount,
+        single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
+        total_delta: quantityDiff,
+        new_remaining: newTotalQuantity,
+        user_id: state.user.uid,
+        timestamp: new Date(),
+        notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
+        photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
+      };
+
+      await addDoc(collection(db, 'transactions'), transactionData);
+    }
+
+    dispatch('showNotification', {
+      type: 'success',
+      message: `تم تحديث الصنف "${updateData.name}" بنجاح`
+    });
+
+    return { success: true, data: updateData };
+
+  } catch (error) {
+    console.error('Error updating item:', error);
+    commit('SET_OPERATION_ERROR', error.message);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ في تحديث الصنف'
+    });
+
+    return { success: false, error: error.message };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
 
     async deleteItem({ commit, dispatch, state }, itemId) {
       commit('SET_OPERATION_LOADING', true);
