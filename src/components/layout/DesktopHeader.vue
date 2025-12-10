@@ -308,7 +308,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
-import { debounce } from 'lodash-es'
 
 export default {
   name: 'DesktopHeader',
@@ -325,6 +324,7 @@ export default {
     const searchQuery = ref('')
     const showSearchResults = ref(false)
     const searchType = ref('items') // 'items' or 'transactions'
+    const searchDebounceTimer = ref(null)
     
     // Computed properties
     const notifications = computed(() => store.state.notifications || [])
@@ -490,18 +490,31 @@ export default {
       profileMenuOpen.value = false
     }
     
-    // Search functionality
-    const handleSearchInput = debounce(() => {
-      if (searchQuery.value.trim()) {
-        showSearchResults.value = true
-      } else {
-        showSearchResults.value = false
+    // Search functionality - Custom debounce implementation
+    const handleSearchInput = () => {
+      // Clear any existing timer
+      if (searchDebounceTimer.value) {
+        clearTimeout(searchDebounceTimer.value)
       }
-    }, 300)
+      
+      // Set a new timer
+      searchDebounceTimer.value = setTimeout(() => {
+        if (searchQuery.value.trim()) {
+          showSearchResults.value = true
+        } else {
+          showSearchResults.value = false
+        }
+      }, 300) // 300ms debounce delay
+    }
     
     const clearSearch = () => {
       searchQuery.value = ''
       showSearchResults.value = false
+      // Clear any pending debounce timer
+      if (searchDebounceTimer.value) {
+        clearTimeout(searchDebounceTimer.value)
+        searchDebounceTimer.value = null
+      }
     }
     
     const onSearchBlur = () => {
@@ -563,16 +576,20 @@ export default {
       clearSearch()
     })
     
+    // Clean up timer on unmount
+    onUnmounted(() => {
+      if (searchDebounceTimer.value) {
+        clearTimeout(searchDebounceTimer.value)
+      }
+      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('keydown', handleKeyboardShortcuts)
+      document.removeEventListener('click', handleClickOutside)
+    })
+    
     onMounted(() => {
       document.addEventListener('keydown', handleEscape)
       document.addEventListener('keydown', handleKeyboardShortcuts)
       document.addEventListener('click', handleClickOutside)
-    })
-    
-    onUnmounted(() => {
-      document.removeEventListener('keydown', handleEscape)
-      document.removeEventListener('keydown', handleKeyboardShortcuts)
-      document.removeEventListener('click', handleClickOutside)
     })
     
     return {
