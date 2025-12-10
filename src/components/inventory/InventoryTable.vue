@@ -54,65 +54,6 @@
         </div>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="flex items-center">
-            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center ml-3">
-              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-            </div>
-            <div class="flex-1 text-right">
-              <p class="text-sm text-gray-500 dark:text-gray-400">الأصناف</p>
-              <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.totalItems || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="flex items-center">
-            <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center ml-3">
-              <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div class="flex-1 text-right">
-              <p class="text-sm text-gray-500 dark:text-gray-400">الكمية</p>
-              <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.totalQuantity || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="flex items-center">
-            <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center ml-3">
-              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div class="flex-1 text-right">
-              <p class="text-sm text-gray-500 dark:text-gray-400">قليلة</p>
-              <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ stats.lowStockItems || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div class="flex items-center">
-            <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center ml-3">
-              <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-            <div class="flex-1 text-right">
-              <p class="text-sm text-gray-500 dark:text-gray-400">الحركات</p>
-              <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.recentTransactions || 0 }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Filters -->
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1005,11 +946,35 @@ export default {
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
     const inventory = computed(() => store.state.inventory || []);
-    const stats = computed(() => store.getters.inventoryStats || {});
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     const transactions = computed(() => store.state.transactions || []);
     const currentUser = computed(() => store.state.user);
+    
+    // Current user info (FIXED: Gets proper user display name)
+    const currentUserInfo = computed(() => {
+      // First priority: userProfile name
+      if (userProfile.value?.name) {
+        return userProfile.value.name;
+      }
+      
+      // Second priority: user displayName from Firebase
+      if (currentUser.value?.displayName) {
+        return currentUser.value.displayName;
+      }
+      
+      // Third priority: userProfile email
+      if (userProfile.value?.email) {
+        return userProfile.value.email.split('@')[0];
+      }
+      
+      // Fourth priority: currentUser email
+      if (currentUser.value?.email) {
+        return currentUser.value.email.split('@')[0];
+      }
+      
+      return 'مستخدم النظام';
+    });
     
     // Permissions
     const canAddItem = computed(() => {
@@ -1191,26 +1156,36 @@ export default {
       }
     };
     
+    // FIXED: Properly get last action user with fallbacks
     const getLastActionUser = (item) => {
       if (!item) return 'غير معروف';
       
-      // First check item metadata
+      // Priority 1: Check item's last_updated_by field
       if (item.last_updated_by) {
         return item.last_updated_by;
       }
       
-      // Then check transactions
-      const itemTransaction = transactions.value.find(t => t.item_id === item.id);
+      // Priority 2: Check item's updated_by field
+      if (item.updated_by) {
+        return item.updated_by;
+      }
+      
+      // Priority 3: Check item's created_by field
+      if (item.created_by) {
+        return item.created_by;
+      }
+      
+      // Priority 4: Find transaction for this item with user info
+      const itemTransaction = transactions.value
+        .filter(t => t.item_id === item.id)
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
+      
       if (itemTransaction?.user_name) {
         return itemTransaction.user_name;
       }
       
-      // Fallback to current user if editing now
-      if (currentUser.value?.displayName) {
-        return currentUser.value.displayName;
-      }
-      
-      return 'غير معروف';
+      // Priority 5: Return current user info as fallback
+      return currentUserInfo.value;
     };
     
     const handleImageError = (event) => {
@@ -1407,30 +1382,37 @@ export default {
         const { doc, deleteDoc, collection, addDoc } = await import('firebase/firestore');
         
         const itemRef = doc(db, 'items', itemToDelete.value.id);
-        await deleteDoc(itemRef);
         
-        // Create transaction record with user info
+        // Create transaction record with FULL user info
         const transactionData = {
           type: 'DELETE',
           item_id: itemToDelete.value.id,
           item_name: itemToDelete.value.name,
           item_code: itemToDelete.value.code,
+          item_color: itemToDelete.value.color,
           from_warehouse: itemToDelete.value.warehouse_id,
           cartons_delta: 0,
           single_delta: 0,
           total_delta: -itemToDelete.value.remaining_quantity,
           user_id: currentUser.value?.uid,
-          user_name: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
-          user_email: currentUser.value?.email,
+          user_name: currentUserInfo.value,
+          user_email: currentUser.value?.email || userProfile.value?.email,
           user_role: userRole.value,
           timestamp: new Date(),
-          notes: `تم حذف الصنف "${itemToDelete.value.name}" (${itemToDelete.value.code})`
+          notes: `تم حذف الصنف "${itemToDelete.value.name}" (${itemToDelete.value.code}) من المخزن ${getWarehouseLabel(itemToDelete.value.warehouse_id)}`
         };
         
+        // Add transaction first
         await addDoc(collection(db, 'transactions'), transactionData);
         
+        // Then delete the item
+        await deleteDoc(itemRef);
+        
         // Update local store
-        store.commit('REMOVE_INVENTORY_ITEM', itemToDelete.value.id);
+        store.commit('REMOVE_ITEM', itemToDelete.value.id);
+        
+        // Add to recent transactions
+        store.commit('ADD_RECENT_TRANSACTION', transactionData);
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1457,11 +1439,12 @@ export default {
       // Add with user info
       const itemWithUser = {
         ...newItem,
-        last_updated_by: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
+        last_updated_by: currentUserInfo.value,
+        updated_by: currentUserInfo.value,
         updated_at: new Date()
       };
       
-      store.commit('ADD_INVENTORY_ITEM', itemWithUser);
+      store.commit('ADD_ITEM', itemWithUser);
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1476,11 +1459,12 @@ export default {
       // Update with user info
       const itemWithUser = {
         ...updatedItem,
-        last_updated_by: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
+        last_updated_by: currentUserInfo.value,
+        updated_by: currentUserInfo.value,
         updated_at: new Date()
       };
       
-      store.commit('UPDATE_INVENTORY_ITEM', itemWithUser);
+      store.commit('UPDATE_ITEM', itemWithUser);
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1496,19 +1480,21 @@ export default {
       if (result.sourceItem) {
         const sourceItemWithUser = {
           ...result.sourceItem,
-          last_updated_by: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
+          last_updated_by: currentUserInfo.value,
+          updated_by: currentUserInfo.value,
           updated_at: new Date()
         };
-        store.commit('UPDATE_INVENTORY_ITEM', sourceItemWithUser);
+        store.commit('UPDATE_ITEM', sourceItemWithUser);
       }
       
       if (result.targetItem) {
         const targetItemWithUser = {
           ...result.targetItem,
-          last_updated_by: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
+          last_updated_by: currentUserInfo.value,
+          updated_by: currentUserInfo.value,
           updated_at: new Date()
         };
-        store.commit('UPDATE_INVENTORY_ITEM', targetItemWithUser);
+        store.commit('UPDATE_ITEM', targetItemWithUser);
       }
       
       store.dispatch('showNotification', {
@@ -1524,11 +1510,12 @@ export default {
       // Update with user info
       const itemWithUser = {
         ...updatedItem,
-        last_updated_by: currentUser.value?.displayName || currentUser.value?.email || 'مستخدم غير معروف',
+        last_updated_by: currentUserInfo.value,
+        updated_by: currentUserInfo.value,
         updated_at: new Date()
       };
       
-      store.commit('UPDATE_INVENTORY_ITEM', itemWithUser);
+      store.commit('UPDATE_ITEM', itemWithUser);
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1622,7 +1609,6 @@ export default {
       userRole,
       userProfile,
       inventory,
-      stats,
       accessibleWarehouses,
       allWarehouses,
       canAddItem,
@@ -1635,6 +1621,7 @@ export default {
       startIndex,
       endIndex,
       visiblePages,
+      currentUserInfo,
       
       // Helper Methods
       getWarehouseLabel,
