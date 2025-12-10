@@ -63,6 +63,7 @@
                     <select
                       v-model="selectedWarehouseId"
                       :disabled="loading || (!isCreating && selectedItem)"
+                      @change="onWarehouseChange"
                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">اختر المخزن</option>
@@ -257,6 +258,19 @@
                       </div>
                     </div>
 
+                    <!-- Field Validation Errors -->
+                    <div v-if="fieldErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                      <div class="flex items-start">
+                        <ExclamationIcon class="h-5 w-5 text-red-400 flex-shrink-0 ml-2" />
+                        <div class="text-sm">
+                          <p class="font-medium text-red-800 dark:text-red-300">يجب تعبئة الحقول التالية:</p>
+                          <ul class="list-disc mr-4 mt-1 text-red-700 dark:text-red-400">
+                            <li v-for="error in fieldErrors" :key="error">{{ error }}</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- Basic Information Grid -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <!-- Name -->
@@ -271,12 +285,17 @@
                             v-model="formData.name"
                             :disabled="loading"
                             required
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                              fieldValidation.name ? 'border-red-500 dark:border-red-500' : ''
+                            ]"
                             placeholder="أدخل اسم الصنف"
+                            @input="clearFieldError('name')"
                           />
                           <span v-if="isFieldChanged('name')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
                         </div>
+                        <p v-if="fieldValidation.name" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.name }}</p>
                       </div>
 
                       <!-- Code -->
@@ -291,12 +310,17 @@
                             v-model="formData.code"
                             :disabled="loading || !isCreating"
                             required
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                              fieldValidation.code ? 'border-red-500 dark:border-red-500' : ''
+                            ]"
                             placeholder="أدخل كود الصنف"
+                            @input="clearFieldError('code')"
                           />
                           <span v-if="isFieldChanged('code')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
                         </div>
+                        <p v-if="fieldValidation.code" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.code }}</p>
                         <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400 mt-1">لا يمكن تغيير الكود بعد الإنشاء</p>
                       </div>
 
@@ -312,21 +336,30 @@
                             v-model="formData.color"
                             :disabled="loading"
                             required
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                              fieldValidation.color ? 'border-red-500 dark:border-red-500' : ''
+                            ]"
                             placeholder="أدخل اللون"
+                            @input="clearFieldError('color')"
                           />
                           <span v-if="isFieldChanged('color')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
                         </div>
+                        <p v-if="fieldValidation.color" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.color }}</p>
                       </div>
 
                       <!-- Warehouse (Fixed) -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          المخزن
+                          المخزن <span class="text-red-500">*</span>
                         </label>
-                        <div class="px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-300">
+                        <div :class="[
+                          'px-3 py-2.5 border rounded-lg text-gray-900 dark:text-gray-300',
+                          fieldValidation.warehouse_id ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
+                        ]">
                           {{ selectedWarehouse?.name_ar || 'غير محدد' }}
+                          <span v-if="fieldValidation.warehouse_id" class="text-red-600 dark:text-red-400 text-xs block mt-1">{{ fieldValidation.warehouse_id }}</span>
                         </div>
                         <input type="hidden" v-model="formData.warehouse_id" />
                       </div>
@@ -342,8 +375,10 @@
                             id="supplier"
                             v-model="formData.supplier"
                             :disabled="loading"
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                            ]"
                             placeholder="أدخل اسم المورد"
                           />
                           <span v-if="isFieldChanged('supplier')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -361,8 +396,10 @@
                             id="item_location"
                             v-model="formData.item_location"
                             :disabled="loading"
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                            ]"
                             placeholder="مثال: الرف العلوي، المنطقة أ"
                           />
                           <span v-if="isFieldChanged('item_location')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -393,8 +430,10 @@
                               :disabled="loading"
                               min="0"
                               step="1"
-                              class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              :class="isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                                isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
                               placeholder="0"
                             />
                             <span v-if="isFieldChanged('cartons_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -414,8 +453,10 @@
                               :disabled="loading"
                               min="1"
                               step="1"
-                              class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              :class="isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                                isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
                               placeholder="12"
                             />
                             <span v-if="isFieldChanged('per_carton_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -435,8 +476,10 @@
                               :disabled="loading"
                               min="0"
                               step="1"
-                              class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              :class="isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                                isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
                               placeholder="0"
                             />
                             <span v-if="isFieldChanged('single_bottles_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -479,8 +522,10 @@
                             id="photo_url"
                             v-model="formData.photo_url"
                             :disabled="loading"
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                            ]"
                             placeholder="https://example.com/image.jpg"
                           />
                           <span v-if="isFieldChanged('photo_url')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -507,8 +552,10 @@
                             v-model="formData.notes"
                             :disabled="loading"
                             rows="3"
-                            class="w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :class="isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'"
+                            :class="[
+                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
+                              isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                            ]"
                             placeholder="أي ملاحظات إضافية حول الصنف..."
                           ></textarea>
                           <span v-if="isFieldChanged('notes')" class="absolute top-3 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -657,6 +704,13 @@ export default {
       notes: ''
     });
 
+    const fieldValidation = reactive({
+      name: '',
+      code: '',
+      color: '',
+      warehouse_id: ''
+    });
+
     // Computed properties
     const isCreating = computed(() => !props.item?.id);
     const canDelete = computed(() => store.getters.canDelete);
@@ -744,6 +798,15 @@ export default {
       return changed;
     });
 
+    const fieldErrors = computed(() => {
+      const errors = [];
+      if (fieldValidation.name) errors.push(fieldValidation.name);
+      if (fieldValidation.code) errors.push(fieldValidation.code);
+      if (fieldValidation.color) errors.push(fieldValidation.color);
+      if (fieldValidation.warehouse_id) errors.push(fieldValidation.warehouse_id);
+      return errors;
+    });
+
     const isFieldChanged = (fieldName) => {
       if (!originalItem.value) return false;
       return changedFields.value.some(field => 
@@ -789,6 +852,14 @@ export default {
         photo_url: '',
         notes: ''
       });
+      
+      Object.assign(fieldValidation, {
+        name: '',
+        code: '',
+        color: '',
+        warehouse_id: ''
+      });
+      
       error.value = '';
       searchTerm.value = '';
       selectedWarehouseId.value = '';
@@ -818,6 +889,20 @@ export default {
       // Set warehouse ID for the search panel
       if (item.warehouse_id) {
         selectedWarehouseId.value = item.warehouse_id;
+      }
+    };
+
+    const onWarehouseChange = () => {
+      if (selectedWarehouseId.value) {
+        formData.warehouse_id = selectedWarehouseId.value;
+        clearFieldError('warehouse_id');
+      }
+      searchTerm.value = '';
+      showAllItems.value = false;
+      
+      // When creating new item in a warehouse, reset form with warehouse info
+      if (isCreating.value && selectedWarehouseId.value) {
+        createNewItem();
       }
     };
 
@@ -857,32 +942,53 @@ export default {
       event.target.style.display = 'none';
     };
 
+    const clearFieldError = (fieldName) => {
+      if (fieldValidation[fieldName]) {
+        fieldValidation[fieldName] = '';
+      }
+    };
+
     const validateForm = () => {
+      let isValid = true;
+      
+      // Reset validation
+      Object.keys(fieldValidation).forEach(key => {
+        fieldValidation[key] = '';
+      });
+
+      // Validate required fields
       if (!formData.name.trim()) {
-        error.value = 'اسم الصنف مطلوب';
-        return false;
+        fieldValidation.name = 'اسم الصنف مطلوب';
+        isValid = false;
       }
+
       if (!formData.code.trim()) {
-        error.value = 'كود الصنف مطلوب';
-        return false;
+        fieldValidation.code = 'كود الصنف مطلوب';
+        isValid = false;
       }
+
       if (!formData.color.trim()) {
-        error.value = 'لون الصنف مطلوب';
-        return false;
+        fieldValidation.color = 'لون الصنف مطلوب';
+        isValid = false;
       }
+
       if (!formData.warehouse_id) {
-        error.value = 'يجب اختيار المخزن';
-        return false;
+        fieldValidation.warehouse_id = 'يجب اختيار المخزن';
+        isValid = false;
       }
+
+      // Validate quantities
       if (totalQuantity.value < 0) {
         error.value = 'الكمية لا يمكن أن تكون سالبة';
-        return false;
+        isValid = false;
       }
+
       if (formData.photo_url && !isValidUrl(formData.photo_url)) {
         error.value = 'رابط الصورة غير صالح';
-        return false;
+        isValid = false;
       }
-      return true;
+
+      return isValid;
     };
 
     const isValidUrl = (url) => {
@@ -895,7 +1001,10 @@ export default {
     };
 
     const handleSubmit = async () => {
-      if (loading.value || !validateForm()) return;
+      if (loading.value || !validateForm()) {
+        console.log('Validation failed. Field errors:', fieldValidation);
+        return;
+      }
 
       loading.value = true;
       error.value = '';
@@ -952,6 +1061,8 @@ export default {
 
           // Add total_added to preserve original addition tracking
           updateData.itemData.total_added = originalItem.value.total_added;
+
+          console.log('Updating item with data:', updateData);
 
           const result = await store.dispatch('updateItem', updateData);
 
@@ -1017,6 +1128,7 @@ export default {
       showAllItems,
       selectedWarehouseId,
       originalItem,
+      fieldValidation,
       
       // Computed
       isCreating,
@@ -1029,6 +1141,7 @@ export default {
       totalQuantity,
       originalTotalQuantity,
       changedFields,
+      fieldErrors,
       
       // Methods
       getStockClass,
@@ -1040,7 +1153,9 @@ export default {
       handleSubmit,
       confirmDelete,
       handleImageError,
-      isFieldChanged
+      isFieldChanged,
+      onWarehouseChange,
+      clearFieldError
     };
   }
 };
