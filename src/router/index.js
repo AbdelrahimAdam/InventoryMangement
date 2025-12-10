@@ -79,6 +79,19 @@ const routes = [
     }
   },
   {
+    path: '/inventory/item/:id',
+    name: 'ItemDetails',
+    component: () => import('@/views/ItemDetails.vue'),
+    meta: { 
+      requiresAuth: true,
+      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+      permissions: {
+        company_manager: 'viewer',
+        warehouse_manager: 'viewer'
+      }
+    }
+  },
+  {
     path: '/transfers',
     name: 'Transfers',
     component: () => import('@/views/Transfers.vue'),
