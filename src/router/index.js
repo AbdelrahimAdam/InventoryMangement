@@ -81,7 +81,7 @@ const routes = [
   {
     path: '/inventory/item/:id',
     name: 'ItemDetails',
-    component: () => import('@/views/ItemDetails.vue'),
+    component: () => import('@/views/Inventory.vue'),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
