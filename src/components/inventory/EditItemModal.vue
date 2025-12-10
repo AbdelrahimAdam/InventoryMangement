@@ -1031,34 +1031,34 @@ export default {
         closeModal();
       }
     } else {
-      // Send ALL required fields to the store action
-      // The store action will merge with existing data
+      // Prepare update data in the EXACT format the store expects
+      // The store action expects: { itemId: '...', itemData: { ... } }
       const updateData = {
-        id: selectedItem.value.id,
+        itemId: selectedItem.value.id, // Important: use 'itemId' not 'id'
         itemData: {
-          // Always send these fields (store will use existing if not provided)
-          name: formData.name,
-          code: formData.code,
-          color: formData.color,
-          warehouse_id: formData.warehouse_id,
+          // Required fields - ensure they have default values
+          name: formData.name || '',
+          code: formData.code || '',
+          color: formData.color || '',
+          warehouse_id: formData.warehouse_id || '',
           
-          // Quantity fields
+          // Quantity fields - ensure they are numbers
           cartons_count: Number(formData.cartons_count) || 0,
           per_carton_count: Number(formData.per_carton_count) || 12,
           single_bottles_count: Number(formData.single_bottles_count) || 0,
           
-          // Optional fields
-          supplier: formData.supplier,
-          item_location: formData.item_location,
-          photo_url: formData.photo_url,
-          notes: formData.notes,
+          // Optional fields - ensure they have default values
+          supplier: formData.supplier || '',
+          item_location: formData.item_location || '',
+          photo_url: formData.photo_url || '',
+          notes: formData.notes || '',
           
-          // Tracking
-          total_added: originalItem.value.total_added
+          // Tracking - preserve from original
+          total_added: originalItem.value?.total_added || 0
         }
       };
 
-      console.log('Updating item with data:', updateData);
+      console.log('Updating item with data:', JSON.stringify(updateData, null, 2));
 
       const result = await store.dispatch('updateItem', updateData);
 
@@ -1081,8 +1081,6 @@ export default {
     loading.value = false;
   }
 };
-
-
     const confirmDelete = () => {
       if (!selectedItem.value?.id || !canDelete.value) return;
 
