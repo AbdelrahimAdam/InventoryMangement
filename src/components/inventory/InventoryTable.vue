@@ -133,287 +133,296 @@
 
       <!-- Inventory Table -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table -->
-        <div class="hidden lg:block overflow-x-auto">
-          <table class="w-full min-w-[1300px]">
-            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
-              <tr>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الصورة</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الاسم والكود</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">اللون</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المخزن</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المورد</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الكميات</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المتبقي</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الحالة</th>
-                <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">آخر تحديث</th>
-                <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-if="paginatedItems.length === 0">
-                <td :colspan="showActions ? 10 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                  <div class="flex flex-col items-center">
-                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-                    </svg>
-                    <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
-                    <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
-                  </div>
-                </td>
-              </tr>
+        <!-- Desktop Table with static header -->
+        <div class="hidden lg:block overflow-hidden" :style="{ height: tableHeight }">
+          <!-- Static Header Table -->
+          <div class="overflow-hidden">
+            <table class="w-full min-w-[1300px] border-collapse">
+              <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">الصورة</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">الاسم والكود</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">اللون</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">المخزن</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">المورد</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">الكميات</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">المتبقي</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">الحالة</th>
+                  <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">آخر تحديث</th>
+                  <th v-if="showActions" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-600">الإجراءات</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+          
+          <!-- Scrollable Body -->
+          <div class="overflow-y-auto" :style="{ height: tableBodyHeight }">
+            <table class="w-full min-w-[1300px] border-collapse">
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tr v-if="paginatedItems.length === 0">
+                  <td :colspan="showActions ? 10 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+                      </svg>
+                      <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
+                      <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
+                    </div>
+                  </td>
+                </tr>
 
-              <tr 
-                v-for="item in paginatedItems" 
-                :key="item.id"
-                class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 group"
-              >
-                <!-- Photo -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex justify-center">
-                    <div class="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer"
-                         @click="showItemDetails(item)">
-                      <img 
-                        v-if="item.photo_url"
-                        :src="item.photo_url" 
-                        :alt="item.name"
-                        class="w-full h-full object-cover"
-                        @error="handleImageError"
-                        loading="lazy"
-                        @load="imageLoaded[item.id] = true"
-                      >
-                      <div v-else class="w-full h-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                <tr 
+                  v-for="item in paginatedItems" 
+                  :key="item.id"
+                  class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 group"
+                >
+                  <!-- Photo -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex justify-center">
+                      <div class="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer"
+                           @click="showItemDetails(item)">
+                        <img 
+                          v-if="item.photo_url"
+                          :src="item.photo_url" 
+                          :alt="item.name"
+                          class="w-full h-full object-cover"
+                          @error="handleImageError"
+                          loading="lazy"
+                          @load="imageLoaded[item.id] = true"
+                        >
+                        <div v-else class="w-full h-full flex items-center justify-center">
+                          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                        </div>
+                        <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                          <div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Name and Code -->
+                  <td class="px-6 py-4">
+                    <div class="min-w-0">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
+                           @click="showItemDetails(item)">
+                        {{ item.name }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          {{ item.code }}
+                        </span>
+                      </div>
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                      </div>
-                      <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
-                        <div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                        <span class="truncate">{{ item.item_location }}</span>
                       </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Name and Code -->
-                <td class="px-6 py-4">
-                  <div class="min-w-0">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
-                         @click="showItemDetails(item)">
-                      {{ item.name }}
+                  <!-- Color -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600"
+                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
+                      <span class="text-sm text-gray-900 dark:text-white">{{ item.color || '-' }}</span>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {{ item.code }}
-                      </span>
+                  </td>
+
+                  <!-- Warehouse -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900 dark:text-white">{{ getWarehouseLabel(item.warehouse_id) }}</div>
+                  </td>
+
+                  <!-- Supplier -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900 dark:text-white truncate max-w-[150px]">
+                      {{ item.supplier || '-' }}
                     </div>
-                    <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
-                      <span class="truncate">{{ item.item_location }}</span>
+                  </td>
+
+                  <!-- Quantities -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm space-y-1">
+                      <div class="flex items-center justify-between">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Color -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center gap-2">
-                    <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600"
-                         :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                    <span class="text-sm text-gray-900 dark:text-white">{{ item.color || '-' }}</span>
-                  </div>
-                </td>
-
-                <!-- Warehouse -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white">{{ getWarehouseLabel(item.warehouse_id) }}</div>
-                </td>
-
-                <!-- Supplier -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white truncate max-w-[150px]">
-                    {{ item.supplier || '-' }}
-                  </div>
-                </td>
-
-                <!-- Quantities -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm space-y-1">
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                  <!-- Remaining Quantity -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-center">
+                      <div :class="getQuantityClass(item.remaining_quantity)" class="text-lg font-bold">
+                        {{ item.remaining_quantity }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        من {{ item.total_added }}
+                      </div>
                     </div>
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
-                    </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Remaining Quantity -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-center">
-                    <div :class="getQuantityClass(item.remaining_quantity)" class="text-lg font-bold">
-                      {{ item.remaining_quantity }}
+                  <!-- Status -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span :class="getStockStatusClass(item.remaining_quantity)" 
+                          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
+                      {{ getStockStatus(item.remaining_quantity) }}
+                    </span>
+                  </td>
+
+                  <!-- Last Updated -->
+                  <td v-if="showActions" class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      <div class="mb-1">{{ formatRelativeTime(item.updated_at) }}</div>
+                      <div class="flex items-center gap-1 text-[11px]">
+                        <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span>{{ getLastActionUser(item) }}</span>
+                      </div>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      من {{ item.total_added }}
-                    </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Status -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="getStockStatusClass(item.remaining_quantity)" 
-                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
-                    {{ getStockStatus(item.remaining_quantity) }}
-                  </span>
-                </td>
-
-                <!-- Last Updated -->
-                <td v-if="showActions" class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">
-                    <div class="mb-1">{{ formatRelativeTime(item.updated_at) }}</div>
-                    <div class="flex items-center gap-1 text-[11px]">
-                      <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                      </svg>
-                      <span>{{ getLastActionUser(item) }}</span>
-                    </div>
-                  </div>
-                </td>
-
-                <!-- Actions -->
-                <td v-if="showActions" class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center gap-2">
-                    <!-- View Details Button -->
-                    <button
-                      @click="showItemDetails(item)"
-                      class="p-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-colors duration-150 group/view"
-                      title="عرض التفاصيل"
-                    >
-                      <svg class="w-4 h-4 group-hover/view:scale-110 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                      </svg>
-                    </button>
-
-                    <!-- More Actions Dropdown -->
-                    <div class="relative">
+                  <!-- Actions -->
+                  <td v-if="showActions" class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <!-- View Details Button -->
                       <button
-                        @click="toggleActionMenu(item.id)"
-                        class="p-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
-                        title="المزيد من الإجراءات"
+                        @click="showItemDetails(item)"
+                        class="p-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-colors duration-150 group/view"
+                        title="عرض التفاصيل"
                       >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                        <svg class="w-4 h-4 group-hover/view:scale-110 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                         </svg>
                       </button>
 
-                      <!-- Action Dropdown Menu -->
-                      <div v-if="showActionMenu === item.id" 
-                           class="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-30"
-                           v-click-outside="() => showActionMenu = null">
-                        
-                        <!-- Edit Option -->
+                      <!-- More Actions Dropdown -->
+                      <div class="relative">
                         <button
-                          v-if="canEditItem(item)"
-                          @click="handleEdit(item)"
-                          class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150"
+                          @click="toggleActionMenu(item.id)"
+                          class="p-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
+                          title="المزيد من الإجراءات"
                         >
-                          <svg class="w-4 h-4 ml-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
                           </svg>
-                          تعديل الصنف
                         </button>
 
-                        <!-- Transfer Option -->
-                        <button
-                          v-if="canTransferItem(item)"
-                          @click="handleTransfer(item)"
-                          class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-150"
-                        >
-                          <svg class="w-4 h-4 ml-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                          </svg>
-                          نقل بين المخازن
-                        </button>
+                        <!-- Action Dropdown Menu -->
+                        <div v-if="showActionMenu === item.id" 
+                             class="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-30"
+                             v-click-outside="() => showActionMenu = null">
+                          
+                          <!-- Edit Option -->
+                          <button
+                            v-if="canEditItem(item)"
+                            @click="handleEdit(item)"
+                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150"
+                          >
+                            <svg class="w-4 h-4 ml-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            تعديل الصنف
+                          </button>
 
-                        <!-- Dispatch Option -->
-                        <button
-                          v-if="canDispatchItem(item)"
-                          @click="handleDispatch(item)"
-                          class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-150"
-                        >
-                          <svg class="w-4 h-4 ml-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                          </svg>
-                          صرف إلى خارجي
-                        </button>
+                          <!-- Transfer Option -->
+                          <button
+                            v-if="canTransferItem(item)"
+                            @click="handleTransfer(item)"
+                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-150"
+                          >
+                            <svg class="w-4 h-4 ml-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            نقل بين المخازن
+                          </button>
 
-                        <!-- Divider -->
-                        <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                          <!-- Dispatch Option -->
+                          <button
+                            v-if="canDispatchItem(item)"
+                            @click="handleDispatch(item)"
+                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-150"
+                          >
+                            <svg class="w-4 h-4 ml-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            صرف إلى خارجي
+                          </button>
 
-                        <!-- Delete Option -->
-                        <button
-                          v-if="canDeleteItem(item)"
-                          @click="handleDelete(item)"
-                          class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150"
-                        >
-                          <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
-                          حذف الصنف
-                        </button>
+                          <!-- Divider -->
+                          <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                          <!-- Delete Option -->
+                          <button
+                            v-if="canDeleteItem(item)"
+                            @click="handleDelete(item)"
+                            class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150"
+                          >
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            حذف الصنف
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-          <!-- Desktop Pagination -->
-          <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div class="text-sm text-gray-500 dark:text-gray-400">
-              عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredItems.length) }} من {{ filteredItems.length }}
-            </div>
-            <div class="flex items-center gap-2">
+        <!-- Desktop Pagination -->
+        <div v-if="totalPages > 1 && paginatedItems.length > 0" class="hidden lg:flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredItems.length) }} من {{ filteredItems.length }}
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="prevPage"
+              :disabled="currentPage === 1"
+              class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              السابق
+            </button>
+            <div class="flex items-center gap-1">
               <button
-                @click="prevPage"
-                :disabled="currentPage === 1"
-                class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                v-for="page in visiblePages"
+                :key="page"
+                @click="currentPage = page"
+                :class="[
+                  'w-8 h-8 rounded-lg transition-colors text-sm',
+                  currentPage === page 
+                    ? 'bg-blue-600 text-white border border-blue-600' 
+                    : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                ]"
               >
-                السابق
-              </button>
-              <div class="flex items-center gap-1">
-                <button
-                  v-for="page in visiblePages"
-                  :key="page"
-                  @click="currentPage = page"
-                  :class="[
-                    'w-8 h-8 rounded-lg transition-colors text-sm',
-                    currentPage === page 
-                      ? 'bg-blue-600 text-white border border-blue-600' 
-                      : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  ]"
-                >
-                  {{ page }}
-                </button>
-              </div>
-              <button
-                @click="nextPage"
-                :disabled="currentPage === totalPages"
-                class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                التالي
+                {{ page }}
               </button>
             </div>
+            <button
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              التالي
+            </button>
           </div>
         </div>
 
@@ -861,7 +870,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch, reactive, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import { debounce } from 'lodash';
@@ -924,6 +933,8 @@ export default {
     const itemsPerPage = ref(20);
     const searchTimeout = ref(null);
     const showActionMenu = ref(null);
+    const tableHeight = ref('calc(100vh - 350px)');
+    const tableBodyHeight = ref('calc(100vh - 450px)');
     
     // Color mapping
     const colorMap = {
@@ -1161,17 +1172,17 @@ export default {
       if (!item) return 'غير معروف';
       
       // Priority 1: Check item's last_updated_by field
-      if (item.last_updated_by) {
+      if (item.last_updated_by && typeof item.last_updated_by === 'string' && !item.last_updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.last_updated_by;
       }
       
       // Priority 2: Check item's updated_by field
-      if (item.updated_by) {
+      if (item.updated_by && typeof item.updated_by === 'string' && !item.updated_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.updated_by;
       }
       
       // Priority 3: Check item's created_by field
-      if (item.created_by) {
+      if (item.created_by && typeof item.created_by === 'string' && !item.created_by.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return item.created_by;
       }
       
@@ -1180,7 +1191,7 @@ export default {
         .filter(t => t.item_id === item.id)
         .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
       
-      if (itemTransaction?.user_name) {
+      if (itemTransaction?.user_name && typeof itemTransaction.user_name === 'string' && !itemTransaction.user_name.includes('O5Rg9HxDH8Nk3LY9G5onMgc2vN12')) {
         return itemTransaction.user_name;
       }
       
@@ -1221,8 +1232,8 @@ export default {
         loading.value = true;
         error.value = '';
         
-        await store.dispatch('fetchInventory');
-        await store.dispatch('fetchRecentTransactions');
+        await store.dispatch('subscribeToInventory');
+        await store.dispatch('getRecentTransactions');
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1537,6 +1548,16 @@ export default {
       }
     };
     
+    // Adjust table height on window resize
+    const updateTableHeight = () => {
+      const headerHeight = 350;
+      const footerHeight = 100;
+      const windowHeight = window.innerHeight;
+      
+      tableHeight.value = `${windowHeight - headerHeight}px`;
+      tableBodyHeight.value = `${windowHeight - headerHeight - footerHeight}px`;
+    };
+    
     // Lifecycle
     onMounted(() => {
       if (accessibleWarehouses.value.length === 1) {
@@ -1546,6 +1567,10 @@ export default {
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
+      
+      // Update table height
+      updateTableHeight();
+      window.addEventListener('resize', updateTableHeight);
       
       // Close dropdown when clicking outside
       const handleClickOutside = (event) => {
@@ -1557,6 +1582,7 @@ export default {
       document.addEventListener('click', handleClickOutside);
       
       onUnmounted(() => {
+        window.removeEventListener('resize', updateTableHeight);
         document.removeEventListener('click', handleClickOutside);
         if (searchTimeout.value) {
           clearTimeout(searchTimeout.value);
@@ -1604,6 +1630,8 @@ export default {
       deleteLoading,
       currentPage,
       showActionMenu,
+      tableHeight,
+      tableBodyHeight,
       
       // Computed
       userRole,
@@ -1672,6 +1700,18 @@ table {
   width: 100%;
 }
 
+/* Static header styling */
+thead {
+  position: static;
+  top: 0;
+  z-index: 10;
+  background-color: #f9fafb;
+}
+
+.dark thead {
+  background-color: #374151;
+}
+
 /* Reduced animations */
 .transition-colors {
   transition-property: background-color, border-color, color;
@@ -1708,12 +1748,6 @@ table {
 
 .dark ::-webkit-scrollbar-thumb {
   background: #6b7280;
-}
-
-/* Sticky table headers */
-.sticky {
-  position: sticky;
-  z-index: 10;
 }
 
 /* Image optimization */
@@ -1795,5 +1829,20 @@ img {
 .group-hover\/view\:scale-110:hover {
   transform: scale(1.1);
   transition: transform 150ms ease;
+}
+
+/* Fix for static header table */
+.hidden.lg\:block.overflow-hidden {
+  display: flex;
+  flex-direction: column;
+}
+
+.hidden.lg\:block.overflow-hidden > div:first-child {
+  flex-shrink: 0;
+}
+
+.hidden.lg\:block.overflow-hidden > div:last-child {
+  flex: 1;
+  overflow-y: auto;
 }
 </style>
