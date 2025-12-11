@@ -8,7 +8,7 @@
             <h3 class="text-lg font-semibold text-gray-900">صرف أصناف للفروع</h3>
             <p class="text-sm text-gray-500 mt-1">اختر الصنف من القائمة وأدخل كمية الصرف</p>
           </div>
-          <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+          <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -18,6 +18,17 @@
 
       <!-- Main Content -->
       <div class="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+        <!-- Permission Debug Info (Visible only in development) -->
+        <div v-if="isDevelopment && userProfile" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs text-blue-800 font-semibold mb-1">🔍 معلومات التصريح:</div>
+          <div class="text-xs text-blue-700 grid grid-cols-2 gap-1">
+            <div>الدور: {{ userProfile.role }}</div>
+            <div>الحالة: {{ userProfile.is_active ? 'نشط' : 'غير نشط' }}</div>
+            <div>المخازن المسموحة: {{ allowedWarehousesCount }}</div>
+            <div>يستطيع الصرف: {{ canDispatch ? '✅' : '❌' }}</div>
+          </div>
+        </div>
+
         <!-- Step 1: Warehouse Selection -->
         <div>
           <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
@@ -29,12 +40,37 @@
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             @change="onWarehouseChange"
+            :disabled="loading"
           >
             <option value="">اختر المخزن المصدر</option>
-            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+            <option 
+              v-for="warehouse in accessibleWarehouses" 
+              :key="warehouse.id" 
+              :value="warehouse.id"
+              :disabled="!isWarehouseAccessible(warehouse.id)"
+            >
               {{ warehouse.name_ar }}
+              <span v-if="!isWarehouseAccessible(warehouse.id)" class="text-red-500 text-xs">
+                (غير مسموح)
+              </span>
             </option>
           </select>
+          
+          <!-- Warehouse Access Indicator -->
+          <div v-if="form.sourceWarehouse && userProfile?.role === 'warehouse_manager'" class="mt-2">
+            <div v-if="hasAccessToSelectedWarehouse" class="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              لديك صلاحية الصرف من هذا المخزن
+            </div>
+            <div v-else class="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              ليس لديك صلاحية الصرف من هذا المخزن
+            </div>
+          </div>
         </div>
 
         <!-- Step 2: Destination Selection -->
@@ -43,18 +79,20 @@
             <span class="h-6 w-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs ml-2">2</span>
             اختر الفرع المستلم
           </h4>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-2 gap-2">
             <button
               v-for="destination in destinations"
               :key="destination.id"
               @click="form.destinationBranch = destination.id"
+              :disabled="loading"
               :class="[
-                'p-3 border rounded-lg text-sm transition-all duration-200',
+                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
                 form.destinationBranch === destination.id
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50'
               ]"
             >
+              <span class="ml-2">{{ destination.icon }}</span>
               {{ destination.name_ar }}
             </button>
           </div>
@@ -79,6 +117,7 @@
               type="text"
               placeholder="ابحث عن صنف بالاسم أو الكود..."
               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              :disabled="loading || !form.sourceWarehouse"
             >
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,8 +149,8 @@
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
                   <div class="font-medium text-sm text-gray-900">{{ item.الاسم || item.name }}</div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    <span v-if="item.اللون || item.color" class="ml-2">{{ item.اللون || item.color }}</span>
+                  <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+                    <span v-if="item.اللون || item.color">{{ item.اللون || item.color }}</span>
                     <span v-if="item.المورد || item.supplier" class="text-gray-400">المورد: {{ item.المورد || item.supplier }}</span>
                   </div>
                 </div>
@@ -135,11 +174,12 @@
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
+                    :disabled="loading"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
                     ]"
                   >
                     {{ selectedItem?.id === item.id ? 'محدد' : 'اختر' }}
@@ -152,7 +192,9 @@
                 <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
                 </svg>
-                <p class="text-sm text-gray-500 mt-2">لا توجد أصناف مطابقة للبحث</p>
+                <p class="text-sm text-gray-500 mt-2">
+                  {{ form.sourceWarehouse ? 'لا توجد أصناف مطابقة للبحث' : 'يرجى اختيار مخزن أولاً' }}
+                </p>
               </div>
             </div>
           </div>
@@ -165,6 +207,7 @@
             <button
               @click="clearSelection"
               class="text-xs text-blue-600 hover:text-blue-800"
+              :disabled="loading"
             >
               إلغاء التحديد
             </button>
@@ -210,7 +253,7 @@
               <div class="flex items-center space-x-3 space-x-reverse">
                 <button
                   @click="decreaseQuantity"
-                  :disabled="form.quantity <= 1"
+                  :disabled="loading || form.quantity <= 1"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,11 +266,12 @@
                   :max="selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity"
                   min="1"
                   required
+                  :disabled="loading"
                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg font-medium"
                 >
                 <button
                   @click="increaseQuantity"
-                  :disabled="form.quantity >= (selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity)"
+                  :disabled="loading || form.quantity >= (selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity)"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,8 +284,9 @@
                   سيتبقى بعد الصرف: {{ (selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity) - form.quantity }}
                 </span>
                 <button
-                  @click="form.quantity = selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity"
-                  class="text-xs text-blue-600 hover:text-blue-800"
+                  @click="setMaxQuantity"
+                  :disabled="loading"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
                 >
                   استخدام الكل
                 </button>
@@ -256,11 +301,12 @@
                   v-for="priorityOption in priorityOptions"
                   :key="priorityOption.value"
                   @click="form.priority = priorityOption.value"
+                  :disabled="loading"
                   :class="[
                     'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center space-x-2 space-x-reverse',
                     form.priority === priorityOption.value
                       ? priorityOption.borderClass + ' ' + priorityOption.bgClass + ' ' + priorityOption.textClass
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 disabled:opacity-50'
                   ]"
                 >
                   <span :class="priorityOption.iconClass">{{ priorityOption.icon }}</span>
@@ -275,6 +321,7 @@
               <textarea
                 v-model="form.notes"
                 rows="2"
+                :disabled="loading"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 placeholder="أضف أي ملاحظات حول عملية الصرف..."
               ></textarea>
@@ -288,7 +335,27 @@
             <svg class="h-5 w-5 text-red-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
-            <p class="text-sm text-red-600">{{ error }}</p>
+            <div class="flex-1">
+              <p class="text-sm text-red-600">{{ error }}</p>
+              <button v-if="showDebugInfo" @click="showDebugInfo = false" class="text-xs text-red-400 mt-1">
+                إخفاء التفاصيل
+              </button>
+            </div>
+          </div>
+          <!-- Debug Info (Visible when error occurs) -->
+          <div v-if="showDebugInfo && lastErrorData" class="mt-3 pt-3 border-t border-red-200">
+            <p class="text-xs text-red-500 mb-1">تفاصيل الخطأ:</p>
+            <pre class="text-xs bg-red-900 text-red-100 p-2 rounded overflow-auto max-h-40">{{ JSON.stringify(lastErrorData, null, 2) }}</pre>
+          </div>
+        </div>
+
+        <!-- Success Message -->
+        <div v-if="successMessage" class="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-green-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <p class="text-sm text-green-600">{{ successMessage }}</p>
           </div>
         </div>
       </div>
@@ -298,16 +365,22 @@
         <div class="flex space-x-3 space-x-reverse">
           <button
             type="button"
-            @click="$emit('close')"
-            class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            @click="closeModal"
+            :disabled="loading"
+            class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
           >
             إلغاء
           </button>
           <button
             type="submit"
             @click="handleSubmit"
-            :disabled="loading || !selectedItem || !form.destinationBranch || !form.sourceWarehouse || form.quantity > (selectedItem?.الكميه_المتبقيه || selectedItem?.remaining_quantity || 0)"
-            class="flex-1 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+            :disabled="isSubmitDisabled"
+            :class="[
+              'flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
+              isSubmitDisabled
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+            ]"
           >
             <svg v-if="loading" class="animate-spin h-4 w-4 ml-2 text-white" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -325,7 +398,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useStore } from 'vuex'
 
 export default {
@@ -344,11 +417,17 @@ export default {
   setup(props, { emit }) {
     const store = useStore()
     
+    // State
     const loading = ref(false)
     const error = ref('')
+    const successMessage = ref('')
     const selectedItem = ref(null)
     const searchTerm = ref('')
-    
+    const showDebugInfo = ref(false)
+    const lastErrorData = ref(null)
+    const isDevelopment = ref(process.env.NODE_ENV === 'development')
+
+    // Form
     const form = reactive({
       sourceWarehouse: '',
       destinationBranch: '',
@@ -359,8 +438,8 @@ export default {
 
     // Constants
     const destinations = [
-      { id: 'مصنع البران', name_ar: 'مصنع البران', icon: '🏭' },
-      { id: 'مخزن الزهراء', name_ar: 'مخزن الزهراء', icon: '🏪' }
+      { id: 'factory', name_ar: 'مصنع البران', icon: '🏭' },
+      { id: 'zahra', name_ar: 'مخزن الزهراء', icon: '🏪' }
     ]
 
     const priorityOptions = [
@@ -394,9 +473,69 @@ export default {
     ]
 
     // Computed properties
+    const userProfile = computed(() => store.state.userProfile)
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
     
+    const accessibleWarehouses = computed(() => {
+      const allWarehouses = warehouses.value
+      
+      if (!userProfile.value) return []
+      
+      // Superadmin sees all primary warehouses
+      if (userProfile.value.role === 'superadmin') {
+        return allWarehouses.filter(w => w.type === 'primary' || w.is_main)
+      }
+      
+      // Warehouse manager sees only allowed warehouses
+      if (userProfile.value.role === 'warehouse_manager') {
+        const allowedWarehouses = userProfile.value.allowed_warehouses || []
+        
+        if (allowedWarehouses.length === 0) return []
+        
+        if (allowedWarehouses.includes('all')) {
+          return allWarehouses.filter(w => w.type === 'primary' || w.is_main)
+        }
+        
+        return allWarehouses.filter(w => 
+          (w.type === 'primary' || w.is_main) && 
+          allowedWarehouses.includes(w.id)
+        )
+      }
+      
+      return []
+    })
+    
+    const allowedWarehousesCount = computed(() => {
+      return userProfile.value?.allowed_warehouses?.length || 0
+    })
+    
+    const canDispatch = computed(() => {
+      if (!userProfile.value) return false
+      
+      if (userProfile.value.role === 'superadmin') return true
+      
+      if (userProfile.value.role === 'warehouse_manager') {
+        return userProfile.value.permissions?.includes('dispatch_items') || 
+               userProfile.value.permissions?.includes('full_access')
+      }
+      
+      return false
+    })
+    
+    const hasAccessToSelectedWarehouse = computed(() => {
+      if (!userProfile.value || !form.sourceWarehouse) return false
+      
+      if (userProfile.value.role === 'superadmin') return true
+      
+      if (userProfile.value.role === 'warehouse_manager') {
+        const allowedWarehouses = userProfile.value.allowed_warehouses || []
+        return allowedWarehouses.includes('all') || allowedWarehouses.includes(form.sourceWarehouse)
+      }
+      
+      return false
+    })
+
     const availableItems = computed(() => {
       if (!form.sourceWarehouse) {
         return []
@@ -426,6 +565,17 @@ export default {
       })
     })
 
+    const isSubmitDisabled = computed(() => {
+      return loading.value || 
+             !selectedItem.value || 
+             !form.destinationBranch || 
+             !form.sourceWarehouse || 
+             !hasAccessToSelectedWarehouse.value ||
+             !canDispatch.value ||
+             form.quantity > (selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0) ||
+             form.quantity <= 0
+    })
+
     // Helper functions
     const getWarehouseName = (warehouseId) => {
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
@@ -436,6 +586,19 @@ export default {
       if (quantity === 0) return 'text-red-600'
       if (quantity < 10) return 'text-yellow-600'
       return 'text-green-600'
+    }
+    
+    const isWarehouseAccessible = (warehouseId) => {
+      if (!userProfile.value) return false
+      
+      if (userProfile.value.role === 'superadmin') return true
+      
+      if (userProfile.value.role === 'warehouse_manager') {
+        const allowedWarehouses = userProfile.value.allowed_warehouses || []
+        return allowedWarehouses.includes('all') || allowedWarehouses.includes(warehouseId)
+      }
+      
+      return false
     }
 
     // Methods
@@ -449,7 +612,17 @@ export default {
       })
       selectedItem.value = null
       error.value = ''
+      successMessage.value = ''
       searchTerm.value = ''
+      showDebugInfo.value = false
+      lastErrorData.value = null
+    }
+
+    const closeModal = () => {
+      if (!loading.value) {
+        resetForm()
+        emit('close')
+      }
     }
 
     const selectItem = (item) => {
@@ -468,6 +641,7 @@ export default {
     const onWarehouseChange = () => {
       selectedItem.value = null
       searchTerm.value = ''
+      error.value = ''
     }
 
     const increaseQuantity = () => {
@@ -481,6 +655,11 @@ export default {
       if (form.quantity > 1) {
         form.quantity--
       }
+    }
+    
+    const setMaxQuantity = () => {
+      const max = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
+      form.quantity = max
     }
 
     // Watch for prop changes
@@ -514,92 +693,167 @@ export default {
     })
 
     const handleSubmit = async () => {
+      // Reset messages
+      error.value = ''
+      successMessage.value = ''
+      showDebugInfo.value = false
+      lastErrorData.value = null
+      
+      // Debug info
+      console.log('🚀 Dispatch Modal - Submit triggered', {
+        userProfile: userProfile.value,
+        formData: { ...form },
+        selectedItem: selectedItem.value,
+        hasAccessToSelectedWarehouse: hasAccessToSelectedWarehouse.value,
+        canDispatch: canDispatch.value
+      })
+
       // Validation
+      const errors = []
+      
       if (!form.sourceWarehouse) {
-        error.value = 'يرجى اختيار المخزن المصدر'
-        return
+        errors.push('يرجى اختيار المخزن المصدر')
       }
-
+      
       if (!form.destinationBranch) {
-        error.value = 'يرجى اختيار الفرع المستلم'
-        return
+        errors.push('يرجى اختيار الفرع المستلم')
       }
-
+      
       if (!selectedItem.value) {
-        error.value = 'يرجى اختيار صنف للصرف'
-        return
+        errors.push('يرجى اختيار صنف للصرف')
       }
-
+      
       if (!form.quantity || form.quantity <= 0) {
-        error.value = 'يرجى إدخال كمية صحيحة'
-        return
+        errors.push('يرجى إدخال كمية صحيحة')
       }
-
-      const maxQuantity = selectedItem.value.الكميه_المتبقيه || selectedItem.value.remaining_quantity || 0
+      
+      const maxQuantity = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
       if (form.quantity > maxQuantity) {
-        error.value = `الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`
+        errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
+      }
+      
+      if (!canDispatch.value) {
+        errors.push('ليس لديك صلاحية لصرف الأصناف')
+      }
+      
+      if (userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
+        errors.push('ليس لديك صلاحية للصرف من هذا المخزن')
+      }
+      
+      if (errors.length > 0) {
+        error.value = errors.join('، ')
         return
       }
 
       loading.value = true
-      error.value = ''
 
       try {
-        // Prepare dispatch data
+        // Prepare dispatch data - CRITICAL: Match what the store expects
         const dispatchData = {
+          // Item info
           item_id: selectedItem.value.id,
-          from_warehouse: form.sourceWarehouse,
+          item_name: selectedItem.value.الاسم || selectedItem.value.name,
+          item_code: selectedItem.value.الكود || selectedItem.value.code,
+          
+          // Warehouse info - SEND BOTH FIELD NAMES for compatibility
+          from_warehouse: form.sourceWarehouse,        // For Firebase rules
+          from_warehouse_id: form.sourceWarehouse,     // For store permission check
           to_destination: form.destinationBranch,
+          
+          // Quantity info
           quantity: form.quantity,
-          cartons: 0, // You might want to calculate this based on your business logic
-          single_bottles: form.quantity, // Adjust based on your needs
+          cartons: 0,  // Assuming all single bottles
+          single_bottles: form.quantity,
+          
+          // Additional info
           notes: form.notes,
-          priority: form.priority
+          priority: form.priority,
+          
+          // Debug info
+          _debug: {
+            timestamp: new Date().toISOString(),
+            userRole: userProfile.value?.role,
+            userId: store.state.user?.uid
+          }
         }
 
-        console.log('Dispatching item with data:', dispatchData)
+        console.log('📤 Dispatch Modal - Sending data to store:', dispatchData)
 
         // Use the store dispatch action
         const result = await store.dispatch('dispatchItem', dispatchData)
 
+        console.log('✅ Dispatch Modal - Store action completed:', result)
+
         if (result?.success) {
-          // Show success message
-          console.log('Dispatch completed successfully:', result)
+          successMessage.value = 'تم صرف الصنف بنجاح'
           
           // Reset form after successful dispatch
           resetForm()
           
-          // Emit success and close
-          emit('success', result)
+          // Emit success and close after delay
           setTimeout(() => {
+            emit('success', result)
             emit('close')
-          }, 500)
+          }, 1500)
         } else {
-          throw new Error('فشل في عملية الصرف')
+          throw new Error(result?.error || 'فشل في عملية الصرف')
         }
         
       } catch (err) {
-        console.error('Error creating dispatch:', err)
+        console.error('❌ Dispatch Modal - Error:', err)
+        
+        // Store error details for debugging
+        lastErrorData.value = {
+          message: err.message,
+          stack: err.stack,
+          timestamp: new Date().toISOString(),
+          userInfo: {
+            role: userProfile.value?.role,
+            userId: store.state.user?.uid,
+            allowedWarehouses: userProfile.value?.allowed_warehouses
+          }
+        }
+        
         error.value = err.message || 'فشل في عملية الصرف. يرجى المحاولة مرة أخرى.'
+        showDebugInfo.value = isDevelopment.value
       } finally {
         loading.value = false
       }
     }
+
+    // Log initial state
+    onMounted(() => {
+      console.log('Dispatch Modal mounted', {
+        userRole: userProfile.value?.role,
+        canDispatch: canDispatch.value,
+        warehouses: accessibleWarehouses.value.length
+      })
+    })
 
     return {
       // State
       form,
       loading,
       error,
+      successMessage,
       selectedItem,
       searchTerm,
+      showDebugInfo,
+      lastErrorData,
+      isDevelopment,
       
       // Computed
+      userProfile,
       warehouses,
       destinations,
       priorityOptions,
       availableItems,
       filteredItems,
+      accessibleWarehouses,
+      allowedWarehousesCount,
+      canDispatch,
+      hasAccessToSelectedWarehouse,
+      isSubmitDisabled,
       
       // Methods
       selectItem,
@@ -607,9 +861,12 @@ export default {
       onWarehouseChange,
       increaseQuantity,
       decreaseQuantity,
+      setMaxQuantity,
       getWarehouseName,
       getStockClass,
-      handleSubmit
+      isWarehouseAccessible,
+      handleSubmit,
+      closeModal
     }
   }
 }
@@ -656,4 +913,4 @@ export default {
 * {
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
-</style>   
+</style>
