@@ -1,30 +1,20 @@
-{
-  "indexes": [
-    {
-      "collectionGroup": "items",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "المخزن_id", "order": "ASCENDING" },
-        { "fieldPath": "الكود", "order": "ASCENDING" },
-        { "fieldPath": "اللون", "order": "ASCENDING" },
-        { "fieldPath": "الاسم", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "items",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "المخزن_id", "order": "ASCENDING" },
-        { "fieldPath": "الكميه_المتبقيه", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "transactions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "timestamp", "order": "DESCENDING" },
-        { "fieldPath": "from_warehouse", "order": "ASCENDING" }
-      ]
-    }
-  ]
-}
+// Run once to migrate all items to English field names
+const migrateItems = async () => {
+  const snapshot = await getDocs(collection(db, 'items'));
+  const batch = writeBatch(db);
+  
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    const englishData = {
+      name: data.الاسم || data.name,
+      code: data.الكود || data.code,
+      color: data.اللون || data.color,
+      warehouse_id: data.المخزن_id || data.warehouse_id,
+      // ... convert all fields
+    };
+    batch.update(doc.ref, englishData);
+  });
+  
+  await batch.commit();
+  console.log('Migration complete!');
+};
