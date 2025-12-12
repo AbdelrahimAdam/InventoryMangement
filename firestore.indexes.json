@@ -1,8 +1,5 @@
 {
   "indexes": [
-    // =============================================
-    // ITEMS COLLECTION INDEXES (Most Critical)
-    // =============================================
     {
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
@@ -53,10 +50,6 @@
         { "fieldPath": "warehouse_id", "order": "ASCENDING" }
       ]
     },
-
-    // =============================================
-    // TRANSACTIONS COLLECTION INDEXES
-    // =============================================
     {
       "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
@@ -112,10 +105,6 @@
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
-
-    // =============================================
-    // USERS COLLECTION INDEXES
-    // =============================================
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
@@ -148,10 +137,6 @@
         { "fieldPath": "role", "order": "ASCENDING" }
       ]
     },
-
-    // =============================================
-    // WAREHOUSES COLLECTION INDEXES
-    // =============================================
     {
       "collectionGroup": "warehouses",
       "queryScope": "COLLECTION",
@@ -183,10 +168,6 @@
         { "fieldPath": "name_ar", "order": "ASCENDING" }
       ]
     },
-
-    // =============================================
-    // ITEM_HISTORY COLLECTION INDEXES
-    // =============================================
     {
       "collectionGroup": "item_history",
       "queryScope": "COLLECTION",
@@ -211,10 +192,6 @@
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
-
-    // =============================================
-    // ADMIN_NOTIFICATIONS COLLECTION INDEXES
-    // =============================================
     {
       "collectionGroup": "admin_notifications",
       "queryScope": "COLLECTION",
