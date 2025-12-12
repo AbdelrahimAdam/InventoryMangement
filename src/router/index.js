@@ -47,7 +47,10 @@ const lazyLoad = (componentName, chunkName = null) => {
       `@/views/${componentName}.vue`
     ).catch((error) => {
       console.error(`Failed to load component ${componentName}:`, error);
-      return import('@/views/Error.vue');
+      // بدلاً من استيراد Error.vue غير الموجود، نرجع مكون خطأ مدمج
+      return Promise.resolve({
+        default: ErrorComponent
+      });
     }),
     loading: LoadingSpinner,
     error: ErrorComponent,
