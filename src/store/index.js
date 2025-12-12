@@ -75,6 +75,15 @@ const FIELD_MAPPINGS = {
   }
 };
 
+// Static transaction types (moved from service to avoid async in getters)
+const TRANSACTION_TYPES = {
+  ADD: 'ADD',
+  UPDATE: 'UPDATE',
+  DELETE: 'DELETE',
+  TRANSFER: 'TRANSFER',
+  DISPATCH: 'DISPATCH'
+};
+
 // =============================================
 // STATE MANAGEMENT
 // =============================================
@@ -105,6 +114,8 @@ const initialState = {
   requiresCompositeIndex: false,
   allUsers: [],
   usersLoading: false,
+  // Static transaction types accessible in getters
+  TRANSACTION_TYPES: TRANSACTION_TYPES,
   // New states for optimization
   cache: {
     warehouses: {
@@ -121,7 +132,7 @@ const initialState = {
 };
 
 // =============================================
-// MUTATIONS (UNCHANGED FROM ORIGINAL)
+// MUTATIONS
 // =============================================
 
 const mutations = {
@@ -300,7 +311,7 @@ const mutations = {
 
 const actions = {
   // Helper function to show notifications
-  showNotification({ commit, getters }, notification) {
+  showNotification({ commit }, notification) {
     if (!notification || !notification.message) {
       console.warn('Invalid notification:', notification);
       return;
@@ -314,7 +325,6 @@ const actions = {
     };
 
     const finalNotification = { ...defaultNotification, ...notification };
-
     commit('ADD_NOTIFICATION', finalNotification);
 
     if (finalNotification.type === 'error') {
@@ -512,7 +522,7 @@ const actions = {
   },
 
   // =============================================
-  // WAREHOUSE MANAGEMENT ACTIONS (ORIGINAL LOGIC)
+  // WAREHOUSE MANAGEMENT ACTIONS
   // =============================================
 
   async createWarehouse({ commit, dispatch, state }, warehouseData) {
@@ -742,7 +752,7 @@ const actions = {
   },
 
   // =============================================
-  // ITEM MANAGEMENT ACTIONS (ORIGINAL LOGIC)
+  // ITEM MANAGEMENT ACTIONS
   // =============================================
 
   async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
@@ -969,7 +979,7 @@ const actions = {
   },
 
   // =============================================
-  // USER MANAGEMENT ACTIONS (ORIGINAL LOGIC)
+  // USER MANAGEMENT ACTIONS
   // =============================================
 
   async loadAllUsers({ commit, dispatch, getters }) {
@@ -1209,7 +1219,7 @@ const actions = {
   },
 
   // =============================================
-  // INVENTORY ACTIONS (ORIGINAL LOGIC)
+  // INVENTORY ACTIONS
   // =============================================
 
   async checkExistingItem({ state }, itemData) {
@@ -1789,9 +1799,7 @@ const actions = {
 
     try {
       const firestore = await loadFirestore();
-      const inventoryService = await loadInventoryService();
       const { collection, query, orderBy, onSnapshot } = firestore;
-      const { WAREHOUSE_LABELS, DESTINATION_LABELS } = inventoryService;
 
       const transactionsQuery = query(
         collection(firestore.db, 'transactions'),
@@ -1807,10 +1815,8 @@ const actions = {
             id: doc.id,
             ...data,
             _display: {
-              from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-              to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                           DESTINATION_LABELS[data.to_warehouse] ||
-                           data.to_warehouse,
+              from_warehouse: state.warehouses.find(w => w.id === data.from_warehouse)?.name_ar || data.from_warehouse,
+              to_warehouse: state.warehouses.find(w => w.id === data.to_warehouse)?.name_ar || data.to_warehouse,
             }
           };
         });
@@ -1847,9 +1853,7 @@ const actions = {
       console.log('Loading recent transactions...');
 
       const firestore = await loadFirestore();
-      const inventoryService = await loadInventoryService();
       const { collection, query, where, orderBy, limit, getDocs } = firestore;
-      const { WAREHOUSE_LABELS, DESTINATION_LABELS } = inventoryService;
 
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -1867,10 +1871,8 @@ const actions = {
           id: doc.id,
           ...data,
           _display: {
-            from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-            to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                         DESTINATION_LABELS[data.to_warehouse] ||
-                         data.to_warehouse,
+            from_warehouse: state.warehouses.find(w => w.id === data.from_warehouse)?.name_ar || data.from_warehouse,
+            to_warehouse: state.warehouses.find(w => w.id === data.to_warehouse)?.name_ar || data.to_warehouse,
           }
         };
       });
@@ -1953,7 +1955,7 @@ const actions = {
       console.log(`Item ${result.type} successfully:`, result.id);
 
       commit('ADD_RECENT_TRANSACTION', {
-        type: inventoryService.TRANSACTION_TYPES.ADD,
+        type: TRANSACTION_TYPES.ADD,
         item_id: result.id,
         timestamp: new Date(),
         notes: cleanedData.notes || 'عملية إضافة'
@@ -2012,7 +2014,7 @@ const actions = {
       console.log('Transfer completed successfully:', result.transferQty);
 
       commit('ADD_RECENT_TRANSACTION', {
-        type: inventoryService.TRANSACTION_TYPES.TRANSFER,
+        type: TRANSACTION_TYPES.TRANSFER,
         item_id: transferData.itemId,
         timestamp: new Date(),
         notes: 'نقل بين المخازن'
@@ -2076,7 +2078,7 @@ const actions = {
       console.log('Dispatch completed successfully:', result.dispatchQty);
 
       commit('ADD_RECENT_TRANSACTION', {
-        type: inventoryService.TRANSACTION_TYPES.DISPATCH,
+        type: TRANSACTION_TYPES.DISPATCH,
         item_id: dispatchData.itemId,
         timestamp: new Date(),
         notes: 'صرف إلى خارجي'
@@ -2106,6 +2108,87 @@ const actions = {
     }
   },
 
+  // NEW ACTION: Get transaction summary (moved from getter)
+  async getTransactionSummary({ state }) {
+    try {
+      const addTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.ADD).length;
+      const transferTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER).length;
+      const dispatchTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.DISPATCH).length;
+
+      return {
+        add: addTransactions,
+        transfer: transferTransactions,
+        dispatch: dispatchTransactions
+      };
+    } catch (error) {
+      console.error('Error getting transaction summary:', error);
+      return {
+        add: 0,
+        transfer: 0,
+        dispatch: 0
+      };
+    }
+  },
+
+  // NEW ACTION: Get dashboard stats (moved from getter)
+  async getDashboardStats({ state, dispatch }) {
+    try {
+      let inventory = state.inventory;
+
+      // Filter by user's allowed warehouses if not superadmin
+      if (state.userProfile?.role === 'warehouse_manager' || state.userProfile?.role === 'company_manager') {
+        const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+        if (allowedWarehouses.length > 0) {
+          inventory = inventory.filter(item => allowedWarehouses.includes(item.warehouse_id));
+        }
+      }
+
+      const totalItems = inventory.length;
+      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10).length;
+      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
+
+      // Calculate value (assuming average value per item)
+      const averageValuePerItem = 50;
+      const estimatedValue = totalQuantity * averageValuePerItem;
+
+      const recentTransactions = state.recentTransactions.length;
+
+      const summary = await dispatch('getTransactionSummary');
+
+      return {
+        totalItems,
+        totalQuantity,
+        lowStockItems,
+        outOfStockItems,
+        estimatedValue,
+        recentTransactions,
+        addTransactions: summary.add,
+        transferTransactions: summary.transfer,
+        dispatchTransactions: summary.dispatch,
+        transactionsByType: summary
+      };
+    } catch (error) {
+      console.error('Error getting dashboard stats:', error);
+      return {
+        totalItems: 0,
+        totalQuantity: 0,
+        lowStockItems: 0,
+        outOfStockItems: 0,
+        estimatedValue: 0,
+        recentTransactions: 0,
+        addTransactions: 0,
+        transferTransactions: 0,
+        dispatchTransactions: 0,
+        transactionsByType: {
+          add: 0,
+          transfer: 0,
+          dispatch: 0
+        }
+      };
+    }
+  },
+
   updateFilters({ commit }, filters) {
     commit('SET_FILTERS', filters);
   },
@@ -2128,7 +2211,7 @@ const actions = {
 };
 
 // =============================================
-// GETTERS - ALL ORIGINAL LOGIC PRESERVED
+// GETTERS - ALL SYNCHRONOUS NOW
 // =============================================
 
 const getters = {
@@ -2149,6 +2232,7 @@ const getters = {
   requiresCompositeIndex: state => state.requiresCompositeIndex,
   allUsers: state => state.allUsers,
   usersLoading: state => state.usersLoading,
+  transactionTypes: state => state.TRANSACTION_TYPES,
 
   // Permission checks
   canEdit: (state, getters) => {
@@ -2266,8 +2350,8 @@ const getters = {
     return inventory;
   },
 
-  // Dashboard statistics
-  dashboardStats: (state) => {
+  // Basic stats (synchronous only)
+  basicInventoryStats: (state) => {
     let inventory = state.inventory;
 
     // Filter by user's allowed warehouses if not superadmin
@@ -2287,29 +2371,14 @@ const getters = {
     const averageValuePerItem = 50;
     const estimatedValue = totalQuantity * averageValuePerItem;
 
-    const recentTransactions = state.recentTransactions.length;
-
-    // Calculate transactions by type
-    const inventoryService = await loadInventoryService();
-    const addTransactions = state.recentTransactions.filter(t => t.type === inventoryService.TRANSACTION_TYPES.ADD).length;
-    const transferTransactions = state.recentTransactions.filter(t => t.type === inventoryService.TRANSACTION_TYPES.TRANSFER).length;
-    const dispatchTransactions = state.recentTransactions.filter(t => t.type === inventoryService.TRANSACTION_TYPES.DISPATCH).length;
-
     return {
       totalItems,
       totalQuantity,
       lowStockItems,
       outOfStockItems,
       estimatedValue,
-      recentTransactions,
-      addTransactions,
-      transferTransactions,
-      dispatchTransactions,
-      transactionsByType: {
-        add: addTransactions,
-        transfer: transferTransactions,
-        dispatch: dispatchTransactions
-      }
+      inventoryCount: totalItems,
+      totalInventoryValue: estimatedValue
     };
   },
 
@@ -2323,13 +2392,14 @@ const getters = {
     return warehouse ? warehouse.name_ar : warehouseId;
   },
 
-  getDestinationLabel: () => (destinationId) => {
-    const inventoryService = await loadInventoryService();
-    return inventoryService.DESTINATION_LABELS[destinationId] || destinationId;
-  },
-
   getWarehouseById: (state) => (warehouseId) => {
     return state.warehouses.find(w => w.id === warehouseId);
+  },
+
+  // Cache status
+  isCacheValid: (state) => (cacheKey) => {
+    const cache = state.cache[cacheKey];
+    return cache?.data && Date.now() - cache.timestamp < cache.ttl;
   }
 };
 
