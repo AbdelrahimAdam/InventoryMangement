@@ -123,10 +123,10 @@ module.exports = defineConfig({
     config.plugin('html').tap(args => {
       args[0] = {
         ...args[0],
-        title: 'نظام إدارة المخازن - منوفيا للعطور',
+        title: 'نظام إدارة المخازن -البران للعطور',
         meta: {
           viewport: 'width=device-width,initial-scale=1.0',
-          description: 'نظام متكامل لإدارة مخازن زجاج العطور - منوفيا للعطور',
+          description: 'نظام متكامل لإدارة مخازن زجاج العطور - البران للعطور',
           'theme-color': '#3b82f6'
         },
         minify: {
