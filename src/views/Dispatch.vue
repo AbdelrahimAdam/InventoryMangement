@@ -993,8 +993,8 @@ export default {
       printDispatch,
       exportDispatches,
       handleDispatchSuccess
-    };
-  }
+}
+};
 </script>
 
 <style scoped>
