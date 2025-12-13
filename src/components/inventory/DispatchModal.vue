@@ -31,8 +31,22 @@
           </div>
         </div>
 
-        <!-- Access Control Warning -->
-        <div v-if="!canViewDispatch" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <!-- Superadmin Badge -->
+        <div v-if="isSuperadmin" class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-purple-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="text-sm font-medium text-purple-800">
+                وضع المشرف العام - لديك صلاحية كاملة على النظام
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Access Control Warning (for non-superadmin users) -->
+        <div v-if="!isSuperadmin && !canPerformDispatch" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div class="flex items-center">
             <svg class="h-5 w-5 text-yellow-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -56,7 +70,7 @@
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             @change="onWarehouseChange"
-            :disabled="loading || !canViewDispatch"
+            :disabled="loading || (!isSuperadmin && !canViewDispatch)"
           >
             <option value="">اختر المخزن المصدر</option>
             <option 
@@ -67,7 +81,7 @@
             >
               {{ warehouse.name_ar }}
               <span v-if="warehouse.is_main" class="text-yellow-600 text-xs mr-1">⭐</span>
-              <span v-if="!isWarehouseAccessible(warehouse.id)" class="text-red-500 text-xs">
+              <span v-if="!isWarehouseAccessible(warehouse.id) && !isSuperadmin" class="text-red-500 text-xs">
                 (غير مسموح)
               </span>
             </option>
@@ -81,8 +95,8 @@
             </span>
           </div>
           
-          <!-- Warehouse Access Indicator -->
-          <div v-if="form.sourceWarehouse && userProfile?.role === 'warehouse_manager'" class="mt-2">
+          <!-- Warehouse Access Indicator (not for superadmin) -->
+          <div v-if="form.sourceWarehouse && userProfile?.role === 'warehouse_manager' && !isSuperadmin" class="mt-2">
             <div v-if="hasAccessToSelectedWarehouse" class="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full inline-flex items-center">
               <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
@@ -94,6 +108,16 @@
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
               </svg>
               ليس لديك صلاحية الصرف من هذا المخزن
+            </div>
+          </div>
+          
+          <!-- Superadmin Access Indicator -->
+          <div v-if="form.sourceWarehouse && isSuperadmin" class="mt-2">
+            <div class="text-xs px-3 py-1 bg-purple-100 text-purple-800 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+              </svg>
+              وصول كامل كمشرف عام
             </div>
           </div>
         </div>
@@ -115,7 +139,7 @@
               v-for="destination in destinations"
               :key="destination.id"
               @click="form.destinationBranch = destination.id"
-              :disabled="loading || !canViewDispatch"
+              :disabled="loading || (!isSuperadmin && !canViewDispatch)"
               :class="[
                 'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
                 form.destinationBranch === destination.id
@@ -164,7 +188,7 @@
               type="text"
               placeholder="ابحث عن صنف بالاسم أو الكود..."
               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              :disabled="loading || !form.sourceWarehouse || !canViewDispatch"
+              :disabled="loading || !form.sourceWarehouse || (!isSuperadmin && !canViewDispatch)"
             >
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,12 +245,12 @@
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading || !canViewDispatch || (item.الكميه_المتبقيه || item.remaining_quantity) <= 0"
+                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || (item.الكميه_المتبقيه || item.remaining_quantity) <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 text-white'
-                        : (item.الكميه_المتبقيه || item.remaining_quantity) <= 0 || !canViewDispatch
+                        : (item.الكميه_المتبقيه || item.remaining_quantity) <= 0 || (!isSuperadmin && !canPerformDispatch)
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
                     ]"
@@ -256,7 +280,7 @@
             <button
               @click="clearSelection"
               class="text-xs text-blue-600 hover:text-blue-800"
-              :disabled="loading || !canViewDispatch"
+              :disabled="loading || (!isSuperadmin && !canPerformDispatch)"
             >
               إلغاء التحديد
             </button>
@@ -283,8 +307,8 @@
           </div>
         </div>
 
-        <!-- Step 4: Quantity and Details -->
-        <div v-if="selectedItem && canViewDispatch">
+        <!-- Step 4: Quantity and Details (Only for authorized users) -->
+        <div v-if="selectedItem && (isSuperadmin || canPerformDispatch)">
           <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
             <span class="h-6 w-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs ml-2">4</span>
             أدخل تفاصيل الصرف
@@ -521,6 +545,11 @@ export default {
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
     
+    // Check if user is superadmin
+    const isSuperadmin = computed(() => {
+      return userProfile.value?.role === 'superadmin'
+    })
+    
     // All users can VIEW the modal
     const canViewDispatch = computed(() => {
       if (!userProfile.value) return false
@@ -529,11 +558,14 @@ export default {
     })
     
     // Only superadmin and warehouse managers with dispatch permission can PERFORM dispatch
+    // SUPERADMIN BYPASSES ALL CHECKS!
     const canPerformDispatch = computed(() => {
       if (!userProfile.value) return false
       
-      if (userProfile.value.role === 'superadmin') return true
+      // SUPERADMIN BYPASS - FULL ACCESS
+      if (isSuperadmin.value) return true
       
+      // Warehouse managers need permission
       if (userProfile.value.role === 'warehouse_manager') {
         return userProfile.value.permissions?.includes('dispatch_items') || 
                userProfile.value.permissions?.includes('full_access')
@@ -545,16 +577,17 @@ export default {
     const canDispatch = computed(() => canPerformDispatch.value)
     
     // All users see warehouses they have access to
+    // SUPERADMIN SEES ALL WAREHOUSES!
     const accessibleWarehouses = computed(() => {
       const allWarehouses = warehouses.value
       
       if (!userProfile.value) return []
       
-      // Superadmin sees all primary warehouses
-      if (userProfile.value.role === 'superadmin') {
+      // SUPERADMIN BYPASS - SEES ALL WAREHOUSES
+      if (isSuperadmin.value) {
         return allWarehouses.filter(w => 
           w.status === 'active' && 
-          (w.type === 'primary' || w.is_main)
+          (w.type === 'primary' || w.type === 'dispatch' || w.is_main)
         )
       }
       
@@ -628,10 +661,12 @@ export default {
       return userProfile.value?.allowed_warehouses?.length || 0
     })
     
+    // SUPERADMIN BYPASSES ACCESS CHECKS!
     const hasAccessToSelectedWarehouse = computed(() => {
       if (!userProfile.value || !form.sourceWarehouse) return false
       
-      if (userProfile.value.role === 'superadmin') return true
+      // SUPERADMIN BYPASS - FULL ACCESS
+      if (isSuperadmin.value) return true
       
       if (userProfile.value.role === 'warehouse_manager') {
         const allowedWarehouses = userProfile.value.allowed_warehouses || []
@@ -671,9 +706,20 @@ export default {
       })
     })
 
+    // SUPERADMIN BYPASSES SUBMIT DISABLE CHECKS!
     const isSubmitDisabled = computed(() => {
-      return loading.value || 
-             !selectedItem.value || 
+      if (loading.value) return true
+      
+      // SUPERADMIN CAN SUBMIT WITH MINIMAL VALIDATION
+      if (isSuperadmin.value) {
+        return !selectedItem.value || 
+               !form.destinationBranch || 
+               !form.sourceWarehouse ||
+               form.quantity <= 0
+      }
+      
+      // Regular users have stricter checks
+      return !selectedItem.value || 
              !form.destinationBranch || 
              !form.sourceWarehouse || 
              !canPerformDispatch.value ||
@@ -708,10 +754,12 @@ export default {
       return 'text-green-600'
     }
     
+    // SUPERADMIN BYPASSES WAREHOUSE ACCESS CHECKS!
     const isWarehouseAccessible = (warehouseId) => {
       if (!userProfile.value) return false
       
-      if (userProfile.value.role === 'superadmin') return true
+      // SUPERADMIN BYPASS - ACCESS TO ALL WAREHOUSES
+      if (isSuperadmin.value) return true
       
       if (userProfile.value.role === 'warehouse_manager') {
         const allowedWarehouses = userProfile.value.allowed_warehouses || []
@@ -747,7 +795,7 @@ export default {
     }
 
     const selectItem = (item) => {
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لاختيار الأصناف للصرف'
         return
       }
@@ -771,7 +819,7 @@ export default {
     }
 
     const increaseQuantity = () => {
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لتعديل الكميات'
         return
       }
@@ -783,7 +831,7 @@ export default {
     }
 
     const decreaseQuantity = () => {
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لتعديل الكميات'
         return
       }
@@ -794,7 +842,7 @@ export default {
     }
     
     const setMaxQuantity = () => {
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لتعديل الكميات'
         return
       }
@@ -808,7 +856,7 @@ export default {
       if (newVal) {
         resetForm()
         if (props.item) {
-          if (canPerformDispatch.value) {
+          if (isSuperadmin.value || canPerformDispatch.value) {
             selectItem(props.item)
             form.sourceWarehouse = props.item.المخزن_id || props.item.warehouse_id
           }
@@ -817,7 +865,7 @@ export default {
     })
 
     watch(() => props.item, (newItem) => {
-      if (newItem && props.isOpen && canPerformDispatch.value) {
+      if (newItem && props.isOpen && (isSuperadmin.value || canPerformDispatch.value)) {
         selectItem(newItem)
         form.sourceWarehouse = newItem.المخزن_id || newItem.warehouse_id
       }
@@ -843,13 +891,14 @@ export default {
       lastErrorData.value = null
       
       // Check if user can perform dispatch
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لصرف الأصناف'
         return
       }
 
       // Debug info
       console.log('🚀 Dispatch Modal - Submit triggered', {
+        isSuperadmin: isSuperadmin.value,
         userProfile: userProfile.value,
         formData: { ...form },
         selectedItem: selectedItem.value,
@@ -883,16 +932,19 @@ export default {
         errors.push('يرجى إدخال كمية صحيحة')
       }
       
-      const maxQuantity = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
-      if (form.quantity > maxQuantity) {
-        errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
+      // SUPERADMIN BYPASSES QUANTITY LIMIT CHECKS!
+      if (!isSuperadmin.value) {
+        const maxQuantity = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
+        if (form.quantity > maxQuantity) {
+          errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
+        }
       }
       
-      if (!canPerformDispatch.value) {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
         errors.push('ليس لديك صلاحية لصرف الأصناف')
       }
       
-      if (userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
+      if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
         errors.push('ليس لديك صلاحية للصرف من هذا المخزن')
       }
       
@@ -942,7 +994,14 @@ export default {
           
           // System info
           dispatched_at: new Date().toISOString(),
-          transaction_type: 'DISPATCH'
+          transaction_type: 'DISPATCH',
+          
+          // Access info (for debugging)
+          _access: {
+            is_superadmin: isSuperadmin.value,
+            bypass_checks: isSuperadmin.value,
+            user_role: userProfile.value?.role
+          }
         }
 
         console.log('📤 Dispatch Modal - Sending data to store:', dispatchData)
@@ -992,6 +1051,7 @@ export default {
     // Log initial state
     onMounted(() => {
       console.log('Dispatch Modal mounted', {
+        isSuperadmin: isSuperadmin.value,
         userRole: userProfile.value?.role,
         canViewDispatch: canViewDispatch.value,
         canPerformDispatch: canPerformDispatch.value,
@@ -1015,6 +1075,7 @@ export default {
       // Computed
       userProfile,
       warehouses,
+      isSuperadmin,
       destinations,
       priorityOptions,
       availableItems,
