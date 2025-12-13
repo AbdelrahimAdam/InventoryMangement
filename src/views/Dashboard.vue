@@ -12,7 +12,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats?.totalItems || 0 }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ safeDashboardStats.totalItems }}</dd>
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatNumber(dashboardStats?.totalQuantity || 0) }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatNumber(safeDashboardStats.totalQuantity) }}</dd>
             </div>
           </div>
         </div>
@@ -44,7 +44,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ dashboardStats?.lowStockItems || 0 }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ safeDashboardStats.lowStockItems }}</dd>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ dashboardStats?.recentTransactions || 0 }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ safeDashboardStats.recentTransactions }}</dd>
             </div>
           </div>
         </div>
@@ -303,12 +303,47 @@ export default {
     
     const loading = ref(true);
 
-    // Computed properties
+    // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
-    const dashboardStats = computed(() => store.getters.dashboardStats || {});
-    const inventory = computed(() => store.state.inventory || []);
-    const transactions = computed(() => store.state.transactions || []);
-    const recentStoreTransactions = computed(() => store.state.recentTransactions || []);
+    
+    // FIXED: Safe dashboard stats with default values
+    const safeDashboardStats = computed(() => {
+      const stats = store.getters.dashboardStats;
+      return stats || {
+        totalItems: 0,
+        totalQuantity: 0,
+        lowStockItems: 0,
+        outOfStockItems: 0,
+        estimatedValue: 0,
+        recentTransactions: 0,
+        addTransactions: 0,
+        transferTransactions: 0,
+        dispatchTransactions: 0,
+        transactionsByType: {
+          add: 0,
+          transfer: 0,
+          dispatch: 0
+        }
+      };
+    });
+    
+    // FIXED: Access inventory items correctly
+    const inventoryItems = computed(() => {
+      const inventory = store.getters.inventoryItems;
+      return Array.isArray(inventory) ? inventory : [];
+    });
+    
+    // FIXED: Access transactions correctly
+    const transactionsItems = computed(() => {
+      const items = store.getters.transactionsItems;
+      return Array.isArray(items) ? items : [];
+    });
+    
+    // FIXED: Access recent transactions correctly
+    const recentStoreTransactions = computed(() => {
+      const items = store.getters.recentTransactions;
+      return Array.isArray(items) ? items : [];
+    });
     
     // Permission check
     const canModifyItems = computed(() => {
@@ -331,18 +366,30 @@ export default {
 
     // Recent inventory (last 5 items sorted by date)
     const recentInventory = computed(() => {
-      return [...inventory.value]
+      const items = inventoryItems.value;
+      if (!Array.isArray(items) || items.length === 0) return [];
+      
+      return [...items]
+        .filter(item => item && typeof item === 'object')
         .sort((a, b) => {
-          const dateA = new Date(a.updated_at || a.created_at || 0);
-          const dateB = new Date(b.updated_at || b.created_at || 0);
-          return dateB - dateA;
+          try {
+            const dateA = new Date(a.updated_at || a.created_at || 0);
+            const dateB = new Date(b.updated_at || b.created_at || 0);
+            return dateB - dateA;
+          } catch (error) {
+            return 0;
+          }
         })
         .slice(0, 5);
     });
 
     // Recent transactions
     const recentTransactions = computed(() => {
-      return [...recentStoreTransactions.value]
+      const items = recentStoreTransactions.value;
+      if (!Array.isArray(items) || items.length === 0) return [];
+      
+      return [...items]
+        .filter(transaction => transaction && typeof transaction === 'object')
         .sort((a, b) => {
           try {
             const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
@@ -420,20 +467,23 @@ export default {
     onMounted(() => {
       console.log('Dashboard mounted');
       
-      // ⚠️ CRITICAL FIX: DO NOT subscribe to anything here!
-      // The store already has listeners from auth initialization
+      // Check if data is already loaded
+      const hasInventoryData = inventoryItems.value.length > 0;
+      const hasRecentTransactionsData = recentStoreTransactions.value.length > 0;
       
-      // Just check if we have data
-      if (inventory.value.length === 0 || recentStoreTransactions.value.length === 0) {
-        console.log('Waiting for store data...');
+      if (!hasInventoryData || !hasRecentTransactionsData) {
+        console.log('Loading dashboard data...');
         
         // Load recent transactions (one-time query, not listener)
-        store.dispatch('getRecentTransactions');
+        store.dispatch('getRecentTransactions')
+          .catch(error => {
+            console.error('Error loading recent transactions:', error);
+          });
         
-        // Wait for data to load
+        // Set a timeout to stop loading
         setTimeout(() => {
           loading.value = false;
-        }, 1500);
+        }, 2000);
       } else {
         loading.value = false;
       }
@@ -445,7 +495,7 @@ export default {
       
       // Computed
       userRole,
-      dashboardStats,
+      safeDashboardStats, // FIXED: Changed from dashboardStats to safeDashboardStats
       canModifyItems,
       recentInventory,
       recentTransactions,
