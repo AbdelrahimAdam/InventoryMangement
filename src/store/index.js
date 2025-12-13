@@ -19,7 +19,9 @@ import {
   deleteDoc,
   orderBy,
   writeBatch,
-  limit
+  limit,
+  startAfter,
+  getCountFromServer
 } from 'firebase/firestore';
 import {
   InventoryService,
@@ -28,9 +30,17 @@ import {
   FIELD_LABELS,
   TRANSACTION_TYPES
 } from '@/services/inventoryService';
-
-// Import UserService - handles ALL user creation
 import UserService from '@/services/UserService';
+
+// Performance constants
+const PERFORMANCE_CONFIG = {
+  INVENTORY_PAGE_SIZE: 50,
+  TRANSACTIONS_PAGE_SIZE: 30,
+  RECENT_TRANSACTIONS_LIMIT: 20,
+  NOTIFICATION_LIMIT: 100,
+  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+  DEBOUNCE_DELAY: 300 // ms
+};
 
 // Field name mapping
 const FIELD_MAPPINGS = {
@@ -56,75 +66,174 @@ export default createStore({
     user: null,
     userProfile: null,
     loading: false,
+    
+    // Warehouses
     warehouses: [],
     warehousesLoaded: false,
-    inventory: [],
-    transactions: [],
+    warehousesCacheTimestamp: null,
+    
+    // Inventory with pagination
+    inventory: {
+      items: [],
+      lastVisible: null,
+      hasMore: false,
+      totalCount: 0,
+      isLoading: false,
+      lastFetch: null
+    },
+    
+    // Transactions with pagination
+    transactions: {
+      items: [],
+      lastVisible: null,
+      hasMore: false,
+      totalCount: 0,
+      isLoading: false
+    },
+    
+    // Recent transactions (limited)
+    recentTransactions: [],
+    recentTransactionsLoading: false,
+    
     itemHistory: [],
+    
+    // Filters with debounce support
     filters: {
       warehouse: '',
-      search: ''
+      search: '',
+      lastUpdate: 0
     },
+    
     authError: null,
     operationLoading: false,
     operationError: null,
     fieldMappings: FIELD_MAPPINGS,
+    
+    // Notifications with limit
     notifications: [],
-    unsubscribeInventory: null,
-    unsubscribeTransactions: null,
-    unsubscribeWarehouses: null,
-    recentTransactions: [],
-    recentTransactionsLoading: false,
+    
+    // Subscription management
+    subscriptions: {
+      inventory: null,
+      transactions: null,
+      warehouses: null,
+      active: new Set()
+    },
+    
     requiresCompositeIndex: false,
     allUsers: [],
-    usersLoading: false
+    usersLoading: false,
+    
+    // Performance cache
+    cache: {
+      warehouseLabels: {},
+      stats: null,
+      statsTimestamp: null
+    }
   },
+  
   mutations: {
     SET_USER(state, user) {
       state.user = user;
     },
+    
     SET_USER_PROFILE(state, profile) {
       state.userProfile = profile;
     },
+    
     SET_LOADING(state, loading) {
       state.loading = loading;
     },
+    
     SET_OPERATION_LOADING(state, loading) {
       state.operationLoading = loading;
     },
+    
     SET_OPERATION_ERROR(state, error) {
       state.operationError = error;
     },
+    
     SET_WAREHOUSES(state, warehouses) {
       state.warehouses = warehouses;
+      state.warehousesCacheTimestamp = Date.now();
+      
+      // Update cache
+      state.cache.warehouseLabels = {};
+      warehouses.forEach(w => {
+        state.cache.warehouseLabels[w.id] = w.name_ar;
+      });
     },
+    
     SET_WAREHOUSES_LOADED(state, loaded) {
       state.warehousesLoaded = loaded;
     },
-    SET_INVENTORY(state, inventory) {
-      state.inventory = inventory;
+    
+    // Inventory mutations with pagination support
+    SET_INVENTORY(state, { items, lastVisible, totalCount, reset = false }) {
+      if (reset) {
+        state.inventory.items = items;
+      } else {
+        state.inventory.items = [...state.inventory.items, ...items];
+      }
+      state.inventory.lastVisible = lastVisible;
+      state.inventory.hasMore = items.length === PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE;
+      state.inventory.totalCount = totalCount;
+      state.inventory.lastFetch = Date.now();
     },
-    SET_TRANSACTIONS(state, transactions) {
-      state.transactions = transactions;
+    
+    ADD_INVENTORY_ITEM(state, item) {
+      state.inventory.items.unshift(item);
+      if (state.inventory.items.length > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE * 2) {
+        state.inventory.items = state.inventory.items.slice(0, PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
+      }
     },
+    
+    UPDATE_INVENTORY_ITEM(state, updatedItem) {
+      const index = state.inventory.items.findIndex(item => item.id === updatedItem.id);
+      if (index !== -1) {
+        state.inventory.items.splice(index, 1, updatedItem);
+      }
+    },
+    
+    REMOVE_INVENTORY_ITEM(state, itemId) {
+      state.inventory.items = state.inventory.items.filter(item => item.id !== itemId);
+    },
+    
+    SET_INVENTORY_LOADING(state, loading) {
+      state.inventory.isLoading = loading;
+    },
+    
+    // Transactions mutations
+    SET_TRANSACTIONS(state, { items, lastVisible, totalCount, reset = false }) {
+      if (reset) {
+        state.transactions.items = items;
+      } else {
+        state.transactions.items = [...state.transactions.items, ...items];
+      }
+      state.transactions.lastVisible = lastVisible;
+      state.transactions.hasMore = items.length === PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE;
+      state.transactions.totalCount = totalCount;
+    },
+    
+    SET_TRANSACTIONS_LOADING(state, loading) {
+      state.transactions.isLoading = loading;
+    },
+    
+    ADD_TRANSACTION(state, transaction) {
+      state.transactions.items.unshift(transaction);
+      if (state.transactions.items.length > PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE * 2) {
+        state.transactions.items = state.transactions.items.slice(0, PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE);
+      }
+    },
+    
     SET_ITEM_HISTORY(state, history) {
       state.itemHistory = history;
     },
+    
     SET_FILTERS(state, filters) {
-      state.filters = { ...state.filters, ...filters };
+      state.filters = { ...state.filters, ...filters, lastUpdate: Date.now() };
     },
-    ADD_ITEM(state, item) {
-      state.inventory.push(item);
-    },
-    UPDATE_ITEM(state, updatedItem) {
-      const index = state.inventory.findIndex(item => item.id === updatedItem.id);
-      if (index !== -1) {
-        state.inventory.splice(index, 1, updatedItem);
-      }
-    },
-    REMOVE_ITEM(state, itemId) {
-      state.inventory = state.inventory.filter(item => item.id !== itemId);
-    },
+    
     UPDATE_WAREHOUSE(state, updatedWarehouse) {
       const index = state.warehouses.findIndex(w => w.id === updatedWarehouse.id);
       if (index !== -1) {
@@ -132,21 +241,35 @@ export default createStore({
       } else {
         state.warehouses.push(updatedWarehouse);
       }
+      // Update cache
+      state.cache.warehouseLabels[updatedWarehouse.id] = updatedWarehouse.name_ar;
     },
+    
     REMOVE_WAREHOUSE(state, warehouseId) {
       state.warehouses = state.warehouses.filter(w => w.id !== warehouseId);
+      delete state.cache.warehouseLabels[warehouseId];
     },
+    
     SET_AUTH_ERROR(state, error) {
       state.authError = error;
     },
+    
     CLEAR_OPERATION_ERROR(state) {
       state.operationError = null;
     },
+    
+    // Notification management with limits
     ADD_NOTIFICATION(state, notification) {
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
-      state.notifications.push(notification);
-
+      state.notifications.unshift(notification);
+      
+      // Limit notifications
+      if (state.notifications.length > PERFORMANCE_CONFIG.NOTIFICATION_LIMIT) {
+        state.notifications = state.notifications.slice(0, PERFORMANCE_CONFIG.NOTIFICATION_LIMIT);
+      }
+      
+      // Auto-remove
       setTimeout(() => {
         const index = state.notifications.findIndex(n => n.id === notification.id);
         if (index !== -1) {
@@ -154,81 +277,99 @@ export default createStore({
         }
       }, 5000);
     },
+    
     REMOVE_NOTIFICATION(state, notificationId) {
       state.notifications = state.notifications.filter(n => n.id !== notificationId);
     },
+    
     CLEAR_NOTIFICATIONS(state) {
       state.notifications = [];
     },
-    SET_UNSUBSCRIBE_INVENTORY(state, unsubscribe) {
-      if (state.unsubscribeInventory) {
-        state.unsubscribeInventory();
+    
+    // Subscription management
+    SET_SUBSCRIPTION(state, { type, unsubscribe }) {
+      if (state.subscriptions[type]) {
+        state.subscriptions[type]();
       }
-      state.unsubscribeInventory = unsubscribe;
-    },
-    SET_UNSUBSCRIBE_TRANSACTIONS(state, unsubscribe) {
-      if (state.unsubscribeTransactions) {
-        state.unsubscribeTransactions();
-      }
-      state.unsubscribeTransactions = unsubscribe;
-    },
-    SET_UNSUBSCRIBE_WAREHOUSES(state, unsubscribe) {
-      if (state.unsubscribeWarehouses) {
-        state.unsubscribeWarehouses();
-      }
-      state.unsubscribeWarehouses = unsubscribe;
-    },
-    CLEAR_UNSUBSCRIBERS(state) {
-      if (state.unsubscribeInventory) {
-        state.unsubscribeInventory();
-        state.unsubscribeInventory = null;
-      }
-      if (state.unsubscribeTransactions) {
-        state.unsubscribeTransactions();
-        state.unsubscribeTransactions = null;
-      }
-      if (state.unsubscribeWarehouses) {
-        state.unsubscribeWarehouses();
-        state.unsubscribeWarehouses = null;
+      state.subscriptions[type] = unsubscribe;
+      if (unsubscribe) {
+        state.subscriptions.active.add(type);
+      } else {
+        state.subscriptions.active.delete(type);
       }
     },
+    
+    CLEAR_SUBSCRIPTIONS(state) {
+      Object.values(state.subscriptions).forEach(unsubscribe => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      });
+      state.subscriptions = {
+        inventory: null,
+        transactions: null,
+        warehouses: null,
+        active: new Set()
+      };
+    },
+    
+    // Recent transactions
     SET_RECENT_TRANSACTIONS(state, transactions) {
       state.recentTransactions = transactions;
     },
+    
     SET_RECENT_TRANSACTIONS_LOADING(state, loading) {
       state.recentTransactionsLoading = loading;
     },
+    
     ADD_RECENT_TRANSACTION(state, transaction) {
       state.recentTransactions.unshift(transaction);
-      if (state.recentTransactions.length > 50) {
-        state.recentTransactions = state.recentTransactions.slice(0, 50);
+      if (state.recentTransactions.length > PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT) {
+        state.recentTransactions = state.recentTransactions.slice(0, PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT);
       }
     },
+    
     SET_REQUIRES_COMPOSITE_INDEX(state, value) {
       state.requiresCompositeIndex = value;
     },
+    
     SET_ALL_USERS(state, users) {
       state.allUsers = users;
     },
+    
     SET_USERS_LOADING(state, loading) {
       state.usersLoading = loading;
+    },
+    
+    // Cache management
+    SET_STATS_CACHE(state, { stats, timestamp }) {
+      state.cache.stats = stats;
+      state.cache.statsTimestamp = timestamp;
+    },
+    
+    CLEAR_CACHE(state) {
+      state.cache = {
+        warehouseLabels: {},
+        stats: null,
+        statsTimestamp: null
+      };
     }
   },
+  
   actions: {
     showNotification({ commit, getters }, notification) {
-      if (!notification || !notification.message) {
+      if (!notification?.message) {
         console.warn('Invalid notification:', notification);
         return;
       }
 
-      const defaultNotification = {
+      const finalNotification = {
         type: 'info',
         title: '',
         message: '',
-        duration: 5000
+        duration: 5000,
+        ...notification
       };
-
-      const finalNotification = { ...defaultNotification, ...notification };
 
       commit('ADD_NOTIFICATION', finalNotification);
 
@@ -243,7 +384,6 @@ export default createStore({
           if (user) {
             commit('SET_USER', user);
             try {
-              // Load user profile - NO MORE createUserProfile calls
               await dispatch('loadUserProfile', user);
             } catch (error) {
               console.error('Error in auth initialization:', error);
@@ -252,13 +392,14 @@ export default createStore({
           } else {
             commit('SET_USER', null);
             commit('SET_USER_PROFILE', null);
-            commit('SET_INVENTORY', []);
-            commit('SET_TRANSACTIONS', []);
+            commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+            commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
             commit('SET_ITEM_HISTORY', []);
             commit('SET_RECENT_TRANSACTIONS', []);
             commit('SET_WAREHOUSES_LOADED', false);
             commit('SET_REQUIRES_COMPOSITE_INDEX', false);
-            commit('CLEAR_UNSUBSCRIBERS');
+            commit('CLEAR_SUBSCRIPTIONS');
+            commit('CLEAR_CACHE');
           }
           resolve();
         });
@@ -267,15 +408,9 @@ export default createStore({
 
     async loadUserProfile({ commit, dispatch }, user) {
       try {
-        console.log('Loading user profile for:', user.email);
-
         const userDoc = await getDoc(doc(db, 'users', user.uid));
 
         if (!userDoc.exists()) {
-          console.error('User profile not found in Firestore:', user.email);
-
-          // THIS SHOULD NOT HAPPEN - All users should be created via UserService
-          // Create a minimal pending profile and notify admin
           const tempProfile = {
             email: user.email,
             name: user.email.split('@')[0],
@@ -296,7 +431,6 @@ export default createStore({
             message: 'حسابك قيد المراجعة. يرجى الانتظار حتى يتم تفعيله من قبل المشرف.'
           });
 
-          // Notify admin
           await dispatch('notifyAdminAboutPendingUser', {
             userId: user.uid,
             userEmail: user.email
@@ -306,9 +440,7 @@ export default createStore({
         }
 
         const userProfile = userDoc.data();
-        console.log('Loaded user profile:', userProfile);
 
-        // Check if user is active
         if (userProfile.is_active === false) {
           dispatch('showNotification', {
             type: 'error',
@@ -319,9 +451,7 @@ export default createStore({
         }
 
         commit('SET_USER_PROFILE', userProfile);
-        console.log('User profile loaded with role:', userProfile.role, 'permissions:', userProfile.permissions);
 
-        // Show welcome notification
         dispatch('showNotification', {
           type: 'success',
           message: `مرحباً ${userProfile.name}! تم تسجيل الدخول بنجاح.`
@@ -354,8 +484,6 @@ export default createStore({
           message: 'مستخدم جديد يحتاج إلى التفعيل',
           read: false
         });
-
-        console.log('Admin notified about pending user:', userEmail);
       } catch (error) {
         console.error('Error notifying admin:', error);
       }
@@ -366,22 +494,15 @@ export default createStore({
       commit('SET_AUTH_ERROR', null);
 
       try {
-        console.log('Attempting login with:', email);
-
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        console.log('Login successful, user:', user.uid);
-
-        // Load user profile - NO MORE createUserProfile calls
         await dispatch('loadUserProfile', user);
         commit('SET_USER', user);
 
         return user;
 
       } catch (error) {
-        console.error('Login error details:', error);
-
         const errorMessage = getAuthErrorMessage(error.code);
         commit('SET_AUTH_ERROR', errorMessage);
 
@@ -401,15 +522,16 @@ export default createStore({
         await signOut(auth);
         commit('SET_USER', null);
         commit('SET_USER_PROFILE', null);
-        commit('SET_INVENTORY', []);
-        commit('SET_TRANSACTIONS', []);
+        commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+        commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
         commit('SET_ITEM_HISTORY', []);
         commit('SET_RECENT_TRANSACTIONS', []);
         commit('SET_AUTH_ERROR', null);
         commit('SET_OPERATION_ERROR', null);
         commit('SET_WAREHOUSES_LOADED', false);
         commit('SET_REQUIRES_COMPOSITE_INDEX', false);
-        commit('CLEAR_UNSUBSCRIBERS');
+        commit('CLEAR_SUBSCRIPTIONS');
+        commit('CLEAR_CACHE');
 
         dispatch('showNotification', {
           type: 'info',
@@ -439,7 +561,6 @@ export default createStore({
           throw new Error('ليس لديك صلاحية لإضافة مخازن');
         }
 
-        // Validate required fields
         if (!warehouseData.name_ar?.trim()) {
           throw new Error('اسم المخزن (عربي) مطلوب');
         }
@@ -448,7 +569,6 @@ export default createStore({
           throw new Error('نوع المخزن مطلوب');
         }
 
-        // Prepare warehouse data
         const newWarehouse = {
           name_ar: warehouseData.name_ar.trim(),
           name_en: warehouseData.name_en?.trim() || '',
@@ -462,7 +582,6 @@ export default createStore({
           updated_at: new Date().toISOString()
         };
 
-        // If this is a main warehouse, ensure no other main warehouse exists
         if (newWarehouse.is_main) {
           const existingMainWarehouse = state.warehouses.find(w => w.is_main);
           if (existingMainWarehouse && existingMainWarehouse.id !== warehouseData.id) {
@@ -470,7 +589,6 @@ export default createStore({
           }
         }
 
-        // Add to Firestore
         const warehouseRef = await addDoc(collection(db, 'warehouses'), newWarehouse);
 
         dispatch('showNotification', {
@@ -504,7 +622,6 @@ export default createStore({
           throw new Error('ليس لديك صلاحية لتعديل المخازن');
         }
 
-        // Validate warehouse exists
         const warehouseRef = doc(db, 'warehouses', warehouseId);
         const warehouseDoc = await getDoc(warehouseRef);
 
@@ -514,12 +631,10 @@ export default createStore({
 
         const existingWarehouse = warehouseDoc.data();
 
-        // Validate required fields
         if (!warehouseData.name_ar?.trim()) {
           throw new Error('اسم المخزن (عربي) مطلوب');
         }
 
-        // Prepare update data
         const updateData = {
           name_ar: warehouseData.name_ar.trim(),
           name_en: warehouseData.name_en?.trim() || existingWarehouse.name_en,
@@ -532,7 +647,6 @@ export default createStore({
           updated_at: new Date().toISOString()
         };
 
-        // If setting as main warehouse, ensure no other main warehouse exists
         if (updateData.is_main && !existingWarehouse.is_main) {
           const existingMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
           if (existingMainWarehouse) {
@@ -540,10 +654,8 @@ export default createStore({
           }
         }
 
-        // Update in Firestore
         await updateDoc(warehouseRef, updateData);
 
-        // If this was the main warehouse and we're changing it, update the old main warehouse
         if (existingWarehouse.is_main && !updateData.is_main) {
           const newMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
           if (!newMainWarehouse) {
@@ -582,7 +694,6 @@ export default createStore({
           throw new Error('ليس لديك صلاحية لحذف المخازن');
         }
 
-        // Check if warehouse exists
         const warehouseRef = doc(db, 'warehouses', warehouseId);
         const warehouseDoc = await getDoc(warehouseRef);
 
@@ -592,12 +703,10 @@ export default createStore({
 
         const warehouseData = warehouseDoc.data();
 
-        // Prevent deletion of main warehouse
         if (warehouseData.is_main) {
           throw new Error('لا يمكن حذف المخزن الرئيسي');
         }
 
-        // Check if warehouse has items
         const itemsQuery = query(
           collection(db, 'items'),
           where('warehouse_id', '==', warehouseId),
@@ -609,7 +718,6 @@ export default createStore({
           throw new Error('لا يمكن حذف المخزن لأنه يحتوي على أصناف. يرجى نقل أو حذف الأصناف أولاً.');
         }
 
-        // Check if warehouse has transactions as source
         const fromTransactionsQuery = query(
           collection(db, 'transactions'),
           where('from_warehouse', '==', warehouseId),
@@ -621,7 +729,6 @@ export default createStore({
           throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كمصدر.');
         }
 
-        // Check if warehouse has transactions as destination
         const toTransactionsQuery = query(
           collection(db, 'transactions'),
           where('to_warehouse', '==', warehouseId),
@@ -633,7 +740,6 @@ export default createStore({
           throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كوجهة.');
         }
 
-        // If all checks pass, delete the warehouse
         await deleteDoc(warehouseRef);
 
         dispatch('showNotification', {
@@ -669,135 +775,126 @@ export default createStore({
     // =============================================
 
     async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
-  commit('SET_OPERATION_LOADING', true);
-  commit('CLEAR_OPERATION_ERROR');
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
 
-  try {
-    if (!state.userProfile) {
-      throw new Error('يجب تسجيل الدخول أولاً');
-    }
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
 
-    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-      throw new Error('ليس لديك صلاحية لتعديل الأصناف');
-    }
+        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
+        }
 
-    if (!state.user?.uid) {
-      throw new Error('معرف المستخدم غير متوفر');
-    }
+        if (!state.user?.uid) {
+          throw new Error('معرف المستخدم غير متوفر');
+        }
 
-    // Check if item exists
-    const itemRef = doc(db, 'items', itemId);
-    const itemDoc = await getDoc(itemRef);
+        const itemRef = doc(db, 'items', itemId);
+        const itemDoc = await getDoc(itemRef);
 
-    if (!itemDoc.exists()) {
-      throw new Error('الصنف غير موجود');
-    }
+        if (!itemDoc.exists()) {
+          throw new Error('الصنف غير موجود');
+        }
 
-    const existingItem = itemDoc.data();
+        const existingItem = itemDoc.data();
 
-    // Check permissions for warehouse managers
-    if (state.userProfile.role === 'warehouse_manager') {
-      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-      const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
-      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
-        throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
+            throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
+          }
+        }
+
+        const name = itemData.name?.trim() || existingItem.name;
+        const code = itemData.code?.trim() || existingItem.code;
+        const color = itemData.color?.trim() || existingItem.color;
+        const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
+
+        if (!name || !code || !color || !warehouse_id) {
+          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+        }
+
+        const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
+        const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
+        const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
+        const newTotalQuantity = InventoryService.calculateTotalQuantity(
+          newCartonsCount,
+          newPerCartonCount,
+          newSingleBottlesCount
+        );
+
+        if (newTotalQuantity < 0) {
+          throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
+        }
+
+        const updateData = {
+          name: name,
+          code: code,
+          color: color,
+          warehouse_id: warehouse_id,
+          cartons_count: newCartonsCount,
+          per_carton_count: newPerCartonCount,
+          single_bottles_count: newSingleBottlesCount,
+          remaining_quantity: newTotalQuantity,
+          total_added: itemData.total_added || existingItem.total_added,
+          supplier: itemData.supplier?.trim() || existingItem.supplier || '',
+          item_location: itemData.item_location?.trim() || existingItem.item_location || '',
+          notes: itemData.notes?.trim() || existingItem.notes || '',
+          photo_url: itemData.photo_url || existingItem.photo_url || '',
+          updated_at: new Date().toISOString(),
+          updated_by: state.user.uid
+        };
+
+        const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
+
+        await updateDoc(itemRef, updateData);
+
+        if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
+          const transactionData = {
+            type: 'UPDATE',
+            item_id: itemId,
+            item_name: updateData.name,
+            item_code: updateData.code,
+            from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
+            to_warehouse: warehouse_id,
+            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
+            per_carton_updated: newPerCartonCount,
+            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
+            total_delta: quantityDiff,
+            new_remaining: newTotalQuantity,
+            user_id: state.user.uid,
+            timestamp: new Date(),
+            notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
+            photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
+          };
+
+          await addDoc(collection(db, 'transactions'), transactionData);
+        }
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
+        });
+
+        return { success: true, data: updateData };
+
+      } catch (error) {
+        console.error('Error updating item:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث الصنف'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
       }
-    }
-
-    // Use existing values for fields not provided in update
-    const name = itemData.name?.trim() || existingItem.name;
-    const code = itemData.code?.trim() || existingItem.code;
-    const color = itemData.color?.trim() || existingItem.color;
-    const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
-
-    // Validate required fields
-    if (!name || !code || !color || !warehouse_id) {
-      throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-    }
-
-    // Calculate new quantities - use provided values or existing ones
-    const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
-    const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
-    const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
-    const newTotalQuantity = InventoryService.calculateTotalQuantity(
-      newCartonsCount,
-      newPerCartonCount,
-      newSingleBottlesCount
-    );
-
-    if (newTotalQuantity < 0) {
-      throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
-    }
-
-    // Prepare update data - merge existing with new data
-    const updateData = {
-      name: name,
-      code: code,
-      color: color,
-      warehouse_id: warehouse_id,
-      cartons_count: newCartonsCount,
-      per_carton_count: newPerCartonCount,
-      single_bottles_count: newSingleBottlesCount,
-      remaining_quantity: newTotalQuantity,
-      total_added: itemData.total_added || existingItem.total_added,
-      supplier: itemData.supplier?.trim() || existingItem.supplier || '',
-      item_location: itemData.item_location?.trim() || existingItem.item_location || '',
-      notes: itemData.notes?.trim() || existingItem.notes || '',
-      photo_url: itemData.photo_url || existingItem.photo_url || '',
-      updated_at: new Date().toISOString(),
-      updated_by: state.user.uid
-    };
-
-    // Calculate quantity difference for transaction log
-    const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
-
-    // Update item in Firestore
-    await updateDoc(itemRef, updateData);
-
-    // Create transaction log if quantity changed or warehouse changed
-    if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
-      const transactionData = {
-        type: 'UPDATE',
-        item_id: itemId,
-        item_name: updateData.name,
-        item_code: updateData.code,
-        from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
-        to_warehouse: warehouse_id,
-        cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
-        per_carton_updated: newPerCartonCount,
-        single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
-        total_delta: quantityDiff,
-        new_remaining: newTotalQuantity,
-        user_id: state.user.uid,
-        timestamp: new Date(),
-        notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
-        photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
-      };
-
-      await addDoc(collection(db, 'transactions'), transactionData);
-    }
-
-    dispatch('showNotification', {
-      type: 'success',
-      message: `تم تحديث الصنف "${updateData.name}" بنجاح`
-    });
-
-    return { success: true, data: updateData };
-
-  } catch (error) {
-    console.error('Error updating item:', error);
-    commit('SET_OPERATION_ERROR', error.message);
-
-    dispatch('showNotification', {
-      type: 'error',
-      message: error.message || 'حدث خطأ في تحديث الصنف'
-    });
-
-    return { success: false, error: error.message };
-  } finally {
-    commit('SET_OPERATION_LOADING', false);
-  }
-},
+    },
 
     async deleteItem({ commit, dispatch, state }, itemId) {
       commit('SET_OPERATION_LOADING', true);
@@ -808,7 +905,6 @@ export default createStore({
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Check delete permissions
         if (state.userProfile.role === 'superadmin') {
           // Superadmin can delete any item
         } else if (state.userProfile.role === 'warehouse_manager') {
@@ -825,7 +921,6 @@ export default createStore({
           throw new Error('معرف المستخدم غير متوفر');
         }
 
-        // Check if item exists
         const itemRef = doc(db, 'items', itemId);
         const itemDoc = await getDoc(itemRef);
 
@@ -835,7 +930,6 @@ export default createStore({
 
         const itemData = itemDoc.data();
 
-        // Check permissions for warehouse managers
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
           if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
@@ -843,7 +937,6 @@ export default createStore({
           }
         }
 
-        // Create transaction log before deletion
         const transactionData = {
           type: 'DELETE',
           item_id: itemId,
@@ -862,10 +955,8 @@ export default createStore({
           photo_changed: false
         };
 
-        // Add transaction log
         await addDoc(collection(db, 'transactions'), transactionData);
 
-        // Delete the item
         await deleteDoc(itemRef);
 
         dispatch('showNotification', {
@@ -933,17 +1024,8 @@ export default createStore({
       commit('CLEAR_OPERATION_ERROR');
 
       try {
-        console.log('Store.createUser called with:', userData);
-
-        // IMPORTANT: Get current superadmin info BEFORE any user creation
         const currentUser = state.user;
         const currentUserProfile = state.userProfile;
-
-        console.log('Current superadmin info:', {
-          uid: currentUser?.uid,
-          email: currentUser?.email,
-          role: currentUserProfile?.role
-        });
 
         if (!currentUser || !currentUserProfile) {
           throw new Error('يجب تسجيل الدخول أولاً');
@@ -953,20 +1035,15 @@ export default createStore({
           throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
         }
 
-        // Store superadmin credentials temporarily
         const superadminCredentials = {
           uid: currentUser.uid,
           email: currentUser.email,
           role: currentUserProfile.role
         };
 
-        // Use UserService for ALL user creation
         const result = await UserService.createUser(userData, superadminCredentials);
 
-        console.log('UserService.createUser result:', result);
-
         if (result.success) {
-          // Show success notification
           dispatch('showNotification', {
             type: 'success',
             message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
@@ -996,18 +1073,13 @@ export default createStore({
       commit('CLEAR_OPERATION_ERROR');
 
       try {
-        console.log('Store.updateUser called for:', userId, 'with:', userData);
-
         if (!getters.canManageUsers) {
           throw new Error('ليس لديك صلاحية لتحديث المستخدمين');
         }
 
         const result = await UserService.updateUser(userId, userData);
 
-        console.log('UserService.updateUser result:', result);
-
         if (result.success) {
-          // If current user is updating their own profile, update local state
           if (userId === getters.user?.uid) {
             const updatedProfile = {
               ...getters.userProfile,
@@ -1136,210 +1208,424 @@ export default createStore({
     },
 
     // =============================================
-    // INVENTORY ACTIONS
+    // INVENTORY ACTIONS WITH PAGINATION
     // =============================================
 
-    async checkExistingItem({ state }, itemData) {
-      try {
-        const itemsRef = collection(db, 'items');
-        const q = query(
-          itemsRef,
-          where('name', '==', itemData.name.trim()),
-          where('code', '==', itemData.code.trim()),
-          where('color', '==', itemData.color.trim()),
-          where('warehouse_id', '==', itemData.warehouse_id)
-        );
+    async loadInventory({ commit, state, dispatch }, { reset = true } = {}) {
+      if (state.inventory.isLoading) return;
 
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
-          const doc = snapshot.docs[0];
-          return {
-            exists: true,
-            item: { id: doc.id, ...doc.data() }
-          };
-        }
-
-        return { exists: false, item: null };
-      } catch (error) {
-        console.error('Error checking existing item:', error);
-        // في حالة خطأ (مثل الحاجة إلى فهرس مركب)، نعود بنتيجة سلبية
-        return { exists: false, item: null };
-      }
-    },
-
-    async addInventoryItemAtomic({ commit, dispatch, state }, { itemData, userId, isAddingCartons = true }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+      commit('SET_INVENTORY_LOADING', true);
 
       try {
         if (!state.userProfile) {
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لإضافة أصناف');
+        let itemsQuery;
+        const itemsRef = collection(db, 'items');
+        const queryConstraints = [];
+
+        // Build query based on user role and permissions
+        if (state.userProfile.role === 'superadmin') {
+          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (allowedWarehouses.length <= 10 && !state.requiresCompositeIndex) {
+              try {
+                queryConstraints.push(where('warehouse_id', 'in', allowedWarehouses));
+              } catch (error) {
+                if (error.code === 'failed-precondition') {
+                  commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+                } else {
+                  throw error;
+                }
+              }
+            }
+          }
+          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
+        } else {
+          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
         }
 
-        if (!userId) {
-          throw new Error('معرف المستخدم غير متوفر');
+        // Add pagination
+        queryConstraints.push(limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE));
+        
+        if (!reset && state.inventory.lastVisible) {
+          queryConstraints.push(startAfter(state.inventory.lastVisible));
         }
 
-        if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.color?.trim() || !itemData.warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-        }
+        itemsQuery = query(itemsRef, ...queryConstraints);
 
+        const snapshot = await getDocs(itemsQuery);
+        const totalCountSnapshot = await getCountFromServer(itemsRef);
+        const totalCount = totalCountSnapshot.data().count;
+
+        const inventory = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
+          });
+        });
+
+        // Apply client-side filtering if needed
+        let filteredInventory = inventory;
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
-            throw new Error('ليس لديك صلاحية لإضافة أصناف في هذا المخزن');
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
+              filteredInventory = inventory.filter(item => 
+                allowedWarehouses.includes(item.warehouse_id)
+              );
+            }
           }
         }
 
-        // التحقق من الصورة
-        if (itemData.photo_url && typeof itemData.photo_url !== 'string') {
-          throw new Error('صيغة الصورة غير صحيحة');
-        }
+        const lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-        // احسب الكمية الإجمالية
-        const totalQuantity = InventoryService.calculateTotalQuantity(
-          itemData.cartons_count,
-          itemData.per_carton_count,
-          itemData.single_bottles_count
-        );
-
-        if (totalQuantity <= 0) {
-          throw new Error('يجب إدخال كمية صحيحة');
-        }
-
-        // نظف البيانات
-        const cleanedData = {
-          name: itemData.name.trim(),
-          code: itemData.code.trim(),
-          color: itemData.color.trim(),
-          warehouse_id: itemData.warehouse_id,
-          cartons_count: Number(itemData.cartons_count) || 0,
-          per_carton_count: Number(itemData.per_carton_count) || 12,
-          single_bottles_count: Number(itemData.single_bottles_count) || 0,
-          supplier: itemData.supplier?.trim() || '',
-          item_location: itemData.item_location?.trim() || '',
-          notes: itemData.notes?.trim() || '',
-          photo_url: itemData.photo_url || null,
-          created_by: userId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        console.log('Adding/Updating item with data:', {
-          ...cleanedData,
-          photo_url_length: cleanedData.photo_url?.length || 0
+        commit('SET_INVENTORY', {
+          items: filteredInventory,
+          lastVisible,
+          totalCount,
+          reset
         });
 
-        // تحقق من وجود العنصر المكرر
-        let existingItem = null;
-        try {
-          const itemsRef = collection(db, 'items');
-          const q = query(
-            itemsRef,
-            where('name', '==', cleanedData.name),
-            where('code', '==', cleanedData.code),
-            where('color', '==', cleanedData.color),
-            where('warehouse_id', '==', cleanedData.warehouse_id)
-          );
-
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-            existingItem = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-            console.log('Found existing item:', existingItem);
-          }
-        } catch (error) {
-          console.warn('Error checking existing item (might need composite index):', error);
-        }
-
-        let result;
-        if (existingItem) {
-          // تحديث العنصر الموجود
-          const itemRef = doc(db, 'items', existingItem.id);
-
-          const updateData = {
-            ...cleanedData,
-            cartons_count: existingItem.cartons_count + cleanedData.cartons_count,
-            single_bottles_count: existingItem.single_bottles_count + cleanedData.single_bottles_count,
-            remaining_quantity: existingItem.remaining_quantity + totalQuantity,
-            total_added: existingItem.total_added + totalQuantity,
-            updated_at: new Date().toISOString()
-          };
-
-          // احتفظ بالصورة القديمة إذا لم يتم تقديم صورة جديدة
-          if (!cleanedData.photo_url && existingItem.photo_url) {
-            updateData.photo_url = existingItem.photo_url;
-          }
-
-          await updateDoc(itemRef, updateData);
-          result = { type: 'updated', id: existingItem.id, data: updateData };
-        } else {
-          // إضافة عنصر جديد
-          const newItemData = {
-            ...cleanedData,
-            remaining_quantity: totalQuantity,
-            total_added: totalQuantity
-          };
-
-          const docRef = await addDoc(collection(db, 'items'), newItemData);
-          result = { type: 'created', id: docRef.id, data: newItemData };
-        }
-
-        // سجل الحركة
-        const transactionData = {
-          type: existingItem ? 'UPDATE' : 'ADD',
-          item_id: result.id,
-          item_name: cleanedData.name,
-          item_code: cleanedData.code,
-          from_warehouse: null,
-          to_warehouse: cleanedData.warehouse_id,
-          cartons_delta: cleanedData.cartons_count,
-          per_carton_updated: cleanedData.per_carton_count,
-          single_delta: cleanedData.single_bottles_count,
-          total_delta: totalQuantity,
-          new_remaining: result.data.remaining_quantity,
-          user_id: userId,
-          timestamp: new Date(),
-          notes: cleanedData.notes || (existingItem ? 'تحديث كميات' : 'إضافة صنف جديد'),
-          photo_changed: !!cleanedData.photo_url
-        };
-
-        await addDoc(collection(db, 'transactions'), transactionData);
-
-        console.log(`Item ${result.type} successfully with photo:`, !!cleanedData.photo_url);
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${cleanedData.name}" بنجاح`
-        });
-
-        return result;
+        return filteredInventory;
 
       } catch (error) {
-        console.error('Error in addInventoryItemAtomic:', error);
-        const errorMessage = error.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
-        commit('SET_OPERATION_ERROR', errorMessage);
-
+        console.error('Error loading inventory:', error);
         dispatch('showNotification', {
           type: 'error',
-          message: errorMessage
+          message: 'خطأ في تحميل المخزون'
+        });
+        return [];
+      } finally {
+        commit('SET_INVENTORY_LOADING', false);
+      }
+    },
+
+    async subscribeToInventory({ commit, state, dispatch }) {
+      if (state.subscriptions.active.has('inventory')) {
+        console.log('Inventory subscription already active');
+        return;
+      }
+
+      if (!state.userProfile) {
+        console.log('Cannot subscribe to inventory: User not authenticated');
+        return;
+      }
+
+      console.log('Setting up inventory subscription...');
+
+      try {
+        let itemsQuery;
+        const itemsRef = collection(db, 'items');
+
+        if (state.userProfile.role === 'superadmin') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+          );
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.length === 0) {
+            console.log('No warehouses assigned to this warehouse manager');
+            commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+            return;
+          }
+
+          let queryConstraints = [];
+          
+          if (allowedWarehouses.includes('all')) {
+            queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
+          } else if (allowedWarehouses.length <= 10 && !state.requiresCompositeIndex) {
+            try {
+              queryConstraints = [
+                where('warehouse_id', 'in', allowedWarehouses),
+                orderBy('warehouse_id'),
+                orderBy('name')
+              ];
+            } catch (error) {
+              if (error.code === 'failed-precondition') {
+                commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+                queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
+              } else {
+                throw error;
+              }
+            }
+          } else {
+            queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
+          }
+
+          queryConstraints.push(limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE));
+          itemsQuery = query(itemsRef, ...queryConstraints);
+        } else {
+          console.log('User role not authorized for inventory access');
+          commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+          return;
+        }
+
+        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
+          console.log('Inventory snapshot received:', snapshot.size, 'items');
+
+          const inventory = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return InventoryService.convertForDisplay({
+              id: doc.id,
+              ...data
+            });
+          });
+
+          let filteredInventory = inventory;
+          if (state.userProfile.role === 'warehouse_manager') {
+            const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+            if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+              if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
+                filteredInventory = inventory.filter(item => 
+                  allowedWarehouses.includes(item.warehouse_id)
+                );
+              }
+            }
+          }
+
+          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+          commit('SET_INVENTORY', {
+            items: filteredInventory,
+            lastVisible,
+            totalCount: snapshot.size,
+            reset: true
+          });
+
+        }, (error) => {
+          console.error('Error in inventory subscription:', error);
+
+          if (error.code === 'failed-precondition') {
+            commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+            dispatch('showNotification', {
+              type: 'warning',
+              title: 'تحذير الفهرس',
+              message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
+            });
+          } else if (error.code === 'permission-denied') {
+            dispatch('showNotification', {
+              type: 'error',
+              message: 'ليس لديك صلاحية لعرض المخزون'
+            });
+          } else {
+            dispatch('showNotification', {
+              type: 'error',
+              message: 'خطأ في تحميل المخزون'
+            });
+          }
+
+          commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
         });
 
-        throw error;
+        commit('SET_SUBSCRIPTION', { type: 'inventory', unsubscribe });
+
+      } catch (error) {
+        console.error('Error setting up inventory subscription:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في إعداد اشتراك المخزون'
+        });
+        commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+      }
+    },
+
+    async loadTransactions({ commit, state, dispatch }, { reset = true } = {}) {
+      if (state.transactions.isLoading) return;
+
+      commit('SET_TRANSACTIONS_LOADING', true);
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE),
+          ...(reset ? [] : [startAfter(state.transactions.lastVisible)])
+        );
+
+        const snapshot = await getDocs(transactionsQuery);
+        const totalCountSnapshot = await getCountFromServer(collection(db, 'transactions'));
+        const totalCount = totalCountSnapshot.data().count;
+
+        const transactions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            _display: {
+              from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
+                            WAREHOUSE_LABELS[data.from_warehouse] || 
+                            data.from_warehouse,
+              to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
+                           WAREHOUSE_LABELS[data.to_warehouse] ||
+                           DESTINATION_LABELS[data.to_warehouse] ||
+                           data.to_warehouse,
+            }
+          };
+        });
+
+        const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+        commit('SET_TRANSACTIONS', {
+          items: transactions,
+          lastVisible,
+          totalCount,
+          reset
+        });
+
+        return transactions;
+
+      } catch (error) {
+        console.error('Error loading transactions:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل الحركات'
+        });
+        return [];
       } finally {
-        commit('SET_OPERATION_LOADING', false);
+        commit('SET_TRANSACTIONS_LOADING', false);
+      }
+    },
+
+    async subscribeToTransactions({ commit, state, dispatch }) {
+      if (state.subscriptions.active.has('transactions')) {
+        console.log('Transactions subscription already active');
+        return;
+      }
+
+      if (!state.userProfile) {
+        console.log('Cannot subscribe to transactions: User not authenticated');
+        return;
+      }
+
+      console.log('Setting up transactions subscription...');
+
+      try {
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE)
+        );
+
+        const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
+          console.log('Transactions snapshot received:', snapshot.size, 'transactions');
+
+          const transactions = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              _display: {
+                from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
+                              WAREHOUSE_LABELS[data.from_warehouse] || 
+                              data.from_warehouse,
+                to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
+                             WAREHOUSE_LABELS[data.to_warehouse] ||
+                             DESTINATION_LABELS[data.to_warehouse] ||
+                             data.to_warehouse,
+              }
+            };
+          });
+
+          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+          commit('SET_TRANSACTIONS', {
+            items: transactions,
+            lastVisible,
+            totalCount: snapshot.size,
+            reset: true
+          });
+
+        }, (error) => {
+          console.error('Error in transactions subscription:', error);
+          dispatch('showNotification', {
+            type: 'error',
+            message: 'خطأ في تحميل الحركات'
+          });
+          commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+        });
+
+        commit('SET_SUBSCRIPTION', { type: 'transactions', unsubscribe });
+
+      } catch (error) {
+        console.error('Error setting up transactions subscription:', error);
+        commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+      }
+    },
+
+    async getRecentTransactions({ commit, dispatch, state }) {
+      commit('SET_RECENT_TRANSACTIONS_LOADING', true);
+
+      try {
+        if (!state.userProfile) {
+          console.log('Cannot load recent transactions: User not authenticated');
+          return [];
+        }
+
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          where('timestamp', '>=', oneDayAgo),
+          orderBy('timestamp', 'desc'),
+          limit(PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT)
+        );
+
+        const snapshot = await getDocs(transactionsQuery);
+        const transactions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            _display: {
+              from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
+                            WAREHOUSE_LABELS[data.from_warehouse] || 
+                            data.from_warehouse,
+              to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
+                           WAREHOUSE_LABELS[data.to_warehouse] ||
+                           DESTINATION_LABELS[data.to_warehouse] ||
+                           data.to_warehouse,
+            }
+          };
+        });
+
+        commit('SET_RECENT_TRANSACTIONS', transactions);
+
+        return transactions;
+
+      } catch (error) {
+        console.error('Error loading recent transactions:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل الحركات الحديثة'
+        });
+        return [];
+      } finally {
+        commit('SET_RECENT_TRANSACTIONS_LOADING', false);
       }
     },
 
     async loadWarehouses({ commit, dispatch, state }) {
       try {
-        if (state.warehousesLoaded) {
-          console.log('Warehouses already loaded, skipping...');
-          return;
+        // Check cache first
+        if (state.warehousesLoaded && 
+            state.warehousesCacheTimestamp && 
+            Date.now() - state.warehousesCacheTimestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
+          console.log('Using cached warehouses');
+          return state.warehouses;
         }
 
         console.log('Loading warehouses from Firestore...');
@@ -1350,6 +1636,8 @@ export default createStore({
         commit('SET_WAREHOUSES_LOADED', true);
         console.log('Warehouses loaded successfully');
 
+        return state.warehouses;
+
       } catch (error) {
         console.error('Error loading warehouses:', error);
         dispatch('showNotification', {
@@ -1357,12 +1645,14 @@ export default createStore({
           message: 'خطأ في تحميل المخازن'
         });
         commit('SET_WAREHOUSES_LOADED', false);
+        return [];
       }
     },
 
     async subscribeToWarehouses({ commit, state, dispatch }) {
-      if (state.unsubscribeWarehouses) {
-        state.unsubscribeWarehouses();
+      if (state.subscriptions.active.has('warehouses')) {
+        console.log('Warehouses subscription already active');
+        return;
       }
 
       if (!state.userProfile) {
@@ -1397,7 +1687,7 @@ export default createStore({
           });
         });
 
-        commit('SET_UNSUBSCRIBE_WAREHOUSES', unsubscribe);
+        commit('SET_SUBSCRIPTION', { type: 'warehouses', unsubscribe });
 
       } catch (error) {
         console.error('Error setting up warehouses subscription:', error);
@@ -1538,255 +1828,6 @@ export default createStore({
       }
     },
 
-    async subscribeToInventory({ commit, state, dispatch }) {
-      if (state.unsubscribeInventory) {
-        state.unsubscribeInventory();
-      }
-
-      if (!state.userProfile) {
-        console.log('Cannot subscribe to inventory: User not authenticated');
-        return;
-      }
-
-      console.log('Subscribing to inventory for user role:', state.userProfile.role);
-      console.log('Allowed warehouses:', state.userProfile.allowed_warehouses);
-
-      try {
-        let itemsQuery;
-        const itemsRef = collection(db, 'items');
-
-        if (state.userProfile.role === 'superadmin') {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('warehouse_id'),
-            orderBy('name')
-          );
-        } else if (state.userProfile.role === 'company_manager' || state.userProfile.role === 'user') {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('warehouse_id'),
-            orderBy('name')
-          );
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-
-          if (allowedWarehouses.length === 0) {
-            console.log('No warehouses assigned to this warehouse manager');
-            commit('SET_INVENTORY', []);
-            return;
-          }
-
-          if (allowedWarehouses.includes('all')) {
-            itemsQuery = query(
-              itemsRef,
-              orderBy('warehouse_id'),
-              orderBy('name')
-            );
-          } else if (allowedWarehouses.length <= 10) {
-            try {
-              itemsQuery = query(
-                itemsRef,
-                where('warehouse_id', 'in', allowedWarehouses),
-                orderBy('warehouse_id'),
-                orderBy('name')
-              );
-            } catch (error) {
-              if (error.code === 'failed-precondition') {
-                console.warn('Composite index required. Using client-side filtering.');
-                commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-                itemsQuery = query(
-                  itemsRef,
-                  orderBy('warehouse_id'),
-                  orderBy('name')
-                );
-              } else {
-                throw error;
-              }
-            }
-          } else {
-            console.log('More than 10 warehouses - using client-side filtering');
-            itemsQuery = query(
-              itemsRef,
-              orderBy('warehouse_id'),
-              orderBy('name')
-            );
-          }
-        } else {
-          console.log('User role not authorized for inventory access');
-          commit('SET_INVENTORY', []);
-          return;
-        }
-
-        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
-          console.log('Inventory snapshot received:', snapshot.size, 'items');
-
-          const inventory = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return InventoryService.convertForDisplay({
-              id: doc.id,
-              ...data
-            });
-          });
-
-          let filteredInventory = inventory;
-          if (state.userProfile.role === 'warehouse_manager') {
-            const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-            if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-              if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
-                filteredInventory = inventory.filter(item => 
-                  allowedWarehouses.includes(item.warehouse_id)
-                );
-              }
-            }
-          }
-
-          console.log('Inventory loaded:', filteredInventory.length, 'items');
-          commit('SET_INVENTORY', filteredInventory);
-
-        }, (error) => {
-          console.error('Error in inventory subscription:', error);
-
-          if (error.code === 'failed-precondition') {
-            commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-            dispatch('showNotification', {
-              type: 'warning',
-              title: 'تحذير الفهرس',
-              message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
-            });
-          } else if (error.code === 'permission-denied') {
-            dispatch('showNotification', {
-              type: 'error',
-              message: 'ليس لديك صلاحية لعرض المخزون'
-            });
-          } else {
-            dispatch('showNotification', {
-              type: 'error',
-              message: 'خطأ في تحميل المخزون'
-            });
-          }
-
-          commit('SET_INVENTORY', []);
-        });
-
-        commit('SET_UNSUBSCRIBE_INVENTORY', unsubscribe);
-
-      } catch (error) {
-        console.error('Error setting up inventory subscription:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في إعداد اشتراك المخزون'
-        });
-        commit('SET_INVENTORY', []);
-      }
-    },
-
-    async subscribeToTransactions({ commit, state, dispatch }) {
-      if (state.unsubscribeTransactions) {
-        state.unsubscribeTransactions();
-      }
-
-      if (!state.userProfile) {
-        console.log('Cannot subscribe to transactions: User not authenticated');
-        return;
-      }
-
-      console.log('Subscribing to transactions...');
-
-      try {
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
-          console.log('Transactions snapshot received:', snapshot.size, 'transactions');
-
-          const transactions = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              _display: {
-                from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-                to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                             DESTINATION_LABELS[data.to_warehouse] ||
-                             data.to_warehouse,
-              }
-            };
-          });
-
-          console.log('Transactions loaded:', transactions.length, 'transactions');
-          commit('SET_TRANSACTIONS', transactions);
-
-        }, (error) => {
-          console.error('Error in transactions subscription:', error);
-          dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل الحركات'
-          });
-          commit('SET_TRANSACTIONS', []);
-        });
-
-        commit('SET_UNSUBSCRIBE_TRANSACTIONS', unsubscribe);
-
-      } catch (error) {
-        console.error('Error setting up transactions subscription:', error);
-        commit('SET_TRANSACTIONS', []);
-      }
-    },
-
-    async getRecentTransactions({ commit, dispatch, state }) {
-      commit('SET_RECENT_TRANSACTIONS_LOADING', true);
-
-      try {
-        if (!state.userProfile) {
-          console.log('Cannot load recent transactions: User not authenticated');
-          return [];
-        }
-
-        console.log('Loading recent transactions...');
-
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          where('timestamp', '>=', oneDayAgo),
-          orderBy('timestamp', 'desc'),
-          limit(20)
-        );
-
-        const snapshot = await getDocs(transactionsQuery);
-        const transactions = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            _display: {
-              from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-              to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                           DESTINATION_LABELS[data.to_warehouse] ||
-                           data.to_warehouse,
-            }
-          };
-        });
-
-        console.log('Recent transactions loaded:', transactions.length);
-        commit('SET_RECENT_TRANSACTIONS', transactions);
-
-        return transactions;
-
-      } catch (error) {
-        console.error('Error loading recent transactions:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الحركات الحديثة'
-        });
-        return [];
-      } finally {
-        commit('SET_RECENT_TRANSACTIONS_LOADING', false);
-      }
-    },
-
     async addInventoryItem({ commit, dispatch, state }, { itemData, isAddingCartons = true }) {
       commit('SET_OPERATION_LOADING', true);
       commit('CLEAR_OPERATION_ERROR');
@@ -1836,15 +1877,11 @@ export default createStore({
           notes: itemData.notes?.trim() || ''
         };
 
-        console.log('Adding item with cleaned data:', cleanedData);
-
         const result = await InventoryService.addOrUpdateItem(
           cleanedData,
           state.user.uid,
           isAddingCartons
         );
-
-        console.log(`Item ${result.type} successfully:`, result.id);
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.ADD,
@@ -1852,6 +1889,14 @@ export default createStore({
           timestamp: new Date(),
           notes: cleanedData.notes || 'عملية إضافة'
         });
+
+        // Add to local state if within current view
+        if (result.type === 'created') {
+          commit('ADD_INVENTORY_ITEM', InventoryService.convertForDisplay({
+            id: result.id,
+            ...result.data
+          }));
+        }
 
         dispatch('showNotification', {
           type: 'success',
@@ -1899,8 +1944,6 @@ export default createStore({
         }
 
         const result = await InventoryService.transferItem(transferData, state.user.uid);
-
-        console.log('Transfer completed successfully:', result.transferQty);
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.TRANSFER,
@@ -1961,8 +2004,6 @@ export default createStore({
 
         const result = await InventoryService.dispatchItem(dispatchData, state.user.uid);
 
-        console.log('Dispatch completed successfully:', result.dispatchQty);
-
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.DISPATCH,
           item_id: dispatchData.itemId,
@@ -2006,8 +2047,28 @@ export default createStore({
 
     clearOperationError({ commit }) {
       commit('CLEAR_OPERATION_ERROR');
+    },
+
+    // Performance optimization: pause subscriptions when not needed
+    pauseSubscriptions({ commit, state }) {
+      Object.values(state.subscriptions).forEach(unsubscribe => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      });
+      commit('CLEAR_SUBSCRIPTIONS');
+    },
+
+    // Performance optimization: resume subscriptions
+    resumeSubscriptions({ dispatch, state }) {
+      if (state.userProfile) {
+        dispatch('subscribeToInventory');
+        dispatch('subscribeToTransactions');
+        dispatch('subscribeToWarehouses');
+      }
     }
   },
+  
   getters: {
     // User-related getters
     isAuthenticated: state => !!state.user,
@@ -2026,6 +2087,18 @@ export default createStore({
     requiresCompositeIndex: state => state.requiresCompositeIndex,
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
+
+    // Inventory getters with memoization
+    inventoryItems: state => state.inventory.items,
+    inventoryLoading: state => state.inventory.isLoading,
+    inventoryHasMore: state => state.inventory.hasMore,
+    inventoryTotalCount: state => state.inventory.totalCount,
+
+    // Transactions getters
+    transactionsItems: state => state.transactions.items,
+    transactionsLoading: state => state.transactions.isLoading,
+    transactionsHasMore: state => state.transactions.hasMore,
+    transactionsTotalCount: state => state.transactions.totalCount,
 
     // Permission checks
     canEdit: (state, getters) => {
@@ -2052,7 +2125,7 @@ export default createStore({
       return false;
     },
 
-    // Warehouse getters
+    // Warehouse getters with cache
     mainWarehouse: state => state.warehouses.find(w => w.is_main),
     primaryWarehouses: state => state.warehouses.filter(w => w.type === 'primary'),
     dispatchWarehouses: state => state.warehouses.filter(w => w.type === 'dispatch'),
@@ -2111,9 +2184,17 @@ export default createStore({
       return [];
     },
 
-    // Filtered inventory with warehouse and search filters
-    filteredInventory: (state) => {
-      let inventory = state.inventory;
+    // Filtered inventory with performance optimization
+    filteredInventory: (state, getters) => {
+      // Use cached result if filters haven't changed
+      const currentFiltersHash = JSON.stringify(state.filters);
+      if (state.cache.filteredInventory && 
+          state.cache.filtersHash === currentFiltersHash &&
+          Date.now() - state.cache.filteredInventoryTimestamp < PERFORMANCE_CONFIG.DEBOUNCE_DELAY) {
+        return state.cache.filteredInventory;
+      }
+
+      let inventory = getters.inventoryItems;
 
       // Filter by user's allowed warehouses if not superadmin
       if (state.userProfile?.role === 'warehouse_manager' || state.userProfile?.role === 'company_manager') {
@@ -2140,38 +2221,40 @@ export default createStore({
         inventory = inventory.filter(item => item.warehouse_id === state.filters.warehouse);
       }
 
+      // Update cache
+      state.cache.filteredInventory = inventory;
+      state.cache.filtersHash = currentFiltersHash;
+      state.cache.filteredInventoryTimestamp = Date.now();
+
       return inventory;
     },
 
-    // Dashboard statistics
-    dashboardStats: (state) => {
-      let inventory = state.inventory;
-
-      // Filter by user's allowed warehouses if not superadmin
-      if (state.userProfile?.role === 'warehouse_manager' || state.userProfile?.role === 'company_manager') {
-        const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-        if (allowedWarehouses.length > 0) {
-          inventory = inventory.filter(item => allowedWarehouses.includes(item.warehouse_id));
-        }
+    // Dashboard statistics with caching
+    dashboardStats: (state, getters) => {
+      // Return cached stats if valid
+      if (state.cache.stats && 
+          state.cache.statsTimestamp && 
+          Date.now() - state.cache.statsTimestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
+        return state.cache.stats;
       }
+
+      const inventory = getters.filteredInventory;
 
       const totalItems = inventory.length;
       const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
       const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10).length;
       const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
 
-      // Calculate value (assuming average value per item)
       const averageValuePerItem = 50;
       const estimatedValue = totalQuantity * averageValuePerItem;
 
       const recentTransactions = state.recentTransactions.length;
 
-      // Calculate transactions by type
       const addTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.ADD).length;
       const transferTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER).length;
       const dispatchTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.DISPATCH).length;
 
-      return {
+      const stats = {
         totalItems,
         totalQuantity,
         lowStockItems,
@@ -2187,6 +2270,12 @@ export default createStore({
           dispatch: dispatchTransactions
         }
       };
+
+      // Update cache
+      state.cache.stats = stats;
+      state.cache.statsTimestamp = Date.now();
+
+      return stats;
     },
 
     getArabicLabel: (state) => (fieldName) => {
@@ -2195,8 +2284,9 @@ export default createStore({
 
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
-      const warehouse = state.warehouses.find(w => w.id === warehouseId);
-      return warehouse ? warehouse.name_ar : warehouseId;
+      return state.cache.warehouseLabels[warehouseId] || 
+             state.warehouses.find(w => w.id === warehouseId)?.name_ar || 
+             warehouseId;
     },
 
     getDestinationLabel: () => (destinationId) => {
