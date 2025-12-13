@@ -489,7 +489,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import DispatchModal from '@/components/DispatchModal.vue';
+import DispatchModal from '@/components/inventory/DispatchModal.vue';
 
 export default {
   name: 'DispatchPage',
