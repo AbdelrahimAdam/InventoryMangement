@@ -207,25 +207,25 @@
               >
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
-                  <div class="font-medium text-sm text-gray-900 dark:text-white">{{ item.الاسم || item.name }}</div>
+                  <div class="font-medium text-sm text-gray-900 dark:text-white">{{ item.name }}</div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
-                    <span v-if="item.اللون || item.color">{{ item.اللون || item.color }}</span>
-                    <span v-if="item.المورد || item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.المورد || item.supplier }}</span>
+                    <span v-if="item.color">{{ item.color }}</span>
+                    <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
                   </div>
                 </div>
 
                 <!-- Item Code -->
                 <div class="col-span-2 p-3 text-center">
-                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.الكود || item.code }}</span>
+                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code }}</span>
                 </div>
 
                 <!-- Available Quantity -->
                 <div class="col-span-2 p-3 text-center">
                   <span :class="[
                     'text-sm font-medium',
-                    getStockClass(item.الكميه_المتبقيه || item.remaining_quantity)
+                    getStockClass(item.remaining_quantity)
                   ]">
-                    {{ item.الكميه_المتبقيه || item.remaining_quantity }}
+                    {{ item.remaining_quantity }}
                   </span>
                 </div>
 
@@ -233,12 +233,12 @@
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || (item.الكميه_المتبقيه || item.remaining_quantity) <= 0"
+                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || item.remaining_quantity <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                        : (item.الكميه_المتبقيه || item.remaining_quantity) <= 0 || (!isSuperadmin && !canPerformDispatch)
+                        : item.remaining_quantity <= 0 || (!isSuperadmin && !canPerformDispatch)
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
                     ]"
@@ -276,20 +276,20 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الاسم</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.الاسم || selectedItem.name }}</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.name }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكود</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.الكود || selectedItem.code }}</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">المخزن الحالي</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ getWarehouseName(selectedItem.المخزن_id || selectedItem.warehouse_id) }}</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ getWarehouseName(selectedItem.warehouse_id) }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
-              <div class="text-sm font-medium" :class="getStockClass(selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity)">
-                {{ selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity }}
+              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity)">
+                {{ selectedItem.remaining_quantity }}
               </div>
             </div>
           </div>
@@ -308,7 +308,7 @@
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 الكمية المراد صرفها
                 <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                  (الحد الأقصى: {{ selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity }})
+                  (الحد الأقصى: {{ selectedItem.remaining_quantity }})
                 </span>
               </label>
               <div class="flex items-center space-x-3 space-x-reverse">
@@ -324,7 +324,7 @@
                 <input
                   v-model.number="form.quantity"
                   type="number"
-                  :max="selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity"
+                  :max="selectedItem.remaining_quantity"
                   min="1"
                   required
                   :disabled="loading"
@@ -332,7 +332,7 @@
                 >
                 <button
                   @click="increaseQuantity"
-                  :disabled="loading || form.quantity >= (selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity)"
+                  :disabled="loading || form.quantity >= selectedItem.remaining_quantity"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,7 +342,7 @@
               </div>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  سيتبقى بعد الصرف: {{ (selectedItem.الكميه_المتبقيه || selectedItem.remaining_quantity) - form.quantity }}
+                  سيتبقى بعد الصرف: {{ selectedItem.remaining_quantity - form.quantity }}
                 </span>
                 <button
                   @click="setMaxQuantity"
@@ -657,58 +657,137 @@ export default {
       return true
     })
 
-    // In your computed properties section, update:
+    // Available items in selected warehouse - USING ENGLISH FIELD NAMES
+    const availableItems = computed(() => {
+      if (!form.sourceWarehouse) {
+        return []
+      }
+      
+      return inventory.value.filter(item => 
+        item.warehouse_id === form.sourceWarehouse && 
+        item.remaining_quantity > 0
+      )
+    })
 
-const availableItems = computed(() => {
-  if (!form.sourceWarehouse) {
-    return []
-  }
-  
-  // Use English field names from store mappings
-  return inventory.value.filter(item => {
-    // Get the warehouse_id using both possible field names
-    const warehouseId = item.warehouse_id || item.المخزن_id
-    const remainingQty = item.remaining_quantity || item.الكميه_المتبقيه
+    // Filtered items based on search - USING ENGLISH FIELD NAMES
+    const filteredItems = computed(() => {
+      if (!searchTerm.value.trim()) {
+        return availableItems.value
+      }
+      
+      const term = searchTerm.value.toLowerCase().trim()
+      return availableItems.value.filter(item => {
+        const name = (item.name || '').toLowerCase()
+        const code = (item.code || '').toLowerCase()
+        const color = (item.color || '').toLowerCase()
+        const supplier = (item.supplier || '').toLowerCase()
+        
+        return name.includes(term) || 
+               code.includes(term) || 
+               color.includes(term) ||
+               supplier.includes(term)
+      })
+    })
+
+    // Submit button disabled logic
+    const isSubmitDisabled = computed(() => {
+      if (loading.value) return true
+      
+      // SUPERADMIN CAN SUBMIT WITH MINIMAL VALIDATION
+      if (isSuperadmin.value) {
+        return !selectedItem.value || 
+               !form.destinationBranch || 
+               !form.sourceWarehouse ||
+               form.quantity <= 0
+      }
+      
+      // Regular users have stricter checks
+      return !selectedItem.value || 
+             !form.destinationBranch || 
+             !form.sourceWarehouse || 
+             !canPerformDispatch.value ||
+             form.quantity > (selectedItem.value?.remaining_quantity || 0) ||
+             form.quantity <= 0 ||
+             !hasAccessToSelectedWarehouse.value
+    })
+
+    // Helper functions
+    const getWarehouseName = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId)
+      return warehouse ? warehouse.name_ar : warehouseId
+    }
     
-    return warehouseId === form.sourceWarehouse && 
-           (remainingQty || 0) > 0
-  })
-})
-
-const filteredItems = computed(() => {
-  if (!searchTerm.value.trim()) {
-    return availableItems.value
-  }
-  
-  const term = searchTerm.value.toLowerCase().trim()
-  return availableItems.value.filter(item => {
-    // Use both English and Arabic field names for search
-    const name = (item.name || item.الاسم || '').toLowerCase()
-    const code = (item.code || item.الكود || '').toLowerCase()
-    const color = (item.color || item.اللون || '').toLowerCase()
-    const supplier = (item.supplier || item.المورد || '').toLowerCase()
+    const getWarehouseType = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId)
+      if (!warehouse) return ''
+      if (warehouse.is_main) return 'رئيسي ⭐'
+      if (warehouse.type === 'primary') return 'مخزن رئيسي'
+      if (warehouse.type === 'dispatch') return 'موقع صرف 🚚'
+      return warehouse.type || ''
+    }
     
-    return name.includes(term) || 
-           code.includes(term) || 
-           color.includes(term) ||
-           supplier.includes(term)
-  })
-})
+    const getDestinationName = (destinationId) => {
+      const destination = destinations.value.find(d => d.id === destinationId)
+      return destination ? destination.name_ar : destinationId
+    }
 
-// Update the selectItem method to handle both field names
-const selectItem = (item) => {
-  if (!isSuperadmin.value && !canPerformDispatch.value) {
-    error.value = 'ليس لديك صلاحية لاختيار الأصناف للصرف'
-    return
-  }
-  
-  if (selectedItem.value?.id === item.id) {
-    selectedItem.value = null
-  } else {
-    selectedItem.value = item
-    form.quantity = 1
-  }
-}
+    const getStockClass = (quantity) => {
+      if (quantity === 0) return 'text-red-600 dark:text-red-400'
+      if (quantity < 10) return 'text-yellow-600 dark:text-yellow-400'
+      return 'text-green-600 dark:text-green-400'
+    }
+    
+    // SUPERADMIN BYPASSES WAREHOUSE ACCESS CHECKS!
+    const isWarehouseAccessible = (warehouseId) => {
+      if (!userProfile.value) return false
+      
+      // SUPERADMIN BYPASS - ACCESS TO ALL WAREHOUSES
+      if (isSuperadmin.value) return true
+      
+      if (userProfile.value.role === 'warehouse_manager') {
+        const allowedWarehouses = userProfile.value.allowed_warehouses || []
+        return allowedWarehouses.includes('all') || allowedWarehouses.includes(warehouseId)
+      }
+      
+      // Other users can view but not access for dispatch
+      return userProfile.value.is_active === true
+    }
+
+    // Methods
+    const resetForm = () => {
+      Object.assign(form, {
+        sourceWarehouse: '',
+        destinationBranch: '',
+        quantity: 1,
+        notes: '',
+        priority: 'normal'
+      })
+      selectedItem.value = null
+      error.value = ''
+      successMessage.value = ''
+      searchTerm.value = ''
+    }
+
+    const closeModal = () => {
+      if (!loading.value) {
+        resetForm()
+        emit('close')
+      }
+    }
+
+    const selectItem = (item) => {
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لاختيار الأصناف للصرف'
+        return
+      }
+      
+      if (selectedItem.value?.id === item.id) {
+        selectedItem.value = null
+      } else {
+        selectedItem.value = item
+        form.quantity = 1
+      }
+    }
 
     const clearSelection = () => {
       selectedItem.value = null
@@ -726,7 +805,7 @@ const selectItem = (item) => {
         return
       }
       
-      const max = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
+      const max = selectedItem.value?.remaining_quantity || 0
       if (form.quantity < max) {
         form.quantity++
       }
@@ -749,7 +828,7 @@ const selectItem = (item) => {
         return
       }
       
-      const max = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
+      const max = selectedItem.value?.remaining_quantity || 0
       form.quantity = max
     }
 
@@ -760,7 +839,7 @@ const selectItem = (item) => {
         if (props.item) {
           if (isSuperadmin.value || canPerformDispatch.value) {
             selectItem(props.item)
-            form.sourceWarehouse = props.item.المخزن_id || props.item.warehouse_id
+            form.sourceWarehouse = props.item.warehouse_id
           }
         }
       }
@@ -769,14 +848,14 @@ const selectItem = (item) => {
     watch(() => props.item, (newItem) => {
       if (newItem && props.isOpen && (isSuperadmin.value || canPerformDispatch.value)) {
         selectItem(newItem)
-        form.sourceWarehouse = newItem.المخزن_id || newItem.warehouse_id
+        form.sourceWarehouse = newItem.warehouse_id
       }
     })
 
     // Watch quantity changes
     watch(() => form.quantity, (newQuantity) => {
       if (selectedItem.value) {
-        const max = selectedItem.value.الكميه_المتبقيه || selectedItem.value.remaining_quantity || 0
+        const max = selectedItem.value.remaining_quantity || 0
         if (newQuantity > max) {
           form.quantity = max
         } else if (newQuantity < 1) {
@@ -823,7 +902,7 @@ const selectItem = (item) => {
       
       // SUPERADMIN BYPASSES QUANTITY LIMIT CHECKS!
       if (!isSuperadmin.value) {
-        const maxQuantity = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
+        const maxQuantity = selectedItem.value?.remaining_quantity || 0
         if (form.quantity > maxQuantity) {
           errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
         }
@@ -849,14 +928,14 @@ const selectItem = (item) => {
         const destination = destinations.value.find(d => d.id === form.destinationBranch)
         const destinationName = destination ? destination.name_ar : form.destinationBranch
 
-        // Prepare dispatch data
+        // Prepare dispatch data - USING ENGLISH FIELD NAMES FROM STORE
         const dispatchData = {
-          // Item info
+          // Item info - English field names
           item_id: selectedItem.value.id,
-          item_name: selectedItem.value.الاسم || selectedItem.value.name,
-          item_code: selectedItem.value.الكود || selectedItem.value.code,
+          item_name: selectedItem.value.name,
+          item_code: selectedItem.value.code,
           
-          // Warehouse info
+          // Warehouse info - English field names
           from_warehouse: form.sourceWarehouse,
           from_warehouse_id: form.sourceWarehouse,
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
