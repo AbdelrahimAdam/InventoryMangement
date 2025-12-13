@@ -62,7 +62,7 @@ const FIELD_MAPPINGS = {
 };
 
 export default createStore({
-  state: {
+  state: () => ({
     user: null,
     userProfile: null,
     loading: false,
@@ -72,24 +72,11 @@ export default createStore({
     warehousesLoaded: false,
     warehousesCacheTimestamp: null,
     
-    // Inventory with pagination
-    inventory: {
-      items: [],
-      lastVisible: null,
-      hasMore: false,
-      totalCount: 0,
-      isLoading: false,
-      lastFetch: null
-    },
+    // Inventory - IMPORTANT: Keep original structure for compatibility
+    inventory: [],
     
-    // Transactions with pagination
-    transactions: {
-      items: [],
-      lastVisible: null,
-      hasMore: false,
-      totalCount: 0,
-      isLoading: false
-    },
+    // Transactions - IMPORTANT: Keep original structure for compatibility
+    transactions: [],
     
     // Recent transactions (limited)
     recentTransactions: [],
@@ -129,8 +116,12 @@ export default createStore({
       warehouseLabels: {},
       stats: null,
       statsTimestamp: null
-    }
-  },
+    },
+    
+    // Loading states
+    inventoryLoading: false,
+    transactionsLoading: false
+  }),
   
   mutations: {
     SET_USER(state, user) {
@@ -168,66 +159,51 @@ export default createStore({
       state.warehousesLoaded = loaded;
     },
     
-    // Inventory mutations with pagination support
-    SET_INVENTORY(state, { items, lastVisible, totalCount, reset = false }) {
-      if (reset) {
-        state.inventory.items = items;
-      } else {
-        state.inventory.items = [...state.inventory.items, ...items];
-      }
-      state.inventory.lastVisible = lastVisible;
-      state.inventory.hasMore = items.length === PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE;
-      state.inventory.totalCount = totalCount;
-      state.inventory.lastFetch = Date.now();
+    // CRITICAL FIX: Keep original structure for compatibility
+    SET_INVENTORY(state, inventory) {
+      state.inventory = Array.isArray(inventory) ? inventory : [];
     },
     
-    ADD_INVENTORY_ITEM(state, item) {
-      state.inventory.items.unshift(item);
-      if (state.inventory.items.length > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE * 2) {
-        state.inventory.items = state.inventory.items.slice(0, PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
+    ADD_ITEM(state, item) {
+      if (item && typeof item === 'object') {
+        state.inventory.push(item);
       }
     },
     
-    UPDATE_INVENTORY_ITEM(state, updatedItem) {
-      const index = state.inventory.items.findIndex(item => item.id === updatedItem.id);
+    UPDATE_ITEM(state, updatedItem) {
+      if (!updatedItem || !updatedItem.id) return;
+      
+      const index = state.inventory.findIndex(item => item.id === updatedItem.id);
       if (index !== -1) {
-        state.inventory.items.splice(index, 1, updatedItem);
+        state.inventory.splice(index, 1, updatedItem);
       }
     },
     
-    REMOVE_INVENTORY_ITEM(state, itemId) {
-      state.inventory.items = state.inventory.items.filter(item => item.id !== itemId);
+    REMOVE_ITEM(state, itemId) {
+      state.inventory = state.inventory.filter(item => item.id !== itemId);
     },
     
     SET_INVENTORY_LOADING(state, loading) {
-      state.inventory.isLoading = loading;
+      state.inventoryLoading = loading;
     },
     
-    // Transactions mutations
-    SET_TRANSACTIONS(state, { items, lastVisible, totalCount, reset = false }) {
-      if (reset) {
-        state.transactions.items = items;
-      } else {
-        state.transactions.items = [...state.transactions.items, ...items];
-      }
-      state.transactions.lastVisible = lastVisible;
-      state.transactions.hasMore = items.length === PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE;
-      state.transactions.totalCount = totalCount;
+    // CRITICAL FIX: Keep original structure for compatibility
+    SET_TRANSACTIONS(state, transactions) {
+      state.transactions = Array.isArray(transactions) ? transactions : [];
     },
     
     SET_TRANSACTIONS_LOADING(state, loading) {
-      state.transactions.isLoading = loading;
+      state.transactionsLoading = loading;
     },
     
     ADD_TRANSACTION(state, transaction) {
-      state.transactions.items.unshift(transaction);
-      if (state.transactions.items.length > PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE * 2) {
-        state.transactions.items = state.transactions.items.slice(0, PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE);
+      if (transaction && typeof transaction === 'object') {
+        state.transactions.unshift(transaction);
       }
     },
     
     SET_ITEM_HISTORY(state, history) {
-      state.itemHistory = history;
+      state.itemHistory = Array.isArray(history) ? history : [];
     },
     
     SET_FILTERS(state, filters) {
@@ -235,6 +211,8 @@ export default createStore({
     },
     
     UPDATE_WAREHOUSE(state, updatedWarehouse) {
+      if (!updatedWarehouse || !updatedWarehouse.id) return;
+      
       const index = state.warehouses.findIndex(w => w.id === updatedWarehouse.id);
       if (index !== -1) {
         state.warehouses.splice(index, 1, updatedWarehouse);
@@ -315,7 +293,7 @@ export default createStore({
     
     // Recent transactions
     SET_RECENT_TRANSACTIONS(state, transactions) {
-      state.recentTransactions = transactions;
+      state.recentTransactions = Array.isArray(transactions) ? transactions : [];
     },
     
     SET_RECENT_TRANSACTIONS_LOADING(state, loading) {
@@ -323,9 +301,11 @@ export default createStore({
     },
     
     ADD_RECENT_TRANSACTION(state, transaction) {
-      state.recentTransactions.unshift(transaction);
-      if (state.recentTransactions.length > PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT) {
-        state.recentTransactions = state.recentTransactions.slice(0, PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT);
+      if (transaction && typeof transaction === 'object') {
+        state.recentTransactions.unshift(transaction);
+        if (state.recentTransactions.length > PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT) {
+          state.recentTransactions = state.recentTransactions.slice(0, PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT);
+        }
       }
     },
     
@@ -334,7 +314,7 @@ export default createStore({
     },
     
     SET_ALL_USERS(state, users) {
-      state.allUsers = users;
+      state.allUsers = Array.isArray(users) ? users : [];
     },
     
     SET_USERS_LOADING(state, loading) {
@@ -392,8 +372,8 @@ export default createStore({
           } else {
             commit('SET_USER', null);
             commit('SET_USER_PROFILE', null);
-            commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
-            commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+            commit('SET_INVENTORY', []);
+            commit('SET_TRANSACTIONS', []);
             commit('SET_ITEM_HISTORY', []);
             commit('SET_RECENT_TRANSACTIONS', []);
             commit('SET_WAREHOUSES_LOADED', false);
@@ -522,8 +502,8 @@ export default createStore({
         await signOut(auth);
         commit('SET_USER', null);
         commit('SET_USER_PROFILE', null);
-        commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
-        commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+        commit('SET_INVENTORY', []);
+        commit('SET_TRANSACTIONS', []);
         commit('SET_ITEM_HISTORY', []);
         commit('SET_RECENT_TRANSACTIONS', []);
         commit('SET_AUTH_ERROR', null);
@@ -1208,103 +1188,8 @@ export default createStore({
     },
 
     // =============================================
-    // INVENTORY ACTIONS WITH PAGINATION
+    // INVENTORY ACTIONS
     // =============================================
-
-    async loadInventory({ commit, state, dispatch }, { reset = true } = {}) {
-      if (state.inventory.isLoading) return;
-
-      commit('SET_INVENTORY_LOADING', true);
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        let itemsQuery;
-        const itemsRef = collection(db, 'items');
-        const queryConstraints = [];
-
-        // Build query based on user role and permissions
-        if (state.userProfile.role === 'superadmin') {
-          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (allowedWarehouses.length <= 10 && !state.requiresCompositeIndex) {
-              try {
-                queryConstraints.push(where('warehouse_id', 'in', allowedWarehouses));
-              } catch (error) {
-                if (error.code === 'failed-precondition') {
-                  commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-                } else {
-                  throw error;
-                }
-              }
-            }
-          }
-          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
-        } else {
-          queryConstraints.push(orderBy('warehouse_id'), orderBy('name'));
-        }
-
-        // Add pagination
-        queryConstraints.push(limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE));
-        
-        if (!reset && state.inventory.lastVisible) {
-          queryConstraints.push(startAfter(state.inventory.lastVisible));
-        }
-
-        itemsQuery = query(itemsRef, ...queryConstraints);
-
-        const snapshot = await getDocs(itemsQuery);
-        const totalCountSnapshot = await getCountFromServer(itemsRef);
-        const totalCount = totalCountSnapshot.data().count;
-
-        const inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return InventoryService.convertForDisplay({
-            id: doc.id,
-            ...data
-          });
-        });
-
-        // Apply client-side filtering if needed
-        let filteredInventory = inventory;
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
-              filteredInventory = inventory.filter(item => 
-                allowedWarehouses.includes(item.warehouse_id)
-              );
-            }
-          }
-        }
-
-        const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-        commit('SET_INVENTORY', {
-          items: filteredInventory,
-          lastVisible,
-          totalCount,
-          reset
-        });
-
-        return filteredInventory;
-
-      } catch (error) {
-        console.error('Error loading inventory:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل المخزون'
-        });
-        return [];
-      } finally {
-        commit('SET_INVENTORY_LOADING', false);
-      }
-    },
 
     async subscribeToInventory({ commit, state, dispatch }) {
       if (state.subscriptions.active.has('inventory')) {
@@ -1317,7 +1202,7 @@ export default createStore({
         return;
       }
 
-      console.log('Setting up inventory subscription...');
+      console.log('Subscribing to inventory...');
 
       try {
         let itemsQuery;
@@ -1327,46 +1212,61 @@ export default createStore({
           itemsQuery = query(
             itemsRef,
             orderBy('warehouse_id'),
-            orderBy('name'),
-            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+            orderBy('name')
+          );
+        } else if (state.userProfile.role === 'company_manager' || state.userProfile.role === 'user') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name')
           );
         } else if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
 
           if (allowedWarehouses.length === 0) {
             console.log('No warehouses assigned to this warehouse manager');
-            commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+            commit('SET_INVENTORY', []);
             return;
           }
 
-          let queryConstraints = [];
-          
           if (allowedWarehouses.includes('all')) {
-            queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
-          } else if (allowedWarehouses.length <= 10 && !state.requiresCompositeIndex) {
+            itemsQuery = query(
+              itemsRef,
+              orderBy('warehouse_id'),
+              orderBy('name')
+            );
+          } else if (allowedWarehouses.length <= 10) {
             try {
-              queryConstraints = [
+              itemsQuery = query(
+                itemsRef,
                 where('warehouse_id', 'in', allowedWarehouses),
                 orderBy('warehouse_id'),
                 orderBy('name')
-              ];
+              );
             } catch (error) {
               if (error.code === 'failed-precondition') {
+                console.warn('Composite index required. Using client-side filtering.');
                 commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-                queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
+                itemsQuery = query(
+                  itemsRef,
+                  orderBy('warehouse_id'),
+                  orderBy('name')
+                );
               } else {
                 throw error;
               }
             }
           } else {
-            queryConstraints = [orderBy('warehouse_id'), orderBy('name')];
+            console.log('More than 10 warehouses - using client-side filtering');
+            itemsQuery = query(
+              itemsRef,
+              orderBy('warehouse_id'),
+              orderBy('name')
+            );
           }
-
-          queryConstraints.push(limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE));
-          itemsQuery = query(itemsRef, ...queryConstraints);
         } else {
           console.log('User role not authorized for inventory access');
-          commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+          commit('SET_INVENTORY', []);
           return;
         }
 
@@ -1393,14 +1293,8 @@ export default createStore({
             }
           }
 
-          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-          commit('SET_INVENTORY', {
-            items: filteredInventory,
-            lastVisible,
-            totalCount: snapshot.size,
-            reset: true
-          });
+          console.log('Inventory loaded:', filteredInventory.length, 'items');
+          commit('SET_INVENTORY', filteredInventory);
 
         }, (error) => {
           console.error('Error in inventory subscription:', error);
@@ -1424,7 +1318,7 @@ export default createStore({
             });
           }
 
-          commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
+          commit('SET_INVENTORY', []);
         });
 
         commit('SET_SUBSCRIPTION', { type: 'inventory', unsubscribe });
@@ -1435,68 +1329,7 @@ export default createStore({
           type: 'error',
           message: 'خطأ في إعداد اشتراك المخزون'
         });
-        commit('SET_INVENTORY', { items: [], lastVisible: null, totalCount: 0, reset: true });
-      }
-    },
-
-    async loadTransactions({ commit, state, dispatch }, { reset = true } = {}) {
-      if (state.transactions.isLoading) return;
-
-      commit('SET_TRANSACTIONS_LOADING', true);
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE),
-          ...(reset ? [] : [startAfter(state.transactions.lastVisible)])
-        );
-
-        const snapshot = await getDocs(transactionsQuery);
-        const totalCountSnapshot = await getCountFromServer(collection(db, 'transactions'));
-        const totalCount = totalCountSnapshot.data().count;
-
-        const transactions = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            _display: {
-              from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
-                            WAREHOUSE_LABELS[data.from_warehouse] || 
-                            data.from_warehouse,
-              to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
-                           WAREHOUSE_LABELS[data.to_warehouse] ||
-                           DESTINATION_LABELS[data.to_warehouse] ||
-                           data.to_warehouse,
-            }
-          };
-        });
-
-        const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-        commit('SET_TRANSACTIONS', {
-          items: transactions,
-          lastVisible,
-          totalCount,
-          reset
-        });
-
-        return transactions;
-
-      } catch (error) {
-        console.error('Error loading transactions:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الحركات'
-        });
-        return [];
-      } finally {
-        commit('SET_TRANSACTIONS_LOADING', false);
+        commit('SET_INVENTORY', []);
       }
     },
 
@@ -1516,8 +1349,7 @@ export default createStore({
       try {
         const transactionsQuery = query(
           collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE)
+          orderBy('timestamp', 'desc')
         );
 
         const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
@@ -1529,25 +1361,16 @@ export default createStore({
               id: doc.id,
               ...data,
               _display: {
-                from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
-                              WAREHOUSE_LABELS[data.from_warehouse] || 
-                              data.from_warehouse,
-                to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
-                             WAREHOUSE_LABELS[data.to_warehouse] ||
+                from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
+                to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
                              DESTINATION_LABELS[data.to_warehouse] ||
                              data.to_warehouse,
               }
             };
           });
 
-          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-          commit('SET_TRANSACTIONS', {
-            items: transactions,
-            lastVisible,
-            totalCount: snapshot.size,
-            reset: true
-          });
+          console.log('Transactions loaded:', transactions.length, 'transactions');
+          commit('SET_TRANSACTIONS', transactions);
 
         }, (error) => {
           console.error('Error in transactions subscription:', error);
@@ -1555,14 +1378,14 @@ export default createStore({
             type: 'error',
             message: 'خطأ في تحميل الحركات'
           });
-          commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+          commit('SET_TRANSACTIONS', []);
         });
 
         commit('SET_SUBSCRIPTION', { type: 'transactions', unsubscribe });
 
       } catch (error) {
         console.error('Error setting up transactions subscription:', error);
-        commit('SET_TRANSACTIONS', { items: [], lastVisible: null, totalCount: 0, reset: true });
+        commit('SET_TRANSACTIONS', []);
       }
     },
 
@@ -1602,6 +1425,7 @@ export default createStore({
           };
         });
 
+        console.log('Recent transactions loaded:', transactions.length);
         commit('SET_RECENT_TRANSACTIONS', transactions);
 
         return transactions;
@@ -1890,14 +1714,6 @@ export default createStore({
           notes: cleanedData.notes || 'عملية إضافة'
         });
 
-        // Add to local state if within current view
-        if (result.type === 'created') {
-          commit('ADD_INVENTORY_ITEM', InventoryService.convertForDisplay({
-            id: result.id,
-            ...result.data
-          }));
-        }
-
         dispatch('showNotification', {
           type: 'success',
           message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${cleanedData.name}" بنجاح`
@@ -2072,44 +1888,42 @@ export default createStore({
   getters: {
     // User-related getters
     isAuthenticated: state => !!state.user,
-    userRole: state => state.userProfile?.role,
-    userName: state => state.userProfile?.name || state.userProfile?.email?.split('@')[0],
-    allowedWarehouses: state => state.userProfile?.allowed_warehouses || [],
-    userPermissions: state => state.userProfile?.permissions || [],
+    userRole: state => state.userProfile?.role || '',
+    userName: state => state.userProfile?.name || state.userProfile?.email?.split('@')[0] || '',
+    allowedWarehouses: state => Array.isArray(state.userProfile?.allowed_warehouses) ? state.userProfile.allowed_warehouses : [],
+    userPermissions: state => Array.isArray(state.userProfile?.permissions) ? state.userProfile.permissions : [],
     authError: state => state.authError,
     operationError: state => state.operationError,
     operationLoading: state => state.operationLoading,
-    fieldMappings: state => state.fieldMappings,
+    fieldMappings: state => state.fieldMappings || FIELD_MAPPINGS,
     warehousesLoaded: state => state.warehousesLoaded,
-    notifications: state => state.notifications,
-    recentTransactions: state => state.recentTransactions,
+    notifications: state => Array.isArray(state.notifications) ? state.notifications : [],
+    recentTransactions: state => Array.isArray(state.recentTransactions) ? state.recentTransactions : [],
     recentTransactionsLoading: state => state.recentTransactionsLoading,
     requiresCompositeIndex: state => state.requiresCompositeIndex,
-    allUsers: state => state.allUsers,
+    allUsers: state => Array.isArray(state.allUsers) ? state.allUsers : [],
     usersLoading: state => state.usersLoading,
 
-    // Inventory getters with memoization
-    inventoryItems: state => state.inventory.items,
-    inventoryLoading: state => state.inventory.isLoading,
-    inventoryHasMore: state => state.inventory.hasMore,
-    inventoryTotalCount: state => state.inventory.totalCount,
+    // Inventory getters - CRITICAL FIX: Return arrays
+    inventoryItems: state => Array.isArray(state.inventory) ? state.inventory : [],
+    inventoryLoading: state => state.inventoryLoading,
 
-    // Transactions getters
-    transactionsItems: state => state.transactions.items,
-    transactionsLoading: state => state.transactions.isLoading,
-    transactionsHasMore: state => state.transactions.hasMore,
-    transactionsTotalCount: state => state.transactions.totalCount,
+    // Transactions getters - CRITICAL FIX: Return arrays
+    transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
+    transactionsLoading: state => state.transactionsLoading,
 
     // Permission checks
     canEdit: (state, getters) => {
-      return ['superadmin', 'warehouse_manager'].includes(getters.userRole);
+      const role = getters.userRole;
+      return ['superadmin', 'warehouse_manager'].includes(role);
     },
 
     canDelete: (state, getters) => {
-      if (getters.userRole === 'superadmin') return true;
-      if (getters.userRole === 'warehouse_manager') {
-        return getters.userPermissions.includes('full_access') || 
-               getters.userPermissions.includes('delete_items');
+      const role = getters.userRole;
+      if (role === 'superadmin') return true;
+      if (role === 'warehouse_manager') {
+        const permissions = getters.userPermissions;
+        return permissions.includes('full_access') || permissions.includes('delete_items');
       }
       return false;
     },
@@ -2118,38 +1932,51 @@ export default createStore({
     canManageWarehouses: state => state.userProfile?.role === 'superadmin',
 
     canDispatch: (state, getters) => {
-      if (getters.userRole === 'superadmin') return true;
-      if (getters.userRole === 'warehouse_manager') {
-        return getters.userPermissions.includes('dispatch_items');
+      const role = getters.userRole;
+      if (role === 'superadmin') return true;
+      if (role === 'warehouse_manager') {
+        const permissions = getters.userPermissions;
+        return permissions.includes('dispatch_items');
       }
       return false;
     },
 
     // Warehouse getters with cache
-    mainWarehouse: state => state.warehouses.find(w => w.is_main),
-    primaryWarehouses: state => state.warehouses.filter(w => w.type === 'primary'),
-    dispatchWarehouses: state => state.warehouses.filter(w => w.type === 'dispatch'),
+    mainWarehouse: state => {
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      return warehouses.find(w => w.is_main) || null;
+    },
+    primaryWarehouses: state => {
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      return warehouses.filter(w => w.type === 'primary');
+    },
+    dispatchWarehouses: state => {
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      return warehouses.filter(w => w.type === 'dispatch');
+    },
 
     accessibleWarehouses: (state, getters) => {
-      if (!state.warehousesLoaded) return [];
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      if (!warehouses.length || !state.warehousesLoaded) return [];
 
-      if (getters.userRole === 'superadmin') {
-        return state.warehouses;
+      const role = getters.userRole;
+      if (role === 'superadmin') {
+        return warehouses;
       }
 
-      if (getters.userRole === 'warehouse_manager') {
+      if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
-        if (allowedWarehouses && allowedWarehouses.length > 0) {
-          const accessiblePrimary = state.warehouses.filter(w => 
+        if (allowedWarehouses.length > 0) {
+          const accessiblePrimary = warehouses.filter(w => 
             w.type === 'primary' && allowedWarehouses.includes(w.id)
           );
-          const accessibleDispatch = state.warehouses.filter(w => w.type === 'dispatch');
+          const accessibleDispatch = warehouses.filter(w => w.type === 'dispatch');
           return [...accessiblePrimary, ...accessibleDispatch];
         }
       }
 
-      if (getters.userRole === 'company_manager') {
-        return state.warehouses;
+      if (role === 'company_manager') {
+        return warehouses;
       }
 
       return [];
@@ -2166,16 +1993,18 @@ export default createStore({
     },
 
     dispatchFromWarehouses: (state, getters) => {
-      if (!state.warehousesLoaded) return [];
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      if (!warehouses.length || !state.warehousesLoaded) return [];
 
-      if (getters.userRole === 'superadmin') {
-        return state.warehouses.filter(w => w.type === 'primary');
+      const role = getters.userRole;
+      if (role === 'superadmin') {
+        return warehouses.filter(w => w.type === 'primary');
       }
 
-      if (getters.userRole === 'warehouse_manager') {
+      if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
-        if (allowedWarehouses && allowedWarehouses.length > 0) {
-          return state.warehouses.filter(w => 
+        if (allowedWarehouses.length > 0) {
+          return warehouses.filter(w => 
             w.type === 'primary' && allowedWarehouses.includes(w.id)
           );
         }
@@ -2186,28 +2015,24 @@ export default createStore({
 
     // Filtered inventory with performance optimization
     filteredInventory: (state, getters) => {
-      // Use cached result if filters haven't changed
-      const currentFiltersHash = JSON.stringify(state.filters);
-      if (state.cache.filteredInventory && 
-          state.cache.filtersHash === currentFiltersHash &&
-          Date.now() - state.cache.filteredInventoryTimestamp < PERFORMANCE_CONFIG.DEBOUNCE_DELAY) {
-        return state.cache.filteredInventory;
-      }
+      const inventory = getters.inventoryItems;
+      if (!inventory.length) return [];
 
-      let inventory = getters.inventoryItems;
+      let filtered = inventory;
 
       // Filter by user's allowed warehouses if not superadmin
-      if (state.userProfile?.role === 'warehouse_manager' || state.userProfile?.role === 'company_manager') {
-        const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      const role = getters.userRole;
+      if (role === 'warehouse_manager' || role === 'company_manager') {
+        const allowedWarehouses = getters.allowedWarehouses;
         if (allowedWarehouses.length > 0) {
-          inventory = inventory.filter(item => allowedWarehouses.includes(item.warehouse_id));
+          filtered = filtered.filter(item => allowedWarehouses.includes(item.warehouse_id));
         }
       }
 
       // Apply search filter
       if (state.filters.search) {
         const searchLower = state.filters.search.toLowerCase();
-        inventory = inventory.filter(item =>
+        filtered = filtered.filter(item =>
           item.name?.toLowerCase().includes(searchLower) ||
           item.code?.toLowerCase().includes(searchLower) ||
           item.color?.toLowerCase().includes(searchLower) ||
@@ -2218,15 +2043,10 @@ export default createStore({
 
       // Apply warehouse filter
       if (state.filters.warehouse) {
-        inventory = inventory.filter(item => item.warehouse_id === state.filters.warehouse);
+        filtered = filtered.filter(item => item.warehouse_id === state.filters.warehouse);
       }
 
-      // Update cache
-      state.cache.filteredInventory = inventory;
-      state.cache.filtersHash = currentFiltersHash;
-      state.cache.filteredInventoryTimestamp = Date.now();
-
-      return inventory;
+      return filtered;
     },
 
     // Dashboard statistics with caching
@@ -2239,6 +2059,7 @@ export default createStore({
       }
 
       const inventory = getters.filteredInventory;
+      const recentTransactions = getters.recentTransactions;
 
       const totalItems = inventory.length;
       const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
@@ -2248,11 +2069,11 @@ export default createStore({
       const averageValuePerItem = 50;
       const estimatedValue = totalQuantity * averageValuePerItem;
 
-      const recentTransactions = state.recentTransactions.length;
+      const recentTransactionsCount = recentTransactions.length;
 
-      const addTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.ADD).length;
-      const transferTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER).length;
-      const dispatchTransactions = state.recentTransactions.filter(t => t.type === TRANSACTION_TYPES.DISPATCH).length;
+      const addTransactions = recentTransactions.filter(t => t.type === TRANSACTION_TYPES.ADD).length;
+      const transferTransactions = recentTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER).length;
+      const dispatchTransactions = recentTransactions.filter(t => t.type === TRANSACTION_TYPES.DISPATCH).length;
 
       const stats = {
         totalItems,
@@ -2260,7 +2081,7 @@ export default createStore({
         lowStockItems,
         outOfStockItems,
         estimatedValue,
-        recentTransactions,
+        recentTransactions: recentTransactionsCount,
         addTransactions,
         transferTransactions,
         dispatchTransactions,
@@ -2279,14 +2100,22 @@ export default createStore({
     },
 
     getArabicLabel: (state) => (fieldName) => {
-      return state.fieldMappings.englishToArabic[fieldName] || fieldName;
+      const mappings = state.fieldMappings || FIELD_MAPPINGS;
+      return mappings.englishToArabic[fieldName] || fieldName;
     },
 
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
-      return state.cache.warehouseLabels[warehouseId] || 
-             state.warehouses.find(w => w.id === warehouseId)?.name_ar || 
-             warehouseId;
+      
+      // Check cache first
+      if (state.cache.warehouseLabels[warehouseId]) {
+        return state.cache.warehouseLabels[warehouseId];
+      }
+      
+      // Check warehouses array
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      const warehouse = warehouses.find(w => w.id === warehouseId);
+      return warehouse ? warehouse.name_ar : warehouseId;
     },
 
     getDestinationLabel: () => (destinationId) => {
@@ -2294,7 +2123,8 @@ export default createStore({
     },
 
     getWarehouseById: (state) => (warehouseId) => {
-      return state.warehouses.find(w => w.id === warehouseId);
+      const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
+      return warehouses.find(w => w.id === warehouseId) || null;
     }
   }
 });
