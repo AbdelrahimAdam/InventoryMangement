@@ -4,7 +4,6 @@
     <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-          <!-- Navigation -->
           <div class="flex items-center space-x-4 space-x-reverse">
             <router-link to="/" class="flex items-center space-x-2 space-x-reverse hover:opacity-80 transition-opacity">
               <div class="h-8 w-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -17,7 +16,6 @@
             </router-link>
           </div>
 
-          <!-- User Info and Actions -->
           <div class="flex items-center space-x-3 space-x-reverse">
             <div class="hidden md:flex items-center space-x-2 space-x-reverse text-sm">
               <span class="text-gray-600 dark:text-gray-300">{{ userName }}</span>
@@ -296,7 +294,7 @@
             </thead>
             <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
               <tr 
-                v-for="dispatch in filteredDispatchHistory" 
+                v-for="dispatch in paginatedHistory" 
                 :key="dispatch.id" 
                 class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
               >
@@ -383,37 +381,173 @@
     </main>
 
     <!-- Dispatch Modal -->
-    <DispatchModal 
-      v-if="showDispatchModal"
-      :isOpen="showDispatchModal"
-      :item="selectedItemForDispatch"
-      :warehouseId="selectedWarehouse"
-      @close="showDispatchModal = false"
-      @success="handleDispatchSuccess"
-    />
+    <div v-if="showDispatchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">إنشاء صرف جديد</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">صرف صنف من المخزن المصدر</p>
+            </div>
+            <button 
+              @click="showDispatchModal = false"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
 
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-xl p-8 flex flex-col items-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-gray-700 dark:text-gray-300">جاري تحميل البيانات...</p>
+          <div v-if="selectedItemForDispatch" class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-medium text-gray-900 dark:text-white">{{ selectedItemForDispatch.name }}</h4>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">{{ selectedItemForDispatch.code }}</span>
+                  <span class="text-sm px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                    {{ selectedItemForDispatch.remaining_quantity }} متبقي
+                  </span>
+                </div>
+              </div>
+              <span class="text-sm text-gray-500 dark:text-gray-400">
+                من {{ getWarehouseLabel(selectedWarehouse) }}
+              </span>
+            </div>
+          </div>
+
+          <form @submit.prevent="submitDispatch" class="space-y-4">
+            <!-- Destination -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                وجهة الصرف *
+              </label>
+              <select
+                v-model="dispatchForm.to_warehouse_id"
+                required
+                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :disabled="loading"
+              >
+                <option value="">اختر وجهة الصرف</option>
+                <option v-for="destination in dispatchDestinations" :key="destination.id" :value="destination.id">
+                  {{ destination.name_ar }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Quantity -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                الكمية *
+              </label>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد الكراتين</label>
+                  <input
+                    type="number"
+                    v-model.number="dispatchForm.cartons_count"
+                    min="0"
+                    max="1000"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    :disabled="loading"
+                    @change="calculateTotalQuantity"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد في الكرتونة</label>
+                  <input
+                    type="number"
+                    v-model.number="dispatchForm.per_carton_count"
+                    min="1"
+                    max="100"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    :disabled="loading"
+                    @change="calculateTotalQuantity"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد القزاز الفردي</label>
+                  <input
+                    type="number"
+                    v-model.number="dispatchForm.single_bottles_count"
+                    min="0"
+                    max="1000"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    :disabled="loading"
+                    @change="calculateTotalQuantity"
+                  >
+                </div>
+              </div>
+              <div v-if="selectedItemForDispatch" class="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600 dark:text-gray-300">الكمية المتاحة:</span>
+                  <span class="font-medium">{{ selectedItemForDispatch.remaining_quantity }}</span>
+                </div>
+                <div class="flex justify-between items-center mt-1">
+                  <span class="text-sm text-gray-600 dark:text-gray-300">الكمية المطلوبة:</span>
+                  <span class="font-medium text-blue-600 dark:text-blue-400">{{ totalDispatchQuantity }}</span>
+                </div>
+                <div v-if="selectedItemForDispatch.remaining_quantity < totalDispatchQuantity" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                  ⚠️ الكمية المطلوبة أكبر من الكمية المتاحة
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                ملاحظات
+              </label>
+              <textarea
+                v-model="dispatchForm.notes"
+                rows="3"
+                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :disabled="loading"
+                placeholder="أي ملاحظات إضافية حول عملية الصرف..."
+              ></textarea>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                @click="showDispatchModal = false"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+                :disabled="loading"
+              >
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                :disabled="loading || !isValidDispatch"
+                class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="loading" class="flex items-center">
+                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  جاري المعالجة...
+                </span>
+                <span v-else>
+                  تأكيد الصرف
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import DispatchModal from '@/components/inventory/DispatchModal.vue';
 
 export default {
   name: 'DispatchPage',
-  
-  components: {
-    DispatchModal
-  },
   
   setup() {
     const store = useStore();
@@ -428,7 +562,16 @@ export default {
     const customDateFrom = ref('');
     const customDateTo = ref('');
     const currentHistoryPage = ref(1);
-    const itemsPerPage = ref(20);
+    const itemsPerPage = ref(10);
+    
+    // Dispatch form
+    const dispatchForm = ref({
+      to_warehouse_id: '',
+      cartons_count: 0,
+      per_carton_count: 12,
+      single_bottles_count: 0,
+      notes: ''
+    });
     
     // Computed properties from store
     const userRole = computed(() => store.getters.userRole);
@@ -438,40 +581,13 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // Permissions
-    const canDispatch = computed(() => {
-      return store.getters.canDispatch;
-    });
+    // Store getters
+    const canDispatch = computed(() => store.getters.canDispatch);
+    const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
+    const dispatchFromWarehouses = computed(() => store.getters.dispatchFromWarehouses || []);
+    const dispatchDestinations = computed(() => store.getters.dispatchDestinations || []);
     
-    const canExport = computed(() => {
-      return userRole.value === 'superadmin' || userRole.value === 'company_manager';
-    });
-    
-    // Dispatch from warehouses (filter primary warehouses only)
-    const dispatchFromWarehouses = computed(() => {
-      if (userRole.value === 'superadmin') {
-        return allWarehouses.value.filter(w => w.type === 'primary');
-      }
-      
-      if (userRole.value === 'warehouse_manager') {
-        const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
-        if (allowedWarehouses.includes('all')) {
-          return allWarehouses.value.filter(w => w.type === 'primary');
-        }
-        return allWarehouses.value.filter(w => 
-          w.type === 'primary' && allowedWarehouses.includes(w.id)
-        );
-      }
-      
-      return [];
-    });
-    
-    // Dispatch destinations (dispatch type warehouses)
-    const dispatchDestinations = computed(() => {
-      return allWarehouses.value.filter(w => w.type === 'dispatch');
-    });
-    
-    // Filter dispatch transactions (type = 'DISPATCH')
+    // Dispatch transactions (type = 'DISPATCH')
     const dispatchTransactions = computed(() => {
       return (allTransactions.value || []).filter(t => t.type === 'DISPATCH');
     });
@@ -508,7 +624,7 @@ export default {
       return allInventory.value.filter(item => 
         item.warehouse_id === selectedWarehouse.value && 
         item.remaining_quantity > 0
-      );
+      ).sort((a, b) => b.remaining_quantity - a.remaining_quantity); // Sort by quantity descending
     });
     
     // Filter dispatch history
@@ -589,7 +705,7 @@ export default {
     });
     
     const endIndex = computed(() => {
-      return startIndex.value + itemsPerPage.value;
+      return Math.min(startIndex.value + itemsPerPage.value, filteredDispatchHistory.value.length);
     });
     
     const paginatedHistory = computed(() => {
@@ -599,6 +715,31 @@ export default {
     // Check if any filters are active
     const hasFilters = computed(() => {
       return historyWarehouseFilter.value || dateFilter.value !== 'all';
+    });
+    
+    // Calculate total dispatch quantity
+    const totalDispatchQuantity = computed(() => {
+      const cartons = dispatchForm.value.cartons_count || 0;
+      const perCarton = dispatchForm.value.per_carton_count || 12;
+      const single = dispatchForm.value.single_bottles_count || 0;
+      return (cartons * perCarton) + single;
+    });
+    
+    // Check if dispatch is valid
+    const isValidDispatch = computed(() => {
+      if (!selectedItemForDispatch.value || !dispatchForm.value.to_warehouse_id) {
+        return false;
+      }
+      
+      if (totalDispatchQuantity.value <= 0) {
+        return false;
+      }
+      
+      if (selectedItemForDispatch.value.remaining_quantity < totalDispatchQuantity.value) {
+        return false;
+      }
+      
+      return true;
     });
     
     // Helper functions
@@ -674,7 +815,7 @@ export default {
     
     const getUsername = (userId) => {
       if (!userId) return 'مستخدم النظام';
-      return 'مستخدم النظام';
+      return 'مستخدم النظام'; // This should be enhanced with user lookup from store
     };
     
     const calculateDispatchValue = (dispatch) => {
@@ -690,14 +831,81 @@ export default {
       return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300';
     };
     
+    const calculateTotalQuantity = () => {
+      // This is already handled by the computed property
+    };
+    
     // Actions
     const selectItemForDispatch = (item) => {
       selectedItemForDispatch.value = item;
       showDispatchModal.value = true;
+      
+      // Reset form
+      dispatchForm.value = {
+        to_warehouse_id: '',
+        cartons_count: 0,
+        per_carton_count: 12,
+        single_bottles_count: 0,
+        notes: ''
+      };
     };
     
     const updateAvailableItems = () => {
       selectedItemForDispatch.value = null;
+    };
+    
+    const submitDispatch = async () => {
+      if (!isValidDispatch.value) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'يرجى ملء جميع الحقول المطلوبة والتأكد من توافر الكمية'
+        });
+        return;
+      }
+      
+      loading.value = true;
+      
+      try {
+        const dispatchData = {
+          itemId: selectedItemForDispatch.value.id,
+          from_warehouse_id: selectedWarehouse.value,
+          to_warehouse_id: dispatchForm.value.to_warehouse_id,
+          cartons_count: dispatchForm.value.cartons_count,
+          per_carton_count: dispatchForm.value.per_carton_count,
+          single_bottles_count: dispatchForm.value.single_bottles_count,
+          notes: dispatchForm.value.notes
+        };
+        
+        const result = await store.dispatch('dispatchItem', dispatchData);
+        
+        if (result) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم صرف الصنف بنجاح'
+          });
+          
+          showDispatchModal.value = false;
+          selectedItemForDispatch.value = null;
+          dispatchForm.value = {
+            to_warehouse_id: '',
+            cartons_count: 0,
+            per_carton_count: 12,
+            single_bottles_count: 0,
+            notes: ''
+          };
+          
+          // Reset to first page
+          currentHistoryPage.value = 1;
+        }
+      } catch (error) {
+        console.error('Error dispatching item:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ أثناء صرف الصنف'
+        });
+      } finally {
+        loading.value = false;
+      }
     };
     
     const applyHistoryFilters = () => {
@@ -869,35 +1077,22 @@ export default {
       }
     };
     
-    const handleDispatchSuccess = () => {
-      showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم إنشاء عملية الصرف بنجاح'
-      });
-      
-      setTimeout(() => {
-        currentHistoryPage.value = 1;
-      }, 1000);
-    };
-    
+    // Load initial data
     const loadInitialData = async () => {
       loading.value = true;
       try {
         console.log('Dispatch page: Loading initial data...');
         
+        // Wait for store to load data
         if (allInventory.value.length === 0 || allTransactions.value.length === 0) {
           console.log('Waiting for store data to load...');
           
-          setTimeout(() => {
-            loading.value = false;
-          }, 2000);
-        } else {
-          loading.value = false;
+          // The store's listeners will handle data loading
+          // We'll just wait a moment for initial load
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
+        // Auto-select warehouse if only one available
         if (dispatchFromWarehouses.value.length === 1) {
           selectedWarehouse.value = dispatchFromWarehouses.value[0].id;
         }
@@ -908,6 +1103,7 @@ export default {
           type: 'error',
           message: 'حدث خطأ في تحميل بيانات الصرف'
         });
+      } finally {
         loading.value = false;
       }
     };
@@ -915,6 +1111,7 @@ export default {
     onMounted(() => {
       console.log('Dispatch page mounted');
       
+      // Check permissions
       if (!canDispatch.value) {
         store.dispatch('showNotification', {
           type: 'error',
@@ -926,12 +1123,19 @@ export default {
         return;
       }
       
+      // Load initial data
       loadInitialData();
     });
     
+    // Watch for store data updates
     watch(() => [allInventory.value, allTransactions.value], () => {
       console.log('Store data updated, refreshing dispatch view');
     }, { deep: true });
+    
+    // Cleanup
+    onUnmounted(() => {
+      // Any cleanup if needed
+    });
     
     return {
       loading,
@@ -943,6 +1147,7 @@ export default {
       customDateFrom,
       customDateTo,
       currentHistoryPage,
+      dispatchForm,
       userRole,
       userName,
       canDispatch,
@@ -953,11 +1158,15 @@ export default {
       totalDispatches,
       monthlyDispatches,
       totalDispatchValue,
-      filteredDispatchHistory: paginatedHistory,
+      filteredDispatchHistory,
+      paginatedHistory,
       totalHistoryPages,
       startIndex,
       endIndex,
       hasFilters,
+      totalDispatchQuantity,
+      isValidDispatch,
+      
       formatNumber,
       formatCurrency,
       formatDate,
@@ -967,14 +1176,16 @@ export default {
       getDispatchQuantityClass,
       selectItemForDispatch,
       updateAvailableItems,
+      submitDispatch,
       applyHistoryFilters,
       nextPage,
       prevPage,
       viewDispatchDetails,
       printDispatch,
       exportDispatches,
-      handleDispatchSuccess,
-      calculateDispatchValue
+      calculateDispatchValue,
+      getUsername,
+      calculateTotalQuantity
     };
   }
 };
@@ -1106,20 +1317,8 @@ body {
   margin-right: auto;
 }
 
-/* Responsive improvements */
-@media (max-width: 768px) {
-  .grid-cols-1 {
-    grid-template-columns: 1fr;
-  }
-  
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  .md\:grid-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  
+/* Mobile Optimizations */
+@media (max-width: 640px) {
   .px-6 {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -1129,23 +1328,82 @@ body {
     padding-top: 1rem;
     padding-bottom: 1rem;
   }
-}
-
-/* Improve touch targets on mobile */
-@media (max-width: 640px) {
-  button, 
-  select, 
+  
+  .text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  .grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  th, td {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+  
+  .hidden-mobile {
+    display: none;
+  }
+  
+  .flex-col-mobile {
+    flex-direction: column;
+  }
+  
+  .gap-2 {
+    gap: 0.5rem;
+  }
+  
+  /* Improve touch targets */
+  button,
+  select,
   input {
     min-height: 44px;
   }
   
-  .text-sm {
-    font-size: 14px;
+  /* Modal adjustments */
+  .max-w-2xl {
+    width: 95%;
   }
   
-  .text-xs {
-    font-size: 12px;
+  /* Grid adjustments for quantity inputs */
+  .grid-cols-1.md\:grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Performance optimizations */
+.hover\:bg-gray-50, .hover\:bg-gray-800 {
+  will-change: background-color;
+}
+
+.animate-spin {
+  will-change: transform;
 }
 
 /* Dark mode improvements */
@@ -1171,5 +1429,30 @@ body {
 
 .dark .bg-gray-900 {
   background-color: #111827;
+}
+
+/* Modal backdrop blur for better focus */
+.fixed.bg-black.bg-opacity-50 {
+  backdrop-filter: blur(4px);
+}
+
+/* Disabled state improvements */
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+/* Focus styles for accessibility */
+button:focus, select:focus, input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Loading overlay for better UX */
+.fixed.inset-0 {
+  z-index: 9999;
 }
 </style>
