@@ -212,7 +212,7 @@
         </div>
 
         <!-- Desktop Table View -->
-        <div v-else class="hidden lg:block">
+        <div v-else-if="!loading && filteredTransfers.length > 0" class="hidden lg:block">
           <div class="w-full overflow-x-auto">
             <div class="min-w-full inline-block align-middle">
               <!-- Fixed Header -->
@@ -314,7 +314,7 @@
         </div>
 
         <!-- Mobile Cards View -->
-        <div v-else class="lg:hidden">
+        <div v-else-if="!loading && filteredTransfers.length > 0" class="lg:hidden">
           <div class="max-h-[calc(100vh-400px)] overflow-y-auto p-2 sm:p-4">
             <div class="space-y-3">
               <div 
