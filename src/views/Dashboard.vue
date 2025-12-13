@@ -138,8 +138,8 @@
       </div>
 
       <!-- Pagination Info -->
-      <div v-if="transformedInventory.length > 0" class="mt-4 text-xs lg:text-sm text-gray-700 dark:text-gray-400">
-        عرض {{ transformedInventory.length }} من {{ inventory.length }} صنف
+      <div v-if="transformedInventory.length > 0 && inventoryArray?.length" class="mt-4 text-xs lg:text-sm text-gray-700 dark:text-gray-400">
+        عرض {{ transformedInventory.length }} من {{ inventoryArray?.length || 0 }} صنف
       </div>
 
       <!-- Empty State -->
@@ -212,7 +212,40 @@ export default {
     // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
     const dashboardStats = computed(() => store.getters.dashboardStats || {});
-    const inventory = computed(() => store.state.inventory || []);
+    
+    // FIXED: Handle inventory state properly - it might be an object with items array and hasMore property
+    const inventory = computed(() => {
+      const inv = store.state.inventory;
+      // Check if inventory is an array or an object
+      if (Array.isArray(inv)) {
+        return inv;
+      } else if (inv && typeof inv === 'object') {
+        // If it's an object, return the items array or empty array
+        return inv.items || inv.data || [];
+      }
+      return [];
+    });
+    
+    // Also create a computed property for the full inventory object
+    const inventoryData = computed(() => {
+      const inv = store.state.inventory;
+      // Return the full object if it exists, otherwise default structure
+      if (inv && typeof inv === 'object') {
+        return {
+          items: Array.isArray(inv) ? inv : (inv.items || inv.data || []),
+          hasMore: inv.hasMore || false,
+          loading: inv.loading || false,
+          lastVisible: inv.lastVisible || null
+        };
+      }
+      return {
+        items: [],
+        hasMore: false,
+        loading: false,
+        lastVisible: null
+      };
+    });
+    
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
     // Permission getters based on your store
@@ -281,6 +314,11 @@ export default {
         remaining_quantity: item.remaining_quantity || item.الكميه_المتبقيه || 0,
         updated_at: item.updated_at || item.آخر_تحديث || new Date()
       }));
+    });
+    
+    // Helper to get inventory as array for display
+    const inventoryArray = computed(() => {
+      return inventory.value;
     });
 
     // Helper functions
@@ -370,9 +408,13 @@ export default {
       }
       
       // Subscribe to real-time data if not already subscribed
-      if (!store.state.inventory || store.state.inventory.length === 0) {
+      // Check if inventory data is already loaded
+      const hasInventoryData = inventoryData.value.items && inventoryData.value.items.length > 0;
+      
+      if (!hasInventoryData) {
         store.dispatch('subscribeToInventory');
       }
+      
       store.dispatch('subscribeToTransactions');
       store.dispatch('getRecentTransactions');
       
@@ -384,7 +426,7 @@ export default {
 
     // Watch for inventory changes
     watch(() => store.state.inventory, (newInventory) => {
-      if (newInventory && newInventory.length > 0) {
+      if (newInventory) {
         loading.value = false;
       }
     }, { immediate: true });
@@ -409,11 +451,13 @@ export default {
       // Computed
       userRole,
       dashboardStats,
-      inventory,
+      inventory: inventoryArray, // Use the array version for display
+      inventoryData, // Full inventory object
       filteredInventory,
       transformedInventory,
       canModifyItems,
       accessibleWarehouses,
+      inventoryArray, // For displaying count
       
       // Helper methods
       formatNumber,
