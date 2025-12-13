@@ -126,20 +126,41 @@
         <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
       </div>
 
-      <!-- Integrated InventoryTable Component -->
+      <!-- Simple Inventory Table (No separate component needed) -->
       <div v-else-if="transformedInventory.length > 0" class="overflow-x-auto">
-        <InventoryTable 
-          :items="transformedInventory"
-          :readonly="!canModifyItems"
-          :user-role="userRole"
-          @transfer="openTransferModalForItem"
-          @dispatch="openDispatchModalForItem"
-        />
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الصنف</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الكود</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المخزن</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المتبقي</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tr v-for="item in transformedInventory.slice(0, 10)" :key="item.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ item.name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ item.code }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ getWarehouseLabel(item.warehouse_id) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <span :class="getQuantityClass(item.remaining_quantity)">
+                  {{ formatNumber(item.remaining_quantity) }}
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <span :class="getStatusClass(item.remaining_quantity)">
+                  {{ getStatusText(item.remaining_quantity) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Pagination Info -->
-      <div v-if="transformedInventory.length > 0 && inventoryArray?.length" class="mt-4 text-xs lg:text-sm text-gray-700 dark:text-gray-400">
-        عرض {{ transformedInventory.length }} من {{ inventoryArray?.length || 0 }} صنف
+      <div v-if="transformedInventory.length > 0" class="mt-4 text-xs lg:text-sm text-gray-700 dark:text-gray-400">
+        عرض {{ Math.min(10, transformedInventory.length) }} من {{ transformedInventory.length }} صنف
       </div>
 
       <!-- Empty State -->
@@ -187,14 +208,12 @@ import { debounce } from 'lodash';
 // Import inventory components
 import TransferModal from '@/components/inventory/TransferModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
-import InventoryTable from './Reports.vue';
 
 export default {
   name: 'Dashboard',
   components: {
     TransferModal,
-    DispatchModal,
-    InventoryTable
+    DispatchModal
   },
   setup() {
     const store = useStore();
@@ -213,40 +232,37 @@ export default {
     const userRole = computed(() => store.getters.userRole || '');
     const dashboardStats = computed(() => store.getters.dashboardStats || {});
     
-    // FIXED: Handle inventory state properly - it might be an object with items array and hasMore property
-    const inventory = computed(() => {
-      const inv = store.state.inventory;
-      // Check if inventory is an array or an object
-      if (Array.isArray(inv)) {
-        return inv;
-      } else if (inv && typeof inv === 'object') {
-        // If it's an object, return the items array or empty array
-        return inv.items || inv.data || [];
-      }
-      return [];
-    });
-    
-    // Also create a computed property for the full inventory object
-    const inventoryData = computed(() => {
-      const inv = store.state.inventory;
-      // Return the full object if it exists, otherwise default structure
-      if (inv && typeof inv === 'object') {
-        return {
-          items: Array.isArray(inv) ? inv : (inv.items || inv.data || []),
-          hasMore: inv.hasMore || false,
-          loading: inv.loading || false,
-          lastVisible: inv.lastVisible || null
-        };
-      }
-      return {
-        items: [],
-        hasMore: false,
-        loading: false,
-        lastVisible: null
-      };
-    });
+    // Inventory from store
+    const inventory = computed(() => store.state.inventory || []);
     
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
+    
+    // Helper to get warehouse label
+    const getWarehouseLabel = (warehouseId) => {
+      if (!warehouseId) return '';
+      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
+    };
+    
+    // Helper to get quantity class
+    const getQuantityClass = (quantity) => {
+      if (!quantity || quantity === 0) return 'text-red-600 dark:text-red-400 font-bold';
+      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 font-bold';
+      return 'text-green-600 dark:text-green-400 font-bold';
+    };
+    
+    // Helper to get status class
+    const getStatusClass = (quantity) => {
+      if (!quantity || quantity === 0) return 'px-2 py-1 rounded-full text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
+      if (quantity < 5) return 'px-2 py-1 rounded-full text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300';
+      return 'px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
+    };
+    
+    // Helper to get status text
+    const getStatusText = (quantity) => {
+      if (!quantity || quantity === 0) return 'منتهي';
+      if (quantity < 5) return 'حرج';
+      return 'جيد';
+    };
     
     // Permission getters based on your store
     const canModifyItems = computed(() => {
@@ -274,7 +290,7 @@ export default {
       // Apply warehouse filter
       if (selectedWarehouse.value) {
         filtered = filtered.filter(item => 
-          (item.warehouse_id || item.المخزن_id) === selectedWarehouse.value
+          item.warehouse_id === selectedWarehouse.value
         );
       }
       
@@ -282,10 +298,10 @@ export default {
       if (searchTerm.value.trim()) {
         const term = searchTerm.value.toLowerCase().trim();
         filtered = filtered.filter(item => {
-          const name = (item.name || item.الاسم || '').toLowerCase();
-          const code = (item.code || item.الكود || '').toLowerCase();
-          const color = (item.color || item.اللون || '').toLowerCase();
-          const supplier = (item.supplier || item.المورد || '').toLowerCase();
+          const name = (item.name || '').toLowerCase();
+          const code = (item.code || '').toLowerCase();
+          const color = (item.color || '').toLowerCase();
+          const supplier = (item.supplier || '').toLowerCase();
           
           return name.includes(term) || 
                  code.includes(term) || 
@@ -297,28 +313,22 @@ export default {
       return filtered;
     });
 
-    // Transform inventory data to match InventoryTable component structure
+    // Transform inventory data for display
     const transformedInventory = computed(() => {
       return filteredInventory.value.map(item => ({
-        id: item.id || item.ID,
-        name: item.name || item.الاسم || 'غير محدد',
-        code: item.code || item.الكود || '-',
-        color: item.color || item.اللون || '-',
-        warehouse_id: item.warehouse_id || item.المخزن_id,
-        supplier: item.supplier || item.المورد || '-',
-        item_location: item.item_location || item.مكان_الصنف || '-',
-        cartons_count: item.cartons_count || item.كراتين || 0,
-        per_carton_count: item.per_carton_count || item.في_الكرتونة || 0,
-        single_bottles_count: item.single_bottles_count || item.فردي || 0,
-        total_added: item.total_added || item.المضاف || 0,
-        remaining_quantity: item.remaining_quantity || item.الكميه_المتبقيه || 0,
-        updated_at: item.updated_at || item.آخر_تحديث || new Date()
+        id: item.id,
+        name: item.name || 'غير محدد',
+        code: item.code || '-',
+        color: item.color || '-',
+        warehouse_id: item.warehouse_id,
+        supplier: item.supplier || '-',
+        cartons_count: item.cartons_count || 0,
+        per_carton_count: item.per_carton_count || 0,
+        single_bottles_count: item.single_bottles_count || 0,
+        total_added: item.total_added || 0,
+        remaining_quantity: item.remaining_quantity || 0,
+        updated_at: item.updated_at || new Date()
       }));
-    });
-    
-    // Helper to get inventory as array for display
-    const inventoryArray = computed(() => {
-      return inventory.value;
     });
 
     // Helper functions
@@ -373,60 +383,53 @@ export default {
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForAction.value = null;
-      // Refresh data
-      store.dispatch('subscribeToInventory');
+      // Data will automatically update via store listener
     };
 
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForAction.value = null;
-      // Refresh data
-      store.dispatch('subscribeToInventory');
-    };
-
-    // Navigation functions
-    const navigateToInventoryAdd = () => {
-      router.push('/inventory/add');
-    };
-
-    const navigateToTransfers = () => {
-      router.push('/transfers');
-    };
-
-    const navigateToDispatch = () => {
-      router.push('/dispatch');
+      // Data will automatically update via store listener
     };
 
     onMounted(() => {
+      console.log('Dashboard mounted - checking store state');
+      
       // Set default warehouse if accessible warehouses exist
       if (accessibleWarehouses.value && accessibleWarehouses.value.length > 0) {
         const mainWarehouse = store.getters.mainWarehouse;
         selectedWarehouse.value = mainWarehouse?.id || accessibleWarehouses.value[0]?.id || '';
         
         // Update filters in store
-        store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
+        if (selectedWarehouse.value) {
+          store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
+        }
       }
       
-      // Subscribe to real-time data if not already subscribed
-      // Check if inventory data is already loaded
-      const hasInventoryData = inventoryData.value.items && inventoryData.value.items.length > 0;
+      // ⚠️ FIXED: DO NOT call subscribeToInventory here!
+      // The store already manages listeners when user logs in
+      // Just check if we have data loaded
       
-      if (!hasInventoryData) {
-        store.dispatch('subscribeToInventory');
-      }
-      
-      store.dispatch('subscribeToTransactions');
-      store.dispatch('getRecentTransactions');
-      
-      // Set loading to false after a short delay
-      setTimeout(() => {
+      if (inventory.value.length === 0) {
+        console.log('No inventory data yet, but store listener should be active');
+        loading.value = true;
+        
+        // Wait a moment for store to load data
+        setTimeout(() => {
+          loading.value = false;
+        }, 2000);
+      } else {
         loading.value = false;
-      }, 1000);
+      }
+      
+      // Only load recent transactions (one-time query, not listener)
+      store.dispatch('getRecentTransactions');
     });
 
     // Watch for inventory changes
     watch(() => store.state.inventory, (newInventory) => {
-      if (newInventory) {
+      console.log('Inventory updated in store, length:', newInventory?.length || 0);
+      if (newInventory && newInventory.length > 0) {
         loading.value = false;
       }
     }, { immediate: true });
@@ -451,16 +454,17 @@ export default {
       // Computed
       userRole,
       dashboardStats,
-      inventory: inventoryArray, // Use the array version for display
-      inventoryData, // Full inventory object
-      filteredInventory,
+      inventory,
       transformedInventory,
       canModifyItems,
       accessibleWarehouses,
-      inventoryArray, // For displaying count
       
       // Helper methods
       formatNumber,
+      getWarehouseLabel,
+      getQuantityClass,
+      getStatusClass,
+      getStatusText,
       handleSearch,
       handleWarehouseChange,
       
@@ -468,12 +472,7 @@ export default {
       openTransferModalForItem,
       openDispatchModalForItem,
       handleTransferSuccess,
-      handleDispatchSuccess,
-      
-      // Navigation functions
-      navigateToInventoryAdd,
-      navigateToTransfers,
-      navigateToDispatch
+      handleDispatchSuccess
     };
   }
 };
@@ -522,4 +521,4 @@ export default {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-</style> 
+</style>
