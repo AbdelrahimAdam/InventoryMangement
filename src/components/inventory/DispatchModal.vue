@@ -26,6 +26,22 @@
             <div>الحالة: {{ userProfile.is_active ? 'نشط' : 'غير نشط' }}</div>
             <div>المخازن المسموحة: {{ allowedWarehousesCount }}</div>
             <div>يستطيع الصرف: {{ canDispatch ? '✅' : '❌' }}</div>
+            <div>مواقع الصرف المتاحة: {{ destinations.length }}</div>
+            <div>الأصناف المتاحة: {{ filteredItems.length }}</div>
+          </div>
+        </div>
+
+        <!-- Access Control Warning -->
+        <div v-if="!canViewDispatch" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-yellow-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="text-sm text-yellow-800">
+                يمكنك فقط عرض البيانات. لصرف الأصناف يجب أن تكون مشرف عام أو مدير مخازن مع صلاحية الصرف.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -40,7 +56,7 @@
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             @change="onWarehouseChange"
-            :disabled="loading"
+            :disabled="loading || !canViewDispatch"
           >
             <option value="">اختر المخزن المصدر</option>
             <option 
@@ -50,11 +66,20 @@
               :disabled="!isWarehouseAccessible(warehouse.id)"
             >
               {{ warehouse.name_ar }}
+              <span v-if="warehouse.is_main" class="text-yellow-600 text-xs mr-1">⭐</span>
               <span v-if="!isWarehouseAccessible(warehouse.id)" class="text-red-500 text-xs">
                 (غير مسموح)
               </span>
             </option>
           </select>
+          
+          <!-- Warehouse Info -->
+          <div v-if="form.sourceWarehouse" class="mt-2 text-xs text-gray-500 flex items-center gap-2">
+            <span>المخزن: {{ getWarehouseName(form.sourceWarehouse) }}</span>
+            <span v-if="getWarehouseType(form.sourceWarehouse)" class="px-2 py-0.5 bg-gray-100 rounded">
+              {{ getWarehouseType(form.sourceWarehouse) }}
+            </span>
+          </div>
           
           <!-- Warehouse Access Indicator -->
           <div v-if="form.sourceWarehouse && userProfile?.role === 'warehouse_manager'" class="mt-2">
@@ -75,16 +100,22 @@
 
         <!-- Step 2: Destination Selection -->
         <div>
-          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-            <span class="h-6 w-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs ml-2">2</span>
-            اختر الفرع المستلم
-          </h4>
-          <div class="grid grid-cols-2 gap-2">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-medium text-gray-700 flex items-center">
+              <span class="h-6 w-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs ml-2">2</span>
+              اختر الوجهة
+            </h4>
+            <div class="text-xs text-gray-500">
+              {{ destinations.length }} موقع صرف
+            </div>
+          </div>
+          
+          <div v-if="destinations.length > 0" class="grid grid-cols-2 gap-2">
             <button
               v-for="destination in destinations"
               :key="destination.id"
               @click="form.destinationBranch = destination.id"
-              :disabled="loading"
+              :disabled="loading || !canViewDispatch"
               :class="[
                 'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
                 form.destinationBranch === destination.id
@@ -95,6 +126,22 @@
               <span class="ml-2">{{ destination.icon }}</span>
               {{ destination.name_ar }}
             </button>
+          </div>
+          
+          <!-- Empty state for destinations -->
+          <div v-else class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+            <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            <h4 class="text-sm font-medium text-gray-700 mt-3">لا توجد مواقع صرف</h4>
+            <p class="text-xs text-gray-500 mt-1">
+              لم يتم إضافة مواقع صرف بعد. يرجى إضافة مواقع صرف من صفحة إدارة المخازن.
+            </p>
+          </div>
+          
+          <!-- Selected Destination Info -->
+          <div v-if="form.destinationBranch" class="mt-2 text-xs text-gray-500">
+            <span class="font-medium">الوجهة المحددة:</span> {{ getDestinationName(form.destinationBranch) }}
           </div>
         </div>
 
@@ -117,7 +164,7 @@
               type="text"
               placeholder="ابحث عن صنف بالاسم أو الكود..."
               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              :disabled="loading || !form.sourceWarehouse"
+              :disabled="loading || !form.sourceWarehouse || !canViewDispatch"
             >
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,11 +221,13 @@
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading"
+                    :disabled="loading || !canViewDispatch || (item.الكميه_المتبقيه || item.remaining_quantity) <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 text-white'
+                        : (item.الكميه_المتبقيه || item.remaining_quantity) <= 0 || !canViewDispatch
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
                     ]"
                   >
@@ -207,7 +256,7 @@
             <button
               @click="clearSelection"
               class="text-xs text-blue-600 hover:text-blue-800"
-              :disabled="loading"
+              :disabled="loading || !canViewDispatch"
             >
               إلغاء التحديد
             </button>
@@ -235,7 +284,7 @@
         </div>
 
         <!-- Step 4: Quantity and Details -->
-        <div v-if="selectedItem">
+        <div v-if="selectedItem && canViewDispatch">
           <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
             <span class="h-6 w-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs ml-2">4</span>
             أدخل تفاصيل الصرف
@@ -369,7 +418,7 @@
             :disabled="loading"
             class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
           >
-            إلغاء
+            إغلاق
           </button>
           <button
             type="submit"
@@ -436,12 +485,7 @@ export default {
       priority: 'normal'
     })
 
-    // Constants
-    const destinations = [
-      { id: 'factory', name_ar: 'مصنع البران', icon: '🏭' },
-      { id: 'zahra', name_ar: 'مخزن الزهراء', icon: '🏪' }
-    ]
-
+    // Constants - No hardcoded destinations
     const priorityOptions = [
       { 
         value: 'normal', 
@@ -477,40 +521,15 @@ export default {
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
     
-    const accessibleWarehouses = computed(() => {
-      const allWarehouses = warehouses.value
-      
-      if (!userProfile.value) return []
-      
-      // Superadmin sees all primary warehouses
-      if (userProfile.value.role === 'superadmin') {
-        return allWarehouses.filter(w => w.type === 'primary' || w.is_main)
-      }
-      
-      // Warehouse manager sees only allowed warehouses
-      if (userProfile.value.role === 'warehouse_manager') {
-        const allowedWarehouses = userProfile.value.allowed_warehouses || []
-        
-        if (allowedWarehouses.length === 0) return []
-        
-        if (allowedWarehouses.includes('all')) {
-          return allWarehouses.filter(w => w.type === 'primary' || w.is_main)
-        }
-        
-        return allWarehouses.filter(w => 
-          (w.type === 'primary' || w.is_main) && 
-          allowedWarehouses.includes(w.id)
-        )
-      }
-      
-      return []
+    // All users can VIEW the modal
+    const canViewDispatch = computed(() => {
+      if (!userProfile.value) return false
+      // All authenticated users can view
+      return userProfile.value.is_active === true
     })
     
-    const allowedWarehousesCount = computed(() => {
-      return userProfile.value?.allowed_warehouses?.length || 0
-    })
-    
-    const canDispatch = computed(() => {
+    // Only superadmin and warehouse managers with dispatch permission can PERFORM dispatch
+    const canPerformDispatch = computed(() => {
       if (!userProfile.value) return false
       
       if (userProfile.value.role === 'superadmin') return true
@@ -523,6 +542,92 @@ export default {
       return false
     })
     
+    const canDispatch = computed(() => canPerformDispatch.value)
+    
+    // All users see warehouses they have access to
+    const accessibleWarehouses = computed(() => {
+      const allWarehouses = warehouses.value
+      
+      if (!userProfile.value) return []
+      
+      // Superadmin sees all primary warehouses
+      if (userProfile.value.role === 'superadmin') {
+        return allWarehouses.filter(w => 
+          w.status === 'active' && 
+          (w.type === 'primary' || w.is_main)
+        )
+      }
+      
+      // Warehouse manager sees only allowed warehouses
+      if (userProfile.value.role === 'warehouse_manager') {
+        const allowedWarehouses = userProfile.value.allowed_warehouses || []
+        
+        if (allowedWarehouses.length === 0) return []
+        
+        if (allowedWarehouses.includes('all')) {
+          return allWarehouses.filter(w => 
+            w.status === 'active' && 
+            (w.type === 'primary' || w.is_main)
+          )
+        }
+        
+        return allWarehouses.filter(w => 
+          w.status === 'active' && 
+          (w.type === 'primary' || w.is_main) && 
+          allowedWarehouses.includes(w.id)
+        )
+      }
+      
+      // Company managers and regular users see all active primary warehouses
+      if (['company_manager', 'user'].includes(userProfile.value.role)) {
+        return allWarehouses.filter(w => 
+          w.status === 'active' && 
+          w.type === 'primary'
+        )
+      }
+      
+      return []
+    })
+    
+    // Dynamic destinations from Firestore
+    const destinations = computed(() => {
+      return warehouses.value
+        .filter(w => 
+          w.status === 'active' && 
+          w.type === 'dispatch'  // Only dispatch type warehouses
+        )
+        .map(w => {
+          // Choose icon based on name or ID
+          let icon = '📍' // default icon
+          const nameLower = w.name_ar?.toLowerCase() || ''
+          const idLower = w.id?.toLowerCase() || ''
+          
+          if (nameLower.includes('مصنع') || idLower.includes('factory')) {
+            icon = '🏭'
+          } else if (nameLower.includes('مخزن') || idLower.includes('warehouse')) {
+            icon = '🏪'
+          } else if (nameLower.includes('فرع') || idLower.includes('branch')) {
+            icon = '🏬'
+          } else if (nameLower.includes('محل') || idLower.includes('shop')) {
+            icon = '🏪'
+          } else if (nameLower.includes('مكتب') || idLower.includes('office')) {
+            icon = '🏢'
+          }
+          
+          return {
+            id: w.id,
+            name_ar: w.name_ar,
+            icon: icon,
+            description: w.description,
+            location: w.location
+          }
+        })
+    })
+    
+    const allowedWarehousesCount = computed(() => {
+      return userProfile.value?.allowed_warehouses?.length || 0
+    })
+    
     const hasAccessToSelectedWarehouse = computed(() => {
       if (!userProfile.value || !form.sourceWarehouse) return false
       
@@ -533,7 +638,8 @@ export default {
         return allowedWarehouses.includes('all') || allowedWarehouses.includes(form.sourceWarehouse)
       }
       
-      return false
+      // Other users can view but not dispatch
+      return true
     })
 
     const availableItems = computed(() => {
@@ -570,16 +676,30 @@ export default {
              !selectedItem.value || 
              !form.destinationBranch || 
              !form.sourceWarehouse || 
-             !hasAccessToSelectedWarehouse.value ||
-             !canDispatch.value ||
+             !canPerformDispatch.value ||
              form.quantity > (selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0) ||
-             form.quantity <= 0
+             form.quantity <= 0 ||
+             !hasAccessToSelectedWarehouse.value
     })
 
     // Helper functions
     const getWarehouseName = (warehouseId) => {
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
       return warehouse ? warehouse.name_ar : warehouseId
+    }
+    
+    const getWarehouseType = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId)
+      if (!warehouse) return ''
+      if (warehouse.is_main) return 'رئيسي'
+      if (warehouse.type === 'primary') return 'مخزن رئيسي'
+      if (warehouse.type === 'dispatch') return 'موقع صرف'
+      return warehouse.type || ''
+    }
+    
+    const getDestinationName = (destinationId) => {
+      const destination = destinations.value.find(d => d.id === destinationId)
+      return destination ? destination.name_ar : destinationId
     }
 
     const getStockClass = (quantity) => {
@@ -598,7 +718,8 @@ export default {
         return allowedWarehouses.includes('all') || allowedWarehouses.includes(warehouseId)
       }
       
-      return false
+      // Other users can view but not access for dispatch
+      return userProfile.value.is_active === true
     }
 
     // Methods
@@ -626,6 +747,11 @@ export default {
     }
 
     const selectItem = (item) => {
+      if (!canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لاختيار الأصناف للصرف'
+        return
+      }
+      
       if (selectedItem.value?.id === item.id) {
         selectedItem.value = null
       } else {
@@ -645,6 +771,11 @@ export default {
     }
 
     const increaseQuantity = () => {
+      if (!canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لتعديل الكميات'
+        return
+      }
+      
       const max = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
       if (form.quantity < max) {
         form.quantity++
@@ -652,12 +783,22 @@ export default {
     }
 
     const decreaseQuantity = () => {
+      if (!canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لتعديل الكميات'
+        return
+      }
+      
       if (form.quantity > 1) {
         form.quantity--
       }
     }
     
     const setMaxQuantity = () => {
+      if (!canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لتعديل الكميات'
+        return
+      }
+      
       const max = selectedItem.value?.الكميه_المتبقيه || selectedItem.value?.remaining_quantity || 0
       form.quantity = max
     }
@@ -667,14 +808,16 @@ export default {
       if (newVal) {
         resetForm()
         if (props.item) {
-          selectItem(props.item)
-          form.sourceWarehouse = props.item.المخزن_id || props.item.warehouse_id
+          if (canPerformDispatch.value) {
+            selectItem(props.item)
+            form.sourceWarehouse = props.item.المخزن_id || props.item.warehouse_id
+          }
         }
       }
     })
 
     watch(() => props.item, (newItem) => {
-      if (newItem && props.isOpen) {
+      if (newItem && props.isOpen && canPerformDispatch.value) {
         selectItem(newItem)
         form.sourceWarehouse = newItem.المخزن_id || newItem.warehouse_id
       }
@@ -699,13 +842,20 @@ export default {
       showDebugInfo.value = false
       lastErrorData.value = null
       
+      // Check if user can perform dispatch
+      if (!canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لصرف الأصناف'
+        return
+      }
+
       // Debug info
       console.log('🚀 Dispatch Modal - Submit triggered', {
         userProfile: userProfile.value,
         formData: { ...form },
         selectedItem: selectedItem.value,
         hasAccessToSelectedWarehouse: hasAccessToSelectedWarehouse.value,
-        canDispatch: canDispatch.value
+        canPerformDispatch: canPerformDispatch.value,
+        destinations: destinations.value
       })
 
       // Validation
@@ -716,7 +866,13 @@ export default {
       }
       
       if (!form.destinationBranch) {
-        errors.push('يرجى اختيار الفرع المستلم')
+        errors.push('يرجى اختيار الوجهة')
+      }
+      
+      // Check if destination exists
+      const destinationExists = destinations.value.some(d => d.id === form.destinationBranch)
+      if (!destinationExists) {
+        errors.push('الوجهة المحددة غير موجودة أو غير نشطة')
       }
       
       if (!selectedItem.value) {
@@ -732,7 +888,7 @@ export default {
         errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
       }
       
-      if (!canDispatch.value) {
+      if (!canPerformDispatch.value) {
         errors.push('ليس لديك صلاحية لصرف الأصناف')
       }
       
@@ -748,33 +904,45 @@ export default {
       loading.value = true
 
       try {
-        // Prepare dispatch data - CRITICAL: Match what the store expects
+        // Get destination name
+        const destination = destinations.value.find(d => d.id === form.destinationBranch)
+        const destinationName = destination ? destination.name_ar : form.destinationBranch
+
+        // Prepare dispatch data
         const dispatchData = {
           // Item info
           item_id: selectedItem.value.id,
           item_name: selectedItem.value.الاسم || selectedItem.value.name,
           item_code: selectedItem.value.الكود || selectedItem.value.code,
           
-          // Warehouse info - SEND BOTH FIELD NAMES for compatibility
-          from_warehouse: form.sourceWarehouse,        // For Firebase rules
-          from_warehouse_id: form.sourceWarehouse,     // For store permission check
+          // Warehouse info
+          from_warehouse: form.sourceWarehouse,
+          from_warehouse_id: form.sourceWarehouse,
+          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
+          
+          // Destination info
           to_destination: form.destinationBranch,
+          to_destination_id: form.destinationBranch,
+          to_destination_name: destinationName,
+          to_destination_type: 'dispatch',
           
           // Quantity info
           quantity: form.quantity,
-          cartons: 0,  // Assuming all single bottles
+          cartons: 0,
           single_bottles: form.quantity,
           
           // Additional info
           notes: form.notes,
           priority: form.priority,
           
-          // Debug info
-          _debug: {
-            timestamp: new Date().toISOString(),
-            userRole: userProfile.value?.role,
-            userId: store.state.user?.uid
-          }
+          // User info
+          dispatched_by: store.state.user?.uid,
+          dispatched_by_role: userProfile.value?.role,
+          dispatched_by_name: userProfile.value?.name,
+          
+          // System info
+          dispatched_at: new Date().toISOString(),
+          transaction_type: 'DISPATCH'
         }
 
         console.log('📤 Dispatch Modal - Sending data to store:', dispatchData)
@@ -825,8 +993,10 @@ export default {
     onMounted(() => {
       console.log('Dispatch Modal mounted', {
         userRole: userProfile.value?.role,
-        canDispatch: canDispatch.value,
-        warehouses: accessibleWarehouses.value.length
+        canViewDispatch: canViewDispatch.value,
+        canPerformDispatch: canPerformDispatch.value,
+        warehouses: accessibleWarehouses.value.length,
+        destinations: destinations.value.length
       })
     })
 
@@ -851,6 +1021,8 @@ export default {
       filteredItems,
       accessibleWarehouses,
       allowedWarehousesCount,
+      canViewDispatch,
+      canPerformDispatch,
       canDispatch,
       hasAccessToSelectedWarehouse,
       isSubmitDisabled,
@@ -863,6 +1035,8 @@ export default {
       decreaseQuantity,
       setMaxQuantity,
       getWarehouseName,
+      getWarehouseType,
+      getDestinationName,
       getStockClass,
       isWarehouseAccessible,
       handleSubmit,
