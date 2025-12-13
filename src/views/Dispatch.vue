@@ -668,16 +668,12 @@ export default {
     
     const getUsername = (userId) => {
       if (!userId) return 'مستخدم النظام';
-      
-      // Try to get from user profile in store
-      // In a real app, you might want to cache user names
       return 'مستخدم النظام';
     };
     
     const calculateDispatchValue = (dispatch) => {
-      // Calculate value based on quantity (assuming average price per item)
       const quantity = Math.abs(dispatch.total_delta || 0);
-      const pricePerItem = 50; // Default price
+      const pricePerItem = 50;
       return quantity * pricePerItem;
     };
     
@@ -695,7 +691,6 @@ export default {
     };
     
     const updateAvailableItems = () => {
-      // Reset selected item when warehouse changes
       selectedItemForDispatch.value = null;
     };
     
@@ -718,12 +713,10 @@ export default {
     };
     
     const viewDispatchDetails = (dispatch) => {
-      // Show modal with dispatch details
       alert(`تفاصيل الصرف:\n\nالصنف: ${dispatch.item_name}\nالكمية: ${Math.abs(dispatch.total_delta)}\nمن: ${getWarehouseLabel(dispatch.from_warehouse)}\nإلى: ${getDestinationLabel(dispatch.to_warehouse)}\nالتاريخ: ${formatDateTime(dispatch.timestamp)}`);
     };
     
     const printDispatch = (dispatch) => {
-      // Open print window with dispatch details
       const printWindow = window.open('', '_blank');
       const printContent = `
         <html dir="rtl">
@@ -808,7 +801,6 @@ export default {
       try {
         loading.value = true;
         
-        // Prepare data for export
         const exportData = filteredDispatchHistory.value.map(dispatch => ({
           'رقم العملية': dispatch.id || '',
           'التاريخ': formatDate(dispatch.timestamp),
@@ -831,32 +823,28 @@ export default {
           return;
         }
         
-        // Create workbook and worksheet
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(exportData);
         
-        // Auto-fit columns
         const wscols = [
-          { wch: 15 }, // رقم العملية
-          { wch: 12 }, // التاريخ
-          { wch: 10 }, // الوقت
-          { wch: 25 }, // اسم الصنف
-          { wch: 15 }, // كود الصنف
-          { wch: 10 }, // الكمية
-          { wch: 20 }, // من مخزن
-          { wch: 20 }, // إلى
-          { wch: 15 }, // القيمة
-          { wch: 15 }, // تم بواسطة
-          { wch: 30 }  // ملاحظات
+          { wch: 15 },
+          { wch: 12 },
+          { wch: 10 },
+          { wch: 25 },
+          { wch: 15 },
+          { wch: 10 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 30 }
         ];
         ws['!cols'] = wscols;
         
         XLSX.utils.book_append_sheet(wb, ws, 'عمليات الصرف');
         
-        // Generate filename
         const filename = `عمليات_الصرف_${new Date().toISOString().split('T')[0]}.xlsx`;
         
-        // Save file
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
@@ -884,7 +872,6 @@ export default {
         message: 'تم إنشاء عملية الصرف بنجاح'
       });
       
-      // Refresh data (store listener will update automatically)
       setTimeout(() => {
         currentHistoryPage.value = 1;
       }, 1000);
@@ -895,11 +882,9 @@ export default {
       try {
         console.log('Dispatch page: Loading initial data...');
         
-        // Check if we have data
         if (allInventory.value.length === 0 || allTransactions.value.length === 0) {
           console.log('Waiting for store data to load...');
           
-          // Wait for store to load data (store already has listeners)
           setTimeout(() => {
             loading.value = false;
           }, 2000);
@@ -907,7 +892,6 @@ export default {
           loading.value = false;
         }
         
-        // Set default warehouse for dispatch if user has limited access
         if (dispatchFromWarehouses.value.length === 1) {
           selectedWarehouse.value = dispatchFromWarehouses.value[0].id;
         }
@@ -925,13 +909,11 @@ export default {
     onMounted(() => {
       console.log('Dispatch page mounted');
       
-      // Check if user has permission to access dispatch
       if (!canDispatch.value) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية للوصول إلى صفحة الصرف'
         });
-        // Redirect to home or inventory
         setTimeout(() => {
           window.location.href = '/';
         }, 2000);
@@ -941,13 +923,11 @@ export default {
       loadInitialData();
     });
     
-    // Watch for data changes
     watch(() => [allInventory.value, allTransactions.value], () => {
       console.log('Store data updated, refreshing dispatch view');
     }, { deep: true });
     
     return {
-      // State
       loading,
       showDispatchModal,
       selectedWarehouse,
@@ -957,8 +937,6 @@ export default {
       customDateFrom,
       customDateTo,
       currentHistoryPage,
-      
-      // Computed
       userRole,
       userName,
       canDispatch,
@@ -974,8 +952,6 @@ export default {
       startIndex,
       endIndex,
       hasFilters,
-      
-      // Methods
       formatNumber,
       formatCurrency,
       formatDate,
