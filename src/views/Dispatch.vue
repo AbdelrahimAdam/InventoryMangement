@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center space-x-4 space-x-reverse">
             <router-link to="/" class="flex items-center space-x-2 space-x-reverse hover:opacity-80 transition-opacity">
@@ -38,66 +38,66 @@
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="w-full px-4 sm:px-6 lg:px-8 py-8">
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-4">
-              <svg class="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-2 sm:ml-4">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
             </div>
             <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">إجمالي عمليات الصرف</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalDispatches) }}</p>
+              <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">إجمالي عمليات الصرف</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalDispatches) }}</p>
             </div>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center ml-4">
-              <svg class="h-6 w-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center ml-2 sm:ml-4">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">صرف هذا الشهر</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(monthlyDispatches) }}</p>
+              <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">صرف هذا الشهر</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(monthlyDispatches) }}</p>
             </div>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center ml-4">
-              <svg class="h-6 w-6 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center ml-2 sm:ml-4">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">قيمة الصرف</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalDispatchValue) }}</p>
+              <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">قيمة الصرف</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalDispatchValue) }}</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Create Dispatch Section -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">إنشاء صرف جديد</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">صرف أصناف من المخازن إلى خارج النظام</p>
+            <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">إنشاء صرف جديد</h2>
+            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">صرف أصناف من المخازن إلى خارج النظام</p>
           </div>
           
-          <div class="flex items-center gap-3">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <!-- Warehouse Filter for Available Items -->
             <select
               v-model="selectedWarehouse"
               @change="updateAvailableItems"
-              class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+              class="px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 min-h-[44px]"
               :disabled="loading || !dispatchFromWarehouses.length"
             >
               <option value="">اختر المخزن المصدر</option>
@@ -110,12 +110,13 @@
               v-if="canDispatch"
               @click="showDispatchModal = true"
               :disabled="!selectedWarehouse || loading || availableItems.length === 0"
-              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              class="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
             >
               <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
               </svg>
-              إنشاء صرف جديد
+              <span class="hidden sm:inline">إنشاء صرف جديد</span>
+              <span class="inline sm:hidden">صرف جديد</span>
             </button>
           </div>
         </div>
@@ -125,54 +126,54 @@
           <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
             الأصناف المتاحة في {{ getWarehouseLabel(selectedWarehouse) }}
           </h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
             <div 
-              v-for="item in availableItems.slice(0, 6)" 
+              v-for="item in availableItems.slice(0, 8)" 
               :key="item.id"
-              class="p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200 cursor-pointer"
+              class="p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200 cursor-pointer border border-gray-200 dark:border-gray-600"
               @click="selectItemForDispatch(item)"
             >
               <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
-                  <div class="flex items-center gap-2 mt-1">
+                  <div class="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }}</span>
-                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 whitespace-nowrap">
                       {{ item.remaining_quantity }} متبقي
                     </span>
                   </div>
                 </div>
-                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mr-1 sm:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
               </div>
             </div>
           </div>
           
-          <div v-if="availableItems.length > 6" class="text-center mt-3">
+          <div v-if="availableItems.length > 8" class="text-center mt-3">
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              +{{ availableItems.length - 6 }} صنف إضافي
+              +{{ availableItems.length - 8 }} صنف إضافي
             </p>
           </div>
         </div>
         
         <div v-else-if="selectedWarehouse && !loading" class="text-center py-6">
-          <div class="inline-flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
-            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
             </svg>
           </div>
-          <p class="text-gray-500 dark:text-gray-400">لا توجد أصناف في هذا المخزن</p>
+          <p class="text-gray-500 dark:text-gray-400 text-sm">لا توجد أصناف في هذا المخزن</p>
         </div>
       </div>
 
       <!-- Dispatch History -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
+        <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">سجل عمليات الصرف</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">جميع عمليات الصرف المسجلة في النظام</p>
+              <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">سجل عمليات الصرف</h2>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">جميع عمليات الصرف المسجلة في النظام</p>
             </div>
             
             <div class="flex flex-wrap gap-2">
@@ -180,7 +181,7 @@
               <select
                 v-model="historyWarehouseFilter"
                 @change="applyHistoryFilters"
-                class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-h-[36px]"
               >
                 <option value="">جميع المخازن</option>
                 <option v-for="warehouse in dispatchFromWarehouses" :key="warehouse.id" :value="warehouse.id">
@@ -192,7 +193,7 @@
               <select
                 v-model="dateFilter"
                 @change="applyHistoryFilters"
-                class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-h-[36px]"
               >
                 <option value="all">جميع الفترات</option>
                 <option value="today">اليوم</option>
@@ -202,21 +203,21 @@
               </select>
               
               <!-- Custom Date Range -->
-              <div v-if="dateFilter === 'custom'" class="flex items-center gap-2">
+              <div v-if="dateFilter === 'custom'" class="flex flex-wrap items-center gap-2">
                 <input 
                   type="date" 
                   v-model="customDateFrom"
-                  class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-h-[36px] min-w-[120px]"
                 >
-                <span class="text-gray-500 dark:text-gray-400">إلى</span>
+                <span class="text-gray-500 dark:text-gray-400 text-sm">إلى</span>
                 <input 
                   type="date" 
                   v-model="customDateTo"
-                  class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-h-[36px] min-w-[120px]"
                 >
                 <button 
                   @click="applyHistoryFilters"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm min-h-[36px]"
                 >
                   تطبيق
                 </button>
@@ -227,9 +228,10 @@
                 v-if="canExport"
                 @click="exportDispatches"
                 :disabled="filteredDispatchHistory.length === 0"
-                class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px]"
               >
-                تصدير Excel
+                <span class="hidden sm:inline">تصدير Excel</span>
+                <span class="inline sm:hidden">تصدير</span>
               </button>
             </div>
           </div>
@@ -237,139 +239,223 @@
 
         <!-- Loading State -->
         <div v-if="loading" class="p-8 text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p class="text-gray-700 dark:text-gray-300">جاري تحميل البيانات...</p>
+          <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p class="text-gray-700 dark:text-gray-300 text-sm">جاري تحميل البيانات...</p>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="filteredDispatchHistory.length === 0" class="p-8 text-center">
-          <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
-            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div v-else-if="filteredDispatchHistory.length === 0" class="p-6 sm:p-8 text-center">
+          <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+            <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
           </div>
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">لا توجد عمليات صرف</h3>
-          <p class="text-gray-500 dark:text-gray-400 mb-4">
+          <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">لا توجد عمليات صرف</h3>
+          <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
             {{ hasFilters ? 'لا توجد عمليات صرف تطابق التصفية المحددة' : 'لم يتم تسجيل أي عمليات صرف حتى الآن' }}
           </p>
           <button 
             v-if="canDispatch"
             @click="showDispatchModal = true"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm min-h-[44px]"
           >
             إنشاء أول صرف
           </button>
         </div>
 
         <!-- Table Content -->
-        <div v-else class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  التاريخ والوقت
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  الصنف
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  من مخزن
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  إلى
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  الكمية
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  القيمة
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  بواسطة
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  الإجراءات
-                </th>
-              </tr>
-            </thead>
-            <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-              <tr 
-                v-for="dispatch in paginatedHistory" 
-                :key="dispatch.id" 
-                class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
-              >
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white">{{ formatDate(dispatch.timestamp) }}</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(dispatch.timestamp) }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dispatch.item_name }}</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ dispatch.item_code }}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ getWarehouseLabel(dispatch.from_warehouse) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ getDestinationLabel(dispatch.to_warehouse) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
-                        :class="getDispatchQuantityClass(dispatch.total_delta)">
-                    {{ formatNumber(Math.abs(dispatch.total_delta)) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  {{ formatCurrency(calculateDispatchValue(dispatch)) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {{ getUsername(dispatch.user_id) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button 
-                    @click="viewDispatchDetails(dispatch)"
-                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 ml-3"
-                    title="عرض التفاصيل"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
-                  </button>
-                  <button 
-                    @click="printDispatch(dispatch)"
-                    class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 ml-3"
-                    title="طباعة"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-else class="w-full overflow-hidden">
+          <!-- Desktop Table -->
+          <div class="hidden lg:block">
+            <div class="w-full overflow-x-auto">
+              <div class="min-w-full inline-block align-middle">
+                <!-- Table Header - Fixed -->
+                <div class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <div class="grid grid-cols-12 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <div class="col-span-2 p-3 text-right">التاريخ والوقت</div>
+                    <div class="col-span-2 p-3 text-right">الصنف</div>
+                    <div class="col-span-2 p-3 text-right">من مخزن</div>
+                    <div class="col-span-1 p-3 text-right">إلى</div>
+                    <div class="col-span-1 p-3 text-right">الكمية</div>
+                    <div class="col-span-1 p-3 text-right">القيمة</div>
+                    <div class="col-span-1 p-3 text-right">بواسطة</div>
+                    <div class="col-span-2 p-3 text-right">الإجراءات</div>
+                  </div>
+                </div>
+
+                <!-- Table Body - Scrollable -->
+                <div class="max-h-[calc(100vh-400px)] overflow-y-auto">
+                  <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <div 
+                      v-for="dispatch in paginatedHistory" 
+                      :key="dispatch.id" 
+                      class="grid grid-cols-12 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                    >
+                      <!-- Date & Time -->
+                      <div class="col-span-2 p-3">
+                        <div class="text-sm text-gray-900 dark:text-white">{{ formatDate(dispatch.timestamp) }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(dispatch.timestamp) }}</div>
+                      </div>
+                      
+                      <!-- Item -->
+                      <div class="col-span-2 p-3">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code }}</div>
+                      </div>
+                      
+                      <!-- From Warehouse -->
+                      <div class="col-span-2 p-3 text-sm text-gray-900 dark:text-white truncate">
+                        {{ getWarehouseLabel(dispatch.from_warehouse) }}
+                      </div>
+                      
+                      <!-- Destination -->
+                      <div class="col-span-1 p-3 text-sm text-gray-900 dark:text-white truncate">
+                        {{ getDestinationLabel(dispatch.to_warehouse) }}
+                      </div>
+                      
+                      <!-- Quantity -->
+                      <div class="col-span-1 p-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
+                              :class="getDispatchQuantityClass(dispatch.total_delta)">
+                          {{ formatNumber(Math.abs(dispatch.total_delta)) }}
+                        </span>
+                      </div>
+                      
+                      <!-- Value -->
+                      <div class="col-span-1 p-3 text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {{ formatCurrency(calculateDispatchValue(dispatch)) }}
+                      </div>
+                      
+                      <!-- User -->
+                      <div class="col-span-1 p-3 text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {{ getUsername(dispatch.user_id) }}
+                      </div>
+                      
+                      <!-- Actions -->
+                      <div class="col-span-2 p-3">
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                          <button 
+                            @click="viewDispatchDetails(dispatch)"
+                            class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            title="عرض التفاصيل"
+                          >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                          </button>
+                          <button 
+                            @click="printDispatch(dispatch)"
+                            class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                            title="طباعة"
+                          >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile Cards View -->
+          <div class="lg:hidden">
+            <div class="max-h-[calc(100vh-400px)] overflow-y-auto p-2 sm:p-4">
+              <div class="space-y-3">
+                <div 
+                  v-for="dispatch in paginatedHistory" 
+                  :key="dispatch.id" 
+                  class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-150"
+                >
+                  <!-- Header -->
+                  <div class="flex justify-between items-start mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                    <div>
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dispatch.item_name }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ formatDate(dispatch.timestamp) }} - {{ formatTime(dispatch.timestamp) }}</div>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
+                          :class="getDispatchQuantityClass(dispatch.total_delta)">
+                      {{ formatNumber(Math.abs(dispatch.total_delta)) }}
+                    </span>
+                  </div>
+                  
+                  <!-- Details Grid -->
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">من مخزن</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ getWarehouseLabel(dispatch.from_warehouse) }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">إلى</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ getDestinationLabel(dispatch.to_warehouse) }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">القيمة</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(calculateDispatchValue(dispatch)) }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">بواسطة</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ getUsername(dispatch.user_id) }}</div>
+                    </div>
+                  </div>
+                  
+                  <!-- Actions -->
+                  <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ dispatch.item_code }}
+                    </div>
+                    <div class="flex items-center space-x-3 space-x-reverse">
+                      <button 
+                        @click="viewDispatchDetails(dispatch)"
+                        class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 text-sm flex items-center"
+                      >
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        تفاصيل
+                      </button>
+                      <button 
+                        @click="printDispatch(dispatch)"
+                        class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 text-sm flex items-center"
+                      >
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        طباعة
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           
           <!-- Pagination -->
-          <div v-if="totalHistoryPages > 1" class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+          <div v-if="totalHistoryPages > 1" class="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-right">
                 عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredDispatchHistory.length) }} من {{ filteredDispatchHistory.length }}
               </div>
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center justify-center space-x-2">
                 <button 
                   @click="prevPage"
                   :disabled="currentHistoryPage === 1"
-                  class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                  class="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[36px] min-w-[80px]"
                 >
                   السابق
                 </button>
-                <span class="text-sm text-gray-700 dark:text-gray-300">
+                <span class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-[100px] text-center">
                   صفحة {{ currentHistoryPage }} من {{ totalHistoryPages }}
                 </span>
                 <button 
                   @click="nextPage"
                   :disabled="currentHistoryPage === totalHistoryPages"
-                  class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                  class="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[36px] min-w-[80px]"
                 >
                   التالي
                 </button>
@@ -381,173 +467,36 @@
     </main>
 
     <!-- Dispatch Modal -->
-    <div v-if="showDispatchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">إنشاء صرف جديد</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400">صرف صنف من المخزن المصدر</p>
-            </div>
-            <button 
-              @click="showDispatchModal = false"
-              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
+    <DispatchModal 
+      v-if="showDispatchModal"
+      :isOpen="showDispatchModal"
+      :item="selectedItemForDispatch"
+      @close="handleModalClose"
+      @success="handleDispatchSuccess"
+    />
 
-          <div v-if="selectedItemForDispatch" class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-medium text-gray-900 dark:text-white">{{ selectedItemForDispatch.name }}</h4>
-                <div class="flex items-center gap-2 mt-1">
-                  <span class="text-sm text-gray-500 dark:text-gray-400">{{ selectedItemForDispatch.code }}</span>
-                  <span class="text-sm px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
-                    {{ selectedItemForDispatch.remaining_quantity }} متبقي
-                  </span>
-                </div>
-              </div>
-              <span class="text-sm text-gray-500 dark:text-gray-400">
-                من {{ getWarehouseLabel(selectedWarehouse) }}
-              </span>
-            </div>
-          </div>
-
-          <form @submit.prevent="submitDispatch" class="space-y-4">
-            <!-- Destination -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                وجهة الصرف *
-              </label>
-              <select
-                v-model="dispatchForm.to_warehouse_id"
-                required
-                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :disabled="loading"
-              >
-                <option value="">اختر وجهة الصرف</option>
-                <option v-for="destination in dispatchDestinations" :key="destination.id" :value="destination.id">
-                  {{ destination.name_ar }}
-                </option>
-              </select>
-            </div>
-
-            <!-- Quantity -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                الكمية *
-              </label>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد الكراتين</label>
-                  <input
-                    type="number"
-                    v-model.number="dispatchForm.cartons_count"
-                    min="0"
-                    max="1000"
-                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    :disabled="loading"
-                    @change="calculateTotalQuantity"
-                  >
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد في الكرتونة</label>
-                  <input
-                    type="number"
-                    v-model.number="dispatchForm.per_carton_count"
-                    min="1"
-                    max="100"
-                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    :disabled="loading"
-                    @change="calculateTotalQuantity"
-                  >
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">عدد القزاز الفردي</label>
-                  <input
-                    type="number"
-                    v-model.number="dispatchForm.single_bottles_count"
-                    min="0"
-                    max="1000"
-                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    :disabled="loading"
-                    @change="calculateTotalQuantity"
-                  >
-                </div>
-              </div>
-              <div v-if="selectedItemForDispatch" class="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600 dark:text-gray-300">الكمية المتاحة:</span>
-                  <span class="font-medium">{{ selectedItemForDispatch.remaining_quantity }}</span>
-                </div>
-                <div class="flex justify-between items-center mt-1">
-                  <span class="text-sm text-gray-600 dark:text-gray-300">الكمية المطلوبة:</span>
-                  <span class="font-medium text-blue-600 dark:text-blue-400">{{ totalDispatchQuantity }}</span>
-                </div>
-                <div v-if="selectedItemForDispatch.remaining_quantity < totalDispatchQuantity" class="mt-2 text-sm text-red-600 dark:text-red-400">
-                  ⚠️ الكمية المطلوبة أكبر من الكمية المتاحة
-                </div>
-              </div>
-            </div>
-
-            <!-- Notes -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                ملاحظات
-              </label>
-              <textarea
-                v-model="dispatchForm.notes"
-                rows="3"
-                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :disabled="loading"
-                placeholder="أي ملاحظات إضافية حول عملية الصرف..."
-              ></textarea>
-            </div>
-
-            <!-- Submit Buttons -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                @click="showDispatchModal = false"
-                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
-                :disabled="loading"
-              >
-                إلغاء
-              </button>
-              <button
-                type="submit"
-                :disabled="loading || !isValidDispatch"
-                class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span v-if="loading" class="flex items-center">
-                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  جاري المعالجة...
-                </span>
-                <span v-else>
-                  تأكيد الصرف
-                </span>
-              </button>
-            </div>
-          </form>
-        </div>
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 flex flex-col items-center">
+        <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-gray-700 dark:text-gray-300 text-sm">جاري تحميل البيانات...</p>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
+import DispatchModal from '@/components/DispatchModal.vue';
 
 export default {
   name: 'DispatchPage',
+  
+  components: {
+    DispatchModal
+  },
   
   setup() {
     const store = useStore();
@@ -563,15 +512,6 @@ export default {
     const customDateTo = ref('');
     const currentHistoryPage = ref(1);
     const itemsPerPage = ref(10);
-    
-    // Dispatch form
-    const dispatchForm = ref({
-      to_warehouse_id: '',
-      cartons_count: 0,
-      per_carton_count: 12,
-      single_bottles_count: 0,
-      notes: ''
-    });
     
     // Computed properties from store
     const userRole = computed(() => store.getters.userRole);
@@ -717,31 +657,6 @@ export default {
       return historyWarehouseFilter.value || dateFilter.value !== 'all';
     });
     
-    // Calculate total dispatch quantity
-    const totalDispatchQuantity = computed(() => {
-      const cartons = dispatchForm.value.cartons_count || 0;
-      const perCarton = dispatchForm.value.per_carton_count || 12;
-      const single = dispatchForm.value.single_bottles_count || 0;
-      return (cartons * perCarton) + single;
-    });
-    
-    // Check if dispatch is valid
-    const isValidDispatch = computed(() => {
-      if (!selectedItemForDispatch.value || !dispatchForm.value.to_warehouse_id) {
-        return false;
-      }
-      
-      if (totalDispatchQuantity.value <= 0) {
-        return false;
-      }
-      
-      if (selectedItemForDispatch.value.remaining_quantity < totalDispatchQuantity.value) {
-        return false;
-      }
-      
-      return true;
-    });
-    
     // Helper functions
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -831,81 +746,26 @@ export default {
       return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300';
     };
     
-    const calculateTotalQuantity = () => {
-      // This is already handled by the computed property
-    };
-    
     // Actions
     const selectItemForDispatch = (item) => {
       selectedItemForDispatch.value = item;
       showDispatchModal.value = true;
-      
-      // Reset form
-      dispatchForm.value = {
-        to_warehouse_id: '',
-        cartons_count: 0,
-        per_carton_count: 12,
-        single_bottles_count: 0,
-        notes: ''
-      };
     };
     
     const updateAvailableItems = () => {
       selectedItemForDispatch.value = null;
     };
     
-    const submitDispatch = async () => {
-      if (!isValidDispatch.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'يرجى ملء جميع الحقول المطلوبة والتأكد من توافر الكمية'
-        });
-        return;
-      }
+    const handleModalClose = () => {
+      showDispatchModal.value = false;
+    };
+    
+    const handleDispatchSuccess = () => {
+      showDispatchModal.value = false;
+      selectedItemForDispatch.value = null;
       
-      loading.value = true;
-      
-      try {
-        const dispatchData = {
-          itemId: selectedItemForDispatch.value.id,
-          from_warehouse_id: selectedWarehouse.value,
-          to_warehouse_id: dispatchForm.value.to_warehouse_id,
-          cartons_count: dispatchForm.value.cartons_count,
-          per_carton_count: dispatchForm.value.per_carton_count,
-          single_bottles_count: dispatchForm.value.single_bottles_count,
-          notes: dispatchForm.value.notes
-        };
-        
-        const result = await store.dispatch('dispatchItem', dispatchData);
-        
-        if (result) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم صرف الصنف بنجاح'
-          });
-          
-          showDispatchModal.value = false;
-          selectedItemForDispatch.value = null;
-          dispatchForm.value = {
-            to_warehouse_id: '',
-            cartons_count: 0,
-            per_carton_count: 12,
-            single_bottles_count: 0,
-            notes: ''
-          };
-          
-          // Reset to first page
-          currentHistoryPage.value = 1;
-        }
-      } catch (error) {
-        console.error('Error dispatching item:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ أثناء صرف الصنف'
-        });
-      } finally {
-        loading.value = false;
-      }
+      // Refresh data by resetting to first page
+      currentHistoryPage.value = 1;
     };
     
     const applyHistoryFilters = () => {
@@ -1132,11 +992,6 @@ export default {
       console.log('Store data updated, refreshing dispatch view');
     }, { deep: true });
     
-    // Cleanup
-    onUnmounted(() => {
-      // Any cleanup if needed
-    });
-    
     return {
       loading,
       showDispatchModal,
@@ -1147,7 +1002,6 @@ export default {
       customDateFrom,
       customDateTo,
       currentHistoryPage,
-      dispatchForm,
       userRole,
       userName,
       canDispatch,
@@ -1164,8 +1018,6 @@ export default {
       startIndex,
       endIndex,
       hasFilters,
-      totalDispatchQuantity,
-      isValidDispatch,
       
       formatNumber,
       formatCurrency,
@@ -1176,7 +1028,8 @@ export default {
       getDispatchQuantityClass,
       selectItemForDispatch,
       updateAvailableItems,
-      submitDispatch,
+      handleModalClose,
+      handleDispatchSuccess,
       applyHistoryFilters,
       nextPage,
       prevPage,
@@ -1184,8 +1037,7 @@ export default {
       printDispatch,
       exportDispatches,
       calculateDispatchValue,
-      getUsername,
-      calculateTotalQuantity
+      getUsername
     };
   }
 };
@@ -1204,18 +1056,18 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #888;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -1238,13 +1090,13 @@ body {
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  transition-duration: 150ms;
 }
 
 .transition-colors {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  transition-duration: 150ms;
 }
 
 /* Loading animation */
@@ -1259,40 +1111,6 @@ body {
 
 .animate-spin {
   animation: spin 1s linear infinite;
-}
-
-/* Print styles */
-@media print {
-  header, 
-  .bg-gray-50,
-  button,
-  select,
-  input {
-    display: none !important;
-  }
-  
-  .bg-white {
-    background-color: white !important;
-  }
-  
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-  
-  th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-  }
-  
-  th {
-    background-color: #f5f5f5;
-  }
-}
-
-/* Enhanced hover effects */
-.hover\:shadow-md:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Fix for RTL direction */
@@ -1317,93 +1135,73 @@ body {
   margin-right: auto;
 }
 
+/* Enhanced hover effects */
+.hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
 /* Mobile Optimizations */
 @media (max-width: 640px) {
-  .px-6 {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .text-base {
+    font-size: 0.875rem;
   }
   
-  .py-4 {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+  .text-lg {
+    font-size: 1rem;
+  }
+  
+  .text-xl {
+    font-size: 1.25rem;
   }
   
   .text-2xl {
     font-size: 1.5rem;
-    line-height: 2rem;
   }
   
-  .grid-cols-3 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  .lg\:grid-cols-3 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  
-  th, td {
-    padding: 0.5rem;
-    font-size: 0.875rem;
-  }
-  
-  .hidden-mobile {
-    display: none;
-  }
-  
-  .flex-col-mobile {
-    flex-direction: column;
-  }
-  
-  .gap-2 {
-    gap: 0.5rem;
-  }
-  
-  /* Improve touch targets */
-  button,
-  select,
-  input {
+  .min-h-\[44px\] {
     min-height: 44px;
   }
   
-  /* Modal adjustments */
-  .max-w-2xl {
-    width: 95%;
+  .min-h-\[36px\] {
+    min-height: 36px;
   }
   
-  /* Grid adjustments for quantity inputs */
-  .grid-cols-1.md\:grid-cols-3 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+  .p-3 {
+    padding: 0.75rem;
+  }
+  
+  .p-4 {
+    padding: 1rem;
   }
 }
 
+/* Tablet Optimizations */
 @media (min-width: 641px) and (max-width: 768px) {
-  .grid-cols-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
   .lg\:grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* Performance optimizations */
-.hover\:bg-gray-50, .hover\:bg-gray-800 {
-  will-change: background-color;
-}
-
-.animate-spin {
-  will-change: transform;
+/* Desktop Optimizations */
+@media (min-width: 1024px) {
+  .max-h-\[calc\(100vh-400px\)\] {
+    max-height: calc(100vh - 400px);
+  }
+  
+  /* Static table header with scrollable body */
+  .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+  }
+  
+  /* Ensure table cells have consistent heights */
+  .grid > div {
+    min-height: 56px;
+  }
 }
 
 /* Dark mode improvements */
@@ -1431,11 +1229,6 @@ body {
   background-color: #111827;
 }
 
-/* Modal backdrop blur for better focus */
-.fixed.bg-black.bg-opacity-50 {
-  backdrop-filter: blur(4px);
-}
-
 /* Disabled state improvements */
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
@@ -1451,8 +1244,50 @@ button:focus, select:focus, input:focus {
   outline-offset: 2px;
 }
 
-/* Loading overlay for better UX */
+/* Touch target improvements for mobile */
+@media (max-width: 768px) {
+  button, 
+  a, 
+  select, 
+  input[type="button"], 
+  input[type="submit"] {
+    min-height: 44px;
+  }
+  
+  .space-y-3 > * + * {
+    margin-top: 0.75rem;
+  }
+}
+
+/* Performance optimizations */
+.hover\:bg-gray-50, .hover\:bg-gray-800 {
+  will-change: background-color;
+}
+
+.animate-spin {
+  will-change: transform;
+}
+
+/* Text truncation for table cells */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ensure modal backdrop has proper z-index */
 .fixed.inset-0 {
   z-index: 9999;
+}
+
+/* Responsive table grid columns */
+.grid-cols-12 > .col-span-1 {
+  grid-column: span 1 / span 1;
+}
+.grid-cols-12 > .col-span-2 {
+  grid-column: span 2 / span 2;
+}
+.grid-cols-12 > .col-span-3 {
+  grid-column: span 3 / span 3;
 }
 </style>
