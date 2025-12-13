@@ -995,7 +995,6 @@ export default {
       handleDispatchSuccess
     };
   }
-};
 </script>
 
 <style scoped>
