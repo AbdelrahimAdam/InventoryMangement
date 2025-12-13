@@ -187,7 +187,7 @@ import { debounce } from 'lodash';
 // Import inventory components
 import TransferModal from '@/components/inventory/TransferModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
-import InventoryTable from '@/components/inventory/InventoryTable.vue';
+import InventoryTable from '@/src/views/Inventory.vue';
 
 export default {
   name: 'Dashboard',
