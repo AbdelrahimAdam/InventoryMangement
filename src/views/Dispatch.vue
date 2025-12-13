@@ -403,10 +403,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { debounce } from 'lodash';
 
 export default {
   name: 'DispatchPage',
@@ -993,6 +992,7 @@ export default {
       printDispatch,
       exportDispatches,
       handleDispatchSuccess
+    };
   }
 };
 </script>
