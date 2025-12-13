@@ -12,20 +12,50 @@
             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
               إدارة وتتبع جميع الأصناف في النظام
             </p>
+            <!-- Cache Status Indicator -->
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                آخر تحديث: {{ lastRefreshTime ? formatTimeAgo(lastRefreshTime) : 'قيد التحميل...' }}
+              </span>
+              <span v-if="isCachedData" class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded">
+                بيانات مخزنة محلياً
+              </span>
+            </div>
           </div>
           
           <div class="flex items-center gap-3">
+            <!-- Load More Button -->
             <button
-              @click="refreshData"
-              :disabled="loading"
+              v-if="hasMore && !loading"
+              @click="loadMoreInventory"
+              :disabled="loadingMore"
               class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-if="loadingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              تحديث
+              <svg v-else class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              {{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}
+            </button>
+
+            <!-- Refresh Button -->
+            <button
+              @click="refreshData"
+              :disabled="loading || refreshing"
+              class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg v-if="refreshing" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <svg v-else class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              {{ refreshing ? 'جاري التحديث...' : 'تحديث' }}
             </button>
             
+            <!-- Export Button -->
             <button
               v-if="canExport"
               @click="exportInventory"
@@ -40,13 +70,38 @@
               </svg>
               {{ exporting ? 'جاري التصدير...' : 'تصدير' }}
             </button>
+
+            <!-- Add Item Button -->
+            <button 
+              v-if="canAddItem && showActions && !readonly"
+              @click="showAddModal = true"
+              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-colors duration-200"
+            >
+              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+              إضافة صنف
+            </button>
           </div>
         </div>
       </div>
 
+      <!-- Performance Stats -->
+      <div v-if="performanceStats" class="mb-4 flex flex-wrap gap-2 text-xs">
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
+          {{ performanceStats.itemCount }} صنف
+        </span>
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
+          {{ performanceStats.loadTime }} ثانية للتحميل
+        </span>
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
+          {{ performanceStats.memoryUsage }} ميجابايت
+        </span>
+      </div>
+
       <!-- Stats Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center ml-3">
               <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +115,7 @@
           </div>
         </div>
         
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center ml-3">
               <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +129,7 @@
           </div>
         </div>
         
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center ml-3">
               <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +143,7 @@
           </div>
         </div>
         
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center ml-3">
               <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,8 +165,8 @@
           <div v-if="accessibleWarehouses.length > 0">
             <select
               v-model="selectedWarehouse"
-              @change="updateWarehouseFilter"
-              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+              @change="handleFilterChange"
+              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
             >
               <option value="">جميع المخازن</option>
               <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
@@ -124,8 +179,8 @@
           <div>
             <select
               v-model="statusFilter"
-              @change="updateStatusFilter"
-              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+              @change="handleFilterChange"
+              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
             >
               <option value="">جميع الحالات</option>
               <option value="in_stock">متوفر</option>
@@ -142,7 +197,7 @@
                 v-model="searchTerm"
                 @input="handleSearch"
                 placeholder="ابحث باسم الصنف، الكود، اللون، أو المورد..."
-                class="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                class="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
               />
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,9 +210,10 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-12">
+      <div v-if="loading && !paginatedItems.length" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mb-4"></div>
         <p class="text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
+        <p v-if="loadingProgress" class="text-sm text-gray-500 mt-2">{{ loadingProgress }}</p>
       </div>
 
       <!-- Error State -->
@@ -180,190 +236,279 @@
       <!-- Inventory Table Container -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Desktop Table -->
-        <div class="hidden lg:block overflow-x-auto">
-          <table class="w-full min-w-[1200px]">
-            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
-              <tr>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الصورة</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الاسم والكود</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">اللون</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المخزن</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المورد</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الكميات</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">المتبقي</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الحالة</th>
-                <th v-if="showActions && !readonly && userRole !== 'viewer'" 
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">الإجراءات</th>
-                <th v-else 
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">آخر تحديث</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-if="filteredItems.length === 0">
-                <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                  <div class="flex flex-col items-center">
-                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-                    </svg>
-                    <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
-                    <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
-                  </div>
-                </td>
-              </tr>
-              
-              <tr 
-                v-for="item in paginatedItems" 
-                :key="item.id"
-                class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
-              >
-                <!-- Photo -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex justify-center">
-                    <div v-if="item.photo_url" class="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                      <img 
-                        :src="item.photo_url" 
-                        :alt="item.name"
-                        class="w-full h-full object-cover"
-                        @error="handleImageError"
-                        loading="lazy"
-                        @load="imageLoaded[item.id] = true"
-                      >
-                      <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
-                        <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
+        <div class="hidden lg:block">
+          <div class="overflow-x-auto relative" style="max-height: calc(100vh - 400px);">
+            <!-- Table with fixed header -->
+            <table class="w-full min-w-[1200px]">
+              <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
+                <tr>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>الصورة</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>الاسم والكود</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر لعرض التفاصيل)</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>اللون</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>المخزن</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>المورد</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>الكميات</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(كراتين/في الكرتونة/فردي)</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>المتبقي</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع المضاف</span>
+                    </div>
+                  </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>الحالة</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(متوفر/قليل/نفذ)</span>
+                    </div>
+                  </th>
+                  <th v-if="showActions && !readonly && userRole !== 'viewer'" 
+                      class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>الإجراءات</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(نقل/صرف/تعديل)</span>
+                    </div>
+                  </th>
+                  <th v-else 
+                      class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>آخر تحديث</span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tr v-if="paginatedItems.length === 0">
+                  <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+                      </svg>
+                      <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
+                      <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
+                    </div>
+                  </td>
+                </tr>
+                
+                <tr 
+                  v-for="item in paginatedItems" 
+                  :key="item.id"
+                  class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 hover:shadow-sm"
+                  :class="{
+                    'bg-blue-50/50 dark:bg-blue-900/10': hoveredRow === item.id,
+                    'bg-amber-50/30 dark:bg-amber-900/5': isLowStock(item.remaining_quantity)
+                  }"
+                  @mouseenter="hoveredRow = item.id"
+                  @mouseleave="hoveredRow = null"
+                >
+                  <!-- Photo -->
+                  <td class="px-6 py-4">
+                    <div class="flex justify-center">
+                      <div class="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 group-hover:scale-105 transition-transform duration-200">
+                        <img 
+                          :src="item.photo_url || getPlaceholderImage()" 
+                          :alt="item.name"
+                          class="w-full h-full object-cover"
+                          @error="handleImageError"
+                          loading="lazy"
+                          @load="imageLoaded[item.id] = true"
+                        >
+                        <div v-if="!imageLoaded[item.id]" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                          <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                        </div>
                       </div>
                     </div>
-                    <div v-else class="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
-                      <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                      </svg>
+                  </td>
+                  
+                  <!-- Name and Code -->
+                  <td class="px-6 py-4">
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 cursor-pointer hover:underline"
+                        @click="showItemDetails(item)">
+                        {{ item.name }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded group-hover:bg-blue-100 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                          {{ item.code }}
+                        </span>
+                      </div>
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="truncate group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors duration-200">
+                          {{ item.item_location }}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                
-                <!-- Name and Code -->
-                <td class="px-6 py-4">
-                  <div class="min-w-0">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {{ item.name }}
+                  </td>
+                  
+                  <!-- Color -->
+                  <td class="px-6 py-4">
+                    <div class="flex items-center justify-center">
+                      <div class="relative group/color">
+                        <span class="text-sm text-gray-900 dark:text-white px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                          {{ item.color || '-' }}
+                        </span>
+                        <div v-if="item.color" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/color:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+                          {{ item.color }}
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {{ item.code }}
+                  </td>
+                  
+                  <!-- Warehouse -->
+                  <td class="px-6 py-4">
+                    <div class="text-center">
+                      <span class="text-sm text-gray-900 dark:text-white px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        {{ getWarehouseLabel(item.warehouse_id) }}
                       </span>
                     </div>
-                    <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
-                      <span class="truncate">{{ item.item_location }}</span>
+                  </td>
+                  
+                  <!-- Supplier -->
+                  <td class="px-6 py-4">
+                    <div class="relative group/supplier">
+                      <span class="text-sm text-gray-900 dark:text-white truncate block max-w-[150px] mx-auto px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        {{ item.supplier || '-' }}
+                      </span>
+                      <div v-if="item.supplier" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/supplier:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30 max-w-xs">
+                        {{ item.supplier }}
+                        <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                
-                <!-- Color -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white">{{ item.color || '-' }}</div>
-                </td>
-                
-                <!-- Warehouse -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white">{{ getWarehouseLabel(item.warehouse_id) }}</div>
-                </td>
-                
-                <!-- Supplier -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white truncate max-w-[150px]">
-                    {{ item.supplier || '-' }}
-                  </div>
-                </td>
-                
-                <!-- Quantities -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm space-y-1">
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                  </td>
+                  
+                  <!-- Quantities -->
+                  <td class="px-6 py-4">
+                    <div class="text-sm space-y-1 max-w-[150px] mx-auto">
+                      <div class="flex items-center justify-between px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                      </div>
+                      <div class="flex items-center justify-between px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
+                      </div>
+                      <div class="flex items-center justify-between px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
+                      </div>
                     </div>
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
+                  </td>
+                  
+                  <!-- Remaining Quantity -->
+                  <td class="px-6 py-4">
+                    <div class="text-center">
+                      <div :class="getQuantityClass(item.remaining_quantity)" 
+                           class="text-lg font-bold px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 group-hover:scale-105 transition-all duration-200">
+                        {{ item.remaining_quantity }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        من {{ item.total_added }}
+                      </div>
                     </div>
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
-                      <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
+                  </td>
+                  
+                  <!-- Status -->
+                  <td class="px-6 py-4">
+                    <div class="flex justify-center">
+                      <span :class="getStockStatusClass(item.remaining_quantity)" 
+                            class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold group-hover:scale-105 transition-transform duration-200 shadow-sm">
+                        {{ getStockStatus(item.remaining_quantity) }}
+                      </span>
                     </div>
-                  </div>
-                </td>
-                
-                <!-- Remaining Quantity -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-center">
-                    <div :class="getQuantityClass(item.remaining_quantity)" class="text-lg font-bold">
-                      {{ item.remaining_quantity }}
+                  </td>
+                  
+                  <!-- Actions or Updated Date -->
+                  <td class="px-6 py-4">
+                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2">
+                      <button
+                        @click="handleTransfer(item)"
+                        v-if="canTransferItem(item)"
+                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200 group/transfer"
+                        title="نقل بين المخازن"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/transfer:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+                          نقل
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </button>
+                      
+                      <button
+                        @click="handleDispatch(item)"
+                        v-if="canDispatchItem(item)"
+                        class="p-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 hover:scale-110 transition-all duration-200 group/dispatch"
+                        title="صرف إلى خارجي"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/dispatch:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+                          صرف
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </button>
+                      
+                      <button
+                        v-if="canEditItem(item)"
+                        @click="handleEdit(item)"
+                        class="p-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-800/20 hover:scale-110 transition-all duration-200 group/edit"
+                        title="تعديل الصنف"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/edit:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+                          تعديل
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </button>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      من {{ item.total_added }}
+                    <div v-else class="text-center">
+                      <span class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        {{ formatDate(item.updated_at) }}
+                      </span>
                     </div>
-                  </div>
-                </td>
-                
-                <!-- Status -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="getStockStatusClass(item.remaining_quantity)" 
-                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
-                    {{ getStockStatus(item.remaining_quantity) }}
-                  </span>
-                </td>
-                
-                <!-- Actions or Updated Date -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center gap-2">
-                    <button
-                      @click="handleTransfer(item)"
-                      v-if="canTransferItem(item)"
-                      class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors duration-150"
-                      title="نقل"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                      </svg>
-                    </button>
-                    
-                    <button
-                      @click="handleDispatch(item)"
-                      v-if="canDispatchItem(item)"
-                      class="p-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 transition-colors duration-150"
-                      title="صرف"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                      </svg>
-                    </button>
-                    
-                    <button
-                      v-if="canEditItem(item)"
-                      @click="handleEdit(item)"
-                      class="p-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-800/20 transition-colors duration-150"
-                      title="تعديل"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div v-else class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ formatDate(item.updated_at) }}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           
           <!-- Desktop Pagination -->
-          <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0">
+          <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0 z-10">
             <div class="text-sm text-gray-500 dark:text-gray-400">
               عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredItems.length) }} من {{ filteredItems.length }}
             </div>
@@ -371,7 +516,7 @@
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
-                class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-yellow-500 transition-colors duration-200"
               >
                 السابق
               </button>
@@ -381,10 +526,10 @@
                   :key="page"
                   @click="currentPage = page"
                   :class="[
-                    'w-8 h-8 rounded-lg transition-colors text-sm',
+                    'w-10 h-10 rounded-lg transition-all duration-200 text-sm font-medium',
                     currentPage === page 
-                      ? 'bg-yellow-600 text-white border border-yellow-600' 
-                      : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ? 'bg-yellow-600 text-white border border-yellow-600 shadow-sm hover:shadow' 
+                      : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-yellow-400'
                   ]"
                 >
                   {{ page }}
@@ -393,7 +538,7 @@
               <button
                 @click="nextPage"
                 :disabled="currentPage === totalPages"
-                class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-yellow-500 transition-colors duration-200"
               >
                 التالي
               </button>
@@ -403,7 +548,7 @@
 
         <!-- Mobile Cards -->
         <div class="lg:hidden">
-          <div v-if="filteredItems.length === 0" class="p-6 text-center text-gray-500 dark:text-gray-400">
+          <div v-if="paginatedItems.length === 0" class="p-6 text-center text-gray-500 dark:text-gray-400">
             <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
             </svg>
@@ -480,38 +625,38 @@
               
               <!-- Actions -->
               <div v-if="showActions && !readonly && userRole !== 'viewer'" class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50">
-                <div class="flex justify-between gap-2">
+                <div class="grid grid-cols-3 gap-2">
                   <button 
                     v-if="canEditItem(item)"
                     @click="handleEdit(item)"
-                    class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 text-xs font-medium rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-800/20 transition-colors"
+                    class="flex items-center justify-center gap-1 px-2 py-2.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 text-xs font-medium rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-800/20 active:scale-95 transition-all duration-200"
                   >
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    تعديل
+                    <span class="hidden xs:inline">تعديل</span>
                   </button>
                   
                   <button 
                     @click="handleTransfer(item)"
                     v-if="canTransferItem(item)"
-                    class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors"
+                    class="flex items-center justify-center gap-1 px-2 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 active:scale-95 transition-all duration-200"
                   >
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                     </svg>
-                    نقل
+                    <span class="hidden xs:inline">نقل</span>
                   </button>
                   
                   <button 
                     @click="handleDispatch(item)"
                     v-if="canDispatchItem(item)"
-                    class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 transition-colors"
+                    class="flex items-center justify-center gap-1 px-2 py-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 active:scale-95 transition-all duration-200"
                   >
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
-                    صرف
+                    <span class="hidden xs:inline">صرف</span>
                   </button>
                 </div>
               </div>
@@ -522,7 +667,7 @@
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
-                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm active:scale-95 transition-transform duration-200"
               >
                 السابق
               </button>
@@ -532,7 +677,7 @@
               <button
                 @click="nextPage"
                 :disabled="currentPage === totalPages"
-                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm active:scale-95 transition-transform duration-200"
               >
                 التالي
               </button>
@@ -546,7 +691,7 @@
     <button 
       v-if="canAddItem && showActions && !readonly"
       @click="showAddModal = true"
-      class="fixed bottom-6 left-6 z-40 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-purple-600 transition-colors duration-200 lg:hidden"
+      class="fixed bottom-6 left-6 z-40 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-purple-600 hover:scale-110 active:scale-95 transition-all duration-200 lg:hidden"
       title="إضافة صنف"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -586,6 +731,177 @@
       @success="handleTransferSuccess"
     />
 
+    <!-- Item Details Modal -->
+    <div v-if="showDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeDetailsModal"></div>
+      
+      <div class="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-hidden">
+        <!-- Close Button -->
+        <button 
+          @click="closeDetailsModal"
+          class="absolute top-4 left-4 z-10 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-110 active:scale-95 transition-all duration-200"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <!-- Modal Content -->
+        <div class="h-full overflow-y-auto p-4 md:p-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left Column: Image & Basic Info -->
+            <div class="space-y-6">
+              <!-- Item Image -->
+              <div class="relative h-64 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                <img 
+                  v-if="selectedItem?.photo_url"
+                  :src="selectedItem.photo_url" 
+                  :alt="selectedItem?.name"
+                  class="w-full h-full object-cover"
+                >
+                <div v-else class="w-full h-full flex items-center justify-center">
+                  <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+
+                <!-- Status Badge -->
+                <div class="absolute top-4 right-4">
+                  <span :class="getStockStatusClass(selectedItem?.remaining_quantity || 0)" 
+                    class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold shadow-md">
+                    {{ getStockStatus(selectedItem?.remaining_quantity || 0) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Basic Information -->
+              <div class="space-y-4">
+                <div>
+                  <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ selectedItem?.name }}</h2>
+                  <div class="flex items-center gap-3 mt-2">
+                    <span class="text-sm font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-3 py-1 rounded-lg">
+                      {{ selectedItem?.code }}
+                    </span>
+                    <span v-if="selectedItem?.color" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div class="w-4 h-4 rounded-full border border-gray-300" 
+                        :style="{ backgroundColor: getColorHex(selectedItem?.color) }"></div>
+                      {{ selectedItem?.color }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">المخزن</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ getWarehouseLabel(selectedItem?.warehouse_id) }}</p>
+                  </div>
+                  <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">الكمية الحالية</p>
+                    <p :class="getQuantityClass(selectedItem?.remaining_quantity || 0)" class="text-2xl font-bold">
+                      {{ selectedItem?.remaining_quantity }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Detailed Information -->
+            <div class="space-y-6">
+              <!-- Details Grid -->
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">المورد</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.supplier || 'غير محدد' }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">مكان التخزين</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.item_location || 'غير محدد' }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">الكراتين</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.cartons_count || 0 }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">في الكرتونة</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.per_carton_count || 0 }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">الفردي</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.single_bottles_count || 0 }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">المجموع المضاف</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.total_added || 0 }}</p>
+                </div>
+              </div>
+
+              <!-- Last Update Info -->
+              <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر تحديث</p>
+                    <p class="text-gray-900 dark:text-white font-medium">{{ formatDate(selectedItem?.updated_at) }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر إجراء بواسطة</p>
+                    <p class="text-gray-900 dark:text-white font-medium">{{ getLastActionUser(selectedItem) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div v-if="showActions" class="grid grid-cols-2 gap-3">
+                <button 
+                  v-if="canEditItem(selectedItem)"
+                  @click="handleEdit(selectedItem)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  تعديل
+                </button>
+
+                <button 
+                  v-if="canTransferItem(selectedItem)"
+                  @click="handleTransfer(selectedItem)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                  </svg>
+                  نقل
+                </button>
+
+                <button 
+                  v-if="canDispatchItem(selectedItem)"
+                  @click="handleDispatch(selectedItem)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
+                  صرف
+                </button>
+
+                <button 
+                  v-if="canDeleteItem(selectedItem)"
+                  @click="handleDelete(selectedItem)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  حذف
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click.self="showDeleteConfirm = false"></div>
@@ -621,6 +937,7 @@
               <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                 <p>المخزن: {{ getWarehouseLabel(itemToDelete?.warehouse_id) }}</p>
                 <p>الكمية المتبقية: {{ itemToDelete?.remaining_quantity }}</p>
+                <p>آخر تحديث بواسطة: {{ getLastActionUser(itemToDelete) }}</p>
               </div>
             </div>
             <p class="text-sm text-red-600 dark:text-red-400 mt-3">
@@ -632,7 +949,7 @@
             <button
               @click="confirmDelete"
               :disabled="deleteLoading"
-              class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <svg v-if="deleteLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -642,7 +959,7 @@
             <button
               @click="showDeleteConfirm = false"
               :disabled="deleteLoading"
-              class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-2.5 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all duration-200"
             >
               إلغاء
             </button>
@@ -654,13 +971,45 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch, reactive, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
+import { debounce } from 'lodash';
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import EditItemModal from '@/components/inventory/EditItemModal.vue';
 import TransferModal from '@/components/inventory/TransferModal.vue';
+
+// Local storage cache for offline/one-time data
+const LOCAL_STORAGE_KEYS = {
+  INVENTORY: 'inventory_cache',
+  WAREHOUSES: 'warehouses_cache',
+  LAST_REFRESH: 'last_refresh_timestamp',
+  CACHE_VERSION: 'cache_version_1.0'
+};
+
+// Performance monitoring class
+class PerformanceMonitor {
+  constructor() {
+    this.startTime = performance.now();
+    this.memorySnapshots = [];
+  }
+
+  start() {
+    this.startTime = performance.now();
+  }
+
+  end() {
+    return performance.now() - this.startTime;
+  }
+
+  getMemoryUsage() {
+    if (window.performance && window.performance.memory) {
+      return Math.round(window.performance.memory.usedJSHeapSize / 1048576); // MB
+    }
+    return 0;
+  }
+}
 
 export default {
   name: 'Inventory',
@@ -673,14 +1022,18 @@ export default {
   setup() {
     const store = useStore();
     const route = useRoute();
+    const performanceMonitor = new PerformanceMonitor();
     
     // State
     const loading = ref(false);
+    const loadingMore = ref(false);
+    const loadingProgress = ref('');
     const error = ref('');
     const showAddModal = ref(false);
     const showEditModal = ref(false);
     const showTransferModal = ref(false);
     const showDispatchModal = ref(false);
+    const showDetailsModal = ref(false);
     const showDeleteConfirm = ref(false);
     const searchTerm = ref('');
     const statusFilter = ref('');
@@ -688,13 +1041,36 @@ export default {
     const selectedItemForEdit = ref(null);
     const selectedItemForTransfer = ref(null);
     const selectedItemForDispatch = ref(null);
+    const selectedItem = ref(null);
     const itemToDelete = ref(null);
     const deleteLoading = ref(false);
     const imageLoaded = reactive({});
     const searchTimeout = ref(null);
     const exporting = ref(false);
     const currentPage = ref(1);
-    const itemsPerPage = ref(20);
+    const itemsPerPage = ref(30); // Optimized for performance
+    const lastRefreshTime = ref(null);
+    const isCachedData = ref(false);
+    const performanceStats = ref(null);
+    const hoveredRow = ref(null);
+    const userNamesCache = reactive({});
+    
+    // Color mapping
+    const colorMap = {
+      'أحمر': '#ef4444',
+      'أزرق': '#3b82f6',
+      'أخضر': '#10b981',
+      'أصفر': '#f59e0b',
+      'أسود': '#000000',
+      'أبيض': '#ffffff',
+      'رمادي': '#6b7280',
+      'بني': '#92400e',
+      'وردي': '#ec4899',
+      'برتقالي': '#f97316',
+      'بنفسجي': '#8b5cf6',
+      'ذهبي': '#d97706',
+      'فضي': '#9ca3af'
+    };
     
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
@@ -705,6 +1081,30 @@ export default {
     const operationError = computed(() => store.state.operationError);
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
+    const currentUser = computed(() => store.state.user);
+    const refreshing = computed(() => store.state.refreshing);
+    const hasMore = computed(() => store.state.pagination.hasMore);
+    
+    // Current user info
+    const currentUserInfo = computed(() => {
+      if (userProfile.value?.name) {
+        return userProfile.value.name;
+      }
+      
+      if (currentUser.value?.displayName) {
+        return currentUser.value.displayName;
+      }
+      
+      if (userProfile.value?.email) {
+        return userProfile.value.email.split('@')[0];
+      }
+      
+      if (currentUser.value?.email) {
+        return currentUser.value.email.split('@')[0];
+      }
+      
+      return 'مستخدم النظام';
+    });
     
     // Permissions
     const canAddItem = computed(() => {
@@ -751,7 +1151,57 @@ export default {
       return canEditItem(item);
     };
     
-    // Filtered items
+    // Load from local storage cache
+    const loadFromCache = () => {
+      try {
+        const cachedInventory = localStorage.getItem(LOCAL_STORAGE_KEYS.INVENTORY);
+        const cachedWarehouses = localStorage.getItem(LOCAL_STORAGE_KEYS.WAREHOUSES);
+        const lastRefresh = localStorage.getItem(LOCAL_STORAGE_KEYS.LAST_REFRESH);
+        
+        if (cachedInventory) {
+          const inventoryData = JSON.parse(cachedInventory);
+          if (inventoryData.data && inventoryData.timestamp) {
+            const cacheAge = Date.now() - inventoryData.timestamp;
+            // Use cache if less than 1 hour old
+            if (cacheAge < 60 * 60 * 1000) {
+              store.commit('SET_INVENTORY', inventoryData.data);
+              isCachedData.value = true;
+              console.log('Loaded inventory from cache');
+            }
+          }
+        }
+        
+        if (cachedWarehouses) {
+          const warehousesData = JSON.parse(cachedWarehouses);
+          if (warehousesData.data && warehousesData.timestamp) {
+            store.commit('SET_WAREHOUSES', warehousesData.data);
+            store.commit('SET_WAREHOUSES_LOADED', true);
+          }
+        }
+        
+        if (lastRefresh) {
+          lastRefreshTime.value = parseInt(lastRefresh);
+        }
+      } catch (error) {
+        console.warn('Error loading from cache:', error);
+      }
+    };
+    
+    // Save to local storage cache
+    const saveToCache = (key, data) => {
+      try {
+        const cacheData = {
+          data,
+          timestamp: Date.now(),
+          version: LOCAL_STORAGE_KEYS.CACHE_VERSION
+        };
+        localStorage.setItem(key, JSON.stringify(cacheData));
+      } catch (error) {
+        console.warn('Error saving to cache:', error);
+      }
+    };
+    
+    // Filtered items with memoization
     const filteredItems = computed(() => {
       let filtered = [...inventory.value];
       
@@ -790,6 +1240,11 @@ export default {
         return nameA.localeCompare(nameB, 'ar');
       });
     });
+    
+    // Check if item is low stock
+    const isLowStock = (quantity) => {
+      return quantity > 0 && quantity < 10;
+    };
     
     // Pagination
     const totalPages = computed(() => {
@@ -841,15 +1296,19 @@ export default {
     };
     
     const getStockStatusClass = (quantity) => {
-      if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800';
-      if (quantity < 10) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800';
-      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800';
+      if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm';
+      if (quantity < 10) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800 shadow-sm';
+      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm';
     };
 
     const getQuantityClass = (quantity) => {
-      if (quantity === 0) return 'text-red-600 dark:text-red-400';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400';
-      return 'text-green-600 dark:text-green-400';
+      if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
+      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
+      return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
+    };
+    
+    const getColorHex = (colorName) => {
+      return colorMap[colorName] || '#6b7280';
     };
     
     const formatDate = (date) => {
@@ -868,59 +1327,228 @@ export default {
       }
     };
     
+    const formatRelativeTime = (date) => {
+      if (!date) return '-';
+      try {
+        const dateObj = date.toDate ? date.toDate() : new Date(date);
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'الآن';
+        if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
+        if (diffHours < 24) return `قبل ${diffHours} ساعة`;
+        if (diffDays === 1) return 'أمس';
+        if (diffDays < 7) return `قبل ${diffDays} أيام`;
+        
+        return formatDate(date);
+      } catch (e) {
+        return '-';
+      }
+    };
+    
+    const formatTimeAgo = (timestamp) => {
+      if (!timestamp) return '';
+      const now = Date.now();
+      const diffMs = now - timestamp;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      
+      if (diffMins < 1) return 'الآن';
+      if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
+      if (diffHours < 24) return `قبل ${diffHours} ساعة`;
+      
+      return new Date(timestamp).toLocaleTimeString('ar-EG', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+    
+    const getPlaceholderImage = () => {
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
+    };
+    
     const handleImageError = (event) => {
-      const img = event.target;
-      img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
-      img.onerror = null;
+      event.target.src = getPlaceholderImage();
+      event.target.onerror = null;
+    };
+    
+    // Get user name from cache or fetch it
+    const getUserName = async (userId) => {
+      if (!userId) return 'غير معروف';
+      
+      // Check cache first
+      if (userNamesCache[userId]) {
+        return userNamesCache[userId];
+      }
+      
+      // If it's the current user, return cached info
+      if (userId === currentUser.value?.uid) {
+        userNamesCache[userId] = currentUserInfo.value;
+        return currentUserInfo.value;
+      }
+      
+      try {
+        // Try to get from user profile
+        const userProfile = await store.dispatch('getUserProfile', userId);
+        if (userProfile?.name) {
+          userNamesCache[userId] = userProfile.name;
+          return userProfile.name;
+        }
+        
+        // Try to get from Firebase Auth
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user?.uid === userId && user.displayName) {
+          userNamesCache[userId] = user.displayName;
+          return user.displayName;
+        }
+        
+        // Fallback to email or "مستخدم النظام"
+        const email = userProfile?.email || user?.email;
+        if (email) {
+          const name = email.split('@')[0];
+          userNamesCache[userId] = name;
+          return name;
+        }
+        
+        return 'مستخدم النظام';
+      } catch (error) {
+        console.warn('Error fetching user name:', error);
+        return 'مستخدم النظام';
+      }
+    };
+    
+    const getLastActionUser = (item) => {
+      if (!item) return 'غير معروف';
+      
+      // Check for cached user name in item
+      if (item.last_updated_by_name) {
+        return item.last_updated_by_name;
+      }
+      
+      // Try to get from item fields
+      if (item.last_updated_by && typeof item.last_updated_by === 'string' && item.last_updated_by !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.last_updated_by;
+      }
+      
+      if (item.updated_by && typeof item.updated_by === 'string' && item.updated_by !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.updated_by;
+      }
+      
+      if (item.created_by && typeof item.created_by === 'string' && item.created_by !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.created_by;
+      }
+      
+      return currentUserInfo.value;
+    };
+    
+    // Performance monitoring
+    const measurePerformance = () => {
+      const loadTime = (performanceMonitor.end() / 1000).toFixed(2);
+      const memoryUsage = performanceMonitor.getMemoryUsage();
+      
+      performanceStats.value = {
+        itemCount: inventory.value.length,
+        loadTime,
+        memoryUsage
+      };
     };
     
     // Action Methods
+    const handleFilterChange = () => {
+      currentPage.value = 1;
+      measurePerformance();
+    };
+    
+    const handleSearch = debounce(() => {
+      currentPage.value = 1;
+      store.dispatch('updateFilters', { search: searchTerm.value });
+    }, 300);
+    
     const updateWarehouseFilter = () => {
       store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
+      currentPage.value = 1;
     };
     
     const updateStatusFilter = () => {
-      // Status filter is local to this component
+      currentPage.value = 1;
     };
     
-    const handleSearch = () => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value);
-      }
-      
-      searchTimeout.value = setTimeout(() => {
-        store.dispatch('updateFilters', { search: searchTerm.value });
-        currentPage.value = 1;
-      }, 300);
+    const showItemDetails = (item) => {
+      selectedItem.value = item;
+      showDetailsModal.value = true;
+      hoveredRow.value = null;
+    };
+    
+    const closeDetailsModal = () => {
+      showDetailsModal.value = false;
+      selectedItem.value = null;
     };
     
     const refreshData = async () => {
       try {
+        performanceMonitor.start();
         loading.value = true;
         
-        // Only clear filters if needed, don't always reset
-        // searchTerm.value = '';
-        // statusFilter.value = '';
-        // selectedWarehouse.value = '';
+        // Clear error
         error.value = '';
         
-        // Only update filters if they have changed
+        // Update filters if they have changed
         store.dispatch('updateFilters', { search: searchTerm.value, warehouse: selectedWarehouse.value });
         
         await store.dispatch('subscribeToInventory');
         await store.dispatch('getRecentTransactions');
         
-        // Clear only non-existing image loaded states
-        inventory.value.forEach(item => {
-          if (!imageLoaded[item.id]) {
-            delete imageLoaded[item.id];
-          }
+        // Save to cache
+        saveToCache(LOCAL_STORAGE_KEYS.INVENTORY, store.state.inventory);
+        saveToCache(LOCAL_STORAGE_KEYS.WAREHOUSES, store.state.warehouses);
+        localStorage.setItem(LOCAL_STORAGE_KEYS.LAST_REFRESH, Date.now().toString());
+        
+        lastRefreshTime.value = Date.now();
+        isCachedData.value = false;
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تحديث البيانات بنجاح'
         });
         
+        measurePerformance();
+        
       } catch (err) {
+        console.error('Error refreshing data:', err);
         error.value = 'حدث خطأ في تحديث البيانات: ' + err.message;
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'فشل في تحديث البيانات'
+        });
       } finally {
         loading.value = false;
+      }
+    };
+    
+    const loadMoreInventory = async () => {
+      try {
+        loadingMore.value = true;
+        loadingProgress.value = 'جاري تحميل المزيد من الأصناف...';
+        
+        await store.dispatch('loadMoreInventory');
+        
+        // Update cache with new data
+        saveToCache(LOCAL_STORAGE_KEYS.INVENTORY, store.state.inventory);
+        
+        measurePerformance();
+        
+      } catch (err) {
+        console.error('Error loading more inventory:', err);
+        error.value = 'حدث خطأ في تحميل المزيد من الأصناف';
+      } finally {
+        loadingMore.value = false;
+        loadingProgress.value = '';
       }
     };
     
@@ -948,7 +1576,8 @@ export default {
           'المجموع المضاف',
           'المجموع المتبقي',
           'الحالة',
-          'تاريخ التحديث'
+          'تاريخ التحديث',
+          'آخر تحديث بواسطة'
         ];
         
         const csvData = data.map(item => [
@@ -965,7 +1594,8 @@ export default {
           item.total_added || 0,
           item.remaining_quantity || 0,
           getStockStatus(item.remaining_quantity),
-          formatDate(item.updated_at)
+          formatDate(item.updated_at),
+          getLastActionUser(item)
         ]);
 
         const csvContent = [
@@ -990,6 +1620,11 @@ export default {
         
       } catch (err) {
         error.value = 'فشل في تصدير الملف: ' + err.message;
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'فشل في تصدير الملف'
+        });
       } finally {
         exporting.value = false;
       }
@@ -1005,6 +1640,8 @@ export default {
       }
       selectedItemForTransfer.value = item;
       showTransferModal.value = true;
+      showDetailsModal.value = false;
+      hoveredRow.value = null;
     };
     
     const handleDispatch = (item) => {
@@ -1017,6 +1654,8 @@ export default {
       }
       selectedItemForDispatch.value = item;
       showDispatchModal.value = true;
+      showDetailsModal.value = false;
+      hoveredRow.value = null;
     };
     
     const handleEdit = (item) => {
@@ -1029,6 +1668,8 @@ export default {
       }
       selectedItemForEdit.value = item;
       showEditModal.value = true;
+      showDetailsModal.value = false;
+      hoveredRow.value = null;
     };
     
     const handleDelete = (item) => {
@@ -1042,6 +1683,7 @@ export default {
       
       itemToDelete.value = item;
       showDeleteConfirm.value = true;
+      hoveredRow.value = null;
     };
     
     const confirmDelete = async () => {
@@ -1075,13 +1717,12 @@ export default {
       }
     };
     
-    // FIXED: Keep modal open after saving
-    const handleItemSaved = (result) => {
+    const handleItemSaved = async (result) => {
       // Don't close the modal - let it stay open
       // showAddModal.value = false;
       
       // Refresh data to show the new item
-      refreshData();
+      await refreshData();
       
       // Show success notification
       store.dispatch('showNotification', {
@@ -1092,7 +1733,6 @@ export default {
       });
     };
     
-    // Add a separate method to close the modal when user clicks "إغلاق"
     const closeAddModal = () => {
       showAddModal.value = false;
     };
@@ -1129,13 +1769,38 @@ export default {
       }
     };
     
-    // Performance optimization: Debounced scroll handler
-    const handleScroll = () => {
-      // For future use if needed for infinite scroll
+    // Optimistic updates for better performance
+    const optimisticUpdate = (itemId, updates) => {
+      const itemIndex = store.state.inventory.findIndex(item => item.id === itemId);
+      if (itemIndex !== -1) {
+        const updatedItem = {
+          ...store.state.inventory[itemIndex],
+          ...updates,
+          last_updated_by: currentUserInfo.value,
+          last_updated_by_name: currentUserInfo.value,
+          updated_at: new Date()
+        };
+        
+        store.commit('UPDATE_ITEM', updatedItem);
+        return updatedItem;
+      }
+      return null;
+    };
+    
+    // Cleanup images from memory when component unmounts
+    const cleanupImages = () => {
+      Object.keys(imageLoaded).forEach(key => {
+        delete imageLoaded[key];
+      });
     };
     
     // Lifecycle
     onMounted(() => {
+      performanceMonitor.start();
+      
+      // Load from cache first
+      loadFromCache();
+      
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
         updateWarehouseFilter();
@@ -1145,9 +1810,39 @@ export default {
         showAddModal.value = true;
       }
       
-      // Pre-load images only for visible items (lazy loading optimization)
+      // Load fresh data if cache is old or doesn't exist
+      if (!isCachedData.value || !store.state.inventory.length) {
+        (async () => {
+          try {
+            loading.value = true;
+            loadingProgress.value = 'جاري تحميل البيانات...';
+            
+            await store.dispatch('subscribeToInventory');
+            await store.dispatch('getRecentTransactions');
+            
+            // Save to cache
+            saveToCache(LOCAL_STORAGE_KEYS.INVENTORY, store.state.inventory);
+            saveToCache(LOCAL_STORAGE_KEYS.WAREHOUSES, store.state.warehouses);
+            localStorage.setItem(LOCAL_STORAGE_KEYS.LAST_REFRESH, Date.now().toString());
+            
+            lastRefreshTime.value = Date.now();
+            isCachedData.value = false;
+            
+          } catch (err) {
+            console.error('Error loading data:', err);
+            error.value = 'حدث خطأ في تحميل البيانات';
+          } finally {
+            loading.value = false;
+            loadingProgress.value = '';
+          }
+        })();
+      }
+      
+      measurePerformance();
+      
+      // Pre-load images for visible items only
       const preloadImages = () => {
-        inventory.value.slice(0, 20).forEach(item => {
+        paginatedItems.value.forEach(item => {
           if (item.photo_url && !imageLoaded[item.id]) {
             const img = new Image();
             img.src = item.photo_url;
@@ -1170,6 +1865,7 @@ export default {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
+      cleanupImages();
     });
     
     // Watch for operation errors
@@ -1183,10 +1879,10 @@ export default {
       }
     });
     
-    // Optimized watch for inventory changes
-    watch(inventory, (newInventory) => {
-      // Only update image loaded state for new items
-      newInventory.forEach(item => {
+    // Optimized watch for paginated items changes
+    watch(paginatedItems, (newItems) => {
+      // Preload images for new items
+      newItems.forEach(item => {
         if (item.photo_url && !imageLoaded[item.id]) {
           const img = new Image();
           img.src = item.photo_url;
@@ -1198,7 +1894,7 @@ export default {
           };
         }
       });
-    }, { deep: true });
+    });
     
     // Watch for filter changes to reset page
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
@@ -1208,11 +1904,14 @@ export default {
     return {
       // State
       loading,
+      loadingMore,
+      loadingProgress,
       error,
       showAddModal,
       showEditModal,
       showTransferModal,
       showDispatchModal,
+      showDetailsModal,
       showDeleteConfirm,
       searchTerm,
       statusFilter,
@@ -1220,11 +1919,16 @@ export default {
       selectedItemForEdit,
       selectedItemForTransfer,
       selectedItemForDispatch,
+      selectedItem,
       itemToDelete,
       deleteLoading,
       imageLoaded,
       exporting,
       currentPage,
+      lastRefreshTime,
+      isCachedData,
+      performanceStats,
+      hoveredRow,
       
       // Computed
       userRole,
@@ -1245,6 +1949,9 @@ export default {
       startIndex,
       endIndex,
       visiblePages,
+      currentUserInfo,
+      refreshing,
+      hasMore,
       
       // Helper Methods
       formatNumber,
@@ -1252,8 +1959,14 @@ export default {
       getStockStatus,
       getStockStatusClass,
       getQuantityClass,
+      getColorHex,
       formatDate,
+      formatRelativeTime,
+      formatTimeAgo,
+      getPlaceholderImage,
+      getLastActionUser,
       handleImageError,
+      isLowStock,
       
       // Permission Methods
       canEditItem,
@@ -1262,10 +1975,14 @@ export default {
       canDeleteItem,
       
       // Action Methods
+      handleFilterChange,
+      handleSearch,
       updateWarehouseFilter,
       updateStatusFilter,
-      handleSearch,
+      showItemDetails,
+      closeDetailsModal,
       refreshData,
+      loadMoreInventory,
       exportInventory,
       handleTransfer,
       handleDispatch,
@@ -1273,7 +1990,7 @@ export default {
       handleDelete,
       confirmDelete,
       handleItemSaved,
-      closeAddModal, // Add this new method
+      closeAddModal,
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
@@ -1285,51 +2002,142 @@ export default {
 </script>
 
 <style scoped>
+/* Enhanced table styling */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+/* Fixed header with enhanced styling */
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #f9fafb;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dark thead {
+  background-color: rgba(55, 65, 81, 0.95);
+}
+
+/* Enhanced hover effects */
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb;
+}
+
+.dark .hover\:bg-gray-700\/50:hover {
+  background-color: rgba(55, 65, 81, 0.5);
+}
+
 /* Smooth transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
 
-/* Scrollbar styling - optimized for performance */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Enhanced scrollbar styling */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+.overflow-x-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
-/* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-track {
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .overflow-x-auto::-webkit-scrollbar-track {
   background: #374151;
 }
 
-.dark ::-webkit-scrollbar-thumb {
+.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+/* Enhanced table cell styling */
+td, th {
+  padding: 1rem 1.5rem;
 }
 
-/* Mobile touch improvements */
+th {
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* Center alignment for table headers */
+th div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Enhanced focus styles */
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus\:ring-yellow-500:focus {
+  --tw-ring-color: rgba(245, 158, 11, 0.5);
+}
+
+.focus\:border-yellow-500:focus {
+  border-color: #f59e0b;
+}
+
+/* Enhanced button hover effects */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.hover\:scale-110:hover {
+  transform: scale(1.1);
+}
+
+.active\:scale-95:active {
+  transform: scale(0.95);
+}
+
+/* Enhanced tooltip styling */
+[class*="group-hover/"] .opacity-0 {
+  transition: opacity 0.2s ease-in-out;
+}
+
+[class*="group-hover/"]:hover .opacity-100 {
+  opacity: 1;
+}
+
+/* Mobile optimizations */
 @media (max-width: 768px) {
   button {
     min-height: 44px;
@@ -1339,74 +2147,44 @@ export default {
   select {
     font-size: 16px;
   }
-}
-
-/* Table responsive adjustments */
-@media (max-width: 1024px) {
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
+  
+  /* Better mobile card spacing */
+  .p-4 {
+    padding: 1rem;
+  }
+  
+  /* Enhanced mobile button grid */
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  /* Hide text on very small screens, show only icons */
+  @media (max-width: 400px) {
+    .hidden.xs\:inline {
+      display: none;
+    }
+    
+    .grid-cols-3 button {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
   }
 }
 
-/* Fix table header and pagination sticking */
-.sticky {
-  position: sticky;
-  z-index: 10;
-}
-
-/* Ensure table rows have consistent height */
-tr {
-  height: 64px;
-}
-
-/* Fix modal z-index conflicts */
-.fixed {
-  isolation: isolate;
-}
-
-/* Better mobile card spacing */
-@media (max-width: 1024px) {
-  .mobile-transaction-list {
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
+/* Fix iOS Safari input zoom */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px;
   }
 }
 
-/* Prevent text overflow in table cells */
-.whitespace-nowrap {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Ensure table cells have proper padding */
-td, th {
-  padding: 0.75rem 1.5rem;
-}
-
-/* Improve button touch targets on mobile */
-button:not(.disabled) {
-  cursor: pointer;
-}
-
-/* Fix RTL text alignment */
-.text-right {
-  text-align: right;
-}
-
-/* Ensure modal backdrop covers everything */
-.absolute.inset-0 {
-  z-index: 40;
-}
-
-/* Fix modal content z-index */
-.relative.w-full.max-w-2xl {
-  z-index: 50;
-}
-
-/* Animation for loading spinner */
+/* Animation optimizations */
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes spin {
@@ -1418,83 +2196,28 @@ button:not(.disabled) {
   }
 }
 
-/* Transition effects - optimized */
-.transition-colors {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.duration-150 {
-  transition-duration: 150ms;
-}
-
-.duration-200 {
-  transition-duration: 200ms;
-}
-
-/* Hover effects */
-.hover\:bg-gray-50:hover {
-  background-color: #f9fafb;
-}
-
-.dark .hover\:bg-gray-700:hover {
-  background-color: #374151;
-}
-
-.dark .hover\:bg-gray-600:hover {
-  background-color: #4b5563;
-}
-
-/* Disabled state styles */
-.disabled\:opacity-50:disabled {
-  opacity: 0.5;
-}
-
-.disabled\:cursor-not-allowed:disabled {
-  cursor: not-allowed;
-}
-
-/* Focus rings - reduced impact on performance */
-.focus\:ring-2:focus {
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
-  outline: none;
-}
-
-.focus\:ring-yellow-500:focus {
-  --tw-ring-color: rgba(245, 158, 11, 0.5);
-}
-
-.focus\:border-yellow-500:focus {
-  border-color: #f59e0b;
-}
-
-/* Image loading animation */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Optimized image rendering */
-img {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+  .transition-all,
   .transition-colors,
-  .duration-150,
-  .duration-200,
   .animate-spin,
-  .animate-pulse {
+  .animate-pulse,
+  .hover\:scale-105,
+  .hover\:scale-110,
+  .active\:scale-95 {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transform: none !important;
   }
 }
 
@@ -1536,16 +2259,222 @@ img {
   contain-intrinsic-size: 1px 5000px;
 }
 
-/* Optimize table rendering */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
+/* Ensure table rows have proper height */
+tr {
+  min-height: 64px;
 }
 
-/* Improve touch feedback on mobile */
+/* Fix modal z-index conflicts */
+.fixed {
+  isolation: isolate;
+}
+
+/* Enhanced border styling */
+.border-b-2 {
+  border-bottom-width: 2px;
+}
+
+/* Enhanced shadow effects */
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.hover\:shadow:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Text truncation for long content */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* RTL text alignment fix */
+.text-center {
+  text-align: center;
+}
+
+/* Enhanced image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Touch feedback for mobile */
 @media (hover: none) and (pointer: coarse) {
   button:active {
     opacity: 0.7;
   }
+  
+  .hover\:scale-105,
+  .hover\:scale-110 {
+    transition: none;
+  }
+}
+
+/* Fixed header enhancement for sticky scrolling */
+.sticky {
+  position: sticky;
+  z-index: 10;
+}
+
+/* Ensure proper stacking context */
+.relative {
+  position: relative;
+}
+
+/* Enhanced backdrop blur for fixed elements */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Improved contrast for better readability */
+.dark .text-gray-300 {
+  color: #d1d5db;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af;
+}
+
+/* Enhanced disabled state */
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+/* Grid improvements for responsive design */
+.grid {
+  display: grid;
+}
+
+/* Flex improvements */
+.flex {
+  display: flex;
+}
+
+/* Ensure proper overflow handling */
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+/* Enhanced border radius */
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.rounded-xl {
+  border-radius: 0.75rem;
+}
+
+/* Improved color transitions for dark mode */
+.dark .bg-gray-800 {
+  background-color: #1f2937;
+}
+
+.dark .border-gray-700 {
+  border-color: #374151;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-to-r {
+  background-image: linear-gradient(to right, var(--tw-gradient-stops));
+}
+
+/* Enhanced shadow depth */
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Improved focus outline for accessibility */
+:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling for the table container */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure proper text wrapping */
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+/* Enhanced hover border effects */
+.hover\:border-yellow-400:hover {
+  border-color: #fbbf24;
+}
+
+.hover\:border-yellow-500:hover {
+  border-color: #f59e0b;
+}
+
+/* Additional hover effects for better UX */
+.hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Improved button active states */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Enhanced table row hover effects */
+tr:hover td {
+  transition: all 0.2s ease;
+}
+
+/* Better spacing for table cells */
+td:first-child,
+th:first-child {
+  padding-left: 1.5rem;
+}
+
+td:last-child,
+th:last-child {
+  padding-right: 1.5rem;
+}
+
+/* Improved modal scrolling */
+.max-h-\[90vh\] {
+  max-height: 90vh;
+}
+
+/* Better text contrast in dark mode */
+.dark .text-white {
+  color: #ffffff;
+}
+
+.dark .text-gray-100 {
+  color: #f3f4f6;
+}
+
+/* Enhanced group hover effects */
+.group:hover .group-hover\:bg-blue-100 {
+  background-color: #dbeafe;
+}
+
+.dark .group:hover .group-hover\:bg-blue-900\/20 {
+  background-color: rgba(30, 64, 175, 0.2);
+}
+
+/* Improved transition timing */
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+.duration-150 {
+  transition-duration: 150ms;
 }
 </style>
