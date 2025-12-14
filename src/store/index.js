@@ -10,7 +10,6 @@ import {
   getDoc,
   setDoc,
   collection,
-  onSnapshot,
   query,
   where,
   addDoc,
@@ -20,8 +19,7 @@ import {
   orderBy,
   writeBatch,
   limit,
-  startAfter,
-  getCountFromServer
+  serverTimestamp
 } from 'firebase/firestore';
 import {
   InventoryService,
@@ -66,153 +64,143 @@ export default createStore({
     user: null,
     userProfile: null,
     loading: false,
-    
+
     // Warehouses
     warehouses: [],
     warehousesLoaded: false,
     warehousesCacheTimestamp: null,
-    
-    // Inventory - IMPORTANT: Keep original structure for compatibility
+
+    // Inventory
     inventory: [],
-    
-    // Transactions - IMPORTANT: Keep original structure for compatibility
+
+    // Transactions
     transactions: [],
-    
+
     // Recent transactions (limited)
     recentTransactions: [],
     recentTransactionsLoading: false,
-    
+
     itemHistory: [],
-    
+
     // Filters with debounce support
     filters: {
       warehouse: '',
       search: '',
       lastUpdate: 0
     },
-    
+
     authError: null,
     operationLoading: false,
     operationError: null,
     fieldMappings: FIELD_MAPPINGS,
-    
+
     // Notifications with limit
     notifications: [],
-    
-    // Subscription management
-    subscriptions: {
-      inventory: null,
-      transactions: null,
-      warehouses: null,
-      active: new Set()
-    },
-    
+
     requiresCompositeIndex: false,
     allUsers: [],
     usersLoading: false,
-    
+
     // Performance cache
     cache: {
       warehouseLabels: {},
       stats: null,
       statsTimestamp: null
     },
-    
+
     // Loading states
     inventoryLoading: false,
     transactionsLoading: false
   }),
-  
+
   mutations: {
     SET_USER(state, user) {
       state.user = user;
     },
-    
+
     SET_USER_PROFILE(state, profile) {
       state.userProfile = profile;
     },
-    
+
     SET_LOADING(state, loading) {
       state.loading = loading;
     },
-    
+
     SET_OPERATION_LOADING(state, loading) {
       state.operationLoading = loading;
     },
-    
+
     SET_OPERATION_ERROR(state, error) {
       state.operationError = error;
     },
-    
+
     SET_WAREHOUSES(state, warehouses) {
       state.warehouses = warehouses;
       state.warehousesCacheTimestamp = Date.now();
-      
+
       // Update cache
       state.cache.warehouseLabels = {};
       warehouses.forEach(w => {
         state.cache.warehouseLabels[w.id] = w.name_ar;
       });
     },
-    
+
     SET_WAREHOUSES_LOADED(state, loaded) {
       state.warehousesLoaded = loaded;
     },
-    
-    // CRITICAL FIX: Keep original structure for compatibility
+
     SET_INVENTORY(state, inventory) {
       state.inventory = Array.isArray(inventory) ? inventory : [];
     },
-    
+
     ADD_ITEM(state, item) {
       if (item && typeof item === 'object') {
         state.inventory.push(item);
       }
     },
-    
+
     UPDATE_ITEM(state, updatedItem) {
       if (!updatedItem || !updatedItem.id) return;
-      
+
       const index = state.inventory.findIndex(item => item.id === updatedItem.id);
       if (index !== -1) {
         state.inventory.splice(index, 1, updatedItem);
       }
     },
-    
+
     REMOVE_ITEM(state, itemId) {
       state.inventory = state.inventory.filter(item => item.id !== itemId);
     },
-    
+
     SET_INVENTORY_LOADING(state, loading) {
       state.inventoryLoading = loading;
     },
-    
-    // CRITICAL FIX: Keep original structure for compatibility
+
     SET_TRANSACTIONS(state, transactions) {
       state.transactions = Array.isArray(transactions) ? transactions : [];
     },
-    
+
     SET_TRANSACTIONS_LOADING(state, loading) {
       state.transactionsLoading = loading;
     },
-    
+
     ADD_TRANSACTION(state, transaction) {
       if (transaction && typeof transaction === 'object') {
         state.transactions.unshift(transaction);
       }
     },
-    
+
     SET_ITEM_HISTORY(state, history) {
       state.itemHistory = Array.isArray(history) ? history : [];
     },
-    
+
     SET_FILTERS(state, filters) {
       state.filters = { ...state.filters, ...filters, lastUpdate: Date.now() };
     },
-    
+
     UPDATE_WAREHOUSE(state, updatedWarehouse) {
       if (!updatedWarehouse || !updatedWarehouse.id) return;
-      
+
       const index = state.warehouses.findIndex(w => w.id === updatedWarehouse.id);
       if (index !== -1) {
         state.warehouses.splice(index, 1, updatedWarehouse);
@@ -222,31 +210,31 @@ export default createStore({
       // Update cache
       state.cache.warehouseLabels[updatedWarehouse.id] = updatedWarehouse.name_ar;
     },
-    
+
     REMOVE_WAREHOUSE(state, warehouseId) {
       state.warehouses = state.warehouses.filter(w => w.id !== warehouseId);
       delete state.cache.warehouseLabels[warehouseId];
     },
-    
+
     SET_AUTH_ERROR(state, error) {
       state.authError = error;
     },
-    
+
     CLEAR_OPERATION_ERROR(state) {
       state.operationError = null;
     },
-    
+
     // Notification management with limits
     ADD_NOTIFICATION(state, notification) {
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
       state.notifications.unshift(notification);
-      
+
       // Limit notifications
       if (state.notifications.length > PERFORMANCE_CONFIG.NOTIFICATION_LIMIT) {
         state.notifications = state.notifications.slice(0, PERFORMANCE_CONFIG.NOTIFICATION_LIMIT);
       }
-      
+
       // Auto-remove
       setTimeout(() => {
         const index = state.notifications.findIndex(n => n.id === notification.id);
@@ -255,51 +243,24 @@ export default createStore({
         }
       }, 5000);
     },
-    
+
     REMOVE_NOTIFICATION(state, notificationId) {
       state.notifications = state.notifications.filter(n => n.id !== notificationId);
     },
-    
+
     CLEAR_NOTIFICATIONS(state) {
       state.notifications = [];
     },
-    
-    // Subscription management
-    SET_SUBSCRIPTION(state, { type, unsubscribe }) {
-      if (state.subscriptions[type]) {
-        state.subscriptions[type]();
-      }
-      state.subscriptions[type] = unsubscribe;
-      if (unsubscribe) {
-        state.subscriptions.active.add(type);
-      } else {
-        state.subscriptions.active.delete(type);
-      }
-    },
-    
-    CLEAR_SUBSCRIPTIONS(state) {
-      Object.values(state.subscriptions).forEach(unsubscribe => {
-        if (typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      });
-      state.subscriptions = {
-        inventory: null,
-        transactions: null,
-        warehouses: null,
-        active: new Set()
-      };
-    },
-    
+
     // Recent transactions
     SET_RECENT_TRANSACTIONS(state, transactions) {
       state.recentTransactions = Array.isArray(transactions) ? transactions : [];
     },
-    
+
     SET_RECENT_TRANSACTIONS_LOADING(state, loading) {
       state.recentTransactionsLoading = loading;
     },
-    
+
     ADD_RECENT_TRANSACTION(state, transaction) {
       if (transaction && typeof transaction === 'object') {
         state.recentTransactions.unshift(transaction);
@@ -308,25 +269,25 @@ export default createStore({
         }
       }
     },
-    
+
     SET_REQUIRES_COMPOSITE_INDEX(state, value) {
       state.requiresCompositeIndex = value;
     },
-    
+
     SET_ALL_USERS(state, users) {
       state.allUsers = Array.isArray(users) ? users : [];
     },
-    
+
     SET_USERS_LOADING(state, loading) {
       state.usersLoading = loading;
     },
-    
+
     // Cache management
     SET_STATS_CACHE(state, { stats, timestamp }) {
       state.cache.stats = stats;
       state.cache.statsTimestamp = timestamp;
     },
-    
+
     CLEAR_CACHE(state) {
       state.cache = {
         warehouseLabels: {},
@@ -335,7 +296,7 @@ export default createStore({
       };
     }
   },
-  
+
   actions: {
     showNotification({ commit, getters }, notification) {
       if (!notification?.message) {
@@ -378,7 +339,6 @@ export default createStore({
             commit('SET_RECENT_TRANSACTIONS', []);
             commit('SET_WAREHOUSES_LOADED', false);
             commit('SET_REQUIRES_COMPOSITE_INDEX', false);
-            commit('CLEAR_SUBSCRIPTIONS');
             commit('CLEAR_CACHE');
           }
           resolve();
@@ -437,10 +397,10 @@ export default createStore({
           message: `مرحباً ${userProfile.name}! تم تسجيل الدخول بنجاح.`
         });
 
-        // Load warehouses and start subscriptions
+        // Load warehouses and data
         await dispatch('loadWarehouses');
-        dispatch('subscribeToInventory');
-        dispatch('subscribeToTransactions');
+        await dispatch('fetchInventory');
+        await dispatch('fetchTransactions');
         dispatch('getRecentTransactions');
 
       } catch (error) {
@@ -510,7 +470,6 @@ export default createStore({
         commit('SET_OPERATION_ERROR', null);
         commit('SET_WAREHOUSES_LOADED', false);
         commit('SET_REQUIRES_COMPOSITE_INDEX', false);
-        commit('CLEAR_SUBSCRIPTIONS');
         commit('CLEAR_CACHE');
 
         dispatch('showNotification', {
@@ -527,10 +486,6 @@ export default createStore({
         throw error;
       }
     },
-
-    // =============================================
-    // WAREHOUSE MANAGEMENT ACTIONS
-    // =============================================
 
     async createWarehouse({ commit, dispatch, state }, warehouseData) {
       commit('SET_OPERATION_LOADING', true);
@@ -570,6 +525,9 @@ export default createStore({
         }
 
         const warehouseRef = await addDoc(collection(db, 'warehouses'), newWarehouse);
+
+        // Refresh warehouses after creation
+        await dispatch('fetchWarehouses');
 
         dispatch('showNotification', {
           type: 'success',
@@ -642,6 +600,9 @@ export default createStore({
             throw new Error('يجب أن يكون هناك مخزن رئيسي واحد على الأقل في النظام');
           }
         }
+
+        // Refresh warehouses after update
+        await dispatch('fetchWarehouses');
 
         dispatch('showNotification', {
           type: 'success',
@@ -722,6 +683,9 @@ export default createStore({
 
         await deleteDoc(warehouseRef);
 
+        // Refresh warehouses after delete
+        await dispatch('fetchWarehouses');
+
         dispatch('showNotification', {
           type: 'success',
           message: `تم حذف المخزن "${warehouseData.name_ar}" بنجاح`
@@ -749,10 +713,6 @@ export default createStore({
         commit('SET_OPERATION_LOADING', false);
       }
     },
-
-    // =============================================
-    // ITEM MANAGEMENT ACTIONS
-    // =============================================
 
     async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
       commit('SET_OPERATION_LOADING', true);
@@ -854,6 +814,9 @@ export default createStore({
           await addDoc(collection(db, 'transactions'), transactionData);
         }
 
+        // Refresh inventory after update
+        await dispatch('fetchInventory');
+
         dispatch('showNotification', {
           type: 'success',
           message: `تم تحديث الصنف "${updateData.name}" بنجاح`
@@ -939,6 +902,9 @@ export default createStore({
 
         await deleteDoc(itemRef);
 
+        // Refresh inventory after delete
+        await dispatch('fetchInventory');
+
         dispatch('showNotification', {
           type: 'success',
           message: `تم حذف الصنف "${itemData.name}" بنجاح`
@@ -966,10 +932,6 @@ export default createStore({
         commit('SET_OPERATION_LOADING', false);
       }
     },
-
-    // =============================================
-    // USER MANAGEMENT ACTIONS
-    // =============================================
 
     async loadAllUsers({ commit, dispatch, getters }) {
       commit('SET_USERS_LOADING', true);
@@ -1187,24 +1149,16 @@ export default createStore({
       }
     },
 
-    // =============================================
-    // INVENTORY ACTIONS
-    // =============================================
-
-    async subscribeToInventory({ commit, state, dispatch }) {
-      if (state.subscriptions.active.has('inventory')) {
-        console.log('Inventory subscription already active');
-        return;
-      }
-
-      if (!state.userProfile) {
-        console.log('Cannot subscribe to inventory: User not authenticated');
-        return;
-      }
-
-      console.log('Subscribing to inventory...');
-
+    async fetchInventory({ commit, state, dispatch }) {
+      commit('SET_INVENTORY_LOADING', true);
+      
       try {
+        if (!state.userProfile) {
+          console.log('Cannot load inventory: User not authenticated');
+          commit('SET_INVENTORY', []);
+          return [];
+        }
+
         let itemsQuery;
         const itemsRef = collection(db, 'items');
 
@@ -1212,13 +1166,15 @@ export default createStore({
           itemsQuery = query(
             itemsRef,
             orderBy('warehouse_id'),
-            orderBy('name')
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
           );
         } else if (state.userProfile.role === 'company_manager' || state.userProfile.role === 'user') {
           itemsQuery = query(
             itemsRef,
             orderBy('warehouse_id'),
-            orderBy('name')
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
           );
         } else if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -1226,14 +1182,15 @@ export default createStore({
           if (allowedWarehouses.length === 0) {
             console.log('No warehouses assigned to this warehouse manager');
             commit('SET_INVENTORY', []);
-            return;
+            return [];
           }
 
           if (allowedWarehouses.includes('all')) {
             itemsQuery = query(
               itemsRef,
               orderBy('warehouse_id'),
-              orderBy('name')
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
             );
           } else if (allowedWarehouses.length <= 10) {
             try {
@@ -1241,7 +1198,8 @@ export default createStore({
                 itemsRef,
                 where('warehouse_id', 'in', allowedWarehouses),
                 orderBy('warehouse_id'),
-                orderBy('name')
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
               );
             } catch (error) {
               if (error.code === 'failed-precondition') {
@@ -1250,7 +1208,8 @@ export default createStore({
                 itemsQuery = query(
                   itemsRef,
                   orderBy('warehouse_id'),
-                  orderBy('name')
+                  orderBy('name'),
+                  limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
                 );
               } else {
                 throw error;
@@ -1261,131 +1220,119 @@ export default createStore({
             itemsQuery = query(
               itemsRef,
               orderBy('warehouse_id'),
-              orderBy('name')
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
             );
           }
         } else {
           console.log('User role not authorized for inventory access');
           commit('SET_INVENTORY', []);
-          return;
+          return [];
         }
 
-        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
-          console.log('Inventory snapshot received:', snapshot.size, 'items');
+        const snapshot = await getDocs(itemsQuery);
+        console.log('Inventory loaded via getDocs:', snapshot.size, 'items');
 
-          const inventory = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return InventoryService.convertForDisplay({
-              id: doc.id,
-              ...data
-            });
+        const inventory = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
           });
+        });
 
-          let filteredInventory = inventory;
-          if (state.userProfile.role === 'warehouse_manager') {
-            const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-            if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-              if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
-                filteredInventory = inventory.filter(item => 
-                  allowedWarehouses.includes(item.warehouse_id)
-                );
-              }
+        let filteredInventory = inventory;
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
+              filteredInventory = inventory.filter(item => 
+                allowedWarehouses.includes(item.warehouse_id)
+              );
             }
           }
+        }
 
-          console.log('Inventory loaded:', filteredInventory.length, 'items');
-          commit('SET_INVENTORY', filteredInventory);
-
-        }, (error) => {
-          console.error('Error in inventory subscription:', error);
-
-          if (error.code === 'failed-precondition') {
-            commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-            dispatch('showNotification', {
-              type: 'warning',
-              title: 'تحذير الفهرس',
-              message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
-            });
-          } else if (error.code === 'permission-denied') {
-            dispatch('showNotification', {
-              type: 'error',
-              message: 'ليس لديك صلاحية لعرض المخزون'
-            });
-          } else {
-            dispatch('showNotification', {
-              type: 'error',
-              message: 'خطأ في تحميل المخزون'
-            });
-          }
-
-          commit('SET_INVENTORY', []);
-        });
-
-        commit('SET_SUBSCRIPTION', { type: 'inventory', unsubscribe });
+        console.log('Inventory filtered:', filteredInventory.length, 'items');
+        commit('SET_INVENTORY', filteredInventory);
+        return filteredInventory;
 
       } catch (error) {
-        console.error('Error setting up inventory subscription:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في إعداد اشتراك المخزون'
-        });
+        console.error('Error loading inventory:', error);
+
+        if (error.code === 'failed-precondition') {
+          commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+          dispatch('showNotification', {
+            type: 'warning',
+            title: 'تحذير الفهرس',
+            message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
+          });
+        } else if (error.code === 'permission-denied') {
+          dispatch('showNotification', {
+            type: 'error',
+            message: 'ليس لديك صلاحية لعرض المخزون'
+          });
+        } else {
+          dispatch('showNotification', {
+            type: 'error',
+            message: 'خطأ في تحميل المخزون'
+          });
+        }
+
         commit('SET_INVENTORY', []);
+        return [];
+      } finally {
+        commit('SET_INVENTORY_LOADING', false);
       }
     },
 
-    async subscribeToTransactions({ commit, state, dispatch }) {
-      if (state.subscriptions.active.has('transactions')) {
-        console.log('Transactions subscription already active');
-        return;
-      }
-
-      if (!state.userProfile) {
-        console.log('Cannot subscribe to transactions: User not authenticated');
-        return;
-      }
-
-      console.log('Setting up transactions subscription...');
-
+    async fetchTransactions({ commit, state, dispatch }) {
+      commit('SET_TRANSACTIONS_LOADING', true);
+      
       try {
+        if (!state.userProfile) {
+          console.log('Cannot load transactions: User not authenticated');
+          commit('SET_TRANSACTIONS', []);
+          return [];
+        }
+
         const transactionsQuery = query(
           collection(db, 'transactions'),
-          orderBy('timestamp', 'desc')
+          orderBy('timestamp', 'desc'),
+          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE)
         );
 
-        const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
-          console.log('Transactions snapshot received:', snapshot.size, 'transactions');
+        const snapshot = await getDocs(transactionsQuery);
+        console.log('Transactions loaded via getDocs:', snapshot.size, 'transactions');
 
-          const transactions = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              _display: {
-                from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-                to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                             DESTINATION_LABELS[data.to_warehouse] ||
-                             data.to_warehouse,
-              }
-            };
-          });
-
-          console.log('Transactions loaded:', transactions.length, 'transactions');
-          commit('SET_TRANSACTIONS', transactions);
-
-        }, (error) => {
-          console.error('Error in transactions subscription:', error);
-          dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل الحركات'
-          });
-          commit('SET_TRANSACTIONS', []);
+        const transactions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            _display: {
+              from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
+              to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
+                           DESTINATION_LABELS[data.to_warehouse] ||
+                           data.to_warehouse,
+            }
+          };
         });
 
-        commit('SET_SUBSCRIPTION', { type: 'transactions', unsubscribe });
+        console.log('Transactions processed:', transactions.length);
+        commit('SET_TRANSACTIONS', transactions);
+        return transactions;
 
       } catch (error) {
-        console.error('Error setting up transactions subscription:', error);
+        console.error('Error loading transactions:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل الحركات'
+        });
         commit('SET_TRANSACTIONS', []);
+        return [];
+      } finally {
+        commit('SET_TRANSACTIONS_LOADING', false);
       }
     },
 
@@ -1455,7 +1402,7 @@ export default createStore({
         console.log('Loading warehouses from Firestore...');
 
         await dispatch('initializeDefaultWarehouses');
-        await dispatch('subscribeToWarehouses');
+        await dispatch('fetchWarehouses');
 
         commit('SET_WAREHOUSES_LOADED', true);
         console.log('Warehouses loaded successfully');
@@ -1473,52 +1420,37 @@ export default createStore({
       }
     },
 
-    async subscribeToWarehouses({ commit, state, dispatch }) {
-      if (state.subscriptions.active.has('warehouses')) {
-        console.log('Warehouses subscription already active');
-        return;
-      }
-
-      if (!state.userProfile) {
-        console.log('Cannot subscribe to warehouses: User not authenticated');
-        return;
-      }
-
-      console.log('Subscribing to warehouses...');
-
+    async fetchWarehouses({ commit, state, dispatch }) {
       try {
+        if (!state.userProfile) {
+          console.log('Cannot load warehouses: User not authenticated');
+          return [];
+        }
+
+        console.log('Loading warehouses via getDocs...');
         const warehousesQuery = query(
           collection(db, 'warehouses'),
           orderBy('name_ar')
         );
 
-        const unsubscribe = onSnapshot(warehousesQuery, (snapshot) => {
-          console.log('Warehouses snapshot received:', snapshot.size, 'warehouses');
+        const snapshot = await getDocs(warehousesQuery);
+        const warehouses = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-          const warehouses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          console.log('Warehouses loaded:', warehouses.length);
-          commit('SET_WAREHOUSES', warehouses);
-
-        }, (error) => {
-          console.error('Error in warehouses subscription:', error);
-          dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحديث بيانات المخازن'
-          });
-        });
-
-        commit('SET_SUBSCRIPTION', { type: 'warehouses', unsubscribe });
+        console.log('Warehouses loaded:', warehouses.length);
+        commit('SET_WAREHOUSES', warehouses);
+        
+        return warehouses;
 
       } catch (error) {
-        console.error('Error setting up warehouses subscription:', error);
+        console.error('Error loading warehouses:', error);
         dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في إعداد اشتراك المخازن'
+          message: 'خطأ في تحميل المخازن'
         });
+        return [];
       }
     },
 
@@ -1707,6 +1639,9 @@ export default createStore({
           isAddingCartons
         );
 
+        // Refresh inventory after add/update
+        await dispatch('fetchInventory');
+
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.ADD,
           item_id: result.id,
@@ -1760,6 +1695,9 @@ export default createStore({
         }
 
         const result = await InventoryService.transferItem(transferData, state.user.uid);
+
+        // Refresh inventory after transfer
+        await dispatch('fetchInventory');
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.TRANSFER,
@@ -1820,6 +1758,9 @@ export default createStore({
 
         const result = await InventoryService.dispatchItem(dispatchData, state.user.uid);
 
+        // Refresh inventory after dispatch
+        await dispatch('fetchInventory');
+
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.DISPATCH,
           item_id: dispatchData.itemId,
@@ -1863,28 +1804,9 @@ export default createStore({
 
     clearOperationError({ commit }) {
       commit('CLEAR_OPERATION_ERROR');
-    },
-
-    // Performance optimization: pause subscriptions when not needed
-    pauseSubscriptions({ commit, state }) {
-      Object.values(state.subscriptions).forEach(unsubscribe => {
-        if (typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      });
-      commit('CLEAR_SUBSCRIPTIONS');
-    },
-
-    // Performance optimization: resume subscriptions
-    resumeSubscriptions({ dispatch, state }) {
-      if (state.userProfile) {
-        dispatch('subscribeToInventory');
-        dispatch('subscribeToTransactions');
-        dispatch('subscribeToWarehouses');
-      }
     }
   },
-  
+
   getters: {
     // User-related getters
     isAuthenticated: state => !!state.user,
@@ -1904,11 +1826,11 @@ export default createStore({
     allUsers: state => Array.isArray(state.allUsers) ? state.allUsers : [],
     usersLoading: state => state.usersLoading,
 
-    // Inventory getters - CRITICAL FIX: Return arrays
+    // Inventory getters
     inventoryItems: state => Array.isArray(state.inventory) ? state.inventory : [],
     inventoryLoading: state => state.inventoryLoading,
 
-    // Transactions getters - CRITICAL FIX: Return arrays
+    // Transactions getters
     transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
     transactionsLoading: state => state.transactionsLoading,
 
@@ -2106,12 +2028,12 @@ export default createStore({
 
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
-      
+
       // Check cache first
       if (state.cache.warehouseLabels[warehouseId]) {
         return state.cache.warehouseLabels[warehouseId];
       }
-      
+
       // Check warehouses array
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       const warehouse = warehouses.find(w => w.id === warehouseId);
