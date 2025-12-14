@@ -32,14 +32,14 @@ import UserService from '@/services/UserService';
 
 // Performance constants
 const PERFORMANCE_CONFIG = {
-  INVENTORY_PAGE_SIZE: 50,
+  INVENTORY_PAGE_SIZE: 100, // ✅ INCREASED: Load more items initially
   TRANSACTIONS_PAGE_SIZE: 30,
   RECENT_TRANSACTIONS_LIMIT: 20,
   NOTIFICATION_LIMIT: 100,
-  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-  DEBOUNCE_DELAY: 300, // ms
-  ITEM_SEARCH_LIMIT: 10, // ✅ UPDATED: Increased for better search
-  TRANSACTION_SEARCH_LIMIT: 20 // ✅ NEW: Higher limit for transaction searches
+  CACHE_DURATION: 10 * 60 * 1000, // ✅ INCREASED: 10 minutes cache
+  DEBOUNCE_DELAY: 300,
+  ITEM_SEARCH_LIMIT: 10,
+  TRANSACTION_SEARCH_LIMIT: 20
 };
 
 // Field name mapping
@@ -111,7 +111,7 @@ export default createStore({
       statsTimestamp: null,
       itemCache: {},
       itemCacheTimestamp: null,
-      transactionItems: [], // ✅ NEW: Cache for transaction search results
+      transactionItems: [],
       transactionItemsTimestamp: null
     },
 
@@ -119,8 +119,13 @@ export default createStore({
     inventoryLoading: false,
     transactionsLoading: false,
     
-    // Prevent multiple fetches
-    isFetchingInventory: false
+    isFetchingInventory: false,
+
+    // ✅ NEW: Pagination support
+    inventoryPagination: {
+      lastDoc: null,
+      hasMore: true
+    }
   }),
 
   mutations: {
@@ -148,7 +153,6 @@ export default createStore({
       state.warehouses = warehouses;
       state.warehousesCacheTimestamp = Date.now();
 
-      // Update cache
       state.cache.warehouseLabels = {};
       warehouses.forEach(w => {
         state.cache.warehouseLabels[w.id] = w.name_ar;
@@ -162,6 +166,17 @@ export default createStore({
     SET_INVENTORY(state, inventory) {
       state.inventory = Array.isArray(inventory) ? inventory : [];
       state.inventoryLastFetched = Date.now();
+    },
+
+    // ✅ NEW: Append to inventory (for pagination)
+    APPEND_TO_INVENTORY(state, newItems) {
+      if (Array.isArray(newItems)) {
+        // Filter out duplicates
+        const existingIds = new Set(state.inventory.map(item => item.id));
+        const uniqueNewItems = newItems.filter(item => !existingIds.has(item.id));
+        state.inventory.push(...uniqueNewItems);
+        state.inventoryLastFetched = Date.now();
+      }
     },
 
     SET_INVENTORY_LAST_FETCHED(state, timestamp) {
@@ -254,13 +269,24 @@ export default createStore({
       state.operationError = null;
     },
 
-    // ✅ NEW: Cache transaction search results
     SET_TRANSACTION_ITEMS_CACHE(state, { items, timestamp }) {
       state.cache.transactionItems = items;
       state.cache.transactionItemsTimestamp = timestamp;
     },
 
-    // Notification management with limits
+    // ✅ NEW: Pagination mutations
+    SET_INVENTORY_PAGINATION(state, { lastDoc, hasMore }) {
+      state.inventoryPagination.lastDoc = lastDoc;
+      state.inventoryPagination.hasMore = hasMore;
+    },
+
+    RESET_INVENTORY_PAGINATION(state) {
+      state.inventoryPagination = {
+        lastDoc: null,
+        hasMore: true
+      };
+    },
+
     ADD_NOTIFICATION(state, notification) {
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
@@ -286,7 +312,6 @@ export default createStore({
       state.notifications = [];
     },
 
-    // Recent transactions
     SET_RECENT_TRANSACTIONS(state, transactions) {
       state.recentTransactions = Array.isArray(transactions) ? transactions : [];
     },
@@ -316,7 +341,6 @@ export default createStore({
       state.usersLoading = loading;
     },
 
-    // Cache management
     SET_STATS_CACHE(state, { stats, timestamp }) {
       state.cache.stats = stats;
       state.cache.statsTimestamp = timestamp;
@@ -350,7 +374,311 @@ export default createStore({
   },
 
   actions: {
-    // ✅ UPDATED: Enhanced getItemById for transactions
+    // ✅ RESTORED: fetchInventoryOnce - One-time fetch for ALL items
+    async fetchInventoryOnce({ commit, state, dispatch }) {
+      // Prevent multiple simultaneous fetches
+      if (state.isFetchingInventory) {
+        console.log('Inventory fetch already in progress, skipping...');
+        return state.inventory;
+      }
+
+      // Check cache: if inventory was fetched less than 10 minutes ago, skip
+      const now = Date.now();
+      const cacheDuration = PERFORMANCE_CONFIG.CACHE_DURATION;
+      
+      if (state.inventoryLastFetched && 
+          (now - state.inventoryLastFetched) < cacheDuration && 
+          state.inventory.length > 0) {
+        console.log('Using cached inventory (fetched less than 10 minutes ago)');
+        return state.inventory;
+      }
+
+      commit('SET_IS_FETCHING_INVENTORY', true);
+      commit('SET_INVENTORY_LOADING', true);
+      commit('RESET_INVENTORY_PAGINATION'); // Reset pagination on fresh load
+      
+      try {
+        if (!state.userProfile) {
+          console.log('Cannot load inventory: User not authenticated');
+          commit('SET_INVENTORY', []);
+          return [];
+        }
+
+        let itemsQuery;
+        const itemsRef = collection(db, 'items');
+
+        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
+          // Load ALL items for superadmin/company_manager
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) // Load 100 items initially
+          );
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.length === 0) {
+            console.log('No warehouses assigned to this warehouse manager');
+            commit('SET_INVENTORY', []);
+            return [];
+          }
+
+          if (allowedWarehouses.includes('all')) {
+            // If user has access to all warehouses
+            itemsQuery = query(
+              itemsRef,
+              orderBy('warehouse_id'),
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+            );
+          } else {
+            try {
+              // Try to filter by allowed warehouses
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
+                orderBy('warehouse_id'),
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+              );
+            } catch (error) {
+              if (error.code === 'failed-precondition') {
+                console.warn('Composite index required. Loading all items then filtering...');
+                commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+                itemsQuery = query(
+                  itemsRef,
+                  orderBy('warehouse_id'),
+                  orderBy('name'),
+                  limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE * 2) // Load more to compensate
+                );
+              } else {
+                throw error;
+              }
+            }
+          }
+        } else {
+          console.log('User role not authorized for inventory access');
+          commit('SET_INVENTORY', []);
+          return [];
+        }
+
+        const snapshot = await getDocs(itemsQuery);
+        console.log('✅ Inventory ONE-TIME fetch completed:', snapshot.size, 'items');
+
+        let inventory = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const item = InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
+          });
+          
+          commit('CACHE_ITEM', {
+            itemId: doc.id,
+            itemData: item
+          });
+          
+          return item;
+        });
+
+        // Client-side filtering for warehouse managers without composite index
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
+              inventory = inventory.filter(item => 
+                allowedWarehouses.includes(item.warehouse_id)
+              );
+            }
+          }
+        }
+
+        console.log('✅ Inventory filtered:', inventory.length, 'items');
+        
+        // Set pagination data
+        if (snapshot.docs.length > 0) {
+          const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+          const hasMore = snapshot.size === PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE;
+          
+          commit('SET_INVENTORY_PAGINATION', {
+            lastDoc,
+            hasMore
+          });
+        }
+
+        commit('SET_INVENTORY', inventory);
+        return inventory;
+
+      } catch (error) {
+        console.error('❌ Error loading inventory:', error);
+
+        if (error.code === 'failed-precondition') {
+          commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+          dispatch('showNotification', {
+            type: 'warning',
+            title: 'تحذير الفهرس',
+            message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
+          });
+        } else if (error.code === 'permission-denied') {
+          dispatch('showNotification', {
+            type: 'error',
+            message: 'ليس لديك صلاحية لعرض المخزون'
+          });
+        } else {
+          dispatch('showNotification', {
+            type: 'error',
+            message: 'خطأ في تحميل المخزون'
+          });
+        }
+
+        commit('SET_INVENTORY', []);
+        return [];
+      } finally {
+        commit('SET_INVENTORY_LOADING', false);
+        commit('SET_IS_FETCHING_INVENTORY', false);
+      }
+    },
+
+    // ✅ NEW: Load more items (pagination)
+    async loadMoreInventory({ commit, state, dispatch }) {
+      if (!state.inventoryPagination.hasMore || state.isFetchingInventory) {
+        console.log('No more items to load or already fetching');
+        return [];
+      }
+
+      commit('SET_IS_FETCHING_INVENTORY', true);
+      commit('SET_INVENTORY_LOADING', true);
+      
+      try {
+        if (!state.userProfile || !state.inventoryPagination.lastDoc) {
+          return [];
+        }
+
+        let itemsQuery;
+        const itemsRef = collection(db, 'items');
+
+        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('warehouse_id'),
+            orderBy('name'),
+            startAfter(state.inventoryPagination.lastDoc),
+            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+          );
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.includes('all')) {
+            itemsQuery = query(
+              itemsRef,
+              orderBy('warehouse_id'),
+              orderBy('name'),
+              startAfter(state.inventoryPagination.lastDoc),
+              limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+            );
+          } else {
+            try {
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
+                orderBy('warehouse_id'),
+                orderBy('name'),
+                startAfter(state.inventoryPagination.lastDoc),
+                limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
+              );
+            } catch (error) {
+              if (error.code === 'failed-precondition') {
+                itemsQuery = query(
+                  itemsRef,
+                  orderBy('warehouse_id'),
+                  orderBy('name'),
+                  startAfter(state.inventoryPagination.lastDoc),
+                  limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE * 2)
+                );
+              } else {
+                throw error;
+              }
+            }
+          }
+        } else {
+          return [];
+        }
+
+        const snapshot = await getDocs(itemsQuery);
+        console.log('✅ Loaded more items:', snapshot.size, 'items');
+
+        let newItems = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const item = InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
+          });
+          
+          commit('CACHE_ITEM', {
+            itemId: doc.id,
+            itemData: item
+          });
+          
+          return item;
+        });
+
+        // Client-side filtering
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
+              newItems = newItems.filter(item => 
+                allowedWarehouses.includes(item.warehouse_id)
+              );
+            }
+          }
+        }
+
+        // Update pagination
+        if (snapshot.docs.length > 0) {
+          const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+          const hasMore = snapshot.size === PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE;
+          
+          commit('SET_INVENTORY_PAGINATION', {
+            lastDoc,
+            hasMore
+          });
+        } else {
+          commit('SET_INVENTORY_PAGINATION', {
+            lastDoc: null,
+            hasMore: false
+          });
+        }
+
+        // Append to existing inventory
+        commit('APPEND_TO_INVENTORY', newItems);
+        
+        console.log('✅ Total items in inventory:', state.inventory.length);
+        return newItems;
+
+      } catch (error) {
+        console.error('❌ Error loading more inventory:', error);
+        return [];
+      } finally {
+        commit('SET_INVENTORY_LOADING', false);
+        commit('SET_IS_FETCHING_INVENTORY', false);
+      }
+    },
+
+    // Keep original fetchInventory for operations that need to refresh data
+    async fetchInventory({ dispatch }) {
+      console.log('Fetching inventory (force refresh)...');
+      return await dispatch('fetchInventoryOnce');
+    },
+
+    // ✅ Force refresh inventory (ignores cache)
+    async refreshInventory({ commit, dispatch }) {
+      commit('SET_INVENTORY_LAST_FETCHED', null);
+      commit('CLEAR_CACHE');
+      return await dispatch('fetchInventoryOnce');
+    },
+
+    // ✅ Enhanced getItemById for transactions
     async getItemById({ commit, state, dispatch }, { itemId, itemCode, itemName }) {
       try {
         console.log('🔍 Searching item for transaction...', { itemId, itemCode, itemName });
@@ -373,14 +701,14 @@ export default createStore({
 
         // 2. SECOND: Check item cache (previously fetched items)
         const cacheEntry = state.cache.itemCache[itemId];
-        const cacheDuration = 10 * 60 * 1000; // 10 minutes cache
+        const cacheDuration = 10 * 60 * 1000;
         
         if (cacheEntry && (Date.now() - cacheEntry.timestamp) < cacheDuration) {
           console.log('✅ Item found in cache');
           return cacheEntry.data;
         }
 
-        // 3. THIRD: Try loading from all warehouses (NEW: for transactions)
+        // 3. THIRD: Try loading from all warehouses
         console.log('🔄 Item not in cache. Searching ALL warehouses...');
         
         // Try by ID first (most efficient - 1 read)
@@ -391,7 +719,7 @@ export default createStore({
             if (itemDoc.exists()) {
               const itemData = itemDoc.data();
               
-              // ✅ NEW: Check warehouse permission for transactions
+              // Check warehouse permission for transactions
               if (state.userProfile.role === 'warehouse_manager') {
                 const allowedWarehouses = state.userProfile.allowed_warehouses || [];
                 if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
@@ -419,7 +747,7 @@ export default createStore({
           }
         }
 
-        // 4. FOURTH: Try by code across ALL warehouses (no warehouse filter for searches)
+        // 4. FOURTH: Try by code across ALL warehouses
         if (itemCode) {
           const itemsRef = collection(db, 'items');
           const q = query(
@@ -504,6 +832,22 @@ export default createStore({
           }
         }
 
+        // 6. SIXTH: Try loading more inventory items
+        console.log('🔄 Loading more items to find the requested item...');
+        await dispatch('loadMoreInventory');
+        
+        // Check again after loading more
+        item = state.inventory.find(i => 
+          i.id === itemId || 
+          (itemCode && i.code === itemCode) ||
+          (itemName && i.name === itemName)
+        );
+
+        if (item) {
+          console.log('✅ Item found after loading more items');
+          return item;
+        }
+
         throw new Error('الصنف غير موجود في المخزون المتاح أو ليس لديك صلاحية للوصول إليه');
 
       } catch (error) {
@@ -516,25 +860,38 @@ export default createStore({
       }
     },
 
-    // ✅ NEW: Search items for transactions (across ALL warehouses)
+    // ✅ Search items for transactions (across ALL warehouses)
     async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults = 10 }) {
       try {
         console.log('🔍 Searching items for transactions:', searchTerm);
 
         if (!searchTerm || searchTerm.trim().length < 2) {
-          return [];
+          // If no search term, return cached/loaded items
+          const localItems = state.inventory.slice(0, limitResults);
+          return localItems;
         }
 
         const term = searchTerm.trim().toLowerCase();
 
-        // 1. Check cache first (5 minute cache for transaction searches)
+        // 1. Search in loaded inventory first (no reads)
+        const localResults = state.inventory.filter(item =>
+          item.name?.toLowerCase().includes(term) ||
+          item.code?.toLowerCase().includes(term) ||
+          item.color?.toLowerCase().includes(term) ||
+          item.supplier?.toLowerCase().includes(term)
+        ).slice(0, limitResults);
+
+        if (localResults.length >= limitResults) {
+          console.log('✅ Items found in loaded inventory:', localResults.length);
+          return localResults;
+        }
+
+        // 2. Check cache (5 minute cache for transaction searches)
         const cacheDuration = 5 * 60 * 1000;
         if (state.cache.transactionItemsTimestamp && 
             (Date.now() - state.cache.transactionItemsTimestamp) < cacheDuration &&
             state.cache.transactionItems.length > 0) {
-          console.log('✅ Using cached transaction items');
           
-          // Filter cached items by search term
           const cachedResults = state.cache.transactionItems.filter(item =>
             item.name?.toLowerCase().includes(term) ||
             item.code?.toLowerCase().includes(term) ||
@@ -542,17 +899,17 @@ export default createStore({
           ).slice(0, limitResults);
           
           if (cachedResults.length > 0) {
+            console.log('✅ Using cached transaction items');
             return cachedResults;
           }
         }
 
-        // 2. Search in Firestore across ALL warehouses
+        // 3. Search in Firestore across ALL warehouses
         const itemsRef = collection(db, 'items');
         
-        // Create queries for different search fields
         const queries = [];
         
-        // Query for code (exact match or prefix)
+        // Query for code
         queries.push(
           query(
             itemsRef,
@@ -572,7 +929,6 @@ export default createStore({
           )
         );
 
-        // Execute queries
         const resultsSet = new Set();
         const allResults = [];
 
@@ -588,12 +944,12 @@ export default createStore({
                 
                 const itemData = doc.data();
                 
-                // ✅ CRITICAL: Filter by warehouse permissions
+                // Filter by warehouse permissions
                 if (state.userProfile.role === 'warehouse_manager') {
                   const allowedWarehouses = state.userProfile.allowed_warehouses || [];
                   if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
                     if (!allowedWarehouses.includes(itemData.warehouse_id)) {
-                      return; // Skip items from unauthorized warehouses
+                      return;
                     }
                   }
                 }
@@ -620,12 +976,20 @@ export default createStore({
           a.name?.localeCompare(b.name || '') || 0
         ).slice(0, limitResults);
         
-        console.log(`✅ Items found for transactions: ${sortedResults.length}`);
+        console.log(`✅ Items found in Firestore: ${sortedResults.length}`);
 
         // Update cache
         commit('SET_TRANSACTION_ITEMS_CACHE', {
           items: sortedResults,
           timestamp: Date.now()
+        });
+
+        // Also cache individual items
+        sortedResults.forEach(item => {
+          commit('CACHE_ITEM', {
+            itemId: item.id,
+            itemData: item
+          });
         });
 
         return sortedResults;
@@ -636,11 +1000,19 @@ export default createStore({
           type: 'error',
           message: 'خطأ في البحث عن الأصناف'
         });
-        return [];
+        
+        // Fallback to local inventory
+        const term = searchTerm?.trim().toLowerCase() || '';
+        const fallbackResults = state.inventory.filter(item =>
+          item.name?.toLowerCase().includes(term) ||
+          item.code?.toLowerCase().includes(term)
+        ).slice(0, 10);
+        
+        return fallbackResults;
       }
     },
 
-    // ✅ NEW: Get items from specific warehouse (for transfers)
+    // ✅ Get items from specific warehouse (for transfers)
     async getItemsFromWarehouse({ state, dispatch }, { warehouseId, limitResults = 20 }) {
       try {
         console.log('🔄 Getting items from warehouse:', warehouseId);
@@ -659,9 +1031,16 @@ export default createStore({
           }
         }
 
+        // First, check loaded inventory
+        const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
+        if (localItems.length >= limitResults) {
+          console.log('✅ Found items in loaded inventory:', localItems.length);
+          return localItems.slice(0, limitResults);
+        }
+
+        // If not enough, query Firestore
         const itemsRef = collection(db, 'items');
         
-        // Query items from specific warehouse
         const q = query(
           itemsRef,
           where('warehouse_id', '==', warehouseId),
@@ -679,22 +1058,30 @@ export default createStore({
         });
 
         console.log(`✅ Found ${items.length} items in warehouse ${warehouseId}`);
+        
+        // Cache these items
+        items.forEach(item => {
+          commit('CACHE_ITEM', {
+            itemId: item.id,
+            itemData: item
+          });
+        });
+
         return items;
 
       } catch (error) {
         console.error('❌ Error getting items from warehouse:', error);
         
         if (error.code === 'failed-precondition') {
-          // Try without warehouse filter if index is missing
-          console.warn('Trying alternative search without warehouse filter...');
+          // Fallback to searching all items and filtering client-side
+          console.warn('Using client-side filtering for warehouse items...');
           
-          // Search all items and filter client-side
-          return await dispatch('searchItemsForTransactions', {
+          const allItems = await dispatch('searchItemsForTransactions', {
             searchTerm: '',
             limitResults: 50
-          }).then(items => 
-            items.filter(item => item.warehouse_id === warehouseId)
-          );
+          });
+          
+          return allItems.filter(item => item.warehouse_id === warehouseId);
         }
         
         dispatch('showNotification', {
@@ -705,7 +1092,7 @@ export default createStore({
       }
     },
 
-    // ✅ NEW: Get all warehouses for the current user
+    // ✅ Get all warehouses for the current user
     async getAvailableWarehousesForTransactions({ getters }) {
       try {
         console.log('🔄 Getting available warehouses for transactions...');
@@ -735,7 +1122,6 @@ export default createStore({
 
         const term = searchTerm.trim().toLowerCase();
 
-        // 1. Search in loaded inventory (no reads)
         const localResults = state.inventory.filter(item => 
           item.name?.toLowerCase().includes(term) || 
           item.code?.toLowerCase().includes(term) ||
@@ -747,7 +1133,6 @@ export default createStore({
           return localResults;
         }
 
-        // 2. Search in Firestore with limits
         const itemsRef = collection(db, 'items');
         
         const queries = [
@@ -777,7 +1162,6 @@ export default createStore({
                 resultsSet.add(itemId);
                 const itemData = doc.data();
                 
-                // Filter by warehouse permissions
                 if (state.userProfile.role === 'warehouse_manager') {
                   const allowedWarehouses = state.userProfile.allowed_warehouses || [];
                   if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
@@ -962,7 +1346,7 @@ export default createStore({
 
         // Load warehouses and data
         await dispatch('loadWarehouses');
-        await dispatch('fetchInventoryOnce');
+        await dispatch('fetchInventoryOnce'); // ✅ RESTORED: Load all items on login
         await dispatch('fetchTransactions');
         dispatch('getRecentTransactions');
 
@@ -1035,6 +1419,7 @@ export default createStore({
         commit('SET_REQUIRES_COMPOSITE_INDEX', false);
         commit('CLEAR_CACHE');
         commit('SET_INVENTORY_LAST_FETCHED', null);
+        commit('RESET_INVENTORY_PAGINATION'); // Reset pagination
 
         dispatch('showNotification', {
           type: 'info',
@@ -1049,166 +1434,6 @@ export default createStore({
         });
         throw error;
       }
-    },
-
-    // ✅ UPDATED: fetchInventoryOnce with better warehouse handling
-    async fetchInventoryOnce({ commit, state, dispatch }) {
-      if (state.isFetchingInventory) {
-        console.log('Inventory fetch already in progress, skipping...');
-        return state.inventory;
-      }
-
-      const now = Date.now();
-      const fiveMinutes = 5 * 60 * 1000;
-      
-      if (state.inventoryLastFetched && 
-          (now - state.inventoryLastFetched) < fiveMinutes && 
-          state.inventory.length > 0) {
-        console.log('Using cached inventory (fetched less than 5 minutes ago)');
-        return state.inventory;
-      }
-
-      commit('SET_IS_FETCHING_INVENTORY', true);
-      commit('SET_INVENTORY_LOADING', true);
-      
-      try {
-        if (!state.userProfile) {
-          console.log('Cannot load inventory: User not authenticated');
-          commit('SET_INVENTORY', []);
-          return [];
-        }
-
-        let itemsQuery;
-        const itemsRef = collection(db, 'items');
-
-        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
-          // ✅ FIXED: Load items from ALL warehouses for superadmin/company_manager
-          itemsQuery = query(
-            itemsRef,
-            orderBy('warehouse_id'),
-            orderBy('name'),
-            limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
-          );
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-
-          if (allowedWarehouses.length === 0) {
-            console.log('No warehouses assigned to this warehouse manager');
-            commit('SET_INVENTORY', []);
-            return [];
-          }
-
-          if (allowedWarehouses.includes('all')) {
-            // If user has access to all warehouses
-            itemsQuery = query(
-              itemsRef,
-              orderBy('warehouse_id'),
-              orderBy('name'),
-              limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
-            );
-          } else {
-            try {
-              // Try to filter by allowed warehouses
-              itemsQuery = query(
-                itemsRef,
-                where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)), // Firestore limit: 10 warehouses
-                orderBy('warehouse_id'),
-                orderBy('name'),
-                limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE)
-              );
-            } catch (error) {
-              if (error.code === 'failed-precondition') {
-                console.warn('Composite index required. Loading all items then filtering...');
-                commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-                itemsQuery = query(
-                  itemsRef,
-                  orderBy('warehouse_id'),
-                  orderBy('name'),
-                  limit(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE * 2) // Load more to compensate for filtering
-                );
-              } else {
-                throw error;
-              }
-            }
-          }
-        } else {
-          console.log('User role not authorized for inventory access');
-          commit('SET_INVENTORY', []);
-          return [];
-        }
-
-        const snapshot = await getDocs(itemsQuery);
-        console.log('✅ Inventory ONE-TIME fetch completed:', snapshot.size, 'items');
-
-        let inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
-          const item = InventoryService.convertForDisplay({
-            id: doc.id,
-            ...data
-          });
-          
-          commit('CACHE_ITEM', {
-            itemId: doc.id,
-            itemData: item
-          });
-          
-          return item;
-        });
-
-        // Client-side filtering for warehouse managers
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (allowedWarehouses.length > 10 || state.requiresCompositeIndex) {
-              inventory = inventory.filter(item => 
-                allowedWarehouses.includes(item.warehouse_id)
-              );
-            }
-          }
-        }
-
-        console.log('✅ Inventory filtered:', inventory.length, 'items');
-        commit('SET_INVENTORY', inventory);
-        return inventory;
-
-      } catch (error) {
-        console.error('❌ Error loading inventory:', error);
-
-        if (error.code === 'failed-precondition') {
-          commit('SET_REQUIRES_COMPOSITE_INDEX', true);
-          dispatch('showNotification', {
-            type: 'warning',
-            title: 'تحذير الفهرس',
-            message: 'يجب إنشاء فهرس مركب لتحسين الأداء. راجع وحدة التحكم في Firebase.'
-          });
-        } else if (error.code === 'permission-denied') {
-          dispatch('showNotification', {
-            type: 'error',
-            message: 'ليس لديك صلاحية لعرض المخزون'
-          });
-        } else {
-          dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل المخزون'
-          });
-        }
-
-        commit('SET_INVENTORY', []);
-        return [];
-      } finally {
-        commit('SET_INVENTORY_LOADING', false);
-        commit('SET_IS_FETCHING_INVENTORY', false);
-      }
-    },
-
-    async fetchInventory({ dispatch }) {
-      console.log('Fetching inventory (force refresh)...');
-      return await dispatch('fetchInventoryOnce');
-    },
-
-    async refreshInventory({ commit, state, dispatch }) {
-      commit('SET_INVENTORY_LAST_FETCHED', null);
-      return await dispatch('fetchInventoryOnce');
     },
 
     async fetchTransactions({ commit, state, dispatch }) {
@@ -1610,16 +1835,13 @@ export default createStore({
           throw new Error('معرف المستخدم غير متوفر');
         }
 
-        // ✅ UPDATED: Better permission checking for transfers
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
           
-          // Check if user can access FROM warehouse
           if (!allowedWarehouses.includes(transferData.from_warehouse_id)) {
             throw new Error('ليس لديك صلاحية للنقل من هذا المخزن');
           }
           
-          // For transfers, TO warehouse should also be accessible
           if (!allowedWarehouses.includes(transferData.to_warehouse_id)) {
             throw new Error('ليس لديك صلاحية للنقل إلى هذا المخزن');
           }
@@ -1679,7 +1901,6 @@ export default createStore({
           throw new Error('معرف المستخدم غير متوفر');
         }
 
-        // ✅ UPDATED: Check warehouse permission for dispatch
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
           if (!allowedWarehouses.includes(dispatchData.from_warehouse_id)) {
@@ -2418,8 +2639,10 @@ export default createStore({
     // Inventory getters
     inventoryItems: state => Array.isArray(state.inventory) ? state.inventory : [],
     inventoryLoading: state => state.inventoryLoading,
+    
+    // ✅ NEW: Check if has more items to load
+    hasMoreInventory: state => state.inventoryPagination.hasMore,
 
-    // Get cached item
     getCachedItem: (state) => (itemId) => {
       const cacheEntry = state.cache.itemCache[itemId];
       const cacheDuration = 10 * 60 * 1000;
@@ -2430,11 +2653,9 @@ export default createStore({
       return null;
     },
 
-    // Transactions getters
     transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
     transactionsLoading: state => state.transactionsLoading,
 
-    // Permission checks
     canEdit: (state, getters) => {
       const role = getters.userRole;
       return ['superadmin', 'warehouse_manager'].includes(role);
@@ -2463,7 +2684,6 @@ export default createStore({
       return false;
     },
 
-    // Warehouse getters with cache
     mainWarehouse: state => {
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       return warehouses.find(w => w.is_main) || null;
@@ -2541,7 +2761,6 @@ export default createStore({
       return [];
     },
 
-    // Filtered inventory with performance optimization
     filteredInventory: (state, getters) => {
       const inventory = getters.inventoryItems;
       if (!inventory.length) return [];
@@ -2574,7 +2793,6 @@ export default createStore({
       return filtered;
     },
 
-    // Dashboard statistics with caching
     dashboardStats: (state, getters) => {
       if (state.cache.stats && 
           state.cache.statsTimestamp && 
