@@ -24,22 +24,6 @@
           </div>
           
           <div class="flex items-center gap-3">
-            <!-- Load More Button -->
-            <button
-              v-if="hasMore && !loading"
-              @click="loadMoreInventory"
-              :disabled="loadingMore"
-              class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="loadingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-              </svg>
-              {{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}
-            </button>
-
             <!-- Refresh Button -->
             <button
               @click="refreshData"
@@ -971,7 +955,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import { debounce } from 'lodash';
@@ -1026,7 +1010,6 @@ export default {
     
     // State
     const loading = ref(false);
-    const loadingMore = ref(false);
     const loadingProgress = ref('');
     const error = ref('');
     const showAddModal = ref(false);
@@ -1048,7 +1031,7 @@ export default {
     const searchTimeout = ref(null);
     const exporting = ref(false);
     const currentPage = ref(1);
-    const itemsPerPage = ref(30); // Optimized for performance
+    const itemsPerPage = ref(30);
     const lastRefreshTime = ref(null);
     const isCachedData = ref(false);
     const performanceStats = ref(null);
@@ -1082,8 +1065,6 @@ export default {
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     const currentUser = computed(() => store.state.user);
-    const refreshing = computed(() => store.state.refreshing);
-    const hasMore = computed(() => store.state.pagination.hasMore);
     
     // Current user info
     const currentUserInfo = computed(() => {
@@ -1166,7 +1147,7 @@ export default {
             if (cacheAge < 60 * 60 * 1000) {
               store.commit('SET_INVENTORY', inventoryData.data);
               isCachedData.value = true;
-              console.log('Loaded inventory from cache');
+              console.log('✅ Loaded inventory from cache');
             }
           }
         }
@@ -1183,7 +1164,7 @@ export default {
           lastRefreshTime.value = parseInt(lastRefresh);
         }
       } catch (error) {
-        console.warn('Error loading from cache:', error);
+        console.warn('❌ Error loading from cache:', error);
       }
     };
     
@@ -1197,7 +1178,7 @@ export default {
         };
         localStorage.setItem(key, JSON.stringify(cacheData));
       } catch (error) {
-        console.warn('Error saving to cache:', error);
+        console.warn('❌ Error saving to cache:', error);
       }
     };
     
@@ -1497,10 +1478,17 @@ export default {
         // Clear error
         error.value = '';
         
-        // Update filters if they have changed
-        store.dispatch('updateFilters', { search: searchTerm.value, warehouse: selectedWarehouse.value });
+        console.log('🔄 Starting data refresh...');
         
-        await store.dispatch('subscribeToInventory');
+        // Refresh inventory using the new one-time fetch
+        await store.dispatch('refreshInventory');
+        
+        // Load warehouses if not already loaded
+        if (!allWarehouses.value.length) {
+          await store.dispatch('loadWarehouses');
+        }
+        
+        // Load recent transactions
         await store.dispatch('getRecentTransactions');
         
         // Save to cache
@@ -1511,6 +1499,8 @@ export default {
         lastRefreshTime.value = Date.now();
         isCachedData.value = false;
         
+        console.log('✅ Data refreshed successfully');
+        
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم تحديث البيانات بنجاح'
@@ -1519,8 +1509,8 @@ export default {
         measurePerformance();
         
       } catch (err) {
-        console.error('Error refreshing data:', err);
-        error.value = 'حدث خطأ في تحديث البيانات: ' + err.message;
+        console.error('❌ Error refreshing data:', err);
+        error.value = 'حدث خطأ في تحديث البيانات: ' + (err.message || 'خطأ غير معروف');
         
         store.dispatch('showNotification', {
           type: 'error',
@@ -1528,27 +1518,6 @@ export default {
         });
       } finally {
         loading.value = false;
-      }
-    };
-    
-    const loadMoreInventory = async () => {
-      try {
-        loadingMore.value = true;
-        loadingProgress.value = 'جاري تحميل المزيد من الأصناف...';
-        
-        await store.dispatch('loadMoreInventory');
-        
-        // Update cache with new data
-        saveToCache(LOCAL_STORAGE_KEYS.INVENTORY, store.state.inventory);
-        
-        measurePerformance();
-        
-      } catch (err) {
-        console.error('Error loading more inventory:', err);
-        error.value = 'حدث خطأ في تحميل المزيد من الأصناف';
-      } finally {
-        loadingMore.value = false;
-        loadingProgress.value = '';
       }
     };
     
@@ -1690,20 +1659,13 @@ export default {
       try {
         deleteLoading.value = true;
         
-        const { deleteItem } = await import('@/services/inventoryService');
+        await store.dispatch('deleteItem', itemToDelete.value.id);
         
-        const result = await deleteItem(itemToDelete.value.id, store.state.user?.uid);
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم حذف الصنف "${itemToDelete.value.name}" بنجاح`
+        });
         
-        if (result.success) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `تم حذف الصنف "${itemToDelete.value.name}" بنجاح`
-          });
-          
-          await refreshData();
-        } else {
-          throw new Error(result.error || 'فشل في حذف الصنف');
-        }
       } catch (err) {
         console.error('Error deleting item:', err);
         store.dispatch('showNotification', {
@@ -1717,19 +1679,15 @@ export default {
       }
     };
     
-    const handleItemSaved = async (result) => {
-      // Don't close the modal - let it stay open
-      // showAddModal.value = false;
+    const handleItemSaved = async () => {
+      showAddModal.value = false;
       
       // Refresh data to show the new item
       await refreshData();
       
-      // Show success notification
       store.dispatch('showNotification', {
         type: 'success',
-        message: result?.type === 'created' 
-          ? 'تم إضافة الصنف الجديد بنجاح! يمكنك إضافة صنف آخر أو إغلاق النافذة.' 
-          : 'تم تحديث الكميات بنجاح!'
+        message: 'تم إضافة/تحديث الصنف بنجاح!'
       });
     };
     
@@ -1769,24 +1727,6 @@ export default {
       }
     };
     
-    // Optimistic updates for better performance
-    const optimisticUpdate = (itemId, updates) => {
-      const itemIndex = store.state.inventory.findIndex(item => item.id === itemId);
-      if (itemIndex !== -1) {
-        const updatedItem = {
-          ...store.state.inventory[itemIndex],
-          ...updates,
-          last_updated_by: currentUserInfo.value,
-          last_updated_by_name: currentUserInfo.value,
-          updated_at: new Date()
-        };
-        
-        store.commit('UPDATE_ITEM', updatedItem);
-        return updatedItem;
-      }
-      return null;
-    };
-    
     // Cleanup images from memory when component unmounts
     const cleanupImages = () => {
       Object.keys(imageLoaded).forEach(key => {
@@ -1817,7 +1757,17 @@ export default {
             loading.value = true;
             loadingProgress.value = 'جاري تحميل البيانات...';
             
-            await store.dispatch('subscribeToInventory');
+            console.log('📥 Loading fresh inventory data...');
+            
+            // Use fetchInventoryOnce for initial load
+            await store.dispatch('fetchInventoryOnce');
+            
+            // Load warehouses if not loaded
+            if (!allWarehouses.value.length) {
+              await store.dispatch('loadWarehouses');
+            }
+            
+            // Load recent transactions
             await store.dispatch('getRecentTransactions');
             
             // Save to cache
@@ -1828,8 +1778,10 @@ export default {
             lastRefreshTime.value = Date.now();
             isCachedData.value = false;
             
+            console.log('✅ Initial data loaded successfully');
+            
           } catch (err) {
-            console.error('Error loading data:', err);
+            console.error('❌ Error loading data:', err);
             error.value = 'حدث خطأ في تحميل البيانات';
           } finally {
             loading.value = false;
@@ -1904,7 +1856,6 @@ export default {
     return {
       // State
       loading,
-      loadingMore,
       loadingProgress,
       error,
       showAddModal,
@@ -1950,8 +1901,6 @@ export default {
       endIndex,
       visiblePages,
       currentUserInfo,
-      refreshing,
-      hasMore,
       
       // Helper Methods
       formatNumber,
@@ -1982,7 +1931,6 @@ export default {
       showItemDetails,
       closeDetailsModal,
       refreshData,
-      loadMoreInventory,
       exportInventory,
       handleTransfer,
       handleDispatch,
