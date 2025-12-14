@@ -72,6 +72,7 @@ export default createStore({
 
     // Inventory
     inventory: [],
+    inventoryLastFetched: null, // ✅ NEW: Track when inventory was last fetched
 
     // Transactions
     transactions: [],
@@ -110,7 +111,10 @@ export default createStore({
 
     // Loading states
     inventoryLoading: false,
-    transactionsLoading: false
+    transactionsLoading: false,
+    
+    // ✅ NEW: Prevent multiple fetches
+    isFetchingInventory: false
   }),
 
   mutations: {
@@ -151,6 +155,11 @@ export default createStore({
 
     SET_INVENTORY(state, inventory) {
       state.inventory = Array.isArray(inventory) ? inventory : [];
+      state.inventoryLastFetched = Date.now(); // ✅ NEW: Update timestamp
+    },
+
+    SET_INVENTORY_LAST_FETCHED(state, timestamp) { // ✅ NEW: Mutation
+      state.inventoryLastFetched = timestamp;
     },
 
     ADD_ITEM(state, item) {
@@ -174,6 +183,10 @@ export default createStore({
 
     SET_INVENTORY_LOADING(state, loading) {
       state.inventoryLoading = loading;
+    },
+
+    SET_IS_FETCHING_INVENTORY(state, fetching) { // ✅ NEW: Mutation
+      state.isFetchingInventory = fetching;
     },
 
     SET_TRANSACTIONS(state, transactions) {
@@ -294,6 +307,7 @@ export default createStore({
         stats: null,
         statsTimestamp: null
       };
+      state.inventoryLastFetched = null; // ✅ NEW: Clear timestamp
     }
   },
 
@@ -399,7 +413,7 @@ export default createStore({
 
         // Load warehouses and data
         await dispatch('loadWarehouses');
-        await dispatch('fetchInventory');
+        await dispatch('fetchInventoryOnce'); // ✅ CHANGED: Use fetchInventoryOnce instead of fetchInventory
         await dispatch('fetchTransactions');
         dispatch('getRecentTransactions');
 
@@ -471,6 +485,7 @@ export default createStore({
         commit('SET_WAREHOUSES_LOADED', false);
         commit('SET_REQUIRES_COMPOSITE_INDEX', false);
         commit('CLEAR_CACHE');
+        commit('SET_INVENTORY_LAST_FETCHED', null); // ✅ NEW: Clear timestamp
 
         dispatch('showNotification', {
           type: 'info',
@@ -487,669 +502,26 @@ export default createStore({
       }
     },
 
-    async createWarehouse({ commit, dispatch, state }, warehouseData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لإضافة مخازن');
-        }
-
-        if (!warehouseData.name_ar?.trim()) {
-          throw new Error('اسم المخزن (عربي) مطلوب');
-        }
-
-        if (!warehouseData.type) {
-          throw new Error('نوع المخزن مطلوب');
-        }
-
-        const newWarehouse = {
-          name_ar: warehouseData.name_ar.trim(),
-          name_en: warehouseData.name_en?.trim() || '',
-          type: warehouseData.type,
-          status: warehouseData.status || 'active',
-          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : null,
-          location: warehouseData.location?.trim() || '',
-          description: warehouseData.description?.trim() || '',
-          is_main: warehouseData.is_main || false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        if (newWarehouse.is_main) {
-          const existingMainWarehouse = state.warehouses.find(w => w.is_main);
-          if (existingMainWarehouse && existingMainWarehouse.id !== warehouseData.id) {
-            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
-          }
-        }
-
-        const warehouseRef = await addDoc(collection(db, 'warehouses'), newWarehouse);
-
-        // Refresh warehouses after creation
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم إضافة المخزن "${newWarehouse.name_ar}" بنجاح`
-        });
-
-        return { success: true, id: warehouseRef.id, data: newWarehouse };
-
-      } catch (error) {
-        console.error('Error creating warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في إضافة المخزن'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
+    // ✅ NEW ACTION: One-time fetch for inventory
+    async fetchInventoryOnce({ commit, state, dispatch }) {
+      // Prevent multiple simultaneous fetches
+      if (state.isFetchingInventory) {
+        console.log('Inventory fetch already in progress, skipping...');
+        return state.inventory;
       }
-    },
 
-    async updateWarehouse({ commit, dispatch, state }, { warehouseId, warehouseData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لتعديل المخازن');
-        }
-
-        const warehouseRef = doc(db, 'warehouses', warehouseId);
-        const warehouseDoc = await getDoc(warehouseRef);
-
-        if (!warehouseDoc.exists()) {
-          throw new Error('المخزن غير موجود');
-        }
-
-        const existingWarehouse = warehouseDoc.data();
-
-        if (!warehouseData.name_ar?.trim()) {
-          throw new Error('اسم المخزن (عربي) مطلوب');
-        }
-
-        const updateData = {
-          name_ar: warehouseData.name_ar.trim(),
-          name_en: warehouseData.name_en?.trim() || existingWarehouse.name_en,
-          type: warehouseData.type || existingWarehouse.type,
-          status: warehouseData.status || existingWarehouse.status,
-          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : existingWarehouse.capacity,
-          location: warehouseData.location?.trim() || existingWarehouse.location,
-          description: warehouseData.description?.trim() || existingWarehouse.description,
-          is_main: warehouseData.is_main !== undefined ? warehouseData.is_main : existingWarehouse.is_main,
-          updated_at: new Date().toISOString()
-        };
-
-        if (updateData.is_main && !existingWarehouse.is_main) {
-          const existingMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
-          if (existingMainWarehouse) {
-            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
-          }
-        }
-
-        await updateDoc(warehouseRef, updateData);
-
-        if (existingWarehouse.is_main && !updateData.is_main) {
-          const newMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
-          if (!newMainWarehouse) {
-            throw new Error('يجب أن يكون هناك مخزن رئيسي واحد على الأقل في النظام');
-          }
-        }
-
-        // Refresh warehouses after update
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث المخزن "${updateData.name_ar}" بنجاح`
-        });
-
-        return { success: true, data: updateData };
-
-      } catch (error) {
-        console.error('Error updating warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث المخزن'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
+      // Check cache: if inventory was fetched less than 5 minutes ago, skip
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      
+      if (state.inventoryLastFetched && 
+          (now - state.inventoryLastFetched) < fiveMinutes && 
+          state.inventory.length > 0) {
+        console.log('Using cached inventory (fetched less than 5 minutes ago)');
+        return state.inventory;
       }
-    },
 
-    async deleteWarehouse({ commit, dispatch, state }, warehouseId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لحذف المخازن');
-        }
-
-        const warehouseRef = doc(db, 'warehouses', warehouseId);
-        const warehouseDoc = await getDoc(warehouseRef);
-
-        if (!warehouseDoc.exists()) {
-          throw new Error('المخزن غير موجود');
-        }
-
-        const warehouseData = warehouseDoc.data();
-
-        if (warehouseData.is_main) {
-          throw new Error('لا يمكن حذف المخزن الرئيسي');
-        }
-
-        const itemsQuery = query(
-          collection(db, 'items'),
-          where('warehouse_id', '==', warehouseId),
-          limit(1)
-        );
-
-        const itemsSnapshot = await getDocs(itemsQuery);
-        if (!itemsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه يحتوي على أصناف. يرجى نقل أو حذف الأصناف أولاً.');
-        }
-
-        const fromTransactionsQuery = query(
-          collection(db, 'transactions'),
-          where('from_warehouse', '==', warehouseId),
-          limit(1)
-        );
-
-        const fromTransactionsSnapshot = await getDocs(fromTransactionsQuery);
-        if (!fromTransactionsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كمصدر.');
-        }
-
-        const toTransactionsQuery = query(
-          collection(db, 'transactions'),
-          where('to_warehouse', '==', warehouseId),
-          limit(1)
-        );
-
-        const toTransactionsSnapshot = await getDocs(toTransactionsQuery);
-        if (!toTransactionsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كوجهة.');
-        }
-
-        await deleteDoc(warehouseRef);
-
-        // Refresh warehouses after delete
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم حذف المخزن "${warehouseData.name_ar}" بنجاح`
-        });
-
-        return { 
-          success: true, 
-          message: 'تم حذف المخزن بنجاح' 
-        };
-
-      } catch (error) {
-        console.error('Error deleting warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف المخزن'
-        });
-
-        return { 
-          success: false, 
-          error: error.message || 'حدث خطأ في حذف المخزن' 
-        };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
-        }
-
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const existingItem = itemDoc.data();
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
-            throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
-          }
-        }
-
-        const name = itemData.name?.trim() || existingItem.name;
-        const code = itemData.code?.trim() || existingItem.code;
-        const color = itemData.color?.trim() || existingItem.color;
-        const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
-
-        if (!name || !code || !color || !warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-        }
-
-        const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
-        const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
-        const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
-        const newTotalQuantity = InventoryService.calculateTotalQuantity(
-          newCartonsCount,
-          newPerCartonCount,
-          newSingleBottlesCount
-        );
-
-        if (newTotalQuantity < 0) {
-          throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
-        }
-
-        const updateData = {
-          name: name,
-          code: code,
-          color: color,
-          warehouse_id: warehouse_id,
-          cartons_count: newCartonsCount,
-          per_carton_count: newPerCartonCount,
-          single_bottles_count: newSingleBottlesCount,
-          remaining_quantity: newTotalQuantity,
-          total_added: itemData.total_added || existingItem.total_added,
-          supplier: itemData.supplier?.trim() || existingItem.supplier || '',
-          item_location: itemData.item_location?.trim() || existingItem.item_location || '',
-          notes: itemData.notes?.trim() || existingItem.notes || '',
-          photo_url: itemData.photo_url || existingItem.photo_url || '',
-          updated_at: new Date().toISOString(),
-          updated_by: state.user.uid
-        };
-
-        const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
-
-        await updateDoc(itemRef, updateData);
-
-        if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
-          const transactionData = {
-            type: 'UPDATE',
-            item_id: itemId,
-            item_name: updateData.name,
-            item_code: updateData.code,
-            from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
-            to_warehouse: warehouse_id,
-            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
-            per_carton_updated: newPerCartonCount,
-            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
-            total_delta: quantityDiff,
-            new_remaining: newTotalQuantity,
-            user_id: state.user.uid,
-            timestamp: new Date(),
-            notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
-            photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
-          };
-
-          await addDoc(collection(db, 'transactions'), transactionData);
-        }
-
-        // Refresh inventory after update
-        await dispatch('fetchInventory');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
-        });
-
-        return { success: true, data: updateData };
-
-      } catch (error) {
-        console.error('Error updating item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث الصنف'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async deleteItem({ commit, dispatch, state }, itemId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (state.userProfile.role === 'superadmin') {
-          // Superadmin can delete any item
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const canDelete = state.userProfile.permissions?.includes('full_access') || 
-                           state.userProfile.permissions?.includes('delete_items');
-          if (!canDelete) {
-            throw new Error('ليس لديك صلاحية لحذف الأصناف');
-          }
-        } else {
-          throw new Error('ليس لديك صلاحية لحذف الأصناف');
-        }
-
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const itemData = itemDoc.data();
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
-            throw new Error('ليس لديك صلاحية لحذف أصناف من هذا المخزن');
-          }
-        }
-
-        const transactionData = {
-          type: 'DELETE',
-          item_id: itemId,
-          item_name: itemData.name,
-          item_code: itemData.code,
-          from_warehouse: itemData.warehouse_id,
-          to_warehouse: null,
-          cartons_delta: -(itemData.cartons_count || 0),
-          per_carton_updated: itemData.per_carton_count || 12,
-          single_delta: -(itemData.single_bottles_count || 0),
-          total_delta: -(itemData.remaining_quantity || 0),
-          new_remaining: 0,
-          user_id: state.user.uid,
-          timestamp: new Date(),
-          notes: 'حذف الصنف نهائياً',
-          photo_changed: false
-        };
-
-        await addDoc(collection(db, 'transactions'), transactionData);
-
-        await deleteDoc(itemRef);
-
-        // Refresh inventory after delete
-        await dispatch('fetchInventory');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم حذف الصنف "${itemData.name}" بنجاح`
-        });
-
-        return { 
-          success: true, 
-          message: 'تم حذف الصنف بنجاح' 
-        };
-
-      } catch (error) {
-        console.error('Error deleting item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف الصنف'
-        });
-
-        return { 
-          success: false, 
-          error: error.message || 'حدث خطأ في حذف الصنف' 
-        };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async loadAllUsers({ commit, dispatch, getters }) {
-      commit('SET_USERS_LOADING', true);
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لعرض المستخدمين');
-        }
-
-        const result = await UserService.getUsers();
-
-        if (result.success) {
-          commit('SET_ALL_USERS', result.data);
-          return result.data;
-        } else {
-          throw new Error(result.error || 'فشل في تحميل المستخدمين');
-        }
-      } catch (error) {
-        console.error('Error loading users:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحميل المستخدمين'
-        });
-        throw error;
-      } finally {
-        commit('SET_USERS_LOADING', false);
-      }
-    },
-
-    async createUser({ commit, dispatch, getters, state }, userData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        const currentUser = state.user;
-        const currentUserProfile = state.userProfile;
-
-        if (!currentUser || !currentUserProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (currentUserProfile.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
-        }
-
-        const superadminCredentials = {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          role: currentUserProfile.role
-        };
-
-        const result = await UserService.createUser(userData, superadminCredentials);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
-          });
-
-          return { success: true, data: result.data, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في إنشاء المستخدم');
-        }
-      } catch (error) {
-        console.error('Error creating user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في إضافة المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateUser({ commit, dispatch, getters }, { userId, userData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لتحديث المستخدمين');
-        }
-
-        const result = await UserService.updateUser(userId, userData);
-
-        if (result.success) {
-          if (userId === getters.user?.uid) {
-            const updatedProfile = {
-              ...getters.userProfile,
-              ...userData
-            };
-            commit('SET_USER_PROFILE', updatedProfile);
-          }
-
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || 'تم تحديث المستخدم بنجاح'
-          });
-
-          return { success: true, data: result.data, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في تحديث المستخدم');
-        }
-      } catch (error) {
-        console.error('Error updating user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async deleteUser({ commit, dispatch, getters }, userId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لحذف المستخدمين');
-        }
-
-        const result = await UserService.deleteUser(userId);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || 'تم حذف المستخدم بنجاح'
-          });
-
-          return { success: true, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في حذف المستخدم');
-        }
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateUserStatus({ commit, dispatch, getters }, { userId, isActive }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لتغيير حالة المستخدمين');
-        }
-
-        const result = await UserService.updateUserStatus(userId, isActive);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || `تم ${isActive ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`
-          });
-
-          return { success: true, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في تغيير حالة المستخدم');
-        }
-      } catch (error) {
-        console.error('Error updating user status:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تغيير حالة المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async getUserStats({ commit, dispatch, getters }) {
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لعرض إحصائيات المستخدمين');
-        }
-
-        const result = await UserService.getUserStats();
-
-        if (result.success) {
-          return result.data;
-        } else {
-          throw new Error(result.error || 'فشل في تحميل إحصائيات المستخدمين');
-        }
-      } catch (error) {
-        console.error('Error loading user stats:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحميل إحصائيات المستخدمين'
-        });
-        throw error;
-      }
-    },
-
-    async fetchInventory({ commit, state, dispatch }) {
+      commit('SET_IS_FETCHING_INVENTORY', true);
       commit('SET_INVENTORY_LOADING', true);
       
       try {
@@ -1231,7 +603,7 @@ export default createStore({
         }
 
         const snapshot = await getDocs(itemsQuery);
-        console.log('Inventory loaded via getDocs:', snapshot.size, 'items');
+        console.log('✅ Inventory ONE-TIME fetch completed:', snapshot.size, 'items');
 
         const inventory = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -1253,12 +625,12 @@ export default createStore({
           }
         }
 
-        console.log('Inventory filtered:', filteredInventory.length, 'items');
+        console.log('✅ Inventory filtered:', filteredInventory.length, 'items');
         commit('SET_INVENTORY', filteredInventory);
         return filteredInventory;
 
       } catch (error) {
-        console.error('Error loading inventory:', error);
+        console.error('❌ Error loading inventory:', error);
 
         if (error.code === 'failed-precondition') {
           commit('SET_REQUIRES_COMPOSITE_INDEX', true);
@@ -1283,7 +655,20 @@ export default createStore({
         return [];
       } finally {
         commit('SET_INVENTORY_LOADING', false);
+        commit('SET_IS_FETCHING_INVENTORY', false);
       }
+    },
+
+    // Keep original fetchInventory for operations that need to refresh data
+    async fetchInventory({ dispatch }) {
+      console.log('Fetching inventory (force refresh)...');
+      return await dispatch('fetchInventoryOnce');
+    },
+
+    // ✅ NEW ACTION: Force refresh inventory (ignores cache)
+    async refreshInventory({ commit, state, dispatch }) {
+      commit('SET_INVENTORY_LAST_FETCHED', null); // Clear cache
+      return await dispatch('fetchInventoryOnce');
     },
 
     async fetchTransactions({ commit, state, dispatch }) {
@@ -1639,8 +1024,8 @@ export default createStore({
           isAddingCartons
         );
 
-        // Refresh inventory after add/update
-        await dispatch('fetchInventory');
+        // ✅ CHANGED: Use refreshInventory to get latest data
+        await dispatch('refreshInventory');
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.ADD,
@@ -1696,8 +1081,8 @@ export default createStore({
 
         const result = await InventoryService.transferItem(transferData, state.user.uid);
 
-        // Refresh inventory after transfer
-        await dispatch('fetchInventory');
+        // ✅ CHANGED: Use refreshInventory to get latest data
+        await dispatch('refreshInventory');
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.TRANSFER,
@@ -1758,8 +1143,8 @@ export default createStore({
 
         const result = await InventoryService.dispatchItem(dispatchData, state.user.uid);
 
-        // Refresh inventory after dispatch
-        await dispatch('fetchInventory');
+        // ✅ CHANGED: Use refreshInventory to get latest data
+        await dispatch('refreshInventory');
 
         commit('ADD_RECENT_TRANSACTION', {
           type: TRANSACTION_TYPES.DISPATCH,
@@ -1787,6 +1172,668 @@ export default createStore({
         throw error;
       } finally {
         commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
+        }
+
+        if (!state.user?.uid) {
+          throw new Error('معرف المستخدم غير متوفر');
+        }
+
+        const itemRef = doc(db, 'items', itemId);
+        const itemDoc = await getDoc(itemRef);
+
+        if (!itemDoc.exists()) {
+          throw new Error('الصنف غير موجود');
+        }
+
+        const existingItem = itemDoc.data();
+
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
+            throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
+          }
+        }
+
+        const name = itemData.name?.trim() || existingItem.name;
+        const code = itemData.code?.trim() || existingItem.code;
+        const color = itemData.color?.trim() || existingItem.color;
+        const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
+
+        if (!name || !code || !color || !warehouse_id) {
+          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+        }
+
+        const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
+        const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
+        const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
+        const newTotalQuantity = InventoryService.calculateTotalQuantity(
+          newCartonsCount,
+          newPerCartonCount,
+          newSingleBottlesCount
+        );
+
+        if (newTotalQuantity < 0) {
+          throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
+        }
+
+        const updateData = {
+          name: name,
+          code: code,
+          color: color,
+          warehouse_id: warehouse_id,
+          cartons_count: newCartonsCount,
+          per_carton_count: newPerCartonCount,
+          single_bottles_count: newSingleBottlesCount,
+          remaining_quantity: newTotalQuantity,
+          total_added: itemData.total_added || existingItem.total_added,
+          supplier: itemData.supplier?.trim() || existingItem.supplier || '',
+          item_location: itemData.item_location?.trim() || existingItem.item_location || '',
+          notes: itemData.notes?.trim() || existingItem.notes || '',
+          photo_url: itemData.photo_url || existingItem.photo_url || '',
+          updated_at: new Date().toISOString(),
+          updated_by: state.user.uid
+        };
+
+        const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
+
+        await updateDoc(itemRef, updateData);
+
+        if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
+          const transactionData = {
+            type: 'UPDATE',
+            item_id: itemId,
+            item_name: updateData.name,
+            item_code: updateData.code,
+            from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
+            to_warehouse: warehouse_id,
+            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
+            per_carton_updated: newPerCartonCount,
+            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
+            total_delta: quantityDiff,
+            new_remaining: newTotalQuantity,
+            user_id: state.user.uid,
+            timestamp: new Date(),
+            notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
+            photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
+          };
+
+          await addDoc(collection(db, 'transactions'), transactionData);
+        }
+
+        // ✅ CHANGED: Use refreshInventory to get latest data
+        await dispatch('refreshInventory');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
+        });
+
+        return { success: true, data: updateData };
+
+      } catch (error) {
+        console.error('Error updating item:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث الصنف'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async deleteItem({ commit, dispatch, state }, itemId) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (state.userProfile.role === 'superadmin') {
+          // Superadmin can delete any item
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const canDelete = state.userProfile.permissions?.includes('full_access') || 
+                           state.userProfile.permissions?.includes('delete_items');
+          if (!canDelete) {
+            throw new Error('ليس لديك صلاحية لحذف الأصناف');
+          }
+        } else {
+          throw new Error('ليس لديك صلاحية لحذف الأصناف');
+        }
+
+        if (!state.user?.uid) {
+          throw new Error('معرف المستخدم غير متوفر');
+        }
+
+        const itemRef = doc(db, 'items', itemId);
+        const itemDoc = await getDoc(itemRef);
+
+        if (!itemDoc.exists()) {
+          throw new Error('الصنف غير موجود');
+        }
+
+        const itemData = itemDoc.data();
+
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
+            throw new Error('ليس لديك صلاحية لحذف أصناف من هذا المخزن');
+          }
+        }
+
+        const transactionData = {
+          type: 'DELETE',
+          item_id: itemId,
+          item_name: itemData.name,
+          item_code: itemData.code,
+          from_warehouse: itemData.warehouse_id,
+          to_warehouse: null,
+          cartons_delta: -(itemData.cartons_count || 0),
+          per_carton_updated: itemData.per_carton_count || 12,
+          single_delta: -(itemData.single_bottles_count || 0),
+          total_delta: -(itemData.remaining_quantity || 0),
+          new_remaining: 0,
+          user_id: state.user.uid,
+          timestamp: new Date(),
+          notes: 'حذف الصنف نهائياً',
+          photo_changed: false
+        };
+
+        await addDoc(collection(db, 'transactions'), transactionData);
+
+        await deleteDoc(itemRef);
+
+        // ✅ CHANGED: Use refreshInventory to get latest data
+        await dispatch('refreshInventory');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم حذف الصنف "${itemData.name}" بنجاح`
+        });
+
+        return { 
+          success: true, 
+          message: 'تم حذف الصنف بنجاح' 
+        };
+
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حذف الصنف'
+        });
+
+        return { 
+          success: false, 
+          error: error.message || 'حدث خطأ في حذف الصنف' 
+        };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async createWarehouse({ commit, dispatch, state }, warehouseData) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (state.userProfile?.role !== 'superadmin') {
+          throw new Error('ليس لديك صلاحية لإضافة مخازن');
+        }
+
+        if (!warehouseData.name_ar?.trim()) {
+          throw new Error('اسم المخزن (عربي) مطلوب');
+        }
+
+        if (!warehouseData.type) {
+          throw new Error('نوع المخزن مطلوب');
+        }
+
+        const newWarehouse = {
+          name_ar: warehouseData.name_ar.trim(),
+          name_en: warehouseData.name_en?.trim() || '',
+          type: warehouseData.type,
+          status: warehouseData.status || 'active',
+          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : null,
+          location: warehouseData.location?.trim() || '',
+          description: warehouseData.description?.trim() || '',
+          is_main: warehouseData.is_main || false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        if (newWarehouse.is_main) {
+          const existingMainWarehouse = state.warehouses.find(w => w.is_main);
+          if (existingMainWarehouse && existingMainWarehouse.id !== warehouseData.id) {
+            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
+          }
+        }
+
+        const warehouseRef = await addDoc(collection(db, 'warehouses'), newWarehouse);
+
+        // Refresh warehouses after creation
+        await dispatch('fetchWarehouses');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم إضافة المخزن "${newWarehouse.name_ar}" بنجاح`
+        });
+
+        return { success: true, id: warehouseRef.id, data: newWarehouse };
+
+      } catch (error) {
+        console.error('Error creating warehouse:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في إضافة المخزن'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateWarehouse({ commit, dispatch, state }, { warehouseId, warehouseData }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (state.userProfile?.role !== 'superadmin') {
+          throw new Error('ليس لديك صلاحية لتعديل المخازن');
+        }
+
+        const warehouseRef = doc(db, 'warehouses', warehouseId);
+        const warehouseDoc = await getDoc(warehouseRef);
+
+        if (!warehouseDoc.exists()) {
+          throw new Error('المخزن غير موجود');
+        }
+
+        const existingWarehouse = warehouseDoc.data();
+
+        if (!warehouseData.name_ar?.trim()) {
+          throw new Error('اسم المخزن (عربي) مطلوب');
+        }
+
+        const updateData = {
+          name_ar: warehouseData.name_ar.trim(),
+          name_en: warehouseData.name_en?.trim() || existingWarehouse.name_en,
+          type: warehouseData.type || existingWarehouse.type,
+          status: warehouseData.status || existingWarehouse.status,
+          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : existingWarehouse.capacity,
+          location: warehouseData.location?.trim() || existingWarehouse.location,
+          description: warehouseData.description?.trim() || existingWarehouse.description,
+          is_main: warehouseData.is_main !== undefined ? warehouseData.is_main : existingWarehouse.is_main,
+          updated_at: new Date().toISOString()
+        };
+
+        if (updateData.is_main && !existingWarehouse.is_main) {
+          const existingMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
+          if (existingMainWarehouse) {
+            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
+          }
+        }
+
+        await updateDoc(warehouseRef, updateData);
+
+        if (existingWarehouse.is_main && !updateData.is_main) {
+          const newMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
+          if (!newMainWarehouse) {
+            throw new Error('يجب أن يكون هناك مخزن رئيسي واحد على الأقل في النظام');
+          }
+        }
+
+        // Refresh warehouses after update
+        await dispatch('fetchWarehouses');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تحديث المخزن "${updateData.name_ar}" بنجاح`
+        });
+
+        return { success: true, data: updateData };
+
+      } catch (error) {
+        console.error('Error updating warehouse:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث المخزن'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async deleteWarehouse({ commit, dispatch, state }, warehouseId) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (state.userProfile?.role !== 'superadmin') {
+          throw new Error('ليس لديك صلاحية لحذف المخازن');
+        }
+
+        const warehouseRef = doc(db, 'warehouses', warehouseId);
+        const warehouseDoc = await getDoc(warehouseRef);
+
+        if (!warehouseDoc.exists()) {
+          throw new Error('المخزن غير موجود');
+        }
+
+        const warehouseData = warehouseDoc.data();
+
+        if (warehouseData.is_main) {
+          throw new Error('لا يمكن حذف المخزن الرئيسي');
+        }
+
+        const itemsQuery = query(
+          collection(db, 'items'),
+          where('warehouse_id', '==', warehouseId),
+          limit(1)
+        );
+
+        const itemsSnapshot = await getDocs(itemsQuery);
+        if (!itemsSnapshot.empty) {
+          throw new Error('لا يمكن حذف المخزن لأنه يحتوي على أصناف. يرجى نقل أو حذف الأصناف أولاً.');
+        }
+
+        const fromTransactionsQuery = query(
+          collection(db, 'transactions'),
+          where('from_warehouse', '==', warehouseId),
+          limit(1)
+        );
+
+        const fromTransactionsSnapshot = await getDocs(fromTransactionsQuery);
+        if (!fromTransactionsSnapshot.empty) {
+          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كمصدر.');
+        }
+
+        const toTransactionsQuery = query(
+          collection(db, 'transactions'),
+          where('to_warehouse', '==', warehouseId),
+          limit(1)
+        );
+
+        const toTransactionsSnapshot = await getDocs(toTransactionsQuery);
+        if (!toTransactionsSnapshot.empty) {
+          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كوجهة.');
+        }
+
+        await deleteDoc(warehouseRef);
+
+        // Refresh warehouses after delete
+        await dispatch('fetchWarehouses');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم حذف المخزن "${warehouseData.name_ar}" بنجاح`
+        });
+
+        return { 
+          success: true, 
+          message: 'تم حذف المخزن بنجاح' 
+        };
+
+      } catch (error) {
+        console.error('Error deleting warehouse:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حذف المخزن'
+        });
+
+        return { 
+          success: false, 
+          error: error.message || 'حدث خطأ في حذف المخزن' 
+        };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async loadAllUsers({ commit, dispatch, getters }) {
+      commit('SET_USERS_LOADING', true);
+
+      try {
+        if (!getters.canManageUsers) {
+          throw new Error('ليس لديك صلاحية لعرض المستخدمين');
+        }
+
+        const result = await UserService.getUsers();
+
+        if (result.success) {
+          commit('SET_ALL_USERS', result.data);
+          return result.data;
+        } else {
+          throw new Error(result.error || 'فشل في تحميل المستخدمين');
+        }
+      } catch (error) {
+        console.error('Error loading users:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحميل المستخدمين'
+        });
+        throw error;
+      } finally {
+        commit('SET_USERS_LOADING', false);
+      }
+    },
+
+    async createUser({ commit, dispatch, getters, state }, userData) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        const currentUser = state.user;
+        const currentUserProfile = state.userProfile;
+
+        if (!currentUser || !currentUserProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (currentUserProfile.role !== 'superadmin') {
+          throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
+        }
+
+        const superadminCredentials = {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          role: currentUserProfile.role
+        };
+
+        const result = await UserService.createUser(userData, superadminCredentials);
+
+        if (result.success) {
+          dispatch('showNotification', {
+            type: 'success',
+            message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
+          });
+
+          return { success: true, data: result.data, message: result.message };
+        } else {
+          throw new Error(result.error || 'فشل في إنشاء المستخدم');
+        }
+      } catch (error) {
+        console.error('Error creating user:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في إضافة المستخدم'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateUser({ commit, dispatch, getters }, { userId, userData }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!getters.canManageUsers) {
+          throw new Error('ليس لديك صلاحية لتحديث المستخدمين');
+        }
+
+        const result = await UserService.updateUser(userId, userData);
+
+        if (result.success) {
+          if (userId === getters.user?.uid) {
+            const updatedProfile = {
+              ...getters.userProfile,
+              ...userData
+            };
+            commit('SET_USER_PROFILE', updatedProfile);
+          }
+
+          dispatch('showNotification', {
+            type: 'success',
+            message: result.message || 'تم تحديث المستخدم بنجاح'
+          });
+
+          return { success: true, data: result.data, message: result.message };
+        } else {
+          throw new Error(result.error || 'فشل في تحديث المستخدم');
+        }
+      } catch (error) {
+        console.error('Error updating user:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث المستخدم'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async deleteUser({ commit, dispatch, getters }, userId) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!getters.canManageUsers) {
+          throw new Error('ليس لديك صلاحية لحذف المستخدمين');
+        }
+
+        const result = await UserService.deleteUser(userId);
+
+        if (result.success) {
+          dispatch('showNotification', {
+            type: 'success',
+            message: result.message || 'تم حذف المستخدم بنجاح'
+          });
+
+          return { success: true, message: result.message };
+        } else {
+          throw new Error(result.error || 'فشل في حذف المستخدم');
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حذف المستخدم'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateUserStatus({ commit, dispatch, getters }, { userId, isActive }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!getters.canManageUsers) {
+          throw new Error('ليس لديك صلاحية لتغيير حالة المستخدمين');
+        }
+
+        const result = await UserService.updateUserStatus(userId, isActive);
+
+        if (result.success) {
+          dispatch('showNotification', {
+            type: 'success',
+            message: result.message || `تم ${isActive ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`
+          });
+
+          return { success: true, message: result.message };
+        } else {
+          throw new Error(result.error || 'فشل في تغيير حالة المستخدم');
+        }
+      } catch (error) {
+        console.error('Error updating user status:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تغيير حالة المستخدم'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async getUserStats({ commit, dispatch, getters }) {
+      try {
+        if (!getters.canManageUsers) {
+          throw new Error('ليس لديك صلاحية لعرض إحصائيات المستخدمين');
+        }
+
+        const result = await UserService.getUserStats();
+
+        if (result.success) {
+          return result.data;
+        } else {
+          throw new Error(result.error || 'فشل في تحميل إحصائيات المستخدمين');
+        }
+      } catch (error) {
+        console.error('Error loading user stats:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحميل إحصائيات المستخدمين'
+        });
+        throw error;
       }
     },
 
