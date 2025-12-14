@@ -37,7 +37,8 @@ const PERFORMANCE_CONFIG = {
   RECENT_TRANSACTIONS_LIMIT: 20,
   NOTIFICATION_LIMIT: 100,
   CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-  DEBOUNCE_DELAY: 300 // ms
+  DEBOUNCE_DELAY: 300, // ms
+  ITEM_SEARCH_LIMIT: 5 // ✅ NEW: Limit search results for Spark plan
 };
 
 // Field name mapping
@@ -106,7 +107,9 @@ export default createStore({
     cache: {
       warehouseLabels: {},
       stats: null,
-      statsTimestamp: null
+      statsTimestamp: null,
+      itemCache: {}, // ✅ NEW: Cache for individual items
+      itemCacheTimestamp: null
     },
 
     // Loading states
@@ -165,6 +168,13 @@ export default createStore({
     ADD_ITEM(state, item) {
       if (item && typeof item === 'object') {
         state.inventory.push(item);
+        // ✅ NEW: Also add to item cache
+        if (item.id) {
+          state.cache.itemCache[item.id] = {
+            data: item,
+            timestamp: Date.now()
+          };
+        }
       }
     },
 
@@ -175,10 +185,18 @@ export default createStore({
       if (index !== -1) {
         state.inventory.splice(index, 1, updatedItem);
       }
+      
+      // ✅ NEW: Also update item cache
+      state.cache.itemCache[updatedItem.id] = {
+        data: updatedItem,
+        timestamp: Date.now()
+      };
     },
 
     REMOVE_ITEM(state, itemId) {
       state.inventory = state.inventory.filter(item => item.id !== itemId);
+      // ✅ NEW: Also remove from item cache
+      delete state.cache.itemCache[itemId];
     },
 
     SET_INVENTORY_LOADING(state, loading) {
@@ -301,17 +319,319 @@ export default createStore({
       state.cache.statsTimestamp = timestamp;
     },
 
+    // ✅ NEW: Cache item for faster access
+    CACHE_ITEM(state, { itemId, itemData }) {
+      if (itemId && itemData) {
+        state.cache.itemCache[itemId] = {
+          data: itemData,
+          timestamp: Date.now()
+        };
+      }
+    },
+
+    // ✅ NEW: Clear item from cache
+    REMOVE_ITEM_FROM_CACHE(state, itemId) {
+      delete state.cache.itemCache[itemId];
+    },
+
     CLEAR_CACHE(state) {
       state.cache = {
         warehouseLabels: {},
         stats: null,
-        statsTimestamp: null
+        statsTimestamp: null,
+        itemCache: {}, // ✅ NEW: Clear item cache too
+        itemCacheTimestamp: null
       };
       state.inventoryLastFetched = null; // ✅ NEW: Clear timestamp
     }
   },
 
   actions: {
+    // ✅ NEW ACTION: Get item by ID (Spark-safe solution)
+    async getItemById({ commit, state, dispatch }, { itemId, itemCode, itemName }) {
+      try {
+        console.log('🔍 Searching item for transaction...', { itemId, itemCode, itemName });
+
+        if (!itemId && !itemCode && !itemName) {
+          throw new Error('معرف الصنف أو الكود أو الاسم مطلوب');
+        }
+
+        // 1. FIRST: Check memory cache (already loaded items in inventory)
+        let item = state.inventory.find(i => 
+          i.id === itemId || 
+          (itemCode && i.code === itemCode) ||
+          (itemName && i.name === itemName)
+        );
+
+        if (item) {
+          console.log('✅ Item found in memory cache (loaded inventory)');
+          return item;
+        }
+
+        // 2. SECOND: Check item cache (previously fetched items)
+        const cacheEntry = state.cache.itemCache[itemId];
+        const cacheDuration = 10 * 60 * 1000; // 10 minutes cache
+        
+        if (cacheEntry && (Date.now() - cacheEntry.timestamp) < cacheDuration) {
+          console.log('✅ Item found in cache');
+          return cacheEntry.data;
+        }
+
+        // 3. THIRD: Fetch from Firestore (1 read only!)
+        console.log('🔄 Item not in cache. Fetching from Firestore...');
+        
+        // Try by ID first (most efficient - 1 read)
+        if (itemId) {
+          try {
+            const itemDoc = await getDoc(doc(db, 'items', itemId));
+            
+            if (itemDoc.exists()) {
+              const itemData = itemDoc.data();
+              const convertedItem = InventoryService.convertForDisplay({
+                id: itemDoc.id,
+                ...itemData
+              });
+
+              // Cache the item for future use
+              commit('CACHE_ITEM', {
+                itemId: itemId,
+                itemData: convertedItem
+              });
+
+              console.log('✅ Item fetched from Firestore by ID (1 read)');
+              return convertedItem;
+            }
+          } catch (error) {
+            console.log('Item not found by ID, trying by code...');
+          }
+        }
+
+        // 4. FOURTH: Try by code (limited to 5 results for Spark plan)
+        if (itemCode) {
+          const itemsRef = collection(db, 'items');
+          const q = query(
+            itemsRef,
+            where('code', '==', itemCode),
+            limit(PERFORMANCE_CONFIG.ITEM_SEARCH_LIMIT)
+          );
+          
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            const itemData = doc.data();
+            const convertedItem = InventoryService.convertForDisplay({
+              id: doc.id,
+              ...itemData
+            });
+
+            // Cache the item for future use
+            commit('CACHE_ITEM', {
+              itemId: doc.id,
+              itemData: convertedItem
+            });
+
+            console.log(`✅ Item found by code: ${snapshot.size} results (${snapshot.size} reads)`);
+            return convertedItem;
+          }
+        }
+
+        // 5. FIFTH: Try by name prefix search (limited for Spark plan)
+        if (itemName && itemName.length >= 3) {
+          const itemsRef = collection(db, 'items');
+          const q = query(
+            itemsRef,
+            where('name', '>=', itemName),
+            where('name', '<=', itemName + '\uf8ff'),
+            limit(PERFORMANCE_CONFIG.ITEM_SEARCH_LIMIT)
+          );
+          
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            const itemData = doc.data();
+            const convertedItem = InventoryService.convertForDisplay({
+              id: doc.id,
+              ...itemData
+            });
+
+            // Cache the item for future use
+            commit('CACHE_ITEM', {
+              itemId: doc.id,
+              itemData: convertedItem
+            });
+
+            console.log(`✅ Item found by name: ${snapshot.size} results (${snapshot.size} reads)`);
+            return convertedItem;
+          }
+        }
+
+        // 6. SIXTH: Try loading more items (if we have less than page size)
+        if (state.inventory.length < PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+          console.log('🔄 Loading more items to find the requested item...');
+          await dispatch('fetchInventoryOnce');
+          
+          // Check again after loading
+          item = state.inventory.find(i => 
+            i.id === itemId || 
+            (itemCode && i.code === itemCode) ||
+            (itemName && i.name === itemName)
+          );
+
+          if (item) {
+            console.log('✅ Item found after loading more items');
+            return item;
+          }
+        }
+
+        throw new Error('الصنف غير موجود في المخزون المتاح');
+
+      } catch (error) {
+        console.error('❌ Error getting item:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'خطأ في العثور على الصنف'
+        });
+        return null;
+      }
+    },
+
+    // ✅ NEW ACTION: Search items with limits (for dropdowns/autocomplete)
+    async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
+      try {
+        console.log('🔍 Searching items:', searchTerm);
+
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          return [];
+        }
+
+        const term = searchTerm.trim().toLowerCase();
+
+        // 1. FIRST: Search in loaded inventory (no reads)
+        const localResults = state.inventory.filter(item => 
+          item.name?.toLowerCase().includes(term) || 
+          item.code?.toLowerCase().includes(term) ||
+          item.color?.toLowerCase().includes(term)
+        ).slice(0, limitResults);
+
+        if (localResults.length > 0) {
+          console.log('✅ Items found in local inventory:', localResults.length);
+          return localResults;
+        }
+
+        // 2. SECOND: Search in Firestore with limits (Spark-safe)
+        const itemsRef = collection(db, 'items');
+        
+        // Create multiple queries for different fields
+        const queries = [
+          query(
+            itemsRef,
+            where('code', '>=', term),
+            where('code', '<=', term + '\uf8ff'),
+            limit(limitResults)
+          ),
+          query(
+            itemsRef,
+            where('name', '>=', term),
+            where('name', '<=', term + '\uf8ff'),
+            limit(limitResults)
+          )
+        ];
+
+        // Execute queries
+        const resultsSet = new Set();
+        const allResults = [];
+
+        for (const q of queries) {
+          try {
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(doc => {
+              const itemId = doc.id;
+              if (!resultsSet.has(itemId)) {
+                resultsSet.add(itemId);
+                const itemData = doc.data();
+                allResults.push({
+                  id: doc.id,
+                  ...itemData,
+                  _display: InventoryService.convertForDisplay({
+                    id: doc.id,
+                    ...itemData
+                  })
+                });
+              }
+            });
+          } catch (error) {
+            // Handle composite index errors gracefully
+            if (error.code === 'failed-precondition') {
+              console.warn('Composite index may be required for this search');
+            } else {
+              throw error;
+            }
+          }
+        }
+
+        // Limit total results
+        const limitedResults = allResults.slice(0, limitResults);
+        
+        console.log(`✅ Items found in Firestore: ${limitedResults.length} (${allResults.length} reads)`);
+        
+        // Cache these items for future use
+        limitedResults.forEach(item => {
+          state.cache.itemCache[item.id] = {
+            data: item._display,
+            timestamp: Date.now()
+          };
+        });
+
+        return limitedResults.map(item => item._display);
+
+      } catch (error) {
+        console.error('❌ Error searching items:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف'
+        });
+        return [];
+      }
+    },
+
+    // ✅ NEW ACTION: Get multiple items by IDs (for batch operations)
+    async getItemsByIds({ dispatch }, itemIds) {
+      try {
+        console.log('🔍 Getting multiple items:', itemIds.length);
+
+        if (!Array.isArray(itemIds) || itemIds.length === 0) {
+          return [];
+        }
+
+        // Limit to 10 items per batch for Spark plan
+        const batchLimit = 10;
+        const limitedIds = itemIds.slice(0, batchLimit);
+
+        // Use Promise.all for parallel fetching
+        const promises = limitedIds.map(id => 
+          dispatch('getItemById', { itemId: id })
+        );
+
+        const results = await Promise.all(promises);
+        const validResults = results.filter(item => item !== null);
+
+        console.log(`✅ Got ${validResults.length} items (${limitedIds.length} reads max)`);
+        return validResults;
+
+      } catch (error) {
+        console.error('❌ Error getting multiple items:', error);
+        return [];
+      }
+    },
+
+    // ✅ NEW ACTION: Clear item cache (for memory management)
+    clearItemCache({ commit }) {
+      commit('CLEAR_CACHE');
+      console.log('🧹 Item cache cleared');
+    },
+
     showNotification({ commit, getters }, notification) {
       if (!notification?.message) {
         console.warn('Invalid notification:', notification);
@@ -607,10 +927,18 @@ export default createStore({
 
         const inventory = snapshot.docs.map(doc => {
           const data = doc.data();
-          return InventoryService.convertForDisplay({
+          const item = InventoryService.convertForDisplay({
             id: doc.id,
             ...data
           });
+          
+          // ✅ NEW: Cache each item individually
+          commit('CACHE_ITEM', {
+            itemId: doc.id,
+            itemData: item
+          });
+          
+          return item;
         });
 
         let filteredInventory = inventory;
@@ -1363,6 +1691,9 @@ export default createStore({
 
         await deleteDoc(itemRef);
 
+        // ✅ Remove from cache
+        commit('REMOVE_ITEM_FROM_CACHE', itemId);
+
         // ✅ CHANGED: Use refreshInventory to get latest data
         await dispatch('refreshInventory');
 
@@ -1876,6 +2207,17 @@ export default createStore({
     // Inventory getters
     inventoryItems: state => Array.isArray(state.inventory) ? state.inventory : [],
     inventoryLoading: state => state.inventoryLoading,
+
+    // ✅ NEW: Get cached item
+    getCachedItem: (state) => (itemId) => {
+      const cacheEntry = state.cache.itemCache[itemId];
+      const cacheDuration = 10 * 60 * 1000; // 10 minutes
+      
+      if (cacheEntry && (Date.now() - cacheEntry.timestamp) < cacheDuration) {
+        return cacheEntry.data;
+      }
+      return null;
+    },
 
     // Transactions getters
     transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
