@@ -32,6 +32,41 @@
       </transition-group>
     </div>
 
+    <!-- REFRESH BUTTON - ADDED HERE -->
+    <div v-if="showRefreshButton" class="fixed bottom-4 left-4 right-4 z-40 lg:left-auto lg:right-4 lg:bottom-4 lg:w-auto">
+      <div class="flex items-center justify-center lg:justify-end">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-2">
+          <!-- Manual Refresh Button -->
+          <button
+            @click="refreshAllData"
+            :disabled="refreshing"
+            :class="[
+              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200',
+              refreshing 
+                ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg'
+            ]"
+          >
+            <svg 
+              :class="['w-4 h-4 transition-transform duration-300', refreshing ? 'animate-spin' : '']" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>{{ refreshing ? 'جاري التحديث...' : 'تحديث البيانات' }}</span>
+          </button>
+          
+          <!-- Last Update Time -->
+          <div class="hidden lg:block text-xs text-gray-500 dark:text-gray-400 px-3 border-r border-l border-gray-200 dark:border-gray-700">
+            <div v-if="lastRefreshTime">آخر تحديث: {{ formatTime(lastRefreshTime) }}</div>
+            <div v-else>لم يتم التحديث بعد</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Minimal Initial Loading -->
     <div v-if="initializing && !isPublicRoute && !isMobileRoute" class="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div class="flex flex-col items-center justify-center h-full">
@@ -43,14 +78,14 @@
             </svg>
           </div>
         </div>
-        
+
         <!-- Loading Indicator -->
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400 mb-4"></div>
-        
+
         <!-- Loading Text -->
         <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
         <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">يرجى الانتظار لحظات</p>
-        
+
         <!-- Preloaded Inventory Status -->
         <div v-if="preloadedItems > 0" class="mt-8">
           <div class="w-64 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -188,6 +223,10 @@ export default {
     const initialDataLoaded = ref(false);
     const showPreloadIndicator = ref(false);
     
+    // NEW: Refresh button refs
+    const refreshing = ref(false);
+    const lastRefreshTime = ref(null);
+    
     // Store getters
     const notifications = computed(() => store.state.notifications || []);
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
@@ -204,6 +243,11 @@ export default {
 
     const preloadedProgress = computed(() => {
       return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
+    });
+
+    // NEW: Show refresh button condition
+    const showRefreshButton = computed(() => {
+      return isAuthenticated.value && !isPublicRoute.value && !isMobileRoute.value && !initializing.value;
     });
 
     // Check mobile on mount and resize
@@ -223,6 +267,53 @@ export default {
 
     const toggleMobileMenu = () => {
       mobileMenuOpen.value = !mobileMenuOpen.value;
+    };
+
+    // NEW: Format time for display
+    const formatTime = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleTimeString('ar-EG', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    // NEW: Refresh all data
+    const refreshAllData = async () => {
+      if (refreshing.value) return;
+      
+      refreshing.value = true;
+      try {
+        // Refresh all data in parallel
+        await Promise.all([
+          store.dispatch('fetchInventory'),
+          store.dispatch('fetchTransactions'),
+          store.dispatch('fetchWarehouses'),
+          store.dispatch('getRecentTransactions')
+        ]);
+        
+        lastRefreshTime.value = new Date();
+        
+        // Show success notification
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تحديث جميع البيانات بنجاح',
+          duration: 2000
+        });
+        
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ أثناء تحديث البيانات',
+          duration: 3000
+        });
+      } finally {
+        refreshing.value = false;
+      }
     };
 
     // ✅ CRITICAL: Preload essential data for instant display
@@ -278,7 +369,7 @@ export default {
           }));
           
           // Store preloaded items immediately
-          store.commit('inventory/SET_INVENTORY', items);
+          store.commit('SET_INVENTORY', items);
           preloadedItems.value = items.length;
           
           // Update progress indicator
@@ -288,22 +379,11 @@ export default {
             }, index * 50); // Stagger loading for visual effect
           });
           
-          // Calculate initial stats from preloaded items
-          if (items.length > 0) {
-            const stats = {
-              totalItems: items.length,
-              totalQuantity: items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-              lowStockItems: items.filter(item => {
-                const qty = item.remaining_quantity || 0;
-                return qty > 0 && qty < 10;
-              }).length,
-              recentTransactions: 0 // Will be loaded later
-            };
-            store.commit('inventory/SET_STATS', stats);
-          }
-          
           // Mark initial data as loaded
           initialDataLoaded.value = true;
+          
+          // Set initial refresh time
+          lastRefreshTime.value = new Date();
           
           // Show preload indicator briefly
           showPreloadIndicator.value = true;
@@ -327,7 +407,7 @@ export default {
     const loadRemainingDataInBackground = async () => {
       try {
         // 1. Load full inventory in background
-        store.dispatch('inventory/fetchInventory');
+        store.dispatch('fetchInventory');
         
         // 2. Load recent transactions
         const { db } = await import('@/firebase/config');
@@ -486,6 +566,8 @@ export default {
       preloadedTarget,
       initialDataLoaded,
       showPreloadIndicator,
+      refreshing,
+      lastRefreshTime,
       
       // Computed
       isAuthenticated,
@@ -493,11 +575,14 @@ export default {
       isMobileRoute,
       notifications,
       preloadedProgress,
+      showRefreshButton,
       
       // Methods
       removeNotification,
       toggleSidebar,
-      toggleMobileMenu
+      toggleMobileMenu,
+      formatTime,
+      refreshAllData
     };
   }
 };
