@@ -287,11 +287,76 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم تتم أي حركات اليوم.</p>
       </div>
     </div>
+    
+    <!-- Cache Management Section (Debug) -->
+    <div v-if="showCacheDebug" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">إدارة الذاكرة المؤقتة</h2>
+        <button @click="toggleCacheDebug" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+          إخفاء
+        </button>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">معلومات الذاكرة</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">حجم الذاكرة:</span>
+              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
+                {{ cacheStats.totalSize }}
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">عدد الأصناف:</span>
+              <span class="text-gray-800 dark:text-gray-200">{{ cacheStats.itemCount }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">الحالة:</span>
+              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
+                {{ cacheHealth === 'critical' ? 'حرجة' : cacheHealth === 'warning' ? 'تحذير' : 'جيدة' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الإجراءات</h3>
+          <div class="space-y-2">
+            <button 
+              @click="cleanupCache(false)"
+              class="w-full px-3 py-2 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تنظيف الذاكرة
+            </button>
+            <button 
+              @click="cleanupCache(true)"
+              class="w-full px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تنظيف قوي
+            </button>
+            <button 
+              @click="refreshCache"
+              class="w-full px-3 py-2 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تحديث البيانات
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="cacheMessage" class="mt-3 p-2 rounded text-sm" :class="cacheMessage.type === 'success' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'">
+        {{ cacheMessage.text }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
@@ -302,104 +367,182 @@ export default {
     const router = useRouter();
     
     const loading = ref(true);
+    const showCacheDebug = ref(false);
+    const cacheLoading = ref(false);
+    const cacheMessage = ref(null);
+    let cacheMessageTimeout = null;
 
     // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
     
-    // FIXED: Safe dashboard stats with default values
+    // Safe dashboard stats with default values
     const safeDashboardStats = computed(() => {
-      const stats = store.getters.dashboardStats;
-      return stats || {
-        totalItems: 0,
-        totalQuantity: 0,
-        lowStockItems: 0,
-        outOfStockItems: 0,
-        estimatedValue: 0,
-        recentTransactions: 0,
-        addTransactions: 0,
-        transferTransactions: 0,
-        dispatchTransactions: 0,
-        transactionsByType: {
-          add: 0,
-          transfer: 0,
-          dispatch: 0
-        }
-      };
+      try {
+        const stats = store.getters.dashboardStats;
+        return stats || {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          estimatedValue: 0,
+          recentTransactions: 0,
+          addTransactions: 0,
+          transferTransactions: 0,
+          dispatchTransactions: 0,
+          transactionsByType: {
+            add: 0,
+            transfer: 0,
+            dispatch: 0
+          }
+        };
+      } catch (error) {
+        console.error('Error getting dashboard stats:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          estimatedValue: 0,
+          recentTransactions: 0,
+          addTransactions: 0,
+          transferTransactions: 0,
+          dispatchTransactions: 0,
+          transactionsByType: {
+            add: 0,
+            transfer: 0,
+            dispatch: 0
+          }
+        };
+      }
     });
     
-    // FIXED: Access inventory items correctly
+    // Cache statistics
+    const cacheStats = computed(() => {
+      try {
+        return store.getters.cacheStats || {
+          totalSize: '0 MB',
+          itemCount: 0,
+          pinnedItems: 0,
+          frequentlyAccessed: 0,
+          lastCleanup: '',
+          cleanupCount: 0,
+          rotationCount: 0,
+          status: 'healthy'
+        };
+      } catch (error) {
+        return {
+          totalSize: '0 MB',
+          itemCount: 0,
+          pinnedItems: 0,
+          frequentlyAccessed: 0,
+          lastCleanup: '',
+          cleanupCount: 0,
+          rotationCount: 0,
+          status: 'healthy'
+        };
+      }
+    });
+    
+    const cacheHealth = computed(() => {
+      try {
+        return store.getters.cacheHealth || 'healthy';
+      } catch (error) {
+        return 'healthy';
+      }
+    });
+    
+    // Access inventory items correctly
     const inventoryItems = computed(() => {
-      const inventory = store.getters.inventoryItems;
-      return Array.isArray(inventory) ? inventory : [];
+      try {
+        const inventory = store.getters.inventoryItems;
+        return Array.isArray(inventory) ? inventory : [];
+      } catch (error) {
+        console.error('Error getting inventory items:', error);
+        return [];
+      }
     });
     
-    // FIXED: Access transactions correctly
-    const transactionsItems = computed(() => {
-      const items = store.getters.transactionsItems;
-      return Array.isArray(items) ? items : [];
-    });
-    
-    // FIXED: Access recent transactions correctly
+    // Access transactions correctly
     const recentStoreTransactions = computed(() => {
-      const items = store.getters.recentTransactions;
-      return Array.isArray(items) ? items : [];
+      try {
+        const items = store.getters.recentTransactions;
+        return Array.isArray(items) ? items : [];
+      } catch (error) {
+        console.error('Error getting recent transactions:', error);
+        return [];
+      }
     });
     
     // Permission check
     const canModifyItems = computed(() => {
-      const role = userRole.value;
-      const userProfile = store.state.userProfile || {};
-      
-      if (role === 'superadmin') return true;
-      
-      if (role === 'warehouse_manager') {
-        const allowedWarehouses = userProfile?.allowed_warehouses || [];
-        const hasWarehouses = allowedWarehouses.length > 0;
-        const hasPermission = userProfile?.permissions?.includes('full_access') || 
-                              userProfile?.permissions?.includes('manage_inventory') ||
-                              userProfile?.permissions?.includes('add_items');
-        return hasWarehouses && hasPermission;
+      try {
+        const role = userRole.value;
+        const userProfile = store.state.userProfile || {};
+        
+        if (role === 'superadmin') return true;
+        
+        if (role === 'warehouse_manager') {
+          const allowedWarehouses = userProfile?.allowed_warehouses || [];
+          const hasWarehouses = allowedWarehouses.length > 0;
+          const hasPermission = userProfile?.permissions?.includes('full_access') || 
+                                userProfile?.permissions?.includes('manage_inventory') ||
+                                userProfile?.permissions?.includes('add_items');
+          return hasWarehouses && hasPermission;
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('Error checking permissions:', error);
+        return false;
       }
-      
-      return false;
     });
 
     // Recent inventory (last 5 items sorted by date)
     const recentInventory = computed(() => {
-      const items = inventoryItems.value;
-      if (!Array.isArray(items) || items.length === 0) return [];
-      
-      return [...items]
-        .filter(item => item && typeof item === 'object')
-        .sort((a, b) => {
-          try {
-            const dateA = new Date(a.updated_at || a.created_at || 0);
-            const dateB = new Date(b.updated_at || b.created_at || 0);
-            return dateB - dateA;
-          } catch (error) {
-            return 0;
-          }
-        })
-        .slice(0, 5);
+      try {
+        const items = inventoryItems.value;
+        if (!Array.isArray(items) || items.length === 0) return [];
+        
+        return [...items]
+          .filter(item => item && typeof item === 'object')
+          .sort((a, b) => {
+            try {
+              const dateA = new Date(a.updated_at || a.created_at || 0);
+              const dateB = new Date(b.updated_at || b.created_at || 0);
+              return dateB - dateA;
+            } catch (error) {
+              return 0;
+            }
+          })
+          .slice(0, 5);
+      } catch (error) {
+        console.error('Error getting recent inventory:', error);
+        return [];
+      }
     });
 
     // Recent transactions
     const recentTransactions = computed(() => {
-      const items = recentStoreTransactions.value;
-      if (!Array.isArray(items) || items.length === 0) return [];
-      
-      return [...items]
-        .filter(transaction => transaction && typeof transaction === 'object')
-        .sort((a, b) => {
-          try {
-            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
-            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
-            return dateB - dateA;
-          } catch (error) {
-            return 0;
-          }
-        })
-        .slice(0, 5);
+      try {
+        const items = recentStoreTransactions.value;
+        if (!Array.isArray(items) || items.length === 0) return [];
+        
+        return [...items]
+          .filter(transaction => transaction && typeof transaction === 'object')
+          .sort((a, b) => {
+            try {
+              const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+              const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+              return dateB - dateA;
+            } catch (error) {
+              return 0;
+            }
+          })
+          .slice(0, 5);
+      } catch (error) {
+        console.error('Error getting recent transactions:', error);
+        return [];
+      }
     });
 
     // Helper functions
@@ -432,7 +575,11 @@ export default {
 
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return '';
-      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
+      try {
+        return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
+      } catch (error) {
+        return warehouseId;
+      }
     };
 
     const getTransactionTypeLabel = (type) => {
@@ -464,38 +611,115 @@ export default {
       return 'جيد';
     };
 
-    onMounted(() => {
+    // Cache management functions
+    const toggleCacheDebug = () => {
+      showCacheDebug.value = !showCacheDebug.value;
+    };
+
+    const showCacheMessage = (text, type = 'success') => {
+      if (cacheMessageTimeout) {
+        clearTimeout(cacheMessageTimeout);
+      }
+      
+      cacheMessage.value = { text, type };
+      
+      cacheMessageTimeout = setTimeout(() => {
+        cacheMessage.value = null;
+      }, 5000);
+    };
+
+    const cleanupCache = async (aggressive = false) => {
+      cacheLoading.value = true;
+      try {
+        await store.dispatch('cleanupCache', { aggressive });
+        showCacheMessage(
+          aggressive ? 'تم التنظيف القوي للذاكرة المؤقتة' : 'تم تنظيف الذاكرة المؤقتة',
+          'success'
+        );
+      } catch (error) {
+        console.error('Error cleaning cache:', error);
+        showCacheMessage('حدث خطأ في تنظيف الذاكرة المؤقتة', 'error');
+      } finally {
+        cacheLoading.value = false;
+      }
+    };
+
+    const refreshCache = async () => {
+      cacheLoading.value = true;
+      loading.value = true;
+      try {
+        await store.dispatch('refreshInventoryWithCacheManagement');
+        await store.dispatch('getRecentTransactions');
+        showCacheMessage('تم تحديث البيانات بنجاح', 'success');
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        showCacheMessage('حدث خطأ في تحديث البيانات', 'error');
+      } finally {
+        cacheLoading.value = false;
+        loading.value = false;
+      }
+    };
+
+    // Load data function
+    const loadDashboardData = async () => {
+      loading.value = true;
+      
+      try {
+        // Load recent transactions
+        const recentTransactionsPromise = store.dispatch('getRecentTransactions');
+        
+        // Set timeout to prevent hanging
+        const timeoutPromise = new Promise(resolve => {
+          setTimeout(() => {
+            resolve();
+          }, 3000);
+        });
+        
+        // Wait for either transactions to load or timeout
+        await Promise.race([recentTransactionsPromise, timeoutPromise]);
+        
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    onMounted(async () => {
       console.log('Dashboard mounted');
       
-      // Check if data is already loaded
-      const hasInventoryData = inventoryItems.value.length > 0;
-      const hasRecentTransactionsData = recentStoreTransactions.value.length > 0;
-      
-      if (!hasInventoryData || !hasRecentTransactionsData) {
-        console.log('Loading dashboard data...');
-        
-        // Load recent transactions (one-time query, not listener)
-        store.dispatch('getRecentTransactions')
-          .catch(error => {
-            console.error('Error loading recent transactions:', error);
-          });
-        
-        // Set a timeout to stop loading
-        setTimeout(() => {
-          loading.value = false;
-        }, 2000);
-      } else {
+      try {
+        await loadDashboardData();
+      } catch (error) {
+        console.error('Error in dashboard mounted:', error);
         loading.value = false;
+      }
+      
+      // Show cache debug if health is critical
+      if (cacheHealth.value === 'critical') {
+        showCacheDebug.value = true;
+      }
+    });
+
+    onUnmounted(() => {
+      if (cacheMessageTimeout) {
+        clearTimeout(cacheMessageTimeout);
+        cacheMessageTimeout = null;
       }
     });
 
     return {
       // State
       loading,
+      showCacheDebug,
+      cacheLoading,
+      cacheMessage,
       
       // Computed
       userRole,
-      safeDashboardStats, // FIXED: Changed from dashboardStats to safeDashboardStats
+      safeDashboardStats,
+      cacheStats,
+      cacheHealth,
       canModifyItems,
       recentInventory,
       recentTransactions,
@@ -507,7 +731,12 @@ export default {
       getTransactionTypeLabel,
       getQuantityClass,
       getStatusClass,
-      getStatusText
+      getStatusText,
+      
+      // Cache management
+      toggleCacheDebug,
+      cleanupCache,
+      refreshCache
     };
   }
 };
@@ -573,5 +802,11 @@ export default {
 .dark .gradient-border {
   background: linear-gradient(#1f2937, #1f2937) padding-box,
               linear-gradient(135deg, #f59e0b, #f97316) border-box;
+}
+
+/* Button disabled state */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
