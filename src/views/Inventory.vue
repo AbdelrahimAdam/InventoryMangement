@@ -188,6 +188,10 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
               </div>
+              <!-- Live Search Indicator -->
+              <div v-if="isLiveSearching" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -270,6 +274,12 @@
                       <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(متوفر/قليل/نفذ)</span>
                     </div>
                   </th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <span>أنشئ بواسطة</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">آخر تحديث بواسطة</span>
+                    </div>
+                  </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
                       class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
@@ -286,8 +296,8 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-if="paginatedItems.length === 0">
-                  <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <tr v-if="paginatedItems.length === 0 && !isLiveSearching">
+                  <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 10 : 9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div class="flex flex-col items-center">
                       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
@@ -298,13 +308,24 @@
                   </td>
                 </tr>
                 
+                <!-- Live Search Loading -->
+                <tr v-if="isLiveSearching && paginatedItems.length === 0">
+                  <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 10 : 9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                      <p class="text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+                    </div>
+                  </td>
+                </tr>
+                
                 <tr 
                   v-for="item in paginatedItems" 
                   :key="item.id"
                   class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 hover:shadow-sm"
                   :class="{
                     'bg-blue-50/50 dark:bg-blue-900/10': hoveredRow === item.id,
-                    'bg-amber-50/30 dark:bg-amber-900/5': isLowStock(item.remaining_quantity)
+                    'bg-amber-50/30 dark:bg-amber-900/5': isLowStock(item.remaining_quantity),
+                    'bg-green-50/30 dark:bg-green-900/5': item.isLiveSearchResult
                   }"
                   @mouseenter="hoveredRow = item.id"
                   @mouseleave="hoveredRow = null"
@@ -325,6 +346,12 @@
                           <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                           </svg>
+                        </div>
+                        <!-- Live Search Badge -->
+                        <div v-if="item.isLiveSearchResult" class="absolute top-0 right-0">
+                          <span class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded-bl">
+                            🔍
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -432,6 +459,23 @@
                     </div>
                   </td>
                   
+                  <!-- Created By / Updated By -->
+                  <td class="px-6 py-4">
+                    <div class="text-center space-y-1">
+                      <div class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        <span class="block truncate" title="أنشئ بواسطة: {{ item.created_by || 'غير معروف' }}">
+                          أنشئ: {{ getShortName(item.created_by) || 'غير معروف' }}
+                        </span>
+                      </div>
+                      <div v-if="item.updated_by && item.updated_by !== item.created_by" 
+                           class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
+                        <span class="block truncate" title="آخر تحديث بواسطة: {{ item.updated_by }}">
+                          عدل: {{ getShortName(item.updated_by) }}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  
                   <!-- Actions or Updated Date -->
                   <td class="px-6 py-4">
                     <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2">
@@ -532,7 +576,7 @@
 
         <!-- Mobile Cards -->
         <div class="lg:hidden">
-          <div v-if="paginatedItems.length === 0" class="p-6 text-center text-gray-500 dark:text-gray-400">
+          <div v-if="paginatedItems.length === 0 && !isLiveSearching" class="p-6 text-center text-gray-500 dark:text-gray-400">
             <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
             </svg>
@@ -540,18 +584,26 @@
             <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
           </div>
           
+          <div v-if="isLiveSearching && paginatedItems.length === 0" class="p-6 text-center text-gray-500 dark:text-gray-400">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p class="text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+          </div>
+          
           <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
             <div 
               v-for="item in paginatedItems" 
               :key="item.id"
               class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
+              :class="{
+                'bg-green-50/30 dark:bg-green-900/5': item.isLiveSearchResult
+              }"
             >
               <div class="flex gap-4 mb-3">
                 <!-- Photo -->
-                <div v-if="item.photo_url" class="flex-shrink-0">
+                <div class="flex-shrink-0">
                   <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                     <img 
-                      :src="item.photo_url" 
+                      :src="item.photo_url || getPlaceholderImage()" 
                       :alt="item.name"
                       class="w-full h-full object-cover"
                       @error="handleImageError"
@@ -562,6 +614,12 @@
                       <svg class="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                       </svg>
+                    </div>
+                    <!-- Live Search Badge -->
+                    <div v-if="item.isLiveSearchResult" class="absolute top-0 right-0">
+                      <span class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded-bl">
+                        🔍
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -582,6 +640,27 @@
                     <span :class="getStockStatusClass(item.remaining_quantity)" class="text-xs px-2 py-0.5 rounded-full">
                       {{ getStockStatus(item.remaining_quantity) }}
                     </span>
+                  </div>
+                  
+                  <!-- Created By Info -->
+                  <div class="mb-2">
+                    <div class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      <span class="truncate" title="أنشئ بواسطة: {{ item.created_by || 'غير معروف' }}">
+                        {{ getShortName(item.created_by) || 'غير معروف' }}
+                      </span>
+                    </div>
+                    <div v-if="item.updated_by && item.updated_by !== item.created_by" 
+                         class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                      <span class="truncate" title="آخر تحديث بواسطة: {{ item.updated_by }}">
+                        {{ getShortName(item.updated_by) }}
+                      </span>
+                    </div>
                   </div>
                   
                   <div class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
@@ -820,16 +899,31 @@
                 </div>
               </div>
 
-              <!-- Last Update Info -->
-              <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر تحديث</p>
-                    <p class="text-gray-900 dark:text-white font-medium">{{ formatDate(selectedItem?.updated_at) }}</p>
-                  </div>
-                  <div class="text-right">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر إجراء بواسطة</p>
-                    <p class="text-gray-900 dark:text-white font-medium">{{ getLastActionUser(selectedItem) }}</p>
+              <!-- User Action History -->
+              <div class="space-y-4">
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200">
+                  <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">أنشئ بواسطة</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.created_by || currentUserInfo }}</p>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">تاريخ الإنشاء</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ formatDate(selectedItem?.created_at) }}</p>
+                      </div>
+                    </div>
+                    
+                    <div v-if="selectedItem?.updated_by" class="flex items-center justify-between border-t border-blue-100 dark:border-blue-800 pt-3">
+                      <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر تحديث بواسطة</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.updated_by }}</p>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">تاريخ التحديث</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ formatDate(selectedItem?.updated_at) }}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -921,7 +1015,10 @@
               <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                 <p>المخزن: {{ getWarehouseLabel(itemToDelete?.warehouse_id) }}</p>
                 <p>الكمية المتبقية: {{ itemToDelete?.remaining_quantity }}</p>
-                <p>آخر تحديث بواسطة: {{ getLastActionUser(itemToDelete) }}</p>
+                <p>أنشئ بواسطة: {{ itemToDelete?.created_by || currentUserInfo }}</p>
+                <p v-if="itemToDelete?.updated_by && itemToDelete?.updated_by !== itemToDelete?.created_by">
+                  آخر تحديث بواسطة: {{ itemToDelete?.updated_by }}
+                </p>
               </div>
             </div>
             <p class="text-sm text-red-600 dark:text-red-400 mt-3">
@@ -1037,6 +1134,10 @@ export default {
     const performanceStats = ref(null);
     const hoveredRow = ref(null);
     const userNamesCache = reactive({});
+    const isLiveSearching = ref(false);
+    const liveSearchResults = reactive([]);
+    const liveSearchTimeout = ref(null);
+    const refreshing = ref(false);
     
     // Color mapping
     const colorMap = {
@@ -1132,6 +1233,24 @@ export default {
       return canEditItem(item);
     };
     
+    // Combined inventory (local + live search results)
+    const combinedInventory = computed(() => {
+      const combined = [...inventory.value];
+      
+      // Add live search results that aren't already in local inventory
+      liveSearchResults.forEach(liveItem => {
+        if (!combined.some(item => item.id === liveItem.id)) {
+          // Mark as live search result for styling
+          combined.push({
+            ...liveItem,
+            isLiveSearchResult: true
+          });
+        }
+      });
+      
+      return combined;
+    });
+    
     // Load from local storage cache
     const loadFromCache = () => {
       try {
@@ -1182,9 +1301,52 @@ export default {
       }
     };
     
+    // Perform live search from Firestore
+    const performLiveSearch = async (searchTermValue) => {
+      if (!searchTermValue || searchTermValue.trim().length < 2) {
+        liveSearchResults.length = 0; // Clear results
+        isLiveSearching.value = false;
+        return;
+      }
+      
+      isLiveSearching.value = true;
+      
+      try {
+        console.log('🔍 Performing live search for:', searchTermValue);
+        
+        // Use the store action to search Firestore directly
+        const searchResults = await store.dispatch('searchItems', {
+          searchTerm: searchTermValue,
+          limitResults: 50
+        });
+        
+        console.log('✅ Live search results:', searchResults.length, 'items');
+        
+        // Update live search results
+        liveSearchResults.length = 0; // Clear previous results
+        searchResults.forEach(item => {
+          liveSearchResults.push(item);
+        });
+        
+      } catch (error) {
+        console.error('❌ Error in live search:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف'
+        });
+      } finally {
+        isLiveSearching.value = false;
+      }
+    };
+    
+    // Debounced live search
+    const debouncedLiveSearch = debounce((term) => {
+      performLiveSearch(term);
+    }, 500);
+    
     // Filtered items with memoization
     const filteredItems = computed(() => {
-      let filtered = [...inventory.value];
+      let filtered = [...combinedInventory.value];
       
       // Apply warehouse filter
       if (selectedWarehouse.value) {
@@ -1290,6 +1452,15 @@ export default {
     
     const getColorHex = (colorName) => {
       return colorMap[colorName] || '#6b7280';
+    };
+    
+    const getShortName = (fullName) => {
+      if (!fullName) return '';
+      // Take first 15 characters
+      if (fullName.length > 15) {
+        return fullName.substring(0, 15) + '...';
+      }
+      return fullName;
     };
     
     const formatDate = (date) => {
@@ -1445,10 +1616,25 @@ export default {
       measurePerformance();
     };
     
-    const handleSearch = debounce(() => {
+    const handleSearch = () => {
       currentPage.value = 1;
-      store.dispatch('updateFilters', { search: searchTerm.value });
-    }, 300);
+      
+      // Clear any existing timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value);
+      }
+      
+      // Debounce the live search
+      liveSearchTimeout.value = setTimeout(() => {
+        if (searchTerm.value && searchTerm.value.trim().length >= 2) {
+          debouncedLiveSearch(searchTerm.value.trim());
+        } else {
+          // Clear live search results if search term is too short
+          liveSearchResults.length = 0;
+          isLiveSearching.value = false;
+        }
+      }, 300);
+    };
     
     const updateWarehouseFilter = () => {
       store.dispatch('updateFilters', { warehouse: selectedWarehouse.value });
@@ -1473,7 +1659,7 @@ export default {
     const refreshData = async () => {
       try {
         performanceMonitor.start();
-        loading.value = true;
+        refreshing.value = true;
         
         // Clear error
         error.value = '';
@@ -1517,7 +1703,7 @@ export default {
           message: 'فشل في تحديث البيانات'
         });
       } finally {
-        loading.value = false;
+        refreshing.value = false;
       }
     };
     
@@ -1546,6 +1732,7 @@ export default {
           'المجموع المتبقي',
           'الحالة',
           'تاريخ التحديث',
+          'أنشئ بواسطة',
           'آخر تحديث بواسطة'
         ];
         
@@ -1564,7 +1751,8 @@ export default {
           item.remaining_quantity || 0,
           getStockStatus(item.remaining_quantity),
           formatDate(item.updated_at),
-          getLastActionUser(item)
+          item.created_by || currentUserInfo.value,
+          item.updated_by || ''
         ]);
 
         const csvContent = [
@@ -1659,7 +1847,10 @@ export default {
       try {
         deleteLoading.value = true;
         
-        await store.dispatch('deleteItem', itemToDelete.value.id);
+        await store.dispatch('deleteItem', {
+          itemId: itemToDelete.value.id,
+          itemName: itemToDelete.value.name
+        });
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1817,6 +2008,9 @@ export default {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value);
+      }
       cleanupImages();
     });
     
@@ -1853,6 +2047,25 @@ export default {
       currentPage.value = 1;
     });
     
+    // Watch for search term changes to trigger live search
+    watch(searchTerm, (newValue) => {
+      if (newValue && newValue.trim().length >= 2) {
+        // Clear any existing timeout
+        if (liveSearchTimeout.value) {
+          clearTimeout(liveSearchTimeout.value);
+        }
+        
+        // Set a new timeout for live search
+        liveSearchTimeout.value = setTimeout(() => {
+          performLiveSearch(newValue.trim());
+        }, 500);
+      } else {
+        // Clear live search results if search term is too short
+        liveSearchResults.length = 0;
+        isLiveSearching.value = false;
+      }
+    });
+    
     return {
       // State
       loading,
@@ -1880,11 +2093,13 @@ export default {
       isCachedData,
       performanceStats,
       hoveredRow,
+      isLiveSearching,
+      refreshing,
       
       // Computed
       userRole,
       userProfile,
-      inventory,
+      inventory: combinedInventory,
       stats,
       operationLoading,
       operationError,
@@ -1909,6 +2124,7 @@ export default {
       getStockStatusClass,
       getQuantityClass,
       getColorHex,
+      getShortName,
       formatDate,
       formatRelativeTime,
       formatTimeAgo,
