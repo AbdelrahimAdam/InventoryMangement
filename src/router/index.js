@@ -507,23 +507,45 @@ router.addRoute({
   meta: { layout: 'empty' }
 });
 
-// إضافة تحميل مسبق للمسارات بعد تحميل الصفحة الرئيسية
+// إضافة تحميل مسبق للمسارات بعد تحميل الصفحة الرئيسية - الإصلاح هنا
 router.isReady().then(() => {
   console.log('✅ الموجه جاهز للتشغيل');
   
-  // عند تحميل الصفحة الرئيسية، نقوم بتحميل المسارات الشائعة في الخلفية
-  const prefetchRoutes = ['/inventory', '/transactions', '/profile'];
+  // تعطيل التحميل المسبق مؤقتاً لحل مشكلة المكونات
+  console.log('⏸️ تم تعطيل التحميل المسبق لحل مشكلة المكونات غير المعرفة');
   
+  // كود التحميل المسبق المعدل - يتم تفعيله لاحقاً بعد إصلاح جميع المكونات
+  /*
   setTimeout(() => {
+    const prefetchRoutes = ['/inventory', '/transactions', '/profile'];
+    console.log('📦 بدء التحميل المسبق للمسارات:', prefetchRoutes);
+    
     prefetchRoutes.forEach(path => {
-      const route = router.resolve(path);
-      if (route.route.component && typeof route.route.component === 'function') {
-        route.route.component().catch((error) => {
-          console.warn(`⚠️ فشل التحميل المسبق لـ ${path}:`, error);
-        });
+      try {
+        console.log(`🔄 محاولة التحميل المسبق لـ ${path}`);
+        const routeMatch = router.resolve(path);
+        
+        if (routeMatch && routeMatch.route) {
+          const component = routeMatch.route.component;
+          if (typeof component === 'function') {
+            // تحميل المكون بأمان
+            component().then(() => {
+              console.log(`✅ تم التحميل المسبق لـ ${path} بنجاح`);
+            }).catch(error => {
+              console.warn(`⚠️ فشل التحميل المسبق لـ ${path}:`, error.message);
+            });
+          } else {
+            console.log(`📌 ${path} ليس لديه مكون ديناميكي`);
+          }
+        } else {
+          console.warn(`❌ لا يمكن العثور على المسار ${path}`);
+        }
+      } catch (error) {
+        console.error(`🚨 خطأ في معالجة المسار ${path}:`, error.message);
       }
     });
-  }, 2000);
+  }, 3000);
+  */
 });
 
 // التحقق من هيكل المسارات عند بدء التشغيل
