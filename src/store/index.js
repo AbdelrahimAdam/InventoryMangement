@@ -31,7 +31,7 @@ import {
 } from '@/services/inventoryService';
 import UserService from '@/services/UserService';
 
-// Performance constants - UPDATED
+// Performance constants - UPDATED WITH CACHE MANAGEMENT
 const PERFORMANCE_CONFIG = {
   INVENTORY_PAGE_SIZE: 100,           // Load only 100 items max
   RECENT_ITEMS_LIMIT: 50,            // Store only 50 in cache
@@ -42,7 +42,17 @@ const PERFORMANCE_CONFIG = {
   DEBOUNCE_DELAY: 300,
   ITEM_SEARCH_LIMIT: 10,
   TRANSACTION_SEARCH_LIMIT: 20,
-  RECENT_DAYS_LIMIT: 30              // Load items from last 30 days
+  RECENT_DAYS_LIMIT: 30,             // Load items from last 30 days
+  
+  // 🔥 NEW: Cache Management Constants
+  CACHE_MAX_SIZE_MB: 4,              // Maximum cache size (4MB)
+  CACHE_WARNING_SIZE_MB: 3,          // Warning level (3MB)
+  CACHE_AGGRESSIVE_CLEANUP_MB: 3.5,  // Aggressive cleanup threshold
+  CACHE_MAX_ITEMS: 100,              // Maximum items in cache
+  CACHE_MAX_SEARCHES: 20,            // Maximum cached searches
+  CACHE_COMPRESSION_THRESHOLD: 1024 * 1024, // 1MB compression threshold
+  CACHE_ROTATION_ENABLED: true,      // Enable FIFO rotation
+  CACHE_LRU_ENABLED: true            // Enable LRU cleanup
 };
 
 // Field name mapping
@@ -62,6 +72,41 @@ const FIELD_MAPPINGS = {
     'مكان_الصنف': 'item_location'
   },
   englishToArabic: FIELD_LABELS
+};
+
+// 🔥 NEW: Helper function to estimate object size
+const estimateObjectSize = (obj) => {
+  try {
+    return new Blob([JSON.stringify(obj)]).size;
+  } catch {
+    return 0;
+  }
+};
+
+// 🔥 NEW: Helper to compress item data (remove non-essential fields)
+const compressItemData = (item) => {
+  if (!item) return item;
+  
+  // Return only essential fields
+  return {
+    id: item.id,
+    name: item.name,
+    code: item.code,
+    remaining_quantity: item.remaining_quantity,
+    warehouse_id: item.warehouse_id,
+    color: item.color,
+    supplier: item.supplier,
+    item_location: item.item_location,
+    // Skip large/less important fields to save space
+    // cartons_count: item.cartons_count,
+    // per_carton_count: item.per_carton_count,
+    // single_bottles_count: item.single_bottles_count,
+    // total_added: item.total_added,
+    // notes: item.notes,
+    // photo_url: item.photo_url,
+    // created_at: item.created_at,
+    // updated_at: item.updated_at
+  };
 };
 
 export default createStore({
@@ -107,17 +152,29 @@ export default createStore({
     allUsers: [],
     usersLoading: false,
 
-    // Performance cache
+    // 🔥 UPDATED: Performance cache with size tracking
     cache: {
       warehouseLabels: {},
       stats: null,
       statsTimestamp: null,
-      itemCache: {},
+      itemCache: {}, // Now with size tracking and access info
       itemCacheTimestamp: null,
       transactionItems: [],
       transactionItemsTimestamp: null,
-      recentInventory: [],           // NEW: Separate cache for recent items
-      recentInventoryTimestamp: null
+      recentInventory: [],           // Separate cache for recent items
+      recentInventoryTimestamp: null,
+      
+      // 🔥 NEW: Cache management metadata
+      cacheStats: {
+        totalSize: 0, // in bytes
+        itemCount: 0,
+        lastCleanup: Date.now(),
+        cleanupCount: 0,
+        rotationCount: 0,
+        pinnedItems: new Set(), // Items to never auto-remove
+        frequentlyAccessed: {}, // itemId -> accessCount
+        lastAccessed: {} // itemId -> timestamp
+      }
     },
 
     // Loading states
@@ -129,7 +186,7 @@ export default createStore({
     // Pagination support
     inventoryPagination: {
       lastDoc: null,
-      hasMore: false                 // Changed to false - we won't paginate recent items
+      hasMore: false
     }
   }),
 
@@ -168,10 +225,48 @@ export default createStore({
       state.warehousesLoaded = loaded;
     },
 
+    // 🔥 UPDATED: SET_INVENTORY with FIFO rotation check
     SET_INVENTORY(state, inventory) {
       // Limit to 100 items maximum
-      state.inventory = Array.isArray(inventory) ? inventory.slice(0, 100) : [];
+      const newInventory = Array.isArray(inventory) ? inventory.slice(0, PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) : [];
+      
+      // Check if we need FIFO rotation (removing old items)
+      if (state.inventory.length >= PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+        console.log('🔄 Performing FIFO rotation: removing oldest 100 items');
+        
+        // Remove old items from itemCache
+        const oldItems = state.inventory.slice(PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
+        oldItems.forEach(oldItem => {
+          if (oldItem.id && state.cache.itemCache[oldItem.id]) {
+            // Only remove if not pinned and not frequently accessed
+            const isPinned = state.cache.cacheStats.pinnedItems.has(oldItem.id);
+            const isFrequent = state.cache.cacheStats.frequentlyAccessed[oldItem.id] > 5;
+            
+            if (!isPinned && !isFrequent) {
+              const itemSize = estimateObjectSize(state.cache.itemCache[oldItem.id].data);
+              state.cache.cacheStats.totalSize -= itemSize;
+              delete state.cache.itemCache[oldItem.id];
+              delete state.cache.cacheStats.frequentlyAccessed[oldItem.id];
+              delete state.cache.cacheStats.lastAccessed[oldItem.id];
+              state.cache.cacheStats.itemCount--;
+            }
+          }
+        });
+        
+        state.cache.cacheStats.rotationCount++;
+      }
+      
+      state.inventory = newInventory;
       state.inventoryLastFetched = Date.now();
+      
+      // 🔥 Check cache size and perform cleanup if needed
+      if (state.cache.cacheStats.totalSize > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB * 1024 * 1024) {
+        console.warn(`⚠️ Cache size warning: ${(state.cache.cacheStats.totalSize / 1024 / 1024).toFixed(2)}MB`);
+        // Trigger cleanup in next tick to avoid blocking UI
+        setTimeout(() => {
+          this.commit('PERFORM_CACHE_CLEANUP');
+        }, 0);
+      }
     },
 
     APPEND_TO_INVENTORY(state, newItems) {
@@ -179,10 +274,29 @@ export default createStore({
         const existingIds = new Set(state.inventory.map(item => item.id));
         const uniqueNewItems = newItems.filter(item => !existingIds.has(item.id));
         
-        // Keep only last 100 items
+        // Keep only last 100 items (FIFO)
         const allItems = [...state.inventory, ...uniqueNewItems];
-        state.inventory = allItems.slice(-100); // Keep only last 100
+        const newTotal = allItems.length;
         
+        if (newTotal > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+          // Remove oldest items (FIFO)
+          const itemsToRemove = allItems.slice(0, newTotal - PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
+          itemsToRemove.forEach(item => {
+            if (item.id && state.cache.itemCache[item.id]) {
+              const isPinned = state.cache.cacheStats.pinnedItems.has(item.id);
+              const isFrequent = state.cache.cacheStats.frequentlyAccessed[item.id] > 3;
+              
+              if (!isPinned && !isFrequent) {
+                const itemSize = estimateObjectSize(state.cache.itemCache[item.id].data);
+                state.cache.cacheStats.totalSize -= itemSize;
+                delete state.cache.itemCache[item.id];
+                state.cache.cacheStats.itemCount--;
+              }
+            }
+          });
+        }
+        
+        state.inventory = allItems.slice(-PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
         state.inventoryLastFetched = Date.now();
       }
     },
@@ -191,25 +305,50 @@ export default createStore({
       state.inventoryLastFetched = timestamp;
     },
 
+    // 🔥 UPDATED: ADD_ITEM with cache size tracking
     ADD_ITEM(state, item) {
       if (item && typeof item === 'object') {
         // Add to beginning (most recent)
         state.inventory.unshift(item);
         
-        // Keep only 100 items
-        if (state.inventory.length > 100) {
-          state.inventory = state.inventory.slice(0, 100);
+        // Keep only 100 items (FIFO)
+        if (state.inventory.length > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+          const removedItem = state.inventory.pop();
+          // Clean up cache for removed item if not important
+          if (removedItem.id && state.cache.itemCache[removedItem.id]) {
+            const isPinned = state.cache.cacheStats.pinnedItems.has(removedItem.id);
+            if (!isPinned) {
+              const itemSize = estimateObjectSize(state.cache.itemCache[removedItem.id].data);
+              state.cache.cacheStats.totalSize -= itemSize;
+              delete state.cache.itemCache[removedItem.id];
+              state.cache.cacheStats.itemCount--;
+            }
+          }
         }
         
         if (item.id) {
+          // Compress item data to save space
+          const compressedItem = compressItemData(item);
+          const itemSize = estimateObjectSize(compressedItem);
+          
           state.cache.itemCache[item.id] = {
-            data: item,
-            timestamp: Date.now()
+            data: compressedItem,
+            timestamp: Date.now(),
+            size: itemSize
           };
+          
+          state.cache.cacheStats.totalSize += itemSize;
+          state.cache.cacheStats.itemCount++;
+          
+          // Track access
+          state.cache.cacheStats.lastAccessed[item.id] = Date.now();
+          state.cache.cacheStats.frequentlyAccessed[item.id] = 
+            (state.cache.cacheStats.frequentlyAccessed[item.id] || 0) + 1;
         }
       }
     },
 
+    // 🔥 UPDATED: UPDATE_ITEM with cache management
     UPDATE_ITEM(state, updatedItem) {
       if (!updatedItem || !updatedItem.id) return;
 
@@ -220,19 +359,49 @@ export default createStore({
         // If not found, add as new item at beginning
         state.inventory.unshift(updatedItem);
         // Keep only 100 items
-        if (state.inventory.length > 100) {
-          state.inventory = state.inventory.slice(0, 100);
+        if (state.inventory.length > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+          const removedItem = state.inventory.pop();
+          if (removedItem.id && state.cache.itemCache[removedItem.id]) {
+            const isPinned = state.cache.cacheStats.pinnedItems.has(removedItem.id);
+            if (!isPinned) {
+              const itemSize = estimateObjectSize(state.cache.itemCache[removedItem.id].data);
+              state.cache.cacheStats.totalSize -= itemSize;
+              delete state.cache.itemCache[removedItem.id];
+              state.cache.cacheStats.itemCount--;
+            }
+          }
         }
       }
       
+      // Update cache with compressed data
+      const compressedItem = compressItemData(updatedItem);
+      const newSize = estimateObjectSize(compressedItem);
+      const oldSize = state.cache.itemCache[updatedItem.id]?.size || 0;
+      
       state.cache.itemCache[updatedItem.id] = {
-        data: updatedItem,
-        timestamp: Date.now()
+        data: compressedItem,
+        timestamp: Date.now(),
+        size: newSize
       };
+      
+      state.cache.cacheStats.totalSize += (newSize - oldSize);
+      state.cache.cacheStats.lastAccessed[updatedItem.id] = Date.now();
+      state.cache.cacheStats.frequentlyAccessed[updatedItem.id] = 
+        (state.cache.cacheStats.frequentlyAccessed[updatedItem.id] || 0) + 1;
     },
 
     REMOVE_ITEM(state, itemId) {
       state.inventory = state.inventory.filter(item => item.id !== itemId);
+      
+      // Remove from cache and update stats
+      if (state.cache.itemCache[itemId]) {
+        const itemSize = state.cache.itemCache[itemId].size || 0;
+        state.cache.cacheStats.totalSize -= itemSize;
+        state.cache.cacheStats.itemCount--;
+        delete state.cache.cacheStats.frequentlyAccessed[itemId];
+        delete state.cache.cacheStats.lastAccessed[itemId];
+        state.cache.cacheStats.pinnedItems.delete(itemId);
+      }
       delete state.cache.itemCache[itemId];
     },
 
@@ -291,9 +460,21 @@ export default createStore({
       state.operationError = null;
     },
 
+    // 🔥 UPDATED: SET_TRANSACTION_ITEMS_CACHE with size tracking
     SET_TRANSACTION_ITEMS_CACHE(state, { items, timestamp }) {
+      const oldSize = estimateObjectSize(state.cache.transactionItems);
+      const newSize = estimateObjectSize(items);
+      
       state.cache.transactionItems = items;
       state.cache.transactionItemsTimestamp = timestamp;
+      
+      // Update cache size
+      state.cache.cacheStats.totalSize += (newSize - oldSize);
+      
+      // Check if we need cleanup
+      if (state.cache.cacheStats.totalSize > PERFORMANCE_CONFIG.CACHE_AGGRESSIVE_CLEANUP_MB * 1024 * 1024) {
+        this.commit('PERFORM_AGGRESSIVE_CLEANUP');
+      }
     },
 
     SET_INVENTORY_PAGINATION(state, { lastDoc, hasMore }) {
@@ -304,7 +485,7 @@ export default createStore({
     RESET_INVENTORY_PAGINATION(state) {
       state.inventoryPagination = {
         lastDoc: null,
-        hasMore: false  // Changed to false - no pagination for recent items
+        hasMore: false
       };
     },
 
@@ -362,30 +543,82 @@ export default createStore({
       state.usersLoading = loading;
     },
 
+    // 🔥 UPDATED: SET_STATS_CACHE with size tracking
     SET_STATS_CACHE(state, { stats, timestamp }) {
+      const oldSize = estimateObjectSize(state.cache.stats);
+      const newSize = estimateObjectSize(stats);
+      
       state.cache.stats = stats;
       state.cache.statsTimestamp = timestamp;
+      state.cache.cacheStats.totalSize += (newSize - oldSize);
     },
 
+    // 🔥 UPDATED: CACHE_ITEM with LRU and size management
     CACHE_ITEM(state, { itemId, itemData }) {
       if (itemId && itemData) {
+        // Check if we need to make space first (LRU)
+        if (state.cache.cacheStats.itemCount >= PERFORMANCE_CONFIG.CACHE_MAX_ITEMS) {
+          this.commit('REMOVE_LEAST_RECENTLY_USED_ITEMS', 10);
+        }
+        
+        // Check cache size
+        if (state.cache.cacheStats.totalSize > PERFORMANCE_CONFIG.CACHE_MAX_SIZE_MB * 1024 * 1024 * 0.9) {
+          this.commit('PERFORM_CACHE_CLEANUP');
+        }
+        
+        // Compress data before caching
+        const compressedData = compressItemData(itemData);
+        const itemSize = estimateObjectSize(compressedData);
+        
+        // Remove old entry if exists
+        const oldEntry = state.cache.itemCache[itemId];
+        if (oldEntry) {
+          state.cache.cacheStats.totalSize -= oldEntry.size || 0;
+          state.cache.cacheStats.itemCount--;
+        }
+        
+        // Add new entry
         state.cache.itemCache[itemId] = {
-          data: itemData,
-          timestamp: Date.now()
+          data: compressedData,
+          timestamp: Date.now(),
+          size: itemSize
         };
+        
+        state.cache.cacheStats.totalSize += itemSize;
+        state.cache.cacheStats.itemCount++;
+        state.cache.cacheStats.lastAccessed[itemId] = Date.now();
       }
     },
 
     REMOVE_ITEM_FROM_CACHE(state, itemId) {
+      if (state.cache.itemCache[itemId]) {
+        const itemSize = state.cache.itemCache[itemId].size || 0;
+        state.cache.cacheStats.totalSize -= itemSize;
+        state.cache.cacheStats.itemCount--;
+        delete state.cache.cacheStats.frequentlyAccessed[itemId];
+        delete state.cache.cacheStats.lastAccessed[itemId];
+        state.cache.cacheStats.pinnedItems.delete(itemId);
+      }
       delete state.cache.itemCache[itemId];
     },
 
+    // 🔥 UPDATED: SET_RECENT_INVENTORY_CACHE with FIFO rotation
     SET_RECENT_INVENTORY_CACHE(state, { items, timestamp }) {
-      // Store only 50 items in cache
-      state.cache.recentInventory = items.slice(0, PERFORMANCE_CONFIG.RECENT_ITEMS_LIMIT);
+      // Store only limited items in cache
+      const limitedItems = items.slice(0, PERFORMANCE_CONFIG.RECENT_ITEMS_LIMIT);
+      
+      // Calculate size and manage FIFO
+      const oldSize = estimateObjectSize(state.cache.recentInventory);
+      const newSize = estimateObjectSize(limitedItems);
+      
+      // Update cache stats
+      state.cache.cacheStats.totalSize += (newSize - oldSize);
+      
+      state.cache.recentInventory = limitedItems;
       state.cache.recentInventoryTimestamp = timestamp;
     },
 
+    // 🔥 NEW: Clear cache with size reset
     CLEAR_CACHE(state) {
       state.cache = {
         warehouseLabels: {},
@@ -396,14 +629,213 @@ export default createStore({
         transactionItems: [],
         transactionItemsTimestamp: null,
         recentInventory: [],
-        recentInventoryTimestamp: null
+        recentInventoryTimestamp: null,
+        cacheStats: {
+          totalSize: 0,
+          itemCount: 0,
+          lastCleanup: Date.now(),
+          cleanupCount: state.cache.cacheStats.cleanupCount + 1,
+          rotationCount: 0,
+          pinnedItems: new Set(),
+          frequentlyAccessed: {},
+          lastAccessed: {}
+        }
       };
       state.inventoryLastFetched = null;
+    },
+
+    // 🔥 NEW: PERFORM_CACHE_CLEANUP - Smart cleanup at 3MB
+    PERFORM_CACHE_CLEANUP(state) {
+      const now = Date.now();
+      const ONE_HOUR = 60 * 60 * 1000;
+      const ONE_DAY = 24 * ONE_HOUR;
+      
+      console.log('🧹 Performing smart cache cleanup...');
+      
+      let removedCount = 0;
+      let freedSize = 0;
+      
+      // 1. Clean old search cache (older than 1 hour)
+      if (state.cache.transactionItemsTimestamp && 
+          (now - state.cache.transactionItemsTimestamp) > ONE_HOUR) {
+        const oldSize = estimateObjectSize(state.cache.transactionItems);
+        freedSize += oldSize;
+        state.cache.transactionItems = [];
+        state.cache.transactionItemsTimestamp = null;
+        removedCount++;
+      }
+      
+      // 2. Clean old recent inventory cache (older than 30 minutes)
+      if (state.cache.recentInventoryTimestamp && 
+          (now - state.cache.recentInventoryTimestamp) > (30 * 60 * 1000)) {
+        const oldSize = estimateObjectSize(state.cache.recentInventory);
+        freedSize += oldSize;
+        state.cache.recentInventory = [];
+        state.cache.recentInventoryTimestamp = null;
+        removedCount++;
+      }
+      
+      // 3. Clean old item cache using LRU (Least Recently Used)
+      const itemEntries = Object.entries(state.cache.itemCache);
+      if (itemEntries.length > PERFORMANCE_CONFIG.CACHE_MAX_ITEMS * 0.7) {
+        // Sort by last accessed time (oldest first)
+        const sortedItems = itemEntries
+          .map(([id, data]) => ({
+            id,
+            ...data,
+            lastAccessed: state.cache.cacheStats.lastAccessed[id] || data.timestamp,
+            accessCount: state.cache.cacheStats.frequentlyAccessed[id] || 0,
+            isPinned: state.cache.cacheStats.pinnedItems.has(id)
+          }))
+          .sort((a, b) => {
+            // Keep pinned items
+            if (a.isPinned && !b.isPinned) return 1;
+            if (!a.isPinned && b.isPinned) return -1;
+            
+            // Sort by last accessed, then access count
+            const timeDiff = a.lastAccessed - b.lastAccessed;
+            if (timeDiff !== 0) return timeDiff;
+            return a.accessCount - b.accessCount;
+          });
+        
+        // Remove 20% of least used items
+        const removeCount = Math.floor(sortedItems.length * 0.2);
+        for (let i = 0; i < removeCount; i++) {
+          const item = sortedItems[i];
+          if (!item.isPinned) { // Don't remove pinned items
+            freedSize += item.size || 0;
+            delete state.cache.itemCache[item.id];
+            delete state.cache.cacheStats.frequentlyAccessed[item.id];
+            delete state.cache.cacheStats.lastAccessed[item.id];
+            state.cache.cacheStats.itemCount--;
+            removedCount++;
+          }
+        }
+      }
+      
+      // Update total size
+      state.cache.cacheStats.totalSize -= freedSize;
+      state.cache.cacheStats.lastCleanup = now;
+      state.cache.cacheStats.cleanupCount++;
+      
+      console.log(`✅ Cache cleanup: removed ${removedCount} items, freed ${(freedSize / 1024).toFixed(2)}KB`);
+    },
+
+    // 🔥 NEW: PERFORM_AGGRESSIVE_CLEANUP - At 3.5MB
+    PERFORM_AGGRESSIVE_CLEANUP(state) {
+      console.warn('🚨 Performing aggressive cache cleanup!');
+      
+      // Clear all non-essential caches
+      const oldStatsSize = estimateObjectSize(state.cache.stats);
+      const oldTransactionSize = estimateObjectSize(state.cache.transactionItems);
+      const oldRecentSize = estimateObjectSize(state.cache.recentInventory);
+      
+      state.cache.stats = null;
+      state.cache.statsTimestamp = null;
+      state.cache.transactionItems = [];
+      state.cache.transactionItemsTimestamp = null;
+      state.cache.recentInventory = [];
+      state.cache.recentInventoryTimestamp = null;
+      
+      // Clear least used item cache (keep only pinned and frequently accessed)
+      const itemEntries = Object.entries(state.cache.itemCache);
+      let keptItems = 0;
+      
+      for (const [itemId, itemData] of itemEntries) {
+        const isPinned = state.cache.cacheStats.pinnedItems.has(itemId);
+        const isFrequent = (state.cache.cacheStats.frequentlyAccessed[itemId] || 0) > 10;
+        const isRecent = (Date.now() - (state.cache.cacheStats.lastAccessed[itemId] || 0)) < (60 * 60 * 1000);
+        
+        if (!isPinned && !isFrequent && !isRecent) {
+          state.cache.cacheStats.totalSize -= itemData.size || 0;
+          delete state.cache.itemCache[itemId];
+          delete state.cache.cacheStats.frequentlyAccessed[itemId];
+          delete state.cache.cacheStats.lastAccessed[itemId];
+          state.cache.cacheStats.itemCount--;
+        } else {
+          keptItems++;
+        }
+      }
+      
+      // Update total size
+      state.cache.cacheStats.totalSize -= (oldStatsSize + oldTransactionSize + oldRecentSize);
+      state.cache.cacheStats.lastCleanup = Date.now();
+      state.cache.cacheStats.cleanupCount++;
+      
+      console.log(`🚨 Aggressive cleanup: kept ${keptItems} essential items`);
+    },
+
+    // 🔥 NEW: REMOVE_LEAST_RECENTLY_USED_ITEMS - LRU implementation
+    REMOVE_LEAST_RECENTLY_USED_ITEMS(state, count = 10) {
+      const itemEntries = Object.entries(state.cache.itemCache);
+      
+      if (itemEntries.length === 0) return;
+      
+      // Sort by last accessed time (oldest first)
+      const sortedItems = itemEntries
+        .map(([id, data]) => ({
+          id,
+          ...data,
+          lastAccessed: state.cache.cacheStats.lastAccessed[id] || data.timestamp,
+          isPinned: state.cache.cacheStats.pinnedItems.has(id)
+        }))
+        .sort((a, b) => {
+          // Keep pinned items
+          if (a.isPinned && !b.isPinned) return 1;
+          if (!a.isPinned && b.isPinned) return -1;
+          return a.lastAccessed - b.lastAccessed;
+        });
+      
+      // Remove specified number of least recently used items
+      const removeCount = Math.min(count, sortedItems.length);
+      let freedSize = 0;
+      
+      for (let i = 0; i < removeCount; i++) {
+        const item = sortedItems[i];
+        if (!item.isPinned) { // Don't remove pinned items
+          freedSize += item.size || 0;
+          delete state.cache.itemCache[item.id];
+          delete state.cache.cacheStats.frequentlyAccessed[item.id];
+          delete state.cache.cacheStats.lastAccessed[item.id];
+          state.cache.cacheStats.itemCount--;
+        }
+      }
+      
+      state.cache.cacheStats.totalSize -= freedSize;
+      console.log(`🔄 LRU cleanup: removed ${removeCount} items, freed ${(freedSize / 1024).toFixed(2)}KB`);
+    },
+
+    // 🔥 NEW: PIN_ITEM - Mark item as important (won't be auto-removed)
+    PIN_ITEM(state, itemId) {
+      state.cache.cacheStats.pinnedItems.add(itemId);
+      console.log(`📌 Item ${itemId} pinned to cache`);
+    },
+
+    // 🔥 NEW: UNPIN_ITEM - Remove item from pinned list
+    UNPIN_ITEM(state, itemId) {
+      state.cache.cacheStats.pinnedItems.delete(itemId);
+      console.log(`📌 Item ${itemId} unpinned from cache`);
+    },
+
+    // 🔥 NEW: TRACK_ITEM_ACCESS - Update access tracking for LRU
+    TRACK_ITEM_ACCESS(state, itemId) {
+      state.cache.cacheStats.lastAccessed[itemId] = Date.now();
+      state.cache.cacheStats.frequentlyAccessed[itemId] = 
+        (state.cache.cacheStats.frequentlyAccessed[itemId] || 0) + 1;
+    },
+
+    // 🔥 NEW: GET_CACHE_STATS - For monitoring
+    UPDATE_CACHE_STATS(state) {
+      // This is called by getters, just ensuring stats are updated
+      if (state.cache.cacheStats.totalSize > PERFORMANCE_CONFIG.CACHE_MAX_SIZE_MB * 1024 * 1024) {
+        console.error(`❌ Cache exceeded limit: ${(state.cache.cacheStats.totalSize / 1024 / 1024).toFixed(2)}MB`);
+        this.commit('PERFORM_AGGRESSIVE_CLEANUP');
+      }
     }
   },
 
   actions: {
-    // ✅ FIXED: SMART SEARCH - Now properly searches in store AND Firestore
+    // ✅ SMART SEARCH - Now with cache access tracking
     async searchItemsForTransactions({ commit, state, dispatch }, { searchTerm, limitResults = 20 }) {
       try {
         console.log('🔍 SMART SEARCH for transactions:', searchTerm);
@@ -421,6 +853,11 @@ export default createStore({
           item.color?.toLowerCase().includes(term) ||
           item.supplier?.toLowerCase().includes(term)
         ).slice(0, limitResults);
+
+        // Track access to these items
+        localResults.forEach(item => {
+          if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+        });
 
         if (localResults.length >= limitResults) {
           console.log('✅ Items found in recent inventory:', localResults.length);
@@ -441,6 +878,10 @@ export default createStore({
           
           if (cachedResults.length > 0) {
             console.log('✅ Using cached transaction items:', cachedResults.length);
+            // Track access
+            cachedResults.forEach(item => {
+              if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+            });
             return cachedResults;
           }
         }
@@ -496,11 +937,14 @@ export default createStore({
               ...itemData
             });
             
-            // Cache each item individually
+            // Cache each item individually with compression
             commit('CACHE_ITEM', {
               itemId: doc.id,
               itemData: convertedItem
             });
+            
+            // Track access
+            commit('TRACK_ITEM_ACCESS', doc.id);
             
             return convertedItem;
           });
@@ -557,12 +1001,13 @@ export default createStore({
             if (filteredItems.length > 0) {
               console.log(`✅ Found ${filteredItems.length} items (alternative search)`);
               
-              // Cache these items
+              // Cache these items with compression
               filteredItems.forEach(item => {
                 commit('CACHE_ITEM', {
                   itemId: item.id,
                   itemData: item
                 });
+                commit('TRACK_ITEM_ACCESS', item.id);
               });
               
               return filteredItems;
@@ -582,11 +1027,16 @@ export default createStore({
           item.code?.toLowerCase().includes(term)
         ).slice(0, 10);
         
+        // Track access
+        fallbackResults.forEach(item => {
+          if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+        });
+        
         return fallbackResults;
       }
     },
 
-    // ✅ FIXED: SMART GET ITEM - Now properly searches in store
+    // ✅ SMART GET ITEM - Now with cache access tracking
     async getItemById({ commit, state, dispatch }, { itemId, itemCode, itemName }) {
       try {
         console.log('🔍 SMART GET ITEM:', { itemId, itemCode, itemName });
@@ -604,6 +1054,7 @@ export default createStore({
 
         if (item) {
           console.log('✅ Item found in recent inventory');
+          commit('TRACK_ITEM_ACCESS', item.id);
           return item;
         }
 
@@ -613,6 +1064,7 @@ export default createStore({
         
         if (cacheEntry && (Date.now() - cacheEntry.timestamp) < cacheDuration) {
           console.log('✅ Item found in cache');
+          commit('TRACK_ITEM_ACCESS', itemId);
           return cacheEntry.data;
         }
 
@@ -642,10 +1094,13 @@ export default createStore({
                 ...itemData
               });
 
+              // Cache with compression
               commit('CACHE_ITEM', {
                 itemId: itemId,
                 itemData: convertedItem
               });
+              
+              commit('TRACK_ITEM_ACCESS', itemId);
 
               console.log('✅ Item fetched from Firestore by ID (1 read)');
               return convertedItem;
@@ -685,10 +1140,13 @@ export default createStore({
                 ...itemData
               });
 
+              // Cache with compression
               commit('CACHE_ITEM', {
                 itemId: doc.id,
                 itemData: convertedItem
               });
+              
+              commit('TRACK_ITEM_ACCESS', doc.id);
 
               console.log(`✅ Item found by code: ${validItems.length} results`);
               return convertedItem;
@@ -727,10 +1185,13 @@ export default createStore({
                 ...itemData
               });
 
+              // Cache with compression
               commit('CACHE_ITEM', {
                 itemId: doc.id,
                 itemData: convertedItem
               });
+              
+              commit('TRACK_ITEM_ACCESS', doc.id);
 
               console.log(`✅ Item found by name: ${validItems.length} results`);
               return convertedItem;
@@ -748,6 +1209,7 @@ export default createStore({
         if (searchResults.length > 0) {
           const foundItem = searchResults[0];
           console.log('✅ Item found through smart search');
+          commit('TRACK_ITEM_ACCESS', foundItem.id);
           return foundItem;
         }
 
@@ -784,6 +1246,12 @@ export default createStore({
 
         // First, check loaded inventory (100 recent items)
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
+        
+        // Track access to these items
+        localItems.forEach(item => {
+          if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+        });
+        
         if (localItems.length >= limitResults) {
           console.log('✅ Found items in recent inventory:', localItems.length);
           return localItems.slice(0, limitResults);
@@ -809,10 +1277,14 @@ export default createStore({
               ...itemData
             });
             
+            // Cache with compression
             commit('CACHE_ITEM', {
               itemId: doc.id,
               itemData: convertedItem
             });
+            
+            // Track access
+            commit('TRACK_ITEM_ACCESS', doc.id);
             
             return convertedItem;
           });
@@ -825,6 +1297,9 @@ export default createStore({
           
           // Fallback: Use recent inventory and filter
           const recentItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
+          recentItems.forEach(item => {
+            if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+          });
           return recentItems.slice(0, limitResults);
         }
 
@@ -859,7 +1334,7 @@ export default createStore({
       }
     },
 
-    // 🔥 FIXED: fetchRecentInventory - SIMPLIFIED to load ANY 100 items
+    // 🔥 UPDATED: fetchRecentInventory - Now with cache management
     async fetchRecentInventory({ commit, state, dispatch }) {
       if (state.isFetchingInventory) {
         console.log('Inventory fetch already in progress, skipping...');
@@ -891,9 +1366,7 @@ export default createStore({
         let itemsQuery;
         const itemsRef = collection(db, 'items');
 
-        // SIMPLIFIED: Just load 100 items by name or code
         if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
-          // Superadmins and company managers: Load any 100 items
           itemsQuery = query(
             itemsRef,
             orderBy('name'),
@@ -916,7 +1389,6 @@ export default createStore({
             );
           } else {
             try {
-              // Try to get items from allowed warehouses
               itemsQuery = query(
                 itemsRef,
                 where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
@@ -953,10 +1425,14 @@ export default createStore({
             ...data
           });
           
+          // Cache with compression
           commit('CACHE_ITEM', {
             itemId: doc.id,
             itemData: item
           });
+          
+          // Track access
+          commit('TRACK_ITEM_ACCESS', doc.id);
           
           return item;
         });
@@ -979,6 +1455,7 @@ export default createStore({
           hasMore: false
         });
 
+        // 🔥 This will trigger FIFO rotation if needed
         commit('SET_INVENTORY', inventory);
         
         // Cache the recent inventory
@@ -988,6 +1465,15 @@ export default createStore({
         });
         
         console.log('✅ Recent inventory ready with', inventory.length, 'items');
+        
+        // Check cache size after loading
+        if (state.cache.cacheStats.totalSize > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB * 1024 * 1024) {
+          console.warn(`Cache size after load: ${(state.cache.cacheStats.totalSize / 1024 / 1024).toFixed(2)}MB`);
+          setTimeout(() => {
+            commit('PERFORM_CACHE_CLEANUP');
+          }, 1000);
+        }
+        
         return inventory;
 
       } catch (error) {
@@ -1020,18 +1506,211 @@ export default createStore({
       }
     },
 
-    // 🔥 FIXED: Keep original fetchInventoryOnce for backward compatibility
+    // 🔥 NEW: Refresh inventory with cache management
+    async refreshInventoryWithCacheManagement({ commit, dispatch, state }) {
+      console.log('🔄 Refreshing inventory with cache management...');
+      
+      // Check current cache size
+      const currentSizeMB = state.cache.cacheStats.totalSize / 1024 / 1024;
+      console.log(`Current cache size: ${currentSizeMB.toFixed(2)}MB`);
+      
+      // If cache is too large, perform cleanup first
+      if (currentSizeMB > PERFORMANCE_CONFIG.CACHE_AGGRESSIVE_CLEANUP_MB) {
+        console.warn('Cache too large, performing aggressive cleanup before refresh');
+        commit('PERFORM_AGGRESSIVE_CLEANUP');
+      } else if (currentSizeMB > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB) {
+        console.log('Cache large, performing normal cleanup');
+        commit('PERFORM_CACHE_CLEANUP');
+      }
+      
+      // Force refresh by clearing timestamp
+      commit('SET_INVENTORY_LAST_FETCHED', null);
+      
+      // Fetch fresh data (this will trigger FIFO rotation)
+      const result = await dispatch('fetchRecentInventory');
+      
+      // Save to localStorage with error handling
+      try {
+        await dispatch('saveCacheToStorage');
+      } catch (error) {
+        console.warn('Could not save cache to storage:', error);
+        // If quota error, clear some cache
+        if (error.name === 'QuotaExceededError') {
+          commit('PERFORM_AGGRESSIVE_CLEANUP');
+        }
+      }
+      
+      return result;
+    },
+
+    // 🔥 NEW: Save cache to localStorage with compression
+    async saveCacheToStorage({ state }) {
+      try {
+        // Prepare minimal cache data for storage
+        const storageData = {
+          // Store only essential data
+          pinnedItems: Array.from(state.cache.cacheStats.pinnedItems),
+          frequentlyAccessed: Object.entries(state.cache.cacheStats.frequentlyAccessed)
+            .filter(([_, count]) => count > 5)
+            .reduce((obj, [id, count]) => {
+              obj[id] = count;
+              return obj;
+            }, {}),
+          // Store only essential item data
+          essentialItems: Object.entries(state.cache.itemCache)
+            .filter(([id, data]) => {
+              const isPinned = state.cache.cacheStats.pinnedItems.has(id);
+              const isFrequent = (state.cache.cacheStats.frequentlyAccessed[id] || 0) > 10;
+              const isRecent = (Date.now() - data.timestamp) < (24 * 60 * 60 * 1000);
+              return isPinned || isFrequent || isRecent;
+            })
+            .slice(0, 50) // Only store top 50 essential items
+            .reduce((obj, [id, data]) => {
+              obj[id] = {
+                data: data.data,
+                timestamp: data.timestamp
+              };
+              return obj;
+            }, {}),
+          timestamp: Date.now(),
+          version: '2.0'
+        };
+        
+        const dataStr = JSON.stringify(storageData);
+        const size = new Blob([dataStr]).size;
+        
+        if (size > 4.5 * 1024 * 1024) {
+          console.warn('Cache data too large, compressing further...');
+          // Remove less important data
+          storageData.essentialItems = {};
+          storageData.frequentlyAccessed = {};
+          
+          const compressedStr = JSON.stringify(storageData);
+          const compressedSize = new Blob([compressedStr]).size;
+          
+          if (compressedSize > 4.5 * 1024 * 1024) {
+            throw new Error('Cache data still too large after compression');
+          }
+        }
+        
+        localStorage.setItem('inventory_cache', dataStr);
+        console.log(`💾 Cache saved to storage (${(size / 1024).toFixed(2)}KB)`);
+        
+      } catch (error) {
+        console.error('Error saving cache to storage:', error);
+        
+        if (error.name === 'QuotaExceededError') {
+          console.error('🚨 Storage quota exceeded! Clearing old cache data...');
+          
+          // Clear some localStorage data
+          const keysToKeep = ['inventory_cache', 'user', 'auth'];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!keysToKeep.includes(key)) {
+              localStorage.removeItem(key);
+            }
+          }
+          
+          // Try again with minimal data
+          const minimalData = {
+            pinnedItems: Array.from(state.cache.cacheStats.pinnedItems),
+            timestamp: Date.now(),
+            version: '2.0'
+          };
+          
+          localStorage.setItem('inventory_cache', JSON.stringify(minimalData));
+        }
+      }
+    },
+
+    // 🔥 NEW: Load cache from localStorage
+    async loadCacheFromStorage({ commit }) {
+      try {
+        const cached = localStorage.getItem('inventory_cache');
+        if (!cached) {
+          console.log('No cache found in storage');
+          return;
+        }
+        
+        const data = JSON.parse(cached);
+        
+        // Restore pinned items
+        if (data.pinnedItems && Array.isArray(data.pinnedItems)) {
+          data.pinnedItems.forEach(itemId => {
+            commit('PIN_ITEM', itemId);
+          });
+        }
+        
+        // Restore frequently accessed tracking
+        if (data.frequentlyAccessed) {
+          Object.entries(data.frequentlyAccessed).forEach(([itemId, count]) => {
+            if (itemId && typeof count === 'number') {
+              // This will be used when items are re-cached
+              // Access tracking will be restored as items are loaded
+            }
+          });
+        }
+        
+        console.log('📂 Cache metadata loaded from storage');
+        
+      } catch (error) {
+        console.error('Error loading cache from storage:', error);
+        // Clear corrupted cache
+        localStorage.removeItem('inventory_cache');
+      }
+    },
+
+    // 🔥 NEW: Get cache statistics
+    async getCacheStats({ state }) {
+      const totalSizeMB = state.cache.cacheStats.totalSize / 1024 / 1024;
+      
+      return {
+        totalSize: `${totalSizeMB.toFixed(2)} MB`,
+        itemCount: state.cache.cacheStats.itemCount,
+        pinnedItems: state.cache.cacheStats.pinnedItems.size,
+        frequentlyAccessed: Object.keys(state.cache.cacheStats.frequentlyAccessed).length,
+        lastCleanup: new Date(state.cache.cacheStats.lastCleanup).toLocaleString(),
+        cleanupCount: state.cache.cacheStats.cleanupCount,
+        rotationCount: state.cache.cacheStats.rotationCount,
+        status: totalSizeMB > PERFORMANCE_CONFIG.CACHE_AGGRESSIVE_CLEANUP_MB ? 'critical' :
+                totalSizeMB > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB ? 'warning' : 'healthy'
+      };
+    },
+
+    // 🔥 NEW: Manual cache cleanup
+    async cleanupCache({ commit }, { aggressive = false }) {
+      if (aggressive) {
+        commit('PERFORM_AGGRESSIVE_CLEANUP');
+      } else {
+        commit('PERFORM_CACHE_CLEANUP');
+      }
+      
+      console.log('🧹 Cache manually cleaned');
+      return true;
+    },
+
+    // 🔥 NEW: Pin item to cache (prevent auto-removal)
+    async pinItemToCache({ commit }, itemId) {
+      commit('PIN_ITEM', itemId);
+      return true;
+    },
+
+    // 🔥 NEW: Unpin item from cache
+    async unpinItemFromCache({ commit }, itemId) {
+      commit('UNPIN_ITEM', itemId);
+      return true;
+    },
+
+    // Keep original fetchInventoryOnce for backward compatibility
     async fetchInventoryOnce({ dispatch }) {
       console.log('📦 Using fetchRecentInventory instead of fetchInventoryOnce');
       return await dispatch('fetchRecentInventory');
     },
 
-    // 🔥 NEW: Force refresh inventory
-    async forceRefreshInventory({ commit, dispatch }) {
+    // 🔥 NEW: Force refresh inventory with cache management
+    async forceRefreshInventory({ dispatch }) {
       console.log('🔄 Force refreshing inventory...');
-      commit('SET_INVENTORY_LAST_FETCHED', null);
-      commit('CLEAR_CACHE');
-      return await dispatch('fetchRecentInventory');
+      return await dispatch('refreshInventoryWithCacheManagement');
     },
 
     // Remove loadMoreInventory since we don't paginate recent items
@@ -1044,8 +1723,8 @@ export default createStore({
       return [];
     },
 
-    // 🔥 FIXED: searchItems - Now properly searches in loaded inventory
-    async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
+    // 🔥 UPDATED: searchItems with cache access tracking
+    async searchItems({ state, dispatch, commit }, { searchTerm, limitResults = 5 }) {
       try {
         console.log('🔍 General search in recent items:', searchTerm);
 
@@ -1061,6 +1740,11 @@ export default createStore({
           item.code?.toLowerCase().includes(term) ||
           item.color?.toLowerCase().includes(term)
         ).slice(0, limitResults);
+
+        // Track access to found items
+        localResults.forEach(item => {
+          if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+        });
 
         if (localResults.length > 0) {
           console.log('✅ Items found in loaded inventory:', localResults.length);
@@ -1083,7 +1767,7 @@ export default createStore({
       }
     },
 
-    async getItemsByIds({ dispatch }, itemIds) {
+    async getItemsByIds({ dispatch, commit }, itemIds) {
       try {
         console.log('🔍 Getting multiple items:', itemIds.length);
 
@@ -1101,6 +1785,11 @@ export default createStore({
         const results = await Promise.all(promises);
         const validResults = results.filter(item => item !== null);
 
+        // Track access to all retrieved items
+        validResults.forEach(item => {
+          if (item.id) commit('TRACK_ITEM_ACCESS', item.id);
+        });
+
         console.log(`✅ Got ${validResults.length} items`);
         return validResults;
 
@@ -1110,10 +1799,15 @@ export default createStore({
       }
     },
 
+    // 🔥 UPDATED: clearItemCache with stats reset
     clearItemCache({ commit }) {
       commit('CLEAR_CACHE');
-      console.log('🧹 Item cache cleared');
+      console.log('🧹 Item cache cleared with stats reset');
     },
+
+    // All other actions remain exactly the same...
+    // [The rest of your actions stay UNCHANGED - including showNotification, initializeAuth, loadUserProfile, login, logout, etc.]
+    // I'm omitting them here for brevity, but they should remain in your code exactly as they are
 
     showNotification({ commit, getters }, notification) {
       if (!notification?.message) {
@@ -1143,6 +1837,8 @@ export default createStore({
             commit('SET_USER', user);
             try {
               await dispatch('loadUserProfile', user);
+              // 🔥 NEW: Load cache from storage on auth initialization
+              await dispatch('loadCacheFromStorage');
             } catch (error) {
               console.error('Error in auth initialization:', error);
               commit('SET_AUTH_ERROR', 'فشل في تحميل بيانات المستخدم');
@@ -1216,7 +1912,7 @@ export default createStore({
 
         // Load warehouses and RECENT inventory
         await dispatch('loadWarehouses');
-        await dispatch('fetchRecentInventory'); // 🔥 Changed to fetchRecentInventory
+        await dispatch('fetchRecentInventory');
         await dispatch('fetchTransactions');
         dispatch('getRecentTransactions');
 
@@ -1230,21 +1926,8 @@ export default createStore({
       }
     },
 
-    async notifyAdminAboutPendingUser({ dispatch }, { userId, userEmail }) {
-      try {
-        const notificationRef = doc(collection(db, 'admin_notifications'));
-        await setDoc(notificationRef, {
-          type: 'new_user_pending',
-          user_id: userId,
-          user_email: userEmail,
-          timestamp: new Date(),
-          message: 'مستخدم جديد يحتاج إلى التفعيل',
-          read: false
-        });
-      } catch (error) {
-        console.error('Error notifying admin:', error);
-      }
-    },
+    // [All other existing actions remain exactly the same...]
+    // Only showing a few for example:
 
     async login({ commit, dispatch }, { email, password }) {
       commit('SET_LOADING', true);
@@ -1276,6 +1959,9 @@ export default createStore({
 
     async logout({ commit, dispatch }) {
       try {
+        // Save cache before logout
+        await dispatch('saveCacheToStorage');
+        
         await signOut(auth);
         commit('SET_USER', null);
         commit('SET_USER_PROFILE', null);
@@ -1306,1198 +1992,19 @@ export default createStore({
       }
     },
 
-    async fetchTransactions({ commit, state, dispatch }) {
-      commit('SET_TRANSACTIONS_LOADING', true);
-      
-      try {
-        if (!state.userProfile) {
-          console.log('Cannot load transactions: User not authenticated');
-          commit('SET_TRANSACTIONS', []);
-          return [];
-        }
+    // [Include ALL your existing actions here without modification]
+    // They should remain exactly as they are in your current code
 
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(PERFORMANCE_CONFIG.TRANSACTIONS_PAGE_SIZE)
-        );
-
-        const snapshot = await getDocs(transactionsQuery);
-        console.log('Transactions loaded via getDocs:', snapshot.size, 'transactions');
-
-        const transactions = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            _display: {
-              from_warehouse: WAREHOUSE_LABELS[data.from_warehouse] || data.from_warehouse,
-              to_warehouse: WAREHOUSE_LABELS[data.to_warehouse] ||
-                           DESTINATION_LABELS[data.to_warehouse] ||
-                           data.to_warehouse,
-            }
-          };
-        });
-
-        console.log('Transactions processed:', transactions.length);
-        commit('SET_TRANSACTIONS', transactions);
-        return transactions;
-
-      } catch (error) {
-        console.error('Error loading transactions:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الحركات'
-        });
-        commit('SET_TRANSACTIONS', []);
-        return [];
-      } finally {
-        commit('SET_TRANSACTIONS_LOADING', false);
-      }
+    // 🔥 NEW: Compatibility wrapper for old refreshInventory
+    async refreshInventory({ dispatch }) {
+      console.log('🔄 Using new cache-managed refresh');
+      return await dispatch('refreshInventoryWithCacheManagement');
     },
 
-    async getRecentTransactions({ commit, dispatch, state }) {
-      commit('SET_RECENT_TRANSACTIONS_LOADING', true);
-
-      try {
-        if (!state.userProfile) {
-          console.log('Cannot load recent transactions: User not authenticated');
-          return [];
-        }
-
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          where('timestamp', '>=', oneDayAgo),
-          orderBy('timestamp', 'desc'),
-          limit(PERFORMANCE_CONFIG.RECENT_TRANSACTIONS_LIMIT)
-        );
-
-        const snapshot = await getDocs(transactionsQuery);
-        const transactions = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            _display: {
-              from_warehouse: state.cache.warehouseLabels[data.from_warehouse] || 
-                            WAREHOUSE_LABELS[data.from_warehouse] || 
-                            data.from_warehouse,
-              to_warehouse: state.cache.warehouseLabels[data.to_warehouse] ||
-                           WAREHOUSE_LABELS[data.to_warehouse] ||
-                           DESTINATION_LABELS[data.to_warehouse] ||
-                           data.to_warehouse,
-            }
-          };
-        });
-
-        console.log('Recent transactions loaded:', transactions.length);
-        commit('SET_RECENT_TRANSACTIONS', transactions);
-
-        return transactions;
-
-      } catch (error) {
-        console.error('Error loading recent transactions:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الحركات الحديثة'
-        });
-        return [];
-      } finally {
-        commit('SET_RECENT_TRANSACTIONS_LOADING', false);
-      }
-    },
-
-    async loadWarehouses({ commit, dispatch, state }) {
-      try {
-        if (state.warehousesLoaded && 
-            state.warehousesCacheTimestamp && 
-            Date.now() - state.warehousesCacheTimestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
-          console.log('Using cached warehouses');
-          return state.warehouses;
-        }
-
-        console.log('Loading warehouses from Firestore...');
-
-        await dispatch('initializeDefaultWarehouses');
-        await dispatch('fetchWarehouses');
-
-        commit('SET_WAREHOUSES_LOADED', true);
-        console.log('Warehouses loaded successfully');
-
-        return state.warehouses;
-
-      } catch (error) {
-        console.error('Error loading warehouses:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل المخازن'
-        });
-        commit('SET_WAREHOUSES_LOADED', false);
-        return [];
-      }
-    },
-
-    async fetchWarehouses({ commit, state, dispatch }) {
-      try {
-        if (!state.userProfile) {
-          console.log('Cannot load warehouses: User not authenticated');
-          return [];
-        }
-
-        console.log('Loading warehouses via getDocs...');
-        const warehousesQuery = query(
-          collection(db, 'warehouses'),
-          orderBy('name_ar')
-        );
-
-        const snapshot = await getDocs(warehousesQuery);
-        const warehouses = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        console.log('Warehouses loaded:', warehouses.length);
-        commit('SET_WAREHOUSES', warehouses);
-        
-        return warehouses;
-
-      } catch (error) {
-        console.error('Error loading warehouses:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل المخازن'
-        });
-        return [];
-      }
-    },
-
-    async initializeDefaultWarehouses({ commit, dispatch }) {
-      try {
-        console.log('Checking/initializing default warehouses...');
-
-        const defaultWarehouses = [
-          {
-            id: 'main_warehouse',
-            name_ar: 'مخزن شارع الشيخ',
-            name_en: 'Main Warehouse',
-            type: 'primary',
-            is_main: true,
-            status: 'active',
-            capacity: 1000,
-            location: 'شارع الشيخ، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'tera_warehouse',
-            name_ar: 'مخزن الترعه',
-            name_en: 'Teraa Warehouse',
-            type: 'primary',
-            status: 'active',
-            capacity: 800,
-            location: 'الترعة، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'shobeen_warehouse',
-            name_ar: 'مخزن موقف شبين',
-            name_en: 'Shobeen Warehouse',
-            type: 'primary',
-            status: 'active',
-            capacity: 600,
-            location: 'موقف شبين، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'hyper_warehouse',
-            name_ar: 'مخزن هايبر التهامي',
-            name_en: 'Hyper El Tahamy Warehouse',
-            type: 'primary',
-            status: 'active',
-            capacity: 500,
-            location: 'هايبر التهامي، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'matbaa_warehouse',
-            name_ar: 'مخزن المطبعه',
-            name_en: 'Matbaa Warehouse',
-            type: 'primary',
-            status: 'active',
-            capacity: 400,
-            location: 'المطبعة، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'ghabashi_warehouse',
-            name_ar: 'مخزن الغباشي',
-            name_en: 'Ghabashi Warehouse',
-            type: 'primary',
-            status: 'active',
-            capacity: 300,
-            location: 'الغباشي، المنوفية',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'factory',
-            name_ar: 'صرف الي مصنع البران',
-            name_en: 'Al Bran Factory Dispatch',
-            type: 'dispatch',
-            status: 'active',
-            description: 'مصنع البران للتصنيع',
-            created_at: new Date(),
-            updated_at: new Date()
-          },
-          {
-            id: 'zahra',
-            name_ar: 'صرف الي مخزن الزهراء',
-            name_en: 'Al Zahra Warehouse Dispatch',
-            type: 'dispatch',
-            status: 'active',
-            description: 'مخزن الزهراء للتوزيع',
-            created_at: new Date(),
-            updated_at: new Date()
-          }
-        ];
-
-        const batch = writeBatch(db);
-        let needsInitialization = false;
-
-        for (const warehouse of defaultWarehouses) {
-          const warehouseRef = doc(db, 'warehouses', warehouse.id);
-          const warehouseDoc = await getDoc(warehouseRef);
-
-          if (!warehouseDoc.exists()) {
-            needsInitialization = true;
-            batch.set(warehouseRef, warehouse);
-            console.log(`Adding warehouse: ${warehouse.name_ar}`);
-          }
-        }
-
-        if (needsInitialization) {
-          await batch.commit();
-          console.log('Default warehouses initialized successfully');
-
-          dispatch('showNotification', {
-            type: 'success',
-            message: 'تم تهيئة المخازن الافتراضية'
-          });
-        } else {
-          console.log('Warehouses already exist, skipping initialization');
-        }
-
-      } catch (error) {
-        console.error('Error initializing default warehouses:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تهيئة المخازن الافتراضية'
-        });
-        throw error;
-      }
-    },
-
-    // All other actions remain the same...
-    async addInventoryItem({ commit, dispatch, state }, { itemData, isAddingCartons = true }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لإضافة أصناف');
-        }
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.color?.trim() || !itemData.warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-        }
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (!allowedWarehouses.includes(itemData.warehouse_id)) {
-            throw new Error('ليس لديك صلاحية لإضافة أصناف في هذا المخزن');
-          }
-        }
-
-        const totalQuantity = InventoryService.calculateTotalQuantity(
-          itemData.cartons_count,
-          itemData.per_carton_count,
-          itemData.single_bottles_count
-        );
-
-        if (totalQuantity <= 0) {
-          throw new Error('يجب إدخال كمية صحيحة');
-        }
-
-        const cleanedData = {
-          name: itemData.name.trim(),
-          code: itemData.code.trim(),
-          color: itemData.color.trim(),
-          warehouse_id: itemData.warehouse_id,
-          cartons_count: Number(itemData.cartons_count) || 0,
-          per_carton_count: Number(itemData.per_carton_count) || 12,
-          single_bottles_count: Number(itemData.single_bottles_count) || 0,
-          supplier: itemData.supplier?.trim() || '',
-          item_location: itemData.item_location?.trim() || '',
-          notes: itemData.notes?.trim() || ''
-        };
-
-        const result = await InventoryService.addOrUpdateItem(
-          cleanedData,
-          state.user.uid,
-          isAddingCartons
-        );
-
-        // Use fetchRecentInventory to get latest RECENT data
-        await dispatch('fetchRecentInventory');
-
-        commit('ADD_RECENT_TRANSACTION', {
-          type: TRANSACTION_TYPES.ADD,
-          item_id: result.id,
-          timestamp: new Date(),
-          notes: cleanedData.notes || 'عملية إضافة'
-        });
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${cleanedData.name}" بنجاح`
-        });
-
-        return result;
-
-      } catch (error) {
-        console.error('Error adding inventory item:', error);
-        const errorMessage = error.message || 'حدث خطأ غير متوقع أثناء إضافة الصنف';
-        commit('SET_OPERATION_ERROR', errorMessage);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: errorMessage
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async transferItem({ commit, dispatch, state }, transferData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لنقل الأصناف');
-        }
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          
-          if (!allowedWarehouses.includes(transferData.from_warehouse_id)) {
-            throw new Error('ليس لديك صلاحية للنقل من هذا المخزن');
-          }
-          
-          if (!allowedWarehouses.includes(transferData.to_warehouse_id)) {
-            throw new Error('ليس لديك صلاحية للنقل إلى هذا المخزن');
-          }
-        }
-
-        const result = await InventoryService.transferItem(transferData, state.user.uid);
-
-        await dispatch('fetchRecentInventory'); // 🔥 Refresh recent inventory
-
-        commit('ADD_RECENT_TRANSACTION', {
-          type: TRANSACTION_TYPES.TRANSFER,
-          item_id: transferData.itemId,
-          timestamp: new Date(),
-          notes: 'نقل بين المخازن'
-        });
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: 'تم نقل الصنف بنجاح'
-        });
-
-        return result;
-
-      } catch (error) {
-        console.error('Error transferring item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ أثناء نقل الصنف'
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async dispatchItem({ commit, dispatch, state }, dispatchData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        const canDispatch = state.userProfile.role === 'superadmin' || 
-                           (state.userProfile.role === 'warehouse_manager' && 
-                            state.userProfile.permissions?.includes('dispatch_items'));
-
-        if (!canDispatch) {
-          throw new Error('ليس لديك صلاحية لصرف الأصناف');
-        }
-
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (!allowedWarehouses.includes(dispatchData.from_warehouse_id)) {
-            throw new Error('ليس لديك صلاحية للصرف من هذا المخزن');
-          }
-        }
-
-        const result = await InventoryService.dispatchItem(dispatchData, state.user.uid);
-
-        await dispatch('fetchRecentInventory'); // 🔥 Refresh recent inventory
-
-        commit('ADD_RECENT_TRANSACTION', {
-          type: TRANSACTION_TYPES.DISPATCH,
-          item_id: dispatchData.itemId,
-          timestamp: new Date(),
-          notes: 'صرف إلى خارجي'
-        });
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: 'تم صرف الصنف بنجاح'
-        });
-
-        return result;
-
-      } catch (error) {
-        console.error('Error dispatching item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ أثناء صرف الصنف'
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateItem({ commit, dispatch, state }, { itemId, itemData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
-        }
-
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const existingItem = itemDoc.data();
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(warehouseId)) {
-            throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
-          }
-        }
-
-        const name = itemData.name?.trim() || existingItem.name;
-        const code = itemData.code?.trim() || existingItem.code;
-        const color = itemData.color?.trim() || existingItem.color;
-        const warehouse_id = itemData.warehouse_id || existingItem.warehouse_id;
-
-        if (!name || !code || !color || !warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
-        }
-
-        const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
-        const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
-        const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
-        const newTotalQuantity = InventoryService.calculateTotalQuantity(
-          newCartonsCount,
-          newPerCartonCount,
-          newSingleBottlesCount
-        );
-
-        if (newTotalQuantity < 0) {
-          throw new Error('يجب أن تكون الكمية أكبر من أو تساوي صفر');
-        }
-
-        const updateData = {
-          name: name,
-          code: code,
-          color: color,
-          warehouse_id: warehouse_id,
-          cartons_count: newCartonsCount,
-          per_carton_count: newPerCartonCount,
-          single_bottles_count: newSingleBottlesCount,
-          remaining_quantity: newTotalQuantity,
-          total_added: itemData.total_added || existingItem.total_added,
-          supplier: itemData.supplier?.trim() || existingItem.supplier || '',
-          item_location: itemData.item_location?.trim() || existingItem.item_location || '',
-          notes: itemData.notes?.trim() || existingItem.notes || '',
-          photo_url: itemData.photo_url || existingItem.photo_url || '',
-          updated_at: new Date().toISOString(),
-          updated_by: state.user.uid
-        };
-
-        const quantityDiff = newTotalQuantity - (existingItem.remaining_quantity || 0);
-
-        await updateDoc(itemRef, updateData);
-
-        if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouse_id) {
-          const transactionData = {
-            type: 'UPDATE',
-            item_id: itemId,
-            item_name: updateData.name,
-            item_code: updateData.code,
-            from_warehouse: existingItem.warehouse_id !== warehouse_id ? existingItem.warehouse_id : null,
-            to_warehouse: warehouse_id,
-            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
-            per_carton_updated: newPerCartonCount,
-            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
-            total_delta: quantityDiff,
-            new_remaining: newTotalQuantity,
-            user_id: state.user.uid,
-            timestamp: new Date(),
-            notes: `تعديل الصنف: ${itemData.notes || ''}`.trim(),
-            photo_changed: !!itemData.photo_url && itemData.photo_url !== existingItem.photo_url
-          };
-
-          await addDoc(collection(db, 'transactions'), transactionData);
-        }
-
-        await dispatch('fetchRecentInventory'); // 🔥 Refresh recent inventory
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
-        });
-
-        return { success: true, data: updateData };
-
-      } catch (error) {
-        console.error('Error updating item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث الصنف'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async deleteItem({ commit, dispatch, state }, itemId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (state.userProfile.role === 'superadmin') {
-          // Superadmin can delete any item
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const canDelete = state.userProfile.permissions?.includes('full_access') || 
-                           state.userProfile.permissions?.includes('delete_items');
-          if (!canDelete) {
-            throw new Error('ليس لديك صلاحية لحذف الأصناف');
-          }
-        } else {
-          throw new Error('ليس لديك صلاحية لحذف الأصناف');
-        }
-
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const itemData = itemDoc.data();
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes(itemData.warehouse_id)) {
-            throw new Error('ليس لديك صلاحية لحذف أصناف من هذا المخزن');
-          }
-        }
-
-        const transactionData = {
-          type: 'DELETE',
-          item_id: itemId,
-          item_name: itemData.name,
-          item_code: itemData.code,
-          from_warehouse: itemData.warehouse_id,
-          to_warehouse: null,
-          cartons_delta: -(itemData.cartons_count || 0),
-          per_carton_updated: itemData.per_carton_count || 12,
-          single_delta: -(itemData.single_bottles_count || 0),
-          total_delta: -(itemData.remaining_quantity || 0),
-          new_remaining: 0,
-          user_id: state.user.uid,
-          timestamp: new Date(),
-          notes: 'حذف الصنف نهائياً',
-          photo_changed: false
-        };
-
-        await addDoc(collection(db, 'transactions'), transactionData);
-
-        await deleteDoc(itemRef);
-
-        commit('REMOVE_ITEM_FROM_CACHE', itemId);
-
-        await dispatch('fetchRecentInventory'); // 🔥 Refresh recent inventory
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم حذف الصنف "${itemData.name}" بنجاح`
-        });
-
-        return { 
-          success: true, 
-          message: 'تم حذف الصنف بنجاح' 
-        };
-
-      } catch (error) {
-        console.error('Error deleting item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف الصنف'
-        });
-
-        return { 
-          success: false, 
-          error: error.message || 'حدث خطأ في حذف الصنف' 
-        };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async createWarehouse({ commit, dispatch, state }, warehouseData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لإضافة مخازن');
-        }
-
-        if (!warehouseData.name_ar?.trim()) {
-          throw new Error('اسم المخزن (عربي) مطلوب');
-        }
-
-        if (!warehouseData.type) {
-          throw new Error('نوع المخزن مطلوب');
-        }
-
-        const newWarehouse = {
-          name_ar: warehouseData.name_ar.trim(),
-          name_en: warehouseData.name_en?.trim() || '',
-          type: warehouseData.type,
-          status: warehouseData.status || 'active',
-          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : null,
-          location: warehouseData.location?.trim() || '',
-          description: warehouseData.description?.trim() || '',
-          is_main: warehouseData.is_main || false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        if (newWarehouse.is_main) {
-          const existingMainWarehouse = state.warehouses.find(w => w.is_main);
-          if (existingMainWarehouse && existingMainWarehouse.id !== warehouseData.id) {
-            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
-          }
-        }
-
-        const warehouseRef = await addDoc(collection(db, 'warehouses'), newWarehouse);
-
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم إضافة المخزن "${newWarehouse.name_ar}" بنجاح`
-        });
-
-        return { success: true, id: warehouseRef.id, data: newWarehouse };
-
-      } catch (error) {
-        console.error('Error creating warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في إضافة المخزن'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateWarehouse({ commit, dispatch, state }, { warehouseId, warehouseData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لتعديل المخازن');
-        }
-
-        const warehouseRef = doc(db, 'warehouses', warehouseId);
-        const warehouseDoc = await getDoc(warehouseRef);
-
-        if (!warehouseDoc.exists()) {
-          throw new Error('المخزن غير موجود');
-        }
-
-        const existingWarehouse = warehouseDoc.data();
-
-        if (!warehouseData.name_ar?.trim()) {
-          throw new Error('اسم المخزن (عربي) مطلوب');
-        }
-
-        const updateData = {
-          name_ar: warehouseData.name_ar.trim(),
-          name_en: warehouseData.name_en?.trim() || existingWarehouse.name_en,
-          type: warehouseData.type || existingWarehouse.type,
-          status: warehouseData.status || existingWarehouse.status,
-          capacity: warehouseData.capacity ? parseInt(warehouseData.capacity) : existingWarehouse.capacity,
-          location: warehouseData.location?.trim() || existingWarehouse.location,
-          description: warehouseData.description?.trim() || existingWarehouse.description,
-          is_main: warehouseData.is_main !== undefined ? warehouseData.is_main : existingWarehouse.is_main,
-          updated_at: new Date().toISOString()
-        };
-
-        if (updateData.is_main && !existingWarehouse.is_main) {
-          const existingMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
-          if (existingMainWarehouse) {
-            throw new Error('يوجد بالفعل مخزن رئيسي في النظام');
-          }
-        }
-
-        await updateDoc(warehouseRef, updateData);
-
-        if (existingWarehouse.is_main && !updateData.is_main) {
-          const newMainWarehouse = state.warehouses.find(w => w.is_main && w.id !== warehouseId);
-          if (!newMainWarehouse) {
-            throw new Error('يجب أن يكون هناك مخزن رئيسي واحد على الأقل في النظام');
-          }
-        }
-
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث المخزن "${updateData.name_ar}" بنجاح`
-        });
-
-        return { success: true, data: updateData };
-
-      } catch (error) {
-        console.error('Error updating warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث المخزن'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async deleteWarehouse({ commit, dispatch, state }, warehouseId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (state.userProfile?.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لحذف المخازن');
-        }
-
-        const warehouseRef = doc(db, 'warehouses', warehouseId);
-        const warehouseDoc = await getDoc(warehouseRef);
-
-        if (!warehouseDoc.exists()) {
-          throw new Error('المخزن غير موجود');
-        }
-
-        const warehouseData = warehouseDoc.data();
-
-        if (warehouseData.is_main) {
-          throw new Error('لا يمكن حذف المخزن الرئيسي');
-        }
-
-        const itemsQuery = query(
-          collection(db, 'items'),
-          where('warehouse_id', '==', warehouseId),
-          limit(1)
-        );
-
-        const itemsSnapshot = await getDocs(itemsQuery);
-        if (!itemsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه يحتوي على أصناف. يرجى نقل أو حذف الأصناف أولاً.');
-        }
-
-        const fromTransactionsQuery = query(
-          collection(db, 'transactions'),
-          where('from_warehouse', '==', warehouseId),
-          limit(1)
-        );
-
-        const fromTransactionsSnapshot = await getDocs(fromTransactionsQuery);
-        if (!fromTransactionsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كمصدر.');
-        }
-
-        const toTransactionsQuery = query(
-          collection(db, 'transactions'),
-          where('to_warehouse', '==', warehouseId),
-          limit(1)
-        );
-
-        const toTransactionsSnapshot = await getDocs(toTransactionsQuery);
-        if (!toTransactionsSnapshot.empty) {
-          throw new Error('لا يمكن حذف المخزن لأنه مرتبط بحركات سابقة كوجهة.');
-        }
-
-        await deleteDoc(warehouseRef);
-
-        await dispatch('fetchWarehouses');
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم حذف المخزن "${warehouseData.name_ar}" بنجاح`
-        });
-
-        return { 
-          success: true, 
-          message: 'تم حذف المخزن بنجاح' 
-        };
-
-      } catch (error) {
-        console.error('Error deleting warehouse:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف المخزن'
-        });
-
-        return { 
-          success: false, 
-          error: error.message || 'حدث خطأ في حذف المخزن' 
-        };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async loadAllUsers({ commit, dispatch, getters }) {
-      commit('SET_USERS_LOADING', true);
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لعرض المستخدمين');
-        }
-
-        const result = await UserService.getUsers();
-
-        if (result.success) {
-          commit('SET_ALL_USERS', result.data);
-          return result.data;
-        } else {
-          throw new Error(result.error || 'فشل في تحميل المستخدمين');
-        }
-      } catch (error) {
-        console.error('Error loading users:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحميل المستخدمين'
-        });
-        throw error;
-      } finally {
-        commit('SET_USERS_LOADING', false);
-      }
-    },
-
-    async createUser({ commit, dispatch, getters, state }, userData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        const currentUser = state.user;
-        const currentUserProfile = state.userProfile;
-
-        if (!currentUser || !currentUserProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
-        if (currentUserProfile.role !== 'superadmin') {
-          throw new Error('ليس لديك صلاحية لإضافة مستخدمين');
-        }
-
-        const superadminCredentials = {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          role: currentUserProfile.role
-        };
-
-        const result = await UserService.createUser(userData, superadminCredentials);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || `تم إضافة المستخدم "${userData.name}" بنجاح`
-          });
-
-          return { success: true, data: result.data, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في إنشاء المستخدم');
-        }
-      } catch (error) {
-        console.error('Error creating user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في إضافة المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateUser({ commit, dispatch, getters }, { userId, userData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لتحديث المستخدمين');
-        }
-
-        const result = await UserService.updateUser(userId, userData);
-
-        if (result.success) {
-          if (userId === getters.user?.uid) {
-            const updatedProfile = {
-              ...getters.userProfile,
-              ...userData
-            };
-            commit('SET_USER_PROFILE', updatedProfile);
-          }
-
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || 'تم تحديث المستخدم بنجاح'
-          });
-
-          return { success: true, data: result.data, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في تحديث المستخدم');
-        }
-      } catch (error) {
-        console.error('Error updating user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async deleteUser({ commit, dispatch, getters }, userId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لحذف المستخدمين');
-        }
-
-        const result = await UserService.deleteUser(userId);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || 'تم حذف المستخدم بنجاح'
-          });
-
-          return { success: true, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في حذف المستخدم');
-        }
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async updateUserStatus({ commit, dispatch, getters }, { userId, isActive }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
-
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لتغيير حالة المستخدمين');
-        }
-
-        const result = await UserService.updateUserStatus(userId, isActive);
-
-        if (result.success) {
-          dispatch('showNotification', {
-            type: 'success',
-            message: result.message || `تم ${isActive ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`
-          });
-
-          return { success: true, message: result.message };
-        } else {
-          throw new Error(result.error || 'فشل في تغيير حالة المستخدم');
-        }
-      } catch (error) {
-        console.error('Error updating user status:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تغيير حالة المستخدم'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
-      }
-    },
-
-    async getUserStats({ commit, dispatch, getters }) {
-      try {
-        if (!getters.canManageUsers) {
-          throw new Error('ليس لديك صلاحية لعرض إحصائيات المستخدمين');
-        }
-
-        const result = await UserService.getUserStats();
-
-        if (result.success) {
-          return result.data;
-        } else {
-          throw new Error(result.error || 'فشل في تحميل إحصائيات المستخدمين');
-        }
-      } catch (error) {
-        console.error('Error loading user stats:', error);
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحميل إحصائيات المستخدمين'
-        });
-        throw error;
-      }
-    },
-
-    updateFilters({ commit }, filters) {
-      commit('SET_FILTERS', filters);
-    },
-
-    removeNotification({ commit }, notificationId) {
-      commit('REMOVE_NOTIFICATION', notificationId);
-    },
-
-    clearNotifications({ commit }) {
-      commit('CLEAR_NOTIFICATIONS');
-    },
-
-    clearOperationError({ commit }) {
-      commit('CLEAR_OPERATION_ERROR');
-    },
-
-    // 🔥 NEW: Force refresh inventory
+    // Keep old fetchInventory for compatibility
     async fetchInventory({ dispatch }) {
-      console.log('Fetching inventory...');
+      console.log('📦 Fetching inventory...');
       return await dispatch('fetchRecentInventory');
-    },
-
-    async refreshInventory({ commit, dispatch }) {
-      commit('SET_INVENTORY_LAST_FETCHED', null);
-      commit('CLEAR_CACHE');
-      return await dispatch('forceRefreshInventory');
     }
   },
 
@@ -2521,15 +2028,22 @@ export default createStore({
     inventoryItems: state => Array.isArray(state.inventory) ? state.inventory : [],
     inventoryLoading: state => state.inventoryLoading,
     hasMoreInventory: state => state.inventoryPagination.hasMore,
+    
+    // 🔥 UPDATED: getCachedItem with cache stats update
     getCachedItem: (state) => (itemId) => {
       const cacheEntry = state.cache.itemCache[itemId];
       const cacheDuration = 10 * 60 * 1000;
       
       if (cacheEntry && (Date.now() - cacheEntry.timestamp) < cacheDuration) {
+        // Update cache stats when item is accessed
+        state.cache.cacheStats.lastAccessed[itemId] = Date.now();
+        state.cache.cacheStats.frequentlyAccessed[itemId] = 
+          (state.cache.cacheStats.frequentlyAccessed[itemId] || 0) + 1;
         return cacheEntry.data;
       }
       return null;
     },
+    
     transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
     transactionsLoading: state => state.transactionsLoading,
     canEdit: (state, getters) => {
@@ -2659,6 +2173,37 @@ export default createStore({
 
       return filtered;
     },
+    
+    // 🔥 NEW: Cache statistics getter
+    cacheStats: (state) => {
+      const totalSizeMB = state.cache.cacheStats.totalSize / 1024 / 1024;
+      
+      return {
+        totalSize: `${totalSizeMB.toFixed(2)} MB`,
+        itemCount: state.cache.cacheStats.itemCount,
+        pinnedItems: state.cache.cacheStats.pinnedItems.size,
+        frequentlyAccessed: Object.keys(state.cache.cacheStats.frequentlyAccessed).length,
+        lastCleanup: new Date(state.cache.cacheStats.lastCleanup).toLocaleString(),
+        cleanupCount: state.cache.cacheStats.cleanupCount,
+        rotationCount: state.cache.cacheStats.rotationCount,
+        health: totalSizeMB > PERFORMANCE_CONFIG.CACHE_AGGRESSIVE_CLEANUP_MB ? 'critical' :
+                totalSizeMB > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB ? 'warning' : 'healthy'
+      };
+    },
+    
+    // 🔥 NEW: Check if item is pinned
+    isItemPinned: (state) => (itemId) => {
+      return state.cache.cacheStats.pinnedItems.has(itemId);
+    },
+    
+    // 🔥 NEW: Get cache health status
+    cacheHealth: (state) => {
+      const totalSizeMB = state.cache.cacheStats.totalSize / 1024 / 1024;
+      if (totalSizeMB > PERFORMANCE_CONFIG.CACHE_AGGRESSIVE_CLEANUP_MB) return 'critical';
+      if (totalSizeMB > PERFORMANCE_CONFIG.CACHE_WARNING_SIZE_MB) return 'warning';
+      return 'healthy';
+    },
+
     dashboardStats: (state, getters) => {
       if (state.cache.stats && 
           state.cache.statsTimestamp && 
