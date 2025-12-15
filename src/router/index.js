@@ -55,7 +55,7 @@ const inventoryRoutes = {
   component: () => import('@/views/Inventory.vue').catch(() => {
     // إذا فشل تحميل Inventory.vue من views، حاول من components
     console.log('🔄 جرب تحميل Inventory من المكونات...');
-    return import('@/components/inventory/Inventory.vue').catch((error) => {
+    return import('@/views/Inventory.vue').catch((error) => {
       console.error('❌ فشل في تحميل Inventory من أي مكان:', error);
       return {
         template: `
