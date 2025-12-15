@@ -1807,14 +1807,53 @@ export default createStore({
     inventoryLoading: state => state.inventoryLoading,
     transactionsItems: state => Array.isArray(state.transactions) ? state.transactions : [],
     transactionsLoading: state => state.transactionsLoading,
-    // Access control for buttons only - pages are public
+    
+    // ====== ENHANCED ACCESS CONTROL FOR PUBLIC PAGES ======
+    
+    // Can view transfers page (everyone can view)
+    canViewTransfers: () => true,
+    
+    // Can perform transfer actions
+    canTransfer: (state, getters) => {
+      if (!state.user) return false; // Guests cannot perform actions
+      const role = getters.userRole;
+      if (role === 'superadmin') return true;
+      if (role === 'warehouse_manager') {
+        // Check if warehouse manager has transfer permission
+        const permissions = getters.userPermissions;
+        return permissions.includes('full_access') || permissions.includes('transfer_items');
+      }
+      // Company managers can only view, not perform actions
+      return false;
+    },
+    
+    // Can view dispatch page (everyone can view)
+    canViewDispatch: () => true,
+    
+    // Can perform dispatch actions
+    canDispatch: (state, getters) => {
+      if (!state.user) return false; // Guests cannot perform actions
+      const role = getters.userRole;
+      if (role === 'superadmin') return true;
+      if (role === 'warehouse_manager') {
+        // Check if warehouse manager has dispatch permission
+        const permissions = getters.userPermissions;
+        return permissions.includes('full_access') || permissions.includes('dispatch_items');
+      }
+      // Company managers can only view, not perform actions
+      return false;
+    },
+    
+    // Can edit items (existing)
     canEdit: (state, getters) => {
-      if (!state.user) return false; // Only logged in users can edit
+      if (!state.user) return false;
       const role = getters.userRole;
       return ['superadmin', 'warehouse_manager'].includes(role);
     },
+    
+    // Can delete items (existing)
     canDelete: (state, getters) => {
-      if (!state.user) return false; // Only logged in users can delete
+      if (!state.user) return false;
       const role = getters.userRole;
       if (role === 'superadmin') return true;
       if (role === 'warehouse_manager') {
@@ -1823,28 +1862,24 @@ export default createStore({
       }
       return false;
     },
+    
     canManageUsers: state => state.user && state.userProfile?.role === 'superadmin',
     canManageWarehouses: state => state.user && state.userProfile?.role === 'superadmin',
-    canDispatch: (state, getters) => {
-      if (!state.user) return false; // Only logged in users can dispatch
+    
+    // Can view items (everyone can view)
+    canViewItems: () => true,
+    
+    // Can view transactions (everyone can view)
+    canViewTransactions: () => true,
+    
+    // Can view reports (based on role)
+    canViewReports: (state, getters) => {
+      if (!state.user) return false;
       const role = getters.userRole;
-      if (role === 'superadmin') return true;
-      if (role === 'warehouse_manager') {
-        const permissions = getters.userPermissions;
-        return permissions.includes('dispatch_items');
-      }
-      return false;
+      return ['superadmin', 'company_manager'].includes(role);
     },
-    canTransfer: (state, getters) => {
-      if (!state.user) return false; // Only logged in users can transfer
-      const role = getters.userRole;
-      if (role === 'superadmin') return true;
-      if (role === 'warehouse_manager') {
-        const permissions = getters.userPermissions;
-        return permissions.includes('transfer_items');
-      }
-      return false;
-    },
+    
+    // Warehouse access getters
     mainWarehouse: state => {
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       return warehouses.find(w => w.is_main) || null;
