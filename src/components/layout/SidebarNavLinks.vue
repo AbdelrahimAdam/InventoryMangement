@@ -54,6 +54,32 @@
       <span v-if="!collapsed" class="mr-2">الأصناف</span>
     </router-link>
 
+    <!-- Dispatch Link -->
+    <router-link 
+      to="/dispatch" 
+      class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
+      :class="getLinkClasses('/dispatch', true)"
+      :title="collapsed ? 'الإرساليات' : ''"
+    >
+      <svg class="w-4 h-4" :class="{'ml-3': !collapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+      <span v-if="!collapsed" class="mr-2">الإرساليات</span>
+    </router-link>
+
+    <!-- Transfer Link -->
+    <router-link 
+      to="/transfer" 
+      class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
+      :class="getLinkClasses('/transfer', true)"
+      :title="collapsed ? 'النقل بين المخازن' : ''"
+    >
+      <svg class="w-4 h-4" :class="{'ml-3': !collapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+      <span v-if="!collapsed" class="mr-2">النقل بين المخازن</span>
+    </router-link>
+
     <!-- Transactions Link -->
     <router-link 
       to="/transactions" 
