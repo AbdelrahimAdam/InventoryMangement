@@ -2,13 +2,104 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';
 
-// تعريف Lazy Loading مع تحسينات الأداء
+// تعريف Lazy Loading مع تحسينات الأداء ومعالجة الأخطاء
 const lazyLoad = (componentName) => {
-  return () => import(
-    /* webpackChunkName: "[request]" */
-    /* webpackPrefetch: true */
-    `@/views/${componentName}.vue`
-  );
+  return () => {
+    console.log(`🔗 محاولة تحميل المكون: ${componentName}`);
+    return import(
+      /* webpackChunkName: "[request]" */
+      /* webpackPrefetch: true */
+      `@/views/${componentName}.vue`
+    ).catch((error) => {
+      console.error(`❌ فشل في تحميل المكون ${componentName}:`, error);
+      // سقط للخلف إلى مكون بسيط لتجنب الأخطاء
+      return Promise.resolve({
+        template: `
+          <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div class="text-center p-8">
+              <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 dark:bg-yellow-900 rounded-full mb-6 animate-pulse">
+                <svg class="w-8 h-8 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">جاري تحميل ${componentName}</h2>
+              <p class="text-gray-600 dark:text-gray-400">
+                يرجى الانتظار بينما يتم تحميل الصفحة...
+              </p>
+            </div>
+          </div>
+        `,
+        mounted() {
+          // حاول إعادة التحميل بعد ثانيتين
+          setTimeout(() => {
+            console.log(`🔄 إعادة محاولة تحميل ${componentName}...`);
+            import(`@/views/${componentName}.vue`)
+              .then(module => {
+                console.log(`✅ تم تحميل ${componentName} بنجاح بعد إعادة المحاولة`);
+                // هنا يمكنك تحديث المكون إذا أردت
+              })
+              .catch(err => {
+                console.error(`❌ فشل إعادة تحميل ${componentName}:`, err);
+              });
+          }, 2000);
+        }
+      });
+    });
+  };
+};
+
+// المسار الخاص بالمخزون مع استيراد مباشر لتجنب الأخطاء
+const inventoryRoutes = {
+  path: '/inventory',
+  name: 'Inventory',
+  component: () => import('@/views/Inventory.vue').catch(() => {
+    // إذا فشل تحميل Inventory.vue من views، حاول من components
+    console.log('🔄 جرب تحميل Inventory من المكونات...');
+    return import('@/components/inventory/Inventory.vue').catch((error) => {
+      console.error('❌ فشل في تحميل Inventory من أي مكان:', error);
+      return {
+        template: `
+          <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+            <div class="text-center">
+              <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full mb-6">
+                <svg class="w-10 h-10 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+              </div>
+              <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">خطأ في تحميل الصفحة</h1>
+              <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
+                تعذر تحميل صفحة المخزون. يرجى:
+              </p>
+              <div class="space-y-3 mb-8 text-right">
+                <p class="text-gray-700 dark:text-gray-300">1. التأكد من وجود ملف Inventory.vue</p>
+                <p class="text-gray-700 dark:text-gray-300">2. تحديث الصفحة (F5)</p>
+                <p class="text-gray-700 dark:text-gray-300">3. التواصل مع الدعم الفني</p>
+              </div>
+              <button @click="reloadPage" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                تحديث الصفحة
+              </button>
+            </div>
+          </div>
+        `,
+        methods: {
+          reloadPage() {
+            window.location.reload();
+          }
+        }
+      };
+    });
+  }),
+  meta: { 
+    requiresAuth: true,
+    allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+    permissions: {
+      company_manager: 'viewer',
+      warehouse_manager: 'full_access'
+    }
+  }
 };
 
 // جميع المسارات كما هي تماماً مع إضافة lazy loading فقط
@@ -49,23 +140,25 @@ const routes = [
       allowedRoles: ['superadmin']
     }
   },
-  {
-    path: '/inventory',
-    name: 'Inventory',
-    component: lazyLoad('Inventory'),
-    meta: { 
-      requiresAuth: true,
-      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-      permissions: {
-        company_manager: 'viewer',
-        warehouse_manager: 'full_access'
-      }
-    }
-  },
+  
+  // استخدام المسار المحسن للمخزون
+  inventoryRoutes,
+  
   {
     path: '/inventory/add',
     name: 'AddInventory',
-    component: lazyLoad('Inventory'),
+    component: () => {
+      // استخدام نفس مكون Inventory مع معلمات مختلفة
+      return inventoryRoutes.component().then(component => {
+        // يمكنك إضافة معلمات إضافية هنا إذا أردت
+        return component;
+      }).catch(() => {
+        // سقط للخلف
+        return {
+          template: '<div>Add Inventory Page</div>'
+        };
+      });
+    },
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -78,7 +171,16 @@ const routes = [
   {
     path: '/inventory/edit/:id',
     name: 'EditInventory',
-    component: lazyLoad('Inventory'),
+    component: () => {
+      // استخدام نفس مكون Inventory مع معلمات مختلفة
+      return inventoryRoutes.component().then(component => {
+        return component;
+      }).catch(() => {
+        return {
+          template: '<div>Edit Inventory Page</div>'
+        };
+      });
+    },
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -91,7 +193,16 @@ const routes = [
   {
     path: '/inventory/item/:id',
     name: 'ItemDetails',
-    component: lazyLoad('Inventory'),
+    component: () => {
+      // استخدام نفس مكون Inventory مع معلمات مختلفة
+      return inventoryRoutes.component().then(component => {
+        return component;
+      }).catch(() => {
+        return {
+          template: '<div>Item Details Page</div>'
+        };
+      });
+    },
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
@@ -333,16 +444,73 @@ router.beforeEach((to, from, next) => {
 });
 
 // Add navigation error handler to prevent redirect loops
-router.onError((error) => {
-  console.error('Router error:', error);
+router.onError((error, to) => {
+  console.error('❌ خطأ في الموجه:', error);
+  console.log('المسار المستهدف:', to.path);
 
-  if (error.message.includes('redirected')) {
+  if (error.message.includes('Failed to fetch dynamically imported module')) {
+    console.log('🔄 فشل في تحميل المكون ديناميكياً. جاري إعادة التوجيه...');
+    
+    // إذا كان خطأ في تحميل Inventory، أعد التوجيه إلى صفحة مؤقتة
+    if (to.path.includes('/inventory')) {
+      next({
+        path: '/inventory-fallback',
+        query: { originalPath: to.path }
+      });
+    } else {
+      next('/');
+    }
+  } else if (error.message.includes('redirected')) {
     window.location.href = '/login';
+  } else {
+    // لأي خطأ آخر، أعد التوجيه إلى الصفحة الرئيسية
+    console.log('📦 إعادة التوجيه إلى الصفحة الرئيسية بسبب الخطأ');
+    next('/');
   }
+});
+
+// إضافة مسار احتياطي للمخزون
+router.addRoute({
+  path: '/inventory-fallback',
+  name: 'InventoryFallback',
+  component: {
+    template: `
+      <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div class="text-center max-w-md">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full mb-6 animate-pulse">
+            <svg class="w-10 h-10 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">جاري تحضير المخزون</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            صفحة المخزون قيد التحميل. يرجى الانتظار...
+          </p>
+          <div class="space-y-4">
+            <button @click="reloadPage" class="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+              تحديث الصفحة
+            </button>
+            <router-link to="/" class="block w-full py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
+              العودة للرئيسية
+            </router-link>
+          </div>
+        </div>
+      </div>
+    `,
+    methods: {
+      reloadPage() {
+        const originalPath = this.$route.query.originalPath || '/inventory';
+        this.$router.push(originalPath);
+      }
+    }
+  },
+  meta: { layout: 'empty' }
 });
 
 // إضافة تحميل مسبق للمسارات بعد تحميل الصفحة الرئيسية
 router.isReady().then(() => {
+  console.log('✅ الموجه جاهز للتشغيل');
+  
   // عند تحميل الصفحة الرئيسية، نقوم بتحميل المسارات الشائعة في الخلفية
   const prefetchRoutes = ['/inventory', '/transactions', '/profile'];
   
@@ -350,10 +518,18 @@ router.isReady().then(() => {
     prefetchRoutes.forEach(path => {
       const route = router.resolve(path);
       if (route.route.component && typeof route.route.component === 'function') {
-        route.route.component().catch(() => {});
+        route.route.component().catch((error) => {
+          console.warn(`⚠️ فشل التحميل المسبق لـ ${path}:`, error);
+        });
       }
     });
-  }, 1000);
+  }, 2000);
+});
+
+// التحقق من هيكل المسارات عند بدء التشغيل
+console.log('📋 المسارات المسجلة:');
+routes.forEach(route => {
+  console.log(`- ${route.name}: ${route.path}`);
 });
 
 export default router;
