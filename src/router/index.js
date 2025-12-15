@@ -102,7 +102,7 @@ const inventoryRoutes = {
   }
 };
 
-// جميع المسارات كما هي تماماً مع إضافة lazy loading فقط
+// جميع المسارات كما هي تماماً مع تحديث المسارات المطلوبة
 const routes = [
   {
     path: '/login',
@@ -217,12 +217,16 @@ const routes = [
     name: 'Transfers',
     component: lazyLoad('Transfers'),
     meta: { 
-      requiresAuth: true,
-      allowedRoles: ['superadmin', 'warehouse_manager'],
+      requiresAuth: false,  // Public access for everyone
+      publicView: true,     // Public page flag
+      allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager', 'guest'],
       permissions: {
-        company_manager: 'none',
-        warehouse_manager: 'full_access'
-      }
+        superadmin: 'full_access',      // Superadmin can do everything
+        warehouse_manager: 'viewer',    // Warehouse managers can only view
+        company_manager: 'viewer',      // Company managers can only view
+        guest: 'viewer'                 // Public users can only view
+      },
+      title: 'النقل بين المخازن'
     }
   },
   {
@@ -230,12 +234,16 @@ const routes = [
     name: 'Dispatch',
     component: lazyLoad('Dispatch'),
     meta: { 
-      requiresAuth: true,
-      allowedRoles: ['superadmin', 'warehouse_manager'],
+      requiresAuth: false,  // Public access for everyone
+      publicView: true,     // Public page flag
+      allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager', 'guest'],
       permissions: {
-        company_manager: 'none',
-        warehouse_manager: 'full_access'
-      }
+        superadmin: 'full_access',      // Superadmin can do everything
+        warehouse_manager: 'viewer',    // Warehouse managers can only view
+        company_manager: 'viewer',      // Company managers can only view
+        guest: 'viewer'                 // Public users can only view
+      },
+      title: 'ملخص الصرف'
     }
   },
   {
@@ -336,6 +344,11 @@ const router = createRouter({
 const canAccessRoute = (userRole, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
 
+  // For public pages, allow access to anyone
+  if (routeMeta.publicView) {
+    return true;
+  }
+
   // Check if user role is allowed
   if (!routeMeta.allowedRoles.includes(userRole)) {
     return false;
@@ -400,9 +413,17 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
+  // Check if route is public (Transfers or Dispatch)
+  if (to.meta.publicView) {
+    console.log('🔓 الصفحة العامة:', to.name, '- السماح بالوصول للجميع');
+    next();
+    return;
+  }
+
   // Check if route requires authentication
   if (to.meta.requiresAuth && !user) {
     if (to.path !== '/login') {
+      console.log('🔒 الصفحة تتطلب تسجيل الدخول - إعادة التوجيه إلى /login');
       next('/login');
     } else {
       next();
@@ -428,12 +449,14 @@ router.beforeEach((to, from, next) => {
     if (to.meta.allowedRoles) {
       // استخدام النسخة المحسنة مع cache
       if (!canAccessRouteCached(userRole, to.meta)) {
+        console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
         next('/unauthorized');
         return;
       }
 
       // Special checks for warehouse managers
       if (!canWarehouseManagerAccess(userProfile, to.name)) {
+        console.log('⛔ مدير المخزن ليس لديه مخازن مسموحة:', to.name);
         next('/unauthorized');
         return;
       }
@@ -514,44 +537,11 @@ router.isReady().then(() => {
   // تعطيل التحميل المسبق مؤقتاً لحل مشكلة المكونات
   console.log('⏸️ تم تعطيل التحميل المسبق لحل مشكلة المكونات غير المعرفة');
   
-  // كود التحميل المسبق المعدل - يتم تفعيله لاحقاً بعد إصلاح جميع المكونات
-  /*
-  setTimeout(() => {
-    const prefetchRoutes = ['/inventory', '/transactions', '/profile'];
-    console.log('📦 بدء التحميل المسبق للمسارات:', prefetchRoutes);
-    
-    prefetchRoutes.forEach(path => {
-      try {
-        console.log(`🔄 محاولة التحميل المسبق لـ ${path}`);
-        const routeMatch = router.resolve(path);
-        
-        if (routeMatch && routeMatch.route) {
-          const component = routeMatch.route.component;
-          if (typeof component === 'function') {
-            // تحميل المكون بأمان
-            component().then(() => {
-              console.log(`✅ تم التحميل المسبق لـ ${path} بنجاح`);
-            }).catch(error => {
-              console.warn(`⚠️ فشل التحميل المسبق لـ ${path}:`, error.message);
-            });
-          } else {
-            console.log(`📌 ${path} ليس لديه مكون ديناميكي`);
-          }
-        } else {
-          console.warn(`❌ لا يمكن العثور على المسار ${path}`);
-        }
-      } catch (error) {
-        console.error(`🚨 خطأ في معالجة المسار ${path}:`, error.message);
-      }
-    });
-  }, 3000);
-  */
-});
-
-// التحقق من هيكل المسارات عند بدء التشغيل
-console.log('📋 المسارات المسجلة:');
-routes.forEach(route => {
-  console.log(`- ${route.name}: ${route.path}`);
+  // التحقق من هيكل المسارات عند بدء التشغيل
+  console.log('📋 المسارات المسجلة:');
+  routes.forEach(route => {
+    console.log(`- ${route.name}: ${route.path} ${route.meta?.publicView ? '(عامة)' : ''}`);
+  });
 });
 
 export default router;
