@@ -92,36 +92,28 @@ export default createStore({
     SET_USER(state, user) {
       state.user = user;
     },
-
     SET_USER_PROFILE(state, profile) {
       state.userProfile = profile;
     },
-
     SET_LOADING(state, loading) {
       state.loading = loading;
     },
-
     SET_OPERATION_LOADING(state, loading) {
       state.operationLoading = loading;
     },
-
     SET_OPERATION_ERROR(state, error) {
       state.operationError = error;
     },
-
     SET_WAREHOUSES(state, warehouses) {
       state.warehouses = warehouses;
     },
-
     SET_WAREHOUSES_LOADED(state, loaded) {
       state.warehousesLoaded = loaded;
     },
-
     SET_INVENTORY(state, inventory) {
       state.inventory = Array.isArray(inventory) ? inventory.slice(0, 100) : [];
       state.inventoryLastFetched = Date.now();
     },
-
     APPEND_TO_INVENTORY(state, newItems) {
       if (Array.isArray(newItems)) {
         const existingIds = new Set(state.inventory.map(item => item.id));
@@ -131,11 +123,9 @@ export default createStore({
         state.inventoryLastFetched = Date.now();
       }
     },
-
     SET_INVENTORY_LAST_FETCHED(state, timestamp) {
       state.inventoryLastFetched = timestamp;
     },
-
     ADD_ITEM(state, item) {
       if (item && typeof item === 'object') {
         state.inventory.unshift(item);
@@ -144,10 +134,8 @@ export default createStore({
         }
       }
     },
-
     UPDATE_ITEM(state, updatedItem) {
       if (!updatedItem || !updatedItem.id) return;
-
       const index = state.inventory.findIndex(item => item.id === updatedItem.id);
       if (index !== -1) {
         state.inventory.splice(index, 1, updatedItem);
@@ -158,44 +146,34 @@ export default createStore({
         }
       }
     },
-
     REMOVE_ITEM(state, itemId) {
       state.inventory = state.inventory.filter(item => item.id !== itemId);
     },
-
     SET_INVENTORY_LOADING(state, loading) {
       state.inventoryLoading = loading;
     },
-
     SET_IS_FETCHING_INVENTORY(state, fetching) {
       state.isFetchingInventory = fetching;
     },
-
     SET_TRANSACTIONS(state, transactions) {
       state.transactions = Array.isArray(transactions) ? transactions : [];
     },
-
     SET_TRANSACTIONS_LOADING(state, loading) {
       state.transactionsLoading = loading;
     },
-
     ADD_TRANSACTION(state, transaction) {
       if (transaction && typeof transaction === 'object') {
         state.transactions.unshift(transaction);
       }
     },
-
     SET_ITEM_HISTORY(state, history) {
       state.itemHistory = Array.isArray(history) ? history : [];
     },
-
     SET_FILTERS(state, filters) {
       state.filters = { ...state.filters, ...filters, lastUpdate: Date.now() };
     },
-
     UPDATE_WAREHOUSE(state, updatedWarehouse) {
       if (!updatedWarehouse || !updatedWarehouse.id) return;
-
       const index = state.warehouses.findIndex(w => w.id === updatedWarehouse.id);
       if (index !== -1) {
         state.warehouses.splice(index, 1, updatedWarehouse);
@@ -203,28 +181,22 @@ export default createStore({
         state.warehouses.push(updatedWarehouse);
       }
     },
-
     REMOVE_WAREHOUSE(state, warehouseId) {
       state.warehouses = state.warehouses.filter(w => w.id !== warehouseId);
     },
-
     SET_AUTH_ERROR(state, error) {
       state.authError = error;
     },
-
     CLEAR_OPERATION_ERROR(state) {
       state.operationError = null;
     },
-
     ADD_NOTIFICATION(state, notification) {
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
       state.notifications.unshift(notification);
-
       if (state.notifications.length > PERFORMANCE_CONFIG.NOTIFICATION_LIMIT) {
         state.notifications = state.notifications.slice(0, PERFORMANCE_CONFIG.NOTIFICATION_LIMIT);
       }
-
       setTimeout(() => {
         const index = state.notifications.findIndex(n => n.id === notification.id);
         if (index !== -1) {
@@ -232,23 +204,18 @@ export default createStore({
         }
       }, 5000);
     },
-
     REMOVE_NOTIFICATION(state, notificationId) {
       state.notifications = state.notifications.filter(n => n.id !== notificationId);
     },
-
     CLEAR_NOTIFICATIONS(state) {
       state.notifications = [];
     },
-
     SET_RECENT_TRANSACTIONS(state, transactions) {
       state.recentTransactions = Array.isArray(transactions) ? transactions : [];
     },
-
     SET_RECENT_TRANSACTIONS_LOADING(state, loading) {
       state.recentTransactionsLoading = loading;
     },
-
     ADD_RECENT_TRANSACTION(state, transaction) {
       if (transaction && typeof transaction === 'object') {
         state.recentTransactions.unshift(transaction);
@@ -257,15 +224,12 @@ export default createStore({
         }
       }
     },
-
     SET_REQUIRES_COMPOSITE_INDEX(state, value) {
       state.requiresCompositeIndex = value;
     },
-
     SET_ALL_USERS(state, users) {
       state.allUsers = Array.isArray(users) ? users : [];
     },
-
     SET_USERS_LOADING(state, loading) {
       state.usersLoading = loading;
     }
@@ -282,71 +246,111 @@ export default createStore({
 
         const term = searchTerm.trim().toLowerCase();
 
-        const localResults = state.inventory.filter(item =>
-          item.name?.toLowerCase().includes(term) ||
-          item.code?.toLowerCase().includes(term) ||
-          item.color?.toLowerCase().includes(term) ||
-          item.supplier?.toLowerCase().includes(term)
-        ).slice(0, limitResults);
-
+        // Always search Firestore directly for real-time results
         console.log('⚡ Searching Firestore directly...');
         
         const itemsRef = collection(db, 'items');
-        let q;
+        let firestoreQuery;
         
-        if (term.length <= 3) {
-          q = query(
-            itemsRef,
-            where('code', '>=', term),
-            where('code', '<=', term + '\uf8ff'),
-            orderBy('code'),
-            limit(limitResults)
-          );
-        } else {
-          q = query(
+        // Try multiple search strategies
+        const searchPromises = [];
+        
+        // Strategy 1: Search by code (exact match first)
+        const codeQuery = query(
+          itemsRef,
+          where('code', '>=', term),
+          where('code', '<=', term + '\uf8ff'),
+          orderBy('code'),
+          limit(limitResults)
+        );
+        searchPromises.push(getDocs(codeQuery));
+        
+        // Strategy 2: Search by name (for longer searches)
+        if (term.length > 3) {
+          const nameQuery = query(
             itemsRef,
             where('name', '>=', term),
             where('name', '<=', term + '\uf8ff'),
             orderBy('name'),
             limit(limitResults)
           );
+          searchPromises.push(getDocs(nameQuery));
         }
-
-        const snapshot = await getDocs(q);
         
-        if (snapshot.empty) {
-          console.log('❌ No items found in Firestore');
+        // Execute all search strategies
+        const results = await Promise.allSettled(searchPromises);
+        
+        // Combine results from all strategies
+        const allItems = new Map(); // Use Map to avoid duplicates by ID
+        
+        for (const result of results) {
+          if (result.status === 'fulfilled' && !result.value.empty) {
+            result.value.docs.forEach(doc => {
+              if (!allItems.has(doc.id)) {
+                const itemData = doc.data();
+                // Check warehouse permissions
+                if (state.userProfile.role === 'superadmin' || 
+                    state.userProfile.role === 'company_manager' ||
+                    (state.userProfile.role === 'warehouse_manager' && 
+                     (state.userProfile.allowed_warehouses?.includes('all') || 
+                      state.userProfile.allowed_warehouses?.includes(itemData.warehouse_id)))) {
+                  
+                  allItems.set(doc.id, InventoryService.convertForDisplay({
+                    id: doc.id,
+                    ...itemData
+                  }));
+                }
+              }
+            });
+          }
+        }
+        
+        // Convert Map to array and sort by relevance
+        let firestoreResults = Array.from(allItems.values());
+        
+        // Sort by relevance: exact code matches first, then name matches
+        firestoreResults.sort((a, b) => {
+          const aCodeMatch = a.code?.toLowerCase().startsWith(term) ? 0 : 1;
+          const bCodeMatch = b.code?.toLowerCase().startsWith(term) ? 0 : 1;
+          if (aCodeMatch !== bCodeMatch) return aCodeMatch - bCodeMatch;
+          
+          const aNameMatch = a.name?.toLowerCase().includes(term) ? 0 : 1;
+          const bNameMatch = b.name?.toLowerCase().includes(term) ? 0 : 1;
+          return aNameMatch - bNameMatch;
+        });
+        
+        // Limit results
+        firestoreResults = firestoreResults.slice(0, limitResults);
+        
+        console.log(`✅ Found ${firestoreResults.length} items in Firestore search`);
+        
+        // If no results in Firestore, check local cache as fallback
+        if (firestoreResults.length === 0) {
+          const localResults = state.inventory.filter(item =>
+            item.name?.toLowerCase().includes(term) ||
+            item.code?.toLowerCase().includes(term) ||
+            item.color?.toLowerCase().includes(term) ||
+            item.supplier?.toLowerCase().includes(term)
+          ).slice(0, limitResults);
+          
+          console.log('📦 Using local inventory as fallback:', localResults.length);
           return localResults;
         }
-
-        const validItems = snapshot.docs.filter(doc => {
-          if (state.userProfile.role === 'superadmin') return true;
-          
-          const itemData = doc.data();
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          
-          if (allowedWarehouses.includes('all')) return true;
-          return allowedWarehouses.includes(itemData.warehouse_id);
-        }).map(doc => {
-          const itemData = doc.data();
-          return InventoryService.convertForDisplay({
-            id: doc.id,
-            ...itemData
-          });
-        });
-
-        console.log(`✅ Found ${validItems.length} items in real-time search`);
-        return validItems;
+        
+        return firestoreResults;
 
       } catch (error) {
         console.error('❌ Error in real-time search:', error);
         
+        // Fallback to local search on error
         const term = searchTerm?.trim().toLowerCase() || '';
         const fallbackResults = state.inventory.filter(item =>
           item.name?.toLowerCase().includes(term) ||
-          item.code?.toLowerCase().includes(term)
+          item.code?.toLowerCase().includes(term) ||
+          item.color?.toLowerCase().includes(term)
         ).slice(0, 10);
         
+        console.log('🔄 Fallback to local search due to error:', error.message);
         return fallbackResults;
       }
     },
@@ -359,6 +363,7 @@ export default createStore({
           throw new Error('معرف الصنف أو الكود أو الاسم مطلوب');
         }
 
+        // First, check local inventory
         let item = state.inventory.find(i => 
           i.id === itemId || 
           (itemCode && i.code === itemCode) ||
@@ -370,8 +375,9 @@ export default createStore({
           return item;
         }
 
-        console.log('⚡ Item not in recent inventory. Fetching from Firestore...');
+        console.log('⚡ Item not in recent inventory. Searching Firestore...');
         
+        // If we have an ID, try to get the item directly
         if (itemId) {
           try {
             const itemDoc = await getDoc(doc(db, 'items', itemId));
@@ -379,6 +385,7 @@ export default createStore({
             if (itemDoc.exists()) {
               const itemData = itemDoc.data();
               
+              // Check warehouse permissions
               if (state.userProfile.role === 'warehouse_manager') {
                 const allowedWarehouses = state.userProfile.allowed_warehouses || [];
                 if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
@@ -401,6 +408,7 @@ export default createStore({
           }
         }
 
+        // If we have a code, search by code
         if (itemCode) {
           const itemsRef = collection(db, 'items');
           const q = query(
@@ -436,7 +444,8 @@ export default createStore({
           }
         }
 
-        if (itemName && itemName.length >= 3) {
+        // If we have a name, search by name
+        if (itemName && itemName.length >= 2) {
           const itemsRef = collection(db, 'items');
           const q = query(
             itemsRef,
@@ -472,16 +481,20 @@ export default createStore({
           }
         }
 
-        console.log('🔄 Using real-time search as last resort...');
-        const searchResults = await dispatch('searchItemsForTransactions', {
-          searchTerm: itemCode || itemName || '',
-          limitResults: 10
-        });
-        
-        if (searchResults.length > 0) {
-          const foundItem = searchResults[0];
-          console.log('✅ Item found through real-time search');
-          return foundItem;
+        // If nothing found, use the real-time search
+        console.log('🔄 Using real-time search...');
+        const searchTerm = itemCode || itemName || '';
+        if (searchTerm.length >= 2) {
+          const searchResults = await dispatch('searchItemsForTransactions', {
+            searchTerm: searchTerm,
+            limitResults: 10
+          });
+          
+          if (searchResults.length > 0) {
+            const foundItem = searchResults[0];
+            console.log('✅ Item found through real-time search');
+            return foundItem;
+          }
         }
 
         throw new Error('الصنف غير موجود في المخزون');
@@ -519,6 +532,7 @@ export default createStore({
           return localItems.slice(0, limitResults);
         }
 
+        // Always try to get fresh data from Firestore
         const itemsRef = collection(db, 'items');
         
         try {
@@ -544,8 +558,26 @@ export default createStore({
         } catch (error) {
           console.warn('Using alternative query...', error);
           
-          const recentItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
-          return recentItems.slice(0, limitResults);
+          // Try without orderBy if it fails
+          const q = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            limit(limitResults)
+          );
+          
+          const snapshot = await getDocs(q);
+          const items = snapshot.docs.map(doc => {
+            const itemData = doc.data();
+            return InventoryService.convertForDisplay({
+              id: doc.id,
+              ...itemData
+            });
+          });
+          
+          // Sort locally
+          items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          
+          return items;
         }
 
       } catch (error) {
@@ -704,6 +736,7 @@ export default createStore({
 
         const term = searchTerm.trim().toLowerCase();
 
+        // First check local inventory for quick results
         const localResults = state.inventory.filter(item => 
           item.name?.toLowerCase().includes(term) || 
           item.code?.toLowerCase().includes(term) ||
@@ -715,6 +748,8 @@ export default createStore({
           return localResults;
         }
 
+        // If not found locally, search Firestore directly
+        console.log('🔄 Item not in local cache, searching Firestore...');
         return await dispatch('searchItemsForTransactions', {
           searchTerm: searchTerm,
           limitResults: limitResults
@@ -1958,7 +1993,6 @@ export default createStore({
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       return warehouses.find(w => w.id === warehouseId) || null;
     },
-    // New getter to get user name by ID
     getUserNameById: (state) => (userId) => {
       const allUsers = Array.isArray(state.allUsers) ? state.allUsers : [];
       const user = allUsers.find(u => u.id === userId);
@@ -1982,4 +2016,4 @@ function getAuthErrorMessage(errorCode) {
   };
 
   return errorMessages[errorCode] || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى';
-}
+          }
