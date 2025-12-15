@@ -1,9 +1,22 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-    <!-- Removed Header since this is inside dashboard -->
-    
     <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Stats Cards - Now 4 small cards side by side -->
+      <!-- Live Update Indicator -->
+      <div v-if="showLiveUpdate" class="mb-4">
+        <div class="flex items-center justify-center animate-pulse">
+          <div class="flex items-center px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-medium">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-ping mr-2"></div>
+            <span>تم تحديث البيانات تلقائياً</span>
+            <button @click="showLiveUpdate = false" class="mr-2 text-green-600 hover:text-green-800">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <!-- Total Transactions Card -->
         <div class="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -18,6 +31,12 @@
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalTransactions) }}</p>
             </div>
           </div>
+          <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+            <svg v-if="statsLoading" class="w-3 h-3 animate-spin mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ liveStats.updated ? 'تحديث حي' : 'بيانات محفوظة' }}
+          </div>
         </div>
 
         <!-- Add Transactions Card -->
@@ -30,7 +49,7 @@
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الإضافات</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(addTransactions) }}</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.add) }}</p>
             </div>
           </div>
         </div>
@@ -45,7 +64,7 @@
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">النقل</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transferTransactions) }}</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.transfer) }}</p>
             </div>
           </div>
         </div>
@@ -60,13 +79,13 @@
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الصرف</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(dispatchTransactions) }}</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.dispatch) }}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Filters Section - Modern Design -->
+      <!-- Filters Section -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <!-- Search Box -->
@@ -221,9 +240,37 @@
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">عرض وتتبع جميع عمليات المخزون</p>
             </div>
             <div class="flex items-center gap-3">
+              <!-- Live Update Toggle -->
+              <button 
+                @click="toggleLiveUpdates"
+                :class="[
+                  'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200',
+                  liveUpdatesEnabled 
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/40' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                ]"
+              >
+                <div :class="['w-2 h-2 rounded-full mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
+                {{ liveUpdatesEnabled ? 'التحديثات الحية نشطة' : 'تفعيل التحديثات الحية' }}
+              </button>
+              
+              <!-- Refresh Button -->
+              <button 
+                @click="manualRefresh"
+                :disabled="loading"
+                class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors duration-200 disabled:opacity-50"
+              >
+                <svg :class="['w-3 h-3 mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                تحديث يدوي
+              </button>
+              
+              <!-- Stats Badge -->
               <span class="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium">
                 {{ formatNumber(filteredTransactions.length) }} حركة
               </span>
+              
               <div class="text-sm text-gray-500 dark:text-gray-400">
                 تم التصفية: {{ filterPercentage }}%
               </div>
@@ -241,29 +288,22 @@
         <!-- Transaction History Component -->
         <TransactionHistory 
           v-else
-          :transactions="filteredTransactions"
+          :transactions="displayedTransactions"
           :loading="false"
           :can-export="canExport"
-          @refresh="refreshData"
+          @refresh="manualRefresh"
         />
       </div>
     </main>
-
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 flex flex-col items-center shadow-2xl">
-        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل الحركات...</p>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '@/firebase/config';
 import TransactionHistory from '@/components/transactions/TransactionHistory.vue';
 
 export default {
@@ -276,20 +316,52 @@ export default {
     
     // Refs
     const loading = ref(false);
+    const statsLoading = ref(false);
     const searchTerm = ref('');
     const dateFrom = ref('');
     const dateTo = ref('');
     const typeFilter = ref('');
+    const showLiveUpdate = ref(false);
+    const liveUpdatesEnabled = ref(true);
+    const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, updated: false });
+    const liveTransactions = ref([]);
     
+    // Firebase real-time listener reference
+    let unsubscribe = null;
+    let lastUpdateTime = null;
+
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
     const canExport = computed(() => {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    const allTransactions = computed(() => store.state.transactions || []);
-    const recentTransactions = computed(() => store.state.recentTransactions || []);
-    
+    // Combine cached transactions with live updates
+    const allTransactions = computed(() => {
+      const cached = store.state.transactions || [];
+      const live = liveTransactions.value || [];
+      
+      // Merge and deduplicate by ID
+      const allMap = new Map();
+      
+      // Add cached transactions first
+      cached.forEach(t => {
+        if (t.id) allMap.set(t.id, t);
+      });
+      
+      // Add live transactions (will overwrite cached with same ID if newer)
+      live.forEach(t => {
+        if (t.id) allMap.set(t.id, t);
+      });
+      
+      // Convert to array and sort by timestamp
+      return Array.from(allMap.values()).sort((a, b) => {
+        const timeA = getTransactionTime(a);
+        const timeB = getTransactionTime(b);
+        return timeB - timeA; // Newest first
+      });
+    });
+
     const filteredTransactions = computed(() => {
       let filtered = [...allTransactions.value];
       
@@ -313,13 +385,8 @@ export default {
       if (dateFrom.value) {
         const fromDate = new Date(dateFrom.value);
         filtered = filtered.filter(transaction => {
-          if (!transaction.timestamp) return false;
-          try {
-            const transDate = transaction.timestamp?.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
-            return transDate >= fromDate;
-          } catch (error) {
-            return false;
-          }
+          const transDate = getTransactionTime(transaction);
+          return transDate >= fromDate;
         });
       }
       
@@ -327,23 +394,20 @@ export default {
         const toDate = new Date(dateTo.value);
         toDate.setHours(23, 59, 59, 999);
         filtered = filtered.filter(transaction => {
-          if (!transaction.timestamp) return false;
-          try {
-            const transDate = transaction.timestamp?.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
-            return transDate <= toDate;
-          } catch (error) {
-            return false;
-          }
+          const transDate = getTransactionTime(transaction);
+          return transDate <= toDate;
         });
       }
       
       return filtered;
     });
     
+    // Display only the most recent transactions (for performance)
+    const displayedTransactions = computed(() => {
+      return filteredTransactions.value.slice(0, 100); // Limit to 100 for performance
+    });
+    
     const totalTransactions = computed(() => allTransactions.value.length);
-    const addTransactions = computed(() => allTransactions.value.filter(t => t.type === 'ADD').length);
-    const transferTransactions = computed(() => allTransactions.value.filter(t => t.type === 'TRANSFER').length);
-    const dispatchTransactions = computed(() => allTransactions.value.filter(t => t.type === 'DISPATCH').length);
     
     const hasActiveFilters = computed(() => {
       return searchTerm.value || typeFilter.value || dateFrom.value || dateTo.value;
@@ -354,7 +418,49 @@ export default {
       const percentage = Math.round((filteredTransactions.value.length / allTransactions.value.length) * 100);
       return 100 - percentage;
     });
-    
+
+    // Helper function to get transaction time
+    const getTransactionTime = (transaction) => {
+      if (!transaction.timestamp) return new Date(0);
+      try {
+        return transaction.timestamp?.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
+      } catch {
+        return new Date(0);
+      }
+    };
+
+    // Calculate live stats
+    const calculateLiveStats = () => {
+      const now = Date.now();
+      
+      // Only recalculate if stats are stale (older than 5 minutes)
+      if (liveStats.value.updated && (now - liveStats.value.lastUpdate < 300000)) {
+        return;
+      }
+      
+      statsLoading.value = true;
+      try {
+        const addCount = allTransactions.value.filter(t => t.type === 'ADD').length;
+        const transferCount = allTransactions.value.filter(t => t.type === 'TRANSFER').length;
+        const dispatchCount = allTransactions.value.filter(t => t.type === 'DISPATCH').length;
+        
+        liveStats.value = {
+          add: addCount,
+          transfer: transferCount,
+          dispatch: dispatchCount,
+          updated: true,
+          lastUpdate: now
+        };
+      } finally {
+        statsLoading.value = false;
+      }
+    };
+
+    // Watch for transaction changes to update stats
+    watch(allTransactions, () => {
+      calculateLiveStats();
+    }, { deep: true });
+
     // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -403,13 +509,125 @@ export default {
       dateFrom.value = '';
       dateTo.value = '';
     };
-    
-    const refreshData = async () => {
-      loading.value = true;
+
+    // Optimized fetch function - only gets new transactions
+    const fetchNewTransactions = async () => {
+      try {
+        loading.value = true;
+        
+        // Get the latest timestamp from existing transactions
+        const latestTimestamp = lastUpdateTime || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default to 24 hours ago
+        
+        const transactionsRef = collection(db, 'transactions');
+        const q = query(
+          transactionsRef,
+          where('created_at', '>', latestTimestamp),
+          orderBy('created_at', 'desc'),
+          limit(50)
+        );
+        
+        const snapshot = await getDocs(q);
+        const newTransactions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        if (newTransactions.length > 0) {
+          // Update live transactions
+          liveTransactions.value = [...newTransactions, ...liveTransactions.value].slice(0, 100);
+          
+          // Update last update time
+          lastUpdateTime = new Date();
+          
+          // Show live update notification
+          showLiveUpdate.value = true;
+          setTimeout(() => {
+            showLiveUpdate.value = false;
+          }, 3000);
+        }
+        
+        return newTransactions;
+      } catch (error) {
+        console.error('Error fetching new transactions:', error);
+        return [];
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    // Manual refresh
+    const manualRefresh = async () => {
+      await fetchNewTransactions();
+      
+      // Also refresh cached data from store (optional)
       try {
         await store.dispatch('getRecentTransactions');
       } catch (error) {
-        console.error('Error loading transactions:', error);
+        console.error('Error refreshing store transactions:', error);
+      }
+    };
+
+    // Toggle live updates
+    const toggleLiveUpdates = () => {
+      liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
+      
+      if (liveUpdatesEnabled.value) {
+        startLiveUpdates();
+      } else {
+        stopLiveUpdates();
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: liveUpdatesEnabled.value ? 'تم تفعيل التحديثات الحية' : 'تم إيقاف التحديثات الحية'
+      });
+    };
+
+    // Start live updates (polling for simplicity - real-time listeners can be added later)
+    const startLiveUpdates = () => {
+      // Poll every 30 seconds for new transactions
+      if (window.liveUpdateInterval) {
+        clearInterval(window.liveUpdateInterval);
+      }
+      
+      window.liveUpdateInterval = setInterval(() => {
+        if (liveUpdatesEnabled.value) {
+          fetchNewTransactions();
+        }
+      }, 30000); // 30 seconds
+    };
+
+    // Stop live updates
+    const stopLiveUpdates = () => {
+      if (window.liveUpdateInterval) {
+        clearInterval(window.liveUpdateInterval);
+        window.liveUpdateInterval = null;
+      }
+    };
+
+    // Initial data load
+    const loadInitialData = async () => {
+      loading.value = true;
+      try {
+        // Load cached data from store
+        await store.dispatch('getRecentTransactions');
+        
+        // Fetch recent transactions from Firebase
+        await fetchNewTransactions();
+        
+        // Calculate initial stats
+        calculateLiveStats();
+        
+        // Start live updates if enabled
+        if (liveUpdatesEnabled.value) {
+          startLiveUpdates();
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل البيانات'
+        });
       } finally {
         loading.value = false;
       }
@@ -423,21 +641,17 @@ export default {
         const wb = XLSX.utils.book_new();
         
         // Prepare data for export
-        const exportData = filteredTransactions.value.map(transaction => ({
+        const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => ({
           'تاريخ الحركة': transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleDateString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleDateString('ar-EG')) : '',
+            getTransactionTime(transaction).toLocaleDateString('ar-EG') : '',
           'وقت الحركة': transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleTimeString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleTimeString('ar-EG')) : '',
+            getTransactionTime(transaction).toLocaleTimeString('ar-EG') : '',
           'نوع الحركة': getTypeLabel(transaction.type),
           'اسم الصنف': transaction.item_name || '',
           'كود الصنف': transaction.item_code || '',
-          'الكمية': transaction.total_delta || 0,
-          'من المخزن': store.getters.getWarehouseLabel(transaction.from_warehouse) || '',
-          'إلى المخزن': store.getters.getWarehouseLabel(transaction.to_warehouse) || '',
+          'الكمية': transaction.total_quantity || transaction.total_delta || 0,
+          'من المخزن': store.getters.getWarehouseLabel(transaction.from_warehouse_id) || '',
+          'إلى المخزن': store.getters.getWarehouseLabel(transaction.to_warehouse_id) || '',
           'المستخدم': transaction.user_name || '',
           'ملاحظات': transaction.notes || ''
         }));
@@ -471,23 +685,36 @@ export default {
     };
     
     onMounted(() => {
-      refreshData();
+      loadInitialData();
+    });
+    
+    onUnmounted(() => {
+      // Clean up intervals
+      stopLiveUpdates();
+      
+      // Clean up Firebase listener if exists
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+      }
     });
     
     return {
       // State
       loading,
+      statsLoading,
       searchTerm,
       dateFrom,
       dateTo,
       typeFilter,
+      showLiveUpdate,
+      liveUpdatesEnabled,
+      liveStats,
       
       // Computed
+      displayedTransactions,
       filteredTransactions,
       totalTransactions,
-      addTransactions,
-      transferTransactions,
-      dispatchTransactions,
       canExport,
       hasActiveFilters,
       filterPercentage,
@@ -499,7 +726,8 @@ export default {
       handleSearch,
       handleFilter,
       clearFilters,
-      refreshData,
+      manualRefresh,
+      toggleLiveUpdates,
       exportTransactions
     };
   }
@@ -575,6 +803,17 @@ body {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 /* Card hover effects */
