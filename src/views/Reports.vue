@@ -999,7 +999,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick,reactive } from 'vue';
 import { useStore } from 'vuex';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
