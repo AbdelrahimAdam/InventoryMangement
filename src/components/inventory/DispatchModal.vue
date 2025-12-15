@@ -979,149 +979,150 @@ export default {
         }
       }
     })
-
     // Watch search term changes to clear live search results when cleared
     watch(searchTerm, (newValue) => {
       if (!newValue || newValue.trim().length < 2) {
         liveSearchResults.length = 0
         isLiveSearching.value = false
       }
-    })const handleSubmit = async () => {
-  // Reset messages
-  error.value = ''
-  successMessage.value = ''
-  
-  // Check if user can perform dispatch
-  if (!isSuperadmin.value && !canPerformDispatch.value) {
-    error.value = 'ليس لديك صلاحية لصرف الأصناف'
-    return
-  }
-
-  // Validation
-  const errors = []
-  
-  if (!form.sourceWarehouse) {
-    errors.push('يرجى اختيار المخزن المصدر')
-  }
-  
-  if (!form.destinationBranch) {
-    errors.push('يرجى اختيار الوجهة')
-  }
-  
-  // Check if destination exists
-  const destinationExists = destinations.value.some(d => d.id === form.destinationBranch)
-  if (!destinationExists) {
-    errors.push('الوجهة المحددة غير موجودة أو غير نشطة')
-  }
-  
-  if (!selectedItem.value) {
-    errors.push('يرجى اختيار صنف للصرف')
-  }
-  
-  if (!form.quantity || form.quantity <= 0) {
-    errors.push('يرجى إدخال كمية صحيحة')
-  }
-  
-  // SUPERADMIN BYPASSES QUANTITY LIMIT CHECKS!
-  if (!isSuperadmin.value) {
-    const maxQuantity = selectedItem.value?.remaining_quantity || 0
-    if (form.quantity > maxQuantity) {
-      errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
-    }
-  }
-  
-  if (!isSuperadmin.value && !canPerformDispatch.value) {
-    errors.push('ليس لديك صلاحية لصرف الأصناف')
-  }
-  
-  if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
-    errors.push('ليس لديك صلاحية للصرف من هذا المخزن')
-  }
-  
-  if (errors.length > 0) {
-    error.value = errors.join('، ')
-    return
-  }
-
-  loading.value = true
-
-  try {
-    // Get destination name
-    const destination = destinations.value.find(d => d.id === form.destinationBranch)
-    const destinationName = destination ? destination.name_ar : form.destinationBranch
-
-    // ⚠️ FIXED: Send EXACTLY what the store expects
-    const dispatchData = {
-      // ===== REQUIRED FIELDS (must match store exactly) =====
-      item_id: selectedItem.value.id,
-      from_warehouse_id: form.sourceWarehouse, // NOT source_warehouse_id
-      destination: destinationName, // NOT destination_id, just the name string
-      
-      // ===== QUANTITY FIELDS (store uses these to calculate) =====
-      cartons_count: 0, // Set to 0 since you're using single bottles
-      per_carton_count: 12, // Default value
-      single_bottles_count: form.quantity,
-      
-      // ===== ADDITIONAL INFO =====
-      notes: form.notes || 'إرسال إلى فرع',
-      priority: form.priority,
-      
-      // ===== OPTIONAL (store doesn't require these but can include) =====
-      item_name: selectedItem.value.name,
-      item_code: selectedItem.value.code,
-      from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-      destination_id: form.destinationBranch,
-      destination_name: destinationName,
-      
-      // ===== USER INFO (store doesn't require but good to have) =====
-      user_id: store.state.user?.uid,
-      user_role: userProfile.value?.role,
-      user_name: userProfile.value?.name
-    }
-
-    console.log('📦 DEBUG - Dispatch data being sent:', {
-      item_id: dispatchData.item_id,
-      from_warehouse_id: dispatchData.from_warehouse_id,
-      destination: dispatchData.destination,
-      quantity: dispatchData.single_bottles_count,
-      hasFields: {
-        item_id: !!dispatchData.item_id,
-        from_warehouse_id: !!dispatchData.from_warehouse_id,
-        destination: !!dispatchData.destination,
-        single_bottles_count: !!dispatchData.single_bottles_count
-      }
     })
 
-    // Use the store dispatch action
-    const result = await store.dispatch('dispatchItem', dispatchData)
+    const handleSubmit = async () => {
+      // Reset messages
+      error.value = ''
+      successMessage.value = ''
+      
+      // Check if user can perform dispatch
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
+        error.value = 'ليس لديك صلاحية لصرف الأصناف'
+        return
+      }
 
-    if (result?.success) {
-      successMessage.value = 'تم صرف الصنف بنجاح'
+      // Validation
+      const errors = []
       
-      // Reset form after successful dispatch
-      resetForm()
+      if (!form.sourceWarehouse) {
+        errors.push('يرجى اختيار المخزن المصدر')
+      }
       
-      // Emit success and close after delay
-      setTimeout(() => {
-        emit('success', result)
-        emit('close')
-      }, 1500)
-    } else {
-      throw new Error(result?.error || 'فشل في عملية الصرف')
+      if (!form.destinationBranch) {
+        errors.push('يرجى اختيار الوجهة')
+      }
+      
+      // Check if destination exists
+      const destinationExists = destinations.value.some(d => d.id === form.destinationBranch)
+      if (!destinationExists) {
+        errors.push('الوجهة المحددة غير موجودة أو غير نشطة')
+      }
+      
+      if (!selectedItem.value) {
+        errors.push('يرجى اختيار صنف للصرف')
+      }
+      
+      if (!form.quantity || form.quantity <= 0) {
+        errors.push('يرجى إدخال كمية صحيحة')
+      }
+      
+      // SUPERADMIN BYPASSES QUANTITY LIMIT CHECKS!
+      if (!isSuperadmin.value) {
+        const maxQuantity = selectedItem.value?.remaining_quantity || 0
+        if (form.quantity > maxQuantity) {
+          errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
+        }
+      }
+      
+      if (!isSuperadmin.value && !canPerformDispatch.value) {
+        errors.push('ليس لديك صلاحية لصرف الأصناف')
+      }
+      
+      if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
+        errors.push('ليس لديك صلاحية للصرف من هذا المخزن')
+      }
+      
+      if (errors.length > 0) {
+        error.value = errors.join('، ')
+        return
+      }
+
+      loading.value = true
+
+      try {
+        // Get destination name
+        const destination = destinations.value.find(d => d.id === form.destinationBranch)
+        const destinationName = destination ? destination.name_ar : form.destinationBranch
+
+        // ⚠️ FIXED: Send EXACTLY what the store expects
+        const dispatchData = {
+          // ===== REQUIRED FIELDS (must match store exactly) =====
+          item_id: selectedItem.value.id,
+          from_warehouse_id: form.sourceWarehouse, // NOT source_warehouse_id
+          destination: destinationName, // NOT destination_id, just the name string
+          
+          // ===== QUANTITY FIELDS (store uses these to calculate) =====
+          cartons_count: 0, // Set to 0 since you're using single bottles
+          per_carton_count: 12, // Default value
+          single_bottles_count: form.quantity,
+          
+          // ===== ADDITIONAL INFO =====
+          notes: form.notes || 'إرسال إلى فرع',
+          priority: form.priority,
+          
+          // ===== OPTIONAL (store doesn't require these but can include) =====
+          item_name: selectedItem.value.name,
+          item_code: selectedItem.value.code,
+          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
+          destination_id: form.destinationBranch,
+          destination_name: destinationName,
+          
+          // ===== USER INFO (store doesn't require but good to have) =====
+          user_id: store.state.user?.uid,
+          user_role: userProfile.value?.role,
+          user_name: userProfile.value?.name
+        }
+
+        console.log('📦 DEBUG - Dispatch data being sent:', {
+          item_id: dispatchData.item_id,
+          from_warehouse_id: dispatchData.from_warehouse_id,
+          destination: dispatchData.destination,
+          quantity: dispatchData.single_bottles_count,
+          hasFields: {
+            item_id: !!dispatchData.item_id,
+            from_warehouse_id: !!dispatchData.from_warehouse_id,
+            destination: !!dispatchData.destination,
+            single_bottles_count: !!dispatchData.single_bottles_count
+          }
+        })
+
+        // Use the store dispatch action
+        const result = await store.dispatch('dispatchItem', dispatchData)
+
+        if (result?.success) {
+          successMessage.value = 'تم صرف الصنف بنجاح'
+          
+          // Reset form after successful dispatch
+          resetForm()
+          
+          // Emit success and close after delay
+          setTimeout(() => {
+            emit('success', result)
+            emit('close')
+          }, 1500)
+        } else {
+          throw new Error(result?.error || 'فشل في عملية الصرف')
+        }
+        
+      } catch (err) {
+        console.error('❌ Dispatch Modal - Error:', err)
+        error.value = err.message || 'فشل في عملية الصرف. يرجى المحاولة مرة أخرى.'
+        
+        // More detailed error message
+        if (err.message.includes('غير مكتملة')) {
+          error.value = 'بيانات الإرسال غير مكتملة. يرجى التحقق من جميع الحقول المطلوبة.'
+        }
+      } finally {
+        loading.value = false
+      }
     }
-    
-  } catch (err) {
-    console.error('❌ Dispatch Modal - Error:', err)
-    error.value = err.message || 'فشل في عملية الصرف. يرجى المحاولة مرة أخرى.'
-    
-    // More detailed error message
-    if (err.message.includes('غير مكتملة')) {
-      error.value = 'بيانات الإرسال غير مكتملة. يرجى التحقق من جميع الحقول المطلوبة.'
-    }
-  } finally {
-    loading.value = false
-  }
-}
 
     // Log initial state for debugging
     onMounted(() => {
