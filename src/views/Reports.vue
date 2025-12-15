@@ -134,13 +134,17 @@
               <input
                 type="text"
                 v-model="searchQuery"
-                @input="applyFilters"
+                @input="handleSearch"
                 placeholder="بحث سريع..."
                 class="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
               <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
+              <!-- Live Search Indicator -->
+              <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -285,13 +289,17 @@
               <input
                 type="text"
                 v-model="searchQuery"
-                @input="applyFilters"
+                @input="handleSearch"
                 placeholder="ابحث عن صنف، كود، لون، مورد..."
                 class="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 shadow-sm transition-all duration-200"
               />
               <svg class="absolute right-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
+              <!-- Live Search Indicator -->
+              <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -995,6 +1003,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
+import { debounce } from 'lodash';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -1046,6 +1055,11 @@ export default {
     let mobileWarehouseChartInstance = null;
     let mobileTransactionsChartInstance = null;
     
+    // Live search state
+    const isLiveSearching = ref(false);
+    const liveSearchResults = reactive([]);
+    const liveSearchTimeout = ref(null);
+    
     // Computed properties from store
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allInventory = computed(() => store.state.inventory || []);
@@ -1063,6 +1077,24 @@ export default {
       dispatchTransactions: 0
     });
     
+    // Combined inventory (local + live search results)
+    const combinedInventory = computed(() => {
+      const combined = [...allInventory.value];
+      
+      // Add live search results that aren't already in local inventory
+      liveSearchResults.forEach(liveItem => {
+        if (!combined.some(item => item.id === liveItem.id)) {
+          // Mark as live search result for styling
+          combined.push({
+            ...liveItem,
+            isLiveSearchResult: true
+          });
+        }
+      });
+      
+      return combined;
+    });
+    
     // Mobile computed properties
     const mobileInventoryItems = computed(() => {
       return filteredInventory.value.slice(0, 10).map(item => ({
@@ -1078,7 +1110,7 @@ export default {
     // All unique items for dropdown
     const allUniqueItems = computed(() => {
       const itemsMap = new Map();
-      (allInventory.value || []).forEach(item => {
+      (combinedInventory.value || []).forEach(item => {
         if (item && item.id && !itemsMap.has(item.id)) {
           itemsMap.set(item.id, {
             id: item.id,
@@ -1111,7 +1143,7 @@ export default {
     
     // Filtered inventory based on selected filters
     const filteredInventory = computed(() => {
-      let inventory = allInventory.value || [];
+      let inventory = combinedInventory.value || [];
       
       // Filter by warehouse
       if (selectedWarehouse.value) {
@@ -1180,7 +1212,7 @@ export default {
       
       // Filter by specific item if selected
       if (selectedItem.value) {
-        const item = (allInventory.value || []).find(i => i.id === selectedItem.value);
+        const item = (combinedInventory.value || []).find(i => i.id === selectedItem.value);
         if (item) {
           transactions = transactions.filter(t => 
             t.item_name === item.name || 
@@ -1572,6 +1604,7 @@ export default {
       selectedItemType.value = '';
       searchQuery.value = '';
       reportPeriod.value = 'month';
+      liveSearchResults.length = 0; // Clear live search results
       updateCharts();
     };
     
@@ -1596,6 +1629,69 @@ export default {
     
     const applyFilters = () => {
       updateCharts();
+    };
+    
+    // Live search function from inventory page
+    const performLiveSearch = async (searchTermValue) => {
+      if (!searchTermValue || searchTermValue.trim().length < 2) {
+        liveSearchResults.length = 0; // Clear results
+        isLiveSearching.value = false;
+        return;
+      }
+      
+      isLiveSearching.value = true;
+      
+      try {
+        console.log('🔍 Performing live search in reports for:', searchTermValue);
+        
+        // Use the store action to search Firestore directly
+        const searchResults = await store.dispatch('searchItems', {
+          searchTerm: searchTermValue,
+          limitResults: 50
+        });
+        
+        console.log('✅ Live search results in reports:', searchResults.length, 'items');
+        
+        // Update live search results
+        liveSearchResults.length = 0; // Clear previous results
+        searchResults.forEach(item => {
+          liveSearchResults.push(item);
+        });
+        
+      } catch (error) {
+        console.error('❌ Error in live search:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف'
+        });
+      } finally {
+        isLiveSearching.value = false;
+      }
+    };
+    
+    // Debounced live search
+    const debouncedLiveSearch = debounce((term) => {
+      performLiveSearch(term);
+    }, 500);
+    
+    // Handle search input with live search
+    const handleSearch = () => {
+      // Clear any existing timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value);
+      }
+      
+      // Debounce the live search
+      liveSearchTimeout.value = setTimeout(() => {
+        if (searchQuery.value && searchQuery.value.trim().length >= 2) {
+          debouncedLiveSearch(searchQuery.value.trim());
+        } else {
+          // Clear live search results if search term is too short
+          liveSearchResults.length = 0;
+          isLiveSearching.value = false;
+        }
+        applyFilters(); // Apply regular filters
+      }, 300);
     };
     
     const updateWarehouseChart = () => {
@@ -1878,7 +1974,7 @@ export default {
       const ctx = trendsChart.value?.getContext('2d');
       if (!ctx) return;
       
-      const months = monthlyStats.value.months || [];
+      const months = monthlyStats.value.mons || [];
       const data = monthlyStats.value.monthlyData || [];
       
       if (months.length === 0 || data.length === 0) {
@@ -2184,6 +2280,11 @@ export default {
       if (trendsChartInstance) trendsChartInstance.destroy();
       if (mobileWarehouseChartInstance) mobileWarehouseChartInstance.destroy();
       if (mobileTransactionsChartInstance) mobileTransactionsChartInstance.destroy();
+      
+      // Clean up live search timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value);
+      }
     });
     
     // Watch for data changes
@@ -2235,6 +2336,10 @@ export default {
       mobileWarehouseChart,
       mobileTransactionsChart,
       
+      // Live search refs
+      isLiveSearching,
+      liveSearchResults,
+      
       // Computed properties
       accessibleWarehouses,
       allUniqueItems,
@@ -2266,6 +2371,7 @@ export default {
       changePeriod,
       applyCustomDate,
       applyFilters,
+      handleSearch,
       updateWarehouseChart,
       updateTopItems,
       updateMonthlyTrendsChart,
@@ -2457,5 +2563,19 @@ body {
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
+}
+
+/* Live search indicator animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>
