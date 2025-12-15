@@ -165,23 +165,31 @@
               اختر الصنف المراد صرفه
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ filteredItems.length }} صنف متاح
+              {{ combinedItems.length }} صنف متاح
+              <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
+                ({{ liveSearchResults.length }} من البحث المباشر)
+              </span>
             </div>
           </div>
 
-          <!-- Search Input -->
+          <!-- Search Input with Live Search Indicator -->
           <div class="relative mb-4">
             <input
               v-model="searchTerm"
+              @input="handleSearch"
               type="text"
               placeholder="ابحث عن صنف بالاسم أو الكود..."
-              class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              class="w-full pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               :disabled="loading || !form.sourceWarehouse || (!isSuperadmin && !canViewDispatch)"
             >
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
+            </div>
+            <!-- Live Search Indicator -->
+            <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
             </div>
           </div>
 
@@ -198,19 +206,27 @@
             <!-- Table Body -->
             <div class="max-h-60 overflow-y-auto">
               <div
-                v-for="item in filteredItems"
+                v-for="item in combinedItems"
                 :key="item.id"
                 :class="[
                   'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
-                  selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : ''
+                  selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
+                  item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
                 ]"
               >
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
-                  <div class="font-medium text-sm text-gray-900 dark:text-white">{{ item.name }}</div>
+                  <div class="font-medium text-sm text-gray-900 dark:text-white flex items-center">
+                    {{ item.name }}
+                    <!-- Live Search Badge -->
+                    <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
+                      🔍
+                    </span>
+                  </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
+                    <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
                   </div>
                 </div>
 
@@ -248,8 +264,14 @@
                 </div>
               </div>
 
+              <!-- Live Search Loading State -->
+              <div v-if="isLiveSearching && combinedItems.length === 0" class="p-8 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+              </div>
+
               <!-- Empty State -->
-              <div v-if="filteredItems.length === 0" class="p-8 text-center">
+              <div v-if="combinedItems.length === 0 && !isLiveSearching" class="p-8 text-center">
                 <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
                 </svg>
@@ -265,13 +287,18 @@
         <div v-if="selectedItem" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
           <div class="flex items-center justify-between mb-3">
             <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
-            <button
-              @click="clearSelection"
-              class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-              :disabled="loading || (!isSuperadmin && !canPerformDispatch)"
-            >
-              إلغاء التحديد
-            </button>
+            <div class="flex items-center gap-2">
+              <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
+                تم العثور عبر البحث المباشر
+              </span>
+              <button
+                @click="clearSelection"
+                class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                :disabled="loading || (!isSuperadmin && !canPerformDispatch)"
+              >
+                إلغاء التحديد
+              </button>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -453,6 +480,7 @@
 <script>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useStore } from 'vuex'
+import { debounce } from 'lodash'
 
 export default {
   name: 'DispatchModal',
@@ -476,6 +504,11 @@ export default {
     const successMessage = ref('')
     const selectedItem = ref(null)
     const searchTerm = ref('')
+    
+    // Live Search State
+    const isLiveSearching = ref(false)
+    const liveSearchResults = reactive([])
+    const liveSearchTimeout = ref(null)
 
     // Form
     const form = reactive({
@@ -669,14 +702,31 @@ export default {
       )
     })
 
-    // Filtered items based on search - USING ENGLISH FIELD NAMES
-    const filteredItems = computed(() => {
+    // Combined items (local + live search results)
+    const combinedItems = computed(() => {
+      const combined = [...availableItems.value]
+      
+      // Add live search results that aren't already in local inventory
+      liveSearchResults.forEach(liveItem => {
+        if (!combined.some(item => item.id === liveItem.id)) {
+          // Only include items from the selected warehouse or if no warehouse is selected
+          if (!form.sourceWarehouse || liveItem.warehouse_id === form.sourceWarehouse) {
+            // Mark as live search result for styling
+            combined.push({
+              ...liveItem,
+              isLiveSearchResult: true
+            })
+          }
+        }
+      })
+      
+      // Filter by search term if provided
       if (!searchTerm.value.trim()) {
-        return availableItems.value
+        return combined
       }
       
       const term = searchTerm.value.toLowerCase().trim()
-      return availableItems.value.filter(item => {
+      return combined.filter(item => {
         const name = (item.name || '').toLowerCase()
         const code = (item.code || '').toLowerCase()
         const color = (item.color || '').toLowerCase()
@@ -753,6 +803,68 @@ export default {
       return userProfile.value.is_active === true
     }
 
+    // Live Search Functions
+    const performLiveSearch = async (searchTermValue) => {
+      if (!searchTermValue || searchTermValue.trim().length < 2) {
+        liveSearchResults.length = 0 // Clear results
+        isLiveSearching.value = false
+        return
+      }
+      
+      isLiveSearching.value = true
+      
+      try {
+        console.log('🔍 Performing live search in dispatch for:', searchTermValue)
+        
+        // Use the store action to search Firestore directly
+        const searchResults = await store.dispatch('searchItems', {
+          searchTerm: searchTermValue,
+          limitResults: 50
+        })
+        
+        console.log('✅ Live search results in dispatch:', searchResults.length, 'items')
+        
+        // Update live search results
+        liveSearchResults.length = 0 // Clear previous results
+        searchResults.forEach(item => {
+          liveSearchResults.push(item)
+        })
+        
+      } catch (error) {
+        console.error('❌ Error in live search:', error)
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف'
+        })
+      } finally {
+        isLiveSearching.value = false
+      }
+    }
+    
+    // Debounced live search
+    const debouncedLiveSearch = debounce((term) => {
+      performLiveSearch(term)
+    }, 500)
+    
+    // Handle search input with live search
+    const handleSearch = () => {
+      // Clear any existing timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
+      }
+      
+      // Debounce the live search
+      liveSearchTimeout.value = setTimeout(() => {
+        if (searchTerm.value && searchTerm.value.trim().length >= 2) {
+          debouncedLiveSearch(searchTerm.value.trim())
+        } else {
+          // Clear live search results if search term is too short
+          liveSearchResults.length = 0
+          isLiveSearching.value = false
+        }
+      }, 300)
+    }
+
     // Methods
     const resetForm = () => {
       Object.assign(form, {
@@ -766,6 +878,8 @@ export default {
       error.value = ''
       successMessage.value = ''
       searchTerm.value = ''
+      liveSearchResults.length = 0
+      isLiveSearching.value = false
     }
 
     const closeModal = () => {
@@ -796,6 +910,8 @@ export default {
     const onWarehouseChange = () => {
       selectedItem.value = null
       searchTerm.value = ''
+      liveSearchResults.length = 0
+      isLiveSearching.value = false
       error.value = ''
     }
 
@@ -861,6 +977,14 @@ export default {
         } else if (newQuantity < 1) {
           form.quantity = 1
         }
+      }
+    })
+
+    // Watch search term changes to clear live search results when cleared
+    watch(searchTerm, (newValue) => {
+      if (!newValue || newValue.trim().length < 2) {
+        liveSearchResults.length = 0
+        isLiveSearching.value = false
       }
     })
 
@@ -1000,6 +1124,13 @@ export default {
         canPerformDispatch: canPerformDispatch.value
       })
     })
+    
+    // Cleanup on unmount
+    onUnmounted(() => {
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
+      }
+    })
 
     return {
       // State
@@ -1010,6 +1141,10 @@ export default {
       selectedItem,
       searchTerm,
       
+      // Live Search State
+      isLiveSearching,
+      liveSearchResults,
+      
       // Computed
       userProfile,
       warehouses,
@@ -1017,7 +1152,7 @@ export default {
       destinations,
       priorityOptions,
       availableItems,
-      filteredItems,
+      combinedItems,
       accessibleWarehouses,
       allowedWarehousesCount,
       canViewDispatch,
@@ -1038,6 +1173,7 @@ export default {
       getDestinationName,
       getStockClass,
       isWarehouseAccessible,
+      handleSearch,
       handleSubmit,
       closeModal
     }
@@ -1109,5 +1245,19 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Live search indicator animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>
