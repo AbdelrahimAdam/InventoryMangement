@@ -91,29 +91,37 @@
                       ابحث عن الصنف
                     </h3>
                     
-                    <!-- Search Input -->
+                    <!-- Search Input with Live Search Indicator -->
                     <div class="relative mb-4">
                       <input
                         v-model="searchTerm"
+                        @input="handleSearch"
                         type="text"
-                        :disabled="loading"
+                        :disabled="loading || (!isCreating && selectedItem)"
                         placeholder="ابحث بالاسم، الكود، اللون، المورد..."
-                        class="w-full pr-10 pl-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="w-full pr-10 pl-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
+                      </div>
+                      <!-- Live Search Indicator -->
+                      <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
                       </div>
                     </div>
 
                     <!-- Items Count -->
                     <div class="flex items-center justify-between mb-3">
                       <span class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ filteredItems.length }} صنف متاح
+                        {{ combinedItems.length }} صنف متاح
+                        <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
+                          ({{ liveSearchResults.length }} من البحث المباشر)
+                        </span>
                       </span>
                       <button
-                        v-if="!isCreating && filteredItems.length > 0"
+                        v-if="!isCreating && combinedItems.length > 0"
                         @click="showAllItems = !showAllItems"
                         class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                       >
@@ -122,7 +130,7 @@
                     </div>
 
                     <!-- Items Table -->
-                    <div v-if="filteredItems.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <div v-if="combinedItems.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                       <!-- Table Header -->
                       <div class="grid grid-cols-12 bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         <div class="col-span-5 p-3">الصنف</div>
@@ -133,20 +141,27 @@
                       <!-- Table Body -->
                       <div class="max-h-64 overflow-y-auto">
                         <div
-                          v-for="item in (showAllItems ? filteredItems : filteredItems.slice(0, 5))"
+                          v-for="item in (showAllItems ? combinedItems : combinedItems.slice(0, 5))"
                           :key="item.id"
                           @click="selectItemForEdit(item)"
                           :class="[
                             'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150',
-                            selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' : ''
+                            selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' : '',
+                            item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
                           ]"
                         >
                           <!-- Item Name and Details -->
                           <div class="col-span-5 p-3">
-                            <div class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ item.name }}</div>
+                            <div class="font-medium text-sm text-gray-900 dark:text-white truncate flex items-center">
+                              {{ item.name }}
+                              <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
+                                🔍
+                              </span>
+                            </div>
                             <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
                               <span class="ml-2">{{ item.color }}</span>
                               <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500 mr-2">| مورد: {{ item.supplier }}</span>
+                              <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
                             </div>
                           </div>
 
@@ -170,19 +185,25 @@
                         </div>
                       </div>
 
+                      <!-- Live Search Loading State -->
+                      <div v-if="isLiveSearching && combinedItems.length === 0" class="p-8 text-center">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+                      </div>
+
                       <!-- Show More Indicator -->
-                      <div v-if="!showAllItems && filteredItems.length > 5" 
+                      <div v-if="!showAllItems && combinedItems.length > 5" 
                         @click="showAllItems = true"
                         class="p-3 text-center border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150"
                       >
                         <span class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                          عرض {{ filteredItems.length - 5 }} صنف إضافي...
+                          عرض {{ combinedItems.length - 5 }} صنف إضافي...
                         </span>
                       </div>
                     </div>
 
                     <!-- Empty State -->
-                    <div v-else class="text-center py-8 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div v-else-if="!isLiveSearching" class="text-center py-8 border border-gray-200 dark:border-gray-700 rounded-lg">
                       <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                       </svg>
@@ -201,12 +222,17 @@
                   <div v-if="selectedItem && !isCreating" class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl">
                     <div class="flex items-center justify-between mb-3">
                       <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد للتعديل</h5>
-                      <button
-                        @click="clearSelection"
-                        class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                      >
-                        تغيير الصنف
-                      </button>
+                      <div class="flex items-center gap-2">
+                        <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
+                          تم العثور عبر البحث المباشر
+                        </span>
+                        <button
+                          @click="clearSelection"
+                          class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                        >
+                          تغيير الصنف
+                        </button>
+                      </div>
                     </div>
                     <div class="space-y-2">
                       <div class="flex items-center justify-between">
@@ -648,7 +674,7 @@
 </template>
 
 <script>
-import { ref, watch, reactive, computed, onMounted } from 'vue';
+import { ref, watch, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import {
   Dialog,
@@ -689,7 +715,13 @@ export default {
     const showAllItems = ref(false);
     const selectedWarehouseId = ref('');
     const originalItem = ref(null);
+    
+    // Live Search State
+    const isLiveSearching = ref(false);
+    const liveSearchResults = reactive([]);
+    const liveSearchTimeout = ref(null);
 
+    // Form Data - EXACTLY MATCHING STORE EXPECTATIONS
     const formData = reactive({
       name: '',
       code: '',
@@ -738,13 +770,31 @@ export default {
       );
     });
 
-    const filteredItems = computed(() => {
+    // Combined items (local + live search results)
+    const combinedItems = computed(() => {
+      const combined = [...inventory.value];
+      
+      // Add live search results that aren't already in local inventory
+      liveSearchResults.forEach(liveItem => {
+        if (!combined.some(item => item.id === liveItem.id)) {
+          // Only include items from the selected warehouse
+          if (liveItem.warehouse_id === selectedWarehouseId.value) {
+            // Mark as live search result for styling
+            combined.push({
+              ...liveItem,
+              isLiveSearchResult: true
+            });
+          }
+        }
+      });
+      
+      // Filter by search term if provided
       if (!searchTerm.value.trim()) {
-        return inventory.value;
+        return combined;
       }
       
       const term = searchTerm.value.toLowerCase().trim();
-      return inventory.value.filter(item => {
+      return combined.filter(item => {
         const name = (item.name || '').toLowerCase();
         const code = (item.code || '').toLowerCase();
         const color = (item.color || '').toLowerCase();
@@ -762,7 +812,7 @@ export default {
       return props.item;
     });
 
-    // Calculate total quantity
+    // Calculate total quantity - EXACT MATCHING STORE LOGIC
     const totalQuantity = computed(() => {
       const cartons = Number(formData.cartons_count) || 0;
       const perCarton = Number(formData.per_carton_count) || 12;
@@ -831,6 +881,63 @@ export default {
       return map[fieldName] || fieldName;
     };
 
+    // Live Search Functions
+    const performLiveSearch = async (searchTermValue) => {
+      if (!searchTermValue || searchTermValue.trim().length < 2) {
+        liveSearchResults.length = 0 // Clear results
+        isLiveSearching.value = false
+        return
+      }
+      
+      isLiveSearching.value = true
+      
+      try {
+        console.log('🔍 Performing live search in edit modal for:', searchTermValue)
+        
+        // Use the store action to search Firestore directly
+        const searchResults = await store.dispatch('searchItemsForTransactions', {
+          searchTerm: searchTermValue,
+          limitResults: 50
+        })
+        
+        console.log('✅ Live search results in edit modal:', searchResults.length, 'items')
+        
+        // Update live search results
+        liveSearchResults.length = 0 // Clear previous results
+        searchResults.forEach(item => {
+          liveSearchResults.push(item)
+        })
+        
+      } catch (error) {
+        console.error('❌ Error in live search:', error)
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف'
+        })
+      } finally {
+        isLiveSearching.value = false
+      }
+    }
+    
+    // Handle search input with live search
+    const handleSearch = () => {
+      // Clear any existing timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
+      }
+      
+      // Debounce the live search
+      liveSearchTimeout.value = setTimeout(() => {
+        if (searchTerm.value && searchTerm.value.trim().length >= 2) {
+          performLiveSearch(searchTerm.value.trim())
+        } else {
+          // Clear live search results if search term is too short
+          liveSearchResults.length = 0
+          isLiveSearching.value = false
+        }
+      }, 300)
+    }
+
     // Helper functions
     const getStockClass = (quantity) => {
       if (quantity === 0) return 'text-red-600 dark:text-red-400';
@@ -865,6 +972,8 @@ export default {
       selectedWarehouseId.value = '';
       originalItem.value = null;
       showAllItems.value = false;
+      liveSearchResults.length = 0;
+      isLiveSearching.value = false;
     };
 
     const loadItemData = (item) => {
@@ -899,6 +1008,8 @@ export default {
       }
       searchTerm.value = '';
       showAllItems.value = false;
+      liveSearchResults.length = 0;
+      isLiveSearching.value = false;
       
       // When creating new item in a warehouse, reset form with warehouse info
       if (isCreating.value && selectedWarehouseId.value) {
@@ -910,6 +1021,8 @@ export default {
       loadItemData(item);
       searchTerm.value = '';
       showAllItems.value = false;
+      liveSearchResults.length = 0;
+      isLiveSearching.value = false;
     };
 
     const createNewItem = () => {
@@ -1001,86 +1114,95 @@ export default {
     };
 
     const handleSubmit = async () => {
-  if (loading.value || !validateForm()) {
-    console.log('Validation failed. Field errors:', fieldValidation);
-    return;
-  }
-
-  loading.value = true;
-  error.value = '';
-
-  try {
-    if (isCreating.value) {
-      // Add new item using atomic action
-      const result = await store.dispatch('addInventoryItemAtomic', {
-        itemData: {
-          ...formData,
-          cartons_count: Number(formData.cartons_count) || 0,
-          per_carton_count: Number(formData.per_carton_count) || 12,
-          single_bottles_count: Number(formData.single_bottles_count) || 0
-        },
-        userId: store.state.user?.uid
-      });
-
-      if (result && (result.type === 'created' || result.type === 'updated')) {
-        emit('success', {
-          type: 'created',
-          message: `تم ${result.type === 'created' ? 'إضافة' : 'تحديث'} الصنف "${formData.name}" بنجاح`,
-          itemId: result.id
-        });
-        closeModal();
+      if (loading.value || !validateForm()) {
+        console.log('Validation failed. Field errors:', fieldValidation);
+        return;
       }
-    } else {
-      // Prepare update data in the EXACT format the store expects
-      // The store action expects: { itemId: '...', itemData: { ... } }
-      const updateData = {
-        itemId: selectedItem.value.id, // Important: use 'itemId' not 'id'
-        itemData: {
-          // Required fields - ensure they have default values
-          name: formData.name || '',
-          code: formData.code || '',
-          color: formData.color || '',
-          warehouse_id: formData.warehouse_id || '',
-          
-          // Quantity fields - ensure they are numbers
-          cartons_count: Number(formData.cartons_count) || 0,
-          per_carton_count: Number(formData.per_carton_count) || 12,
-          single_bottles_count: Number(formData.single_bottles_count) || 0,
-          
-          // Optional fields - ensure they have default values
-          supplier: formData.supplier || '',
-          item_location: formData.item_location || '',
-          photo_url: formData.photo_url || '',
-          notes: formData.notes || '',
-          
-          // Tracking - preserve from original
-          total_added: originalItem.value?.total_added || 0
+
+      loading.value = true;
+      error.value = '';
+
+      try {
+        if (isCreating.value) {
+          // Add new item - using store-compatible field names
+          const itemData = {
+            name: formData.name,
+            code: formData.code,
+            color: formData.color,
+            warehouse_id: formData.warehouse_id,
+            cartons_count: Number(formData.cartons_count) || 0,
+            per_carton_count: Number(formData.per_carton_count) || 12,
+            single_bottles_count: Number(formData.single_bottles_count) || 0,
+            supplier: formData.supplier || '',
+            item_location: formData.item_location || '',
+            photo_url: formData.photo_url || '',
+            notes: formData.notes || ''
+          };
+
+          console.log('📝 Adding new item with data:', itemData);
+
+          const result = await store.dispatch('addItem', itemData);
+
+          if (result && result.id) {
+            emit('success', {
+              type: 'created',
+              message: `تم إضافة الصنف "${formData.name}" بنجاح`,
+              itemId: result.id
+            });
+            closeModal();
+          }
+        } else {
+          // Prepare update data in EXACT format the store expects
+          const updateData = {
+            itemId: selectedItem.value.id,
+            itemData: {
+              // Required fields
+              name: formData.name,
+              code: formData.code,
+              color: formData.color,
+              warehouse_id: formData.warehouse_id,
+              
+              // Quantity fields
+              cartons_count: Number(formData.cartons_count) || 0,
+              per_carton_count: Number(formData.per_carton_count) || 12,
+              single_bottles_count: Number(formData.single_bottles_count) || 0,
+              
+              // Optional fields
+              supplier: formData.supplier || '',
+              item_location: formData.item_location || '',
+              photo_url: formData.photo_url || '',
+              notes: formData.notes || '',
+              
+              // Store calculates these automatically when updating
+              total_added: (Number(formData.cartons_count) || 0) * (Number(formData.per_carton_count) || 12) + (Number(formData.single_bottles_count) || 0),
+              remaining_quantity: (Number(formData.cartons_count) || 0) * (Number(formData.per_carton_count) || 12) + (Number(formData.single_bottles_count) || 0)
+            }
+          };
+
+          console.log('📝 Updating item with data:', updateData);
+
+          const result = await store.dispatch('updateItem', updateData);
+
+          if (result && result.id) {
+            emit('success', {
+              type: 'updated',
+              message: `تم تحديث الصنف "${formData.name}" بنجاح`,
+              changedFields: changedFields.value,
+              itemId: selectedItem.value.id
+            });
+            closeModal();
+          } else {
+            error.value = 'حدث خطأ أثناء تحديث الصنف';
+          }
         }
-      };
-
-      console.log('Updating item with data:', JSON.stringify(updateData, null, 2));
-
-      const result = await store.dispatch('updateItem', updateData);
-
-      if (result && result.success) {
-        emit('success', {
-          type: 'updated',
-          message: `تم تحديث الصنف "${formData.name}" بنجاح`,
-          changedFields: changedFields.value,
-          itemId: selectedItem.value.id
-        });
-        closeModal();
-      } else {
-        error.value = result?.error || 'حدث خطأ أثناء تحديث الصنف';
+      } catch (err) {
+        console.error('Error saving item:', err);
+        error.value = err.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
+      } finally {
+        loading.value = false;
       }
-    }
-  } catch (err) {
-    console.error('Error saving item:', err);
-    error.value = err.message || 'حدث خطأ غير متوقع أثناء حفظ الصنف';
-  } finally {
-    loading.value = false;
-  }
-};
+    };
+
     const confirmDelete = () => {
       if (!selectedItem.value?.id || !canDelete.value) return;
 
@@ -1107,10 +1229,25 @@ export default {
       }
     });
 
+    // Watch search term changes to clear live search results when cleared
+    watch(searchTerm, (newValue) => {
+      if (!newValue || newValue.trim().length < 2) {
+        liveSearchResults.length = 0;
+        isLiveSearching.value = false;
+      }
+    });
+
     // Initialize warehouses if not loaded
     onMounted(() => {
       if (store.state.warehouses.length === 0) {
         store.dispatch('loadWarehouses');
+      }
+    });
+
+    // Cleanup on unmount
+    onUnmounted(() => {
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value);
       }
     });
 
@@ -1125,13 +1262,17 @@ export default {
       originalItem,
       fieldValidation,
       
+      // Live Search State
+      isLiveSearching,
+      liveSearchResults,
+      
       // Computed
       isCreating,
       canDelete,
       userCanEdit,
       accessibleWarehouses,
       selectedWarehouse,
-      filteredItems,
+      combinedItems,
       selectedItem,
       totalQuantity,
       originalTotalQuantity,
@@ -1150,7 +1291,8 @@ export default {
       handleImageError,
       isFieldChanged,
       onWarehouseChange,
-      clearFieldError
+      clearFieldError,
+      handleSearch
     };
   }
 };
@@ -1197,6 +1339,20 @@ export default {
   animation: spin 1s linear infinite;
 }
 
+/* Live search indicator animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Gradient button hover effect */
 .bg-gradient-to-r {
   background-size: 200% 200%;
@@ -1227,5 +1383,29 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rtl {
+  direction: rtl;
+}
+
+.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* Ensure consistent heights */
+.max-h-\[90vh\] {
+  max-height: 90vh;
+}
+
+/* Remove number input arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 </style>
