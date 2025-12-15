@@ -852,7 +852,8 @@ export default createStore({
             is_active: false,
             profile_complete: false,
             needs_approval: true,
-            created_at: new Date()
+            created_at: new Date(),
+            created_by: 'system'
           };
 
           await setDoc(doc(db, 'users', user.uid), tempProfile);
@@ -967,7 +968,7 @@ export default createStore({
         console.log('🔄 Loading warehouses...');
 
         const warehousesRef = collection(db, 'warehouses');
-        const q = query(warehousesRef, where('is_active', '==', true));
+        const q = query(warehousesRef);
         const snapshot = await getDocs(q);
 
         const warehouses = snapshot.docs.map(doc => ({
@@ -1108,7 +1109,9 @@ export default createStore({
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
           total_added: itemData.cartons_count * itemData.per_carton_count + itemData.single_bottles_count,
-          remaining_quantity: itemData.cartons_count * itemData.per_carton_count + itemData.single_bottles_count
+          remaining_quantity: itemData.cartons_count * itemData.per_carton_count + itemData.single_bottles_count,
+          created_by: state.userProfile?.name || state.user?.email,
+          updated_by: state.userProfile?.name || state.user?.email
         };
 
         const docRef = await addDoc(collection(db, 'items'), itemToAdd);
@@ -1178,7 +1181,8 @@ export default createStore({
         
         const updateData = {
           ...itemData,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         };
 
         if (itemData.cartons_count !== undefined && itemData.per_carton_count !== undefined && itemData.single_bottles_count !== undefined) {
@@ -1197,6 +1201,21 @@ export default createStore({
 
         const convertedItem = InventoryService.convertForDisplay(updatedItem);
         commit('UPDATE_ITEM', convertedItem);
+
+        await dispatch('addTransaction', {
+          type: TRANSACTION_TYPES.UPDATE,
+          item_id: itemId,
+          item_name: itemData.name || oldData.name,
+          item_code: itemData.code || oldData.code,
+          warehouse_id: itemData.warehouse_id || oldData.warehouse_id,
+          cartons_count: itemData.cartons_count || oldData.cartons_count,
+          per_carton_count: itemData.per_carton_count || oldData.per_carton_count,
+          single_bottles_count: itemData.single_bottles_count || oldData.single_bottles_count,
+          total_quantity: updatedItem.total_added || oldData.total_added,
+          remaining_quantity: updatedItem.remaining_quantity || oldData.remaining_quantity,
+          notes: itemData.notes || 'تحديث بيانات',
+          created_by: state.userProfile?.name || state.user?.email
+        });
 
         dispatch('showNotification', {
           type: 'success',
@@ -1354,7 +1373,8 @@ export default createStore({
 
         const updateData = {
           warehouse_id: transferData.to_warehouse_id,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         };
 
         await updateDoc(itemRef, updateData);
@@ -1436,7 +1456,8 @@ export default createStore({
         const newQuantity = currentQuantity - dispatchQuantity;
         const updateData = {
           remaining_quantity: newQuantity,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         };
 
         await updateDoc(itemRef, updateData);
@@ -1531,7 +1552,8 @@ export default createStore({
         const userRef = doc(db, 'users', userId);
         await updateDoc(userRef, {
           ...userData,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         });
 
         dispatch('showNotification', {
@@ -1567,7 +1589,8 @@ export default createStore({
           ...warehouseData,
           is_active: true,
           created_at: serverTimestamp(),
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          created_by: state.userProfile?.name || state.user?.email
         };
 
         const docRef = await addDoc(collection(db, 'warehouses'), warehouseToAdd);
@@ -1611,7 +1634,8 @@ export default createStore({
         const warehouseRef = doc(db, 'warehouses', warehouseId);
         await updateDoc(warehouseRef, {
           ...warehouseData,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         });
 
         const updatedWarehouse = {
@@ -1654,7 +1678,8 @@ export default createStore({
         const warehouseRef = doc(db, 'warehouses', warehouseId);
         await updateDoc(warehouseRef, {
           is_active: false,
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          updated_by: state.userProfile?.name || state.user?.email
         });
 
         commit('REMOVE_WAREHOUSE', warehouseId);
@@ -1691,7 +1716,8 @@ export default createStore({
           message: `المستخدم ${userEmail} يحتاج الموافقة على حسابه`,
           data: { userId, userEmail },
           created_at: serverTimestamp(),
-          read: false
+          read: false,
+          created_by: 'system'
         }));
 
         const batch = writeBatch(db);
@@ -1795,25 +1821,25 @@ export default createStore({
 
       const role = getters.userRole;
       if (role === 'superadmin') {
-        return warehouses;
+        return warehouses.filter(w => w.is_active !== false);
       }
 
       if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
         if (allowedWarehouses.length > 0) {
           if (allowedWarehouses.includes('all')) {
-            return warehouses;
+            return warehouses.filter(w => w.is_active !== false);
           }
           const accessiblePrimary = warehouses.filter(w => 
-            w.type === 'primary' && allowedWarehouses.includes(w.id)
+            w.type === 'primary' && allowedWarehouses.includes(w.id) && w.is_active !== false
           );
-          const accessibleDispatch = warehouses.filter(w => w.type === 'dispatch');
+          const accessibleDispatch = warehouses.filter(w => w.type === 'dispatch' && w.is_active !== false);
           return [...accessiblePrimary, ...accessibleDispatch];
         }
       }
 
       if (role === 'company_manager') {
-        return warehouses;
+        return warehouses.filter(w => w.is_active !== false);
       }
 
       return [];
@@ -1832,17 +1858,17 @@ export default createStore({
 
       const role = getters.userRole;
       if (role === 'superadmin') {
-        return warehouses.filter(w => w.type === 'primary');
+        return warehouses.filter(w => w.type === 'primary' && w.is_active !== false);
       }
 
       if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
         if (allowedWarehouses.length > 0) {
           if (allowedWarehouses.includes('all')) {
-            return warehouses.filter(w => w.type === 'primary');
+            return warehouses.filter(w => w.type === 'primary' && w.is_active !== false);
           }
           return warehouses.filter(w => 
-            w.type === 'primary' && allowedWarehouses.includes(w.id)
+            w.type === 'primary' && allowedWarehouses.includes(w.id) && w.is_active !== false
           );
         }
       }
@@ -1931,6 +1957,12 @@ export default createStore({
     getWarehouseById: (state) => (warehouseId) => {
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       return warehouses.find(w => w.id === warehouseId) || null;
+    },
+    // New getter to get user name by ID
+    getUserNameById: (state) => (userId) => {
+      const allUsers = Array.isArray(state.allUsers) ? state.allUsers : [];
+      const user = allUsers.find(u => u.id === userId);
+      return user ? user.name : userId;
     }
   }
 });
