@@ -59,6 +59,11 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
+            
+            <!-- Live Search Indicator -->
+            <div v-if="isLiveSearching" class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <div class="w-2 h-2 animate-pulse rounded-full bg-blue-500"></div>
+            </div>
           </div>
 
           <!-- Search Results Dropdown -->
@@ -72,8 +77,12 @@
                   {{ searchResults.length }} نتيجة
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  في {{ searchType === 'items' ? 'الأصناف' : 'الحركات' }}
+                  {{ searchType === 'items' ? 'أصناف' : 'حركات' }}
                 </span>
+                <div v-if="isLiveSearching" class="flex items-center gap-1">
+                  <div class="w-1.5 h-1.5 animate-pulse rounded-full bg-blue-500"></div>
+                  <span class="text-xs text-blue-600 dark:text-blue-400">بحث حي</span>
+                </div>
               </div>
             </div>
 
@@ -111,30 +120,42 @@
                   :key="item.id"
                   :to="`/inventory/item/${item.id}`"
                   @click="clearSearch"
-                  class="flex items-center px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                  class="flex items-center px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0 group"
+                  :class="{'bg-green-50/30 dark:bg-green-900/10': item.isLiveSearchResult}"
                 >
                   <div class="flex-shrink-0">
-                    <div class="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+                    <div class="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center relative">
                       <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                       </svg>
+                      <!-- Live Search Badge -->
+                      <div v-if="item.isLiveSearchResult" class="absolute -top-1 -right-1">
+                        <span class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded-full w-4 h-4 flex items-center justify-center">
+                          <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                          </svg>
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div class="mr-3 flex-1 min-w-0">
                     <div class="flex items-center justify-between mb-0.5">
-                      <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
                         {{ item.name }}
                       </h4>
-                      <span class="text-xs font-bold text-yellow-600 dark:text-yellow-400 ml-1">
+                      <span class="text-xs font-bold" :class="getQuantityClass(item.remaining_quantity || 0)">
                         {{ item.remaining_quantity || 0 }}
                       </span>
                     </div>
                     <div class="flex flex-wrap items-center text-xs text-gray-500 dark:text-gray-400 gap-x-2">
-                      <span>{{ item.code }}</span>
+                      <span class="font-mono bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ item.code }}</span>
                       <span>•</span>
-                      <span>{{ item.color }}</span>
+                      <span>{{ item.color || 'بدون لون' }}</span>
                       <span>•</span>
                       <span>{{ getWarehouseLabel(item.warehouse_id) }}</span>
+                    </div>
+                    <div v-if="item.supplier" class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                      <span class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">المورد: {{ item.supplier }}</span>
                     </div>
                   </div>
                 </router-link>
@@ -168,14 +189,18 @@
                         {{ transaction.item_name }}
                       </h4>
                       <span class="text-xs font-bold" :class="transaction.type === 'ADD' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'">
-                        {{ transaction.type === 'ADD' ? '+' : '' }}{{ transaction.total_delta || 0 }}
+                        {{ transaction.type === 'ADD' ? '+' : '' }}{{ transaction.total_quantity || 0 }}
                       </span>
                     </div>
                     <div class="flex flex-wrap items-center text-xs text-gray-500 dark:text-gray-400 gap-x-2">
-                      <span>{{ formatTime(transaction.timestamp) }}</span>
+                      <span>{{ formatTime(transaction.created_at) }}</span>
                       <span>•</span>
                       <span v-if="transaction.from_warehouse">من {{ getWarehouseLabel(transaction.from_warehouse) }}</span>
                       <span v-if="transaction.to_warehouse">إلى {{ getWarehouseLabel(transaction.to_warehouse) }}</span>
+                      <span v-if="transaction.destination">إلى {{ getDestinationLabel(transaction.destination) }}</span>
+                    </div>
+                    <div v-if="transaction.created_by" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">بواسطة: {{ getShortName(transaction.created_by) }}</span>
                     </div>
                   </div>
                 </router-link>
@@ -205,7 +230,7 @@
 
           <!-- No Results Found -->
           <div 
-            v-if="showSearchResults && searchQuery && searchResults.length === 0"
+            v-if="showSearchResults && searchQuery && searchResults.length === 0 && !isLiveSearching"
             class="absolute left-0 mt-1 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"
           >
             <div class="p-4 text-center">
@@ -216,11 +241,18 @@
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 جرب البحث بـ "{{ searchQuery }}"
               </p>
+              <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                <p>جرب البحث عن:</p>
+                <p class="mt-1">• اسم الصنف أو الكود</p>
+                <p>• اللون أو المورد</p>
+                <p>• اسم المخزن أو المكان</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Dark Mode -->
+        <!-- Rest of your header code remains the same -->
+        <!-- Dark Mode Button -->
         <button 
           @click="toggleDarkMode"
           class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm"
@@ -323,8 +355,10 @@ export default {
     const searchInput = ref(null)
     const searchQuery = ref('')
     const showSearchResults = ref(false)
-    const searchType = ref('items') // 'items' or 'transactions'
+    const searchType = ref('items')
     const searchDebounceTimer = ref(null)
+    const isLiveSearching = ref(false)
+    const liveSearchTimeout = ref(null)
     
     // Computed properties
     const notifications = computed(() => store.state.notifications || [])
@@ -333,7 +367,7 @@ export default {
     const userRole = computed(() => store.getters.userRole)
     const allInventory = computed(() => store.state.inventory || [])
     const allTransactions = computed(() => store.state.transactions || [])
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || [])
+    const allWarehouses = computed(() => store.state.warehouses || [])
     
     const realNotificationCount = computed(() => notifications.value.length)
     const currentWarehouseName = computed(() => {
@@ -376,14 +410,96 @@ export default {
       return names[userRole.value] || 'مستخدم'
     })
     
+    // Color mapping for quantity display
+    const getQuantityClass = (quantity) => {
+      if (quantity === 0) return 'text-red-600 dark:text-red-400'
+      if (quantity < 10) return 'text-orange-600 dark:text-orange-400'
+      return 'text-green-600 dark:text-green-400'
+    }
+    
+    // Get short name for display
+    const getShortName = (fullName) => {
+      if (!fullName) return ''
+      if (fullName.length > 20) {
+        return fullName.substring(0, 20) + '...'
+      }
+      return fullName
+    }
+    
+    // Get destination label
+    const getDestinationLabel = (destinationId) => {
+      return store.getters.getDestinationLabel(destinationId) || destinationId
+    }
+    
+    // Perform live search from Firestore (EXACTLY LIKE INVENTORY)
+    const performLiveSearch = async () => {
+      if (!searchQuery.value || searchQuery.value.trim().length < 2) {
+        return []
+      }
+      
+      isLiveSearching.value = true
+      
+      try {
+        console.log('🔍 Header live search for:', searchQuery.value.trim())
+        
+        let searchResults = []
+        
+        if (searchType.value === 'items') {
+          // Use the SAME store action as inventory page
+          searchResults = await store.dispatch('searchItemsForTransactions', {
+            searchTerm: searchQuery.value.trim(),
+            limitResults: 50
+          })
+          
+          console.log('✅ Header live search results:', searchResults.length, 'items')
+          
+          // Mark live search results
+          searchResults = searchResults.map(item => ({
+            ...item,
+            isLiveSearchResult: true
+          }))
+          
+        } else {
+          // For transactions, search in loaded transactions
+          const term = searchQuery.value.toLowerCase().trim()
+          searchResults = allTransactions.value.filter(transaction => {
+            if (!transaction) return false
+            
+            const matchesItemName = (transaction.item_name || '').toLowerCase().includes(term)
+            const matchesItemCode = (transaction.item_code || '').toLowerCase().includes(term)
+            const matchesNotes = (transaction.notes || '').toLowerCase().includes(term)
+            const matchesUserName = (transaction.created_by || '').toLowerCase().includes(term)
+            
+            // Check warehouse names
+            const fromWarehouseLabel = store.getters.getWarehouseLabel(transaction.from_warehouse)
+            const toWarehouseLabel = store.getters.getWarehouseLabel(transaction.to_warehouse)
+            const matchesFromWarehouse = (fromWarehouseLabel || '').toLowerCase().includes(term)
+            const matchesToWarehouse = (toWarehouseLabel || '').toLowerCase().includes(term)
+            
+            return matchesItemName || matchesItemCode || matchesNotes || matchesUserName || matchesFromWarehouse || matchesToWarehouse
+          })
+        }
+        
+        return searchResults
+        
+      } catch (error) {
+        console.error('❌ Error in header live search:', error)
+        return []
+      } finally {
+        isLiveSearching.value = false
+      }
+    }
+    
     // Search results computed property
     const searchResults = computed(() => {
       if (!searchQuery.value.trim()) return []
       
       const query = searchQuery.value.toLowerCase().trim()
+      let results = []
       
       if (searchType.value === 'items') {
-        return allInventory.value.filter(item => {
+        // First, check local inventory
+        results = allInventory.value.filter(item => {
           if (!item) return false
           
           // Check if item matches search query in multiple fields
@@ -399,14 +515,23 @@ export default {
           
           return matchesName || matchesCode || matchesColor || matchesSupplier || matchesLocation || matchesWarehouse
         })
+        
+        // Add live search results (without duplicates)
+        if (liveSearchResults.value.length > 0) {
+          const localIds = new Set(results.map(item => item.id))
+          const uniqueLiveResults = liveSearchResults.value.filter(item => !localIds.has(item.id))
+          results = [...results, ...uniqueLiveResults]
+        }
+        
       } else {
-        return allTransactions.value.filter(transaction => {
+        // Search in transactions
+        results = allTransactions.value.filter(transaction => {
           if (!transaction) return false
           
           const matchesItemName = (transaction.item_name || '').toLowerCase().includes(query)
           const matchesItemCode = (transaction.item_code || '').toLowerCase().includes(query)
           const matchesNotes = (transaction.notes || '').toLowerCase().includes(query)
-          const matchesUserName = (transaction.user_name || '').toLowerCase().includes(query)
+          const matchesUserName = (transaction.created_by || '').toLowerCase().includes(query)
           
           // Check warehouse names
           const fromWarehouseLabel = store.getters.getWarehouseLabel(transaction.from_warehouse)
@@ -417,7 +542,12 @@ export default {
           return matchesItemName || matchesItemCode || matchesNotes || matchesUserName || matchesFromWarehouse || matchesToWarehouse
         })
       }
+      
+      return results
     })
+    
+    // Live search results ref
+    const liveSearchResults = ref([])
     
     // Methods
     const getUserInitials = () => {
@@ -428,7 +558,8 @@ export default {
     
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return ''
-      return store.getters.getWarehouseLabel(warehouseId) || warehouseId
+      const warehouse = allWarehouses.value.find(w => w.id === warehouseId)
+      return warehouse ? warehouse.name_ar : warehouseId
     }
     
     const formatTime = (timestamp) => {
@@ -490,30 +621,39 @@ export default {
       profileMenuOpen.value = false
     }
     
-    // Search functionality - Custom debounce implementation
+    // Search functionality - EXACTLY LIKE INVENTORY PAGE
     const handleSearchInput = () => {
       // Clear any existing timer
-      if (searchDebounceTimer.value) {
-        clearTimeout(searchDebounceTimer.value)
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
       }
       
-      // Set a new timer
-      searchDebounceTimer.value = setTimeout(() => {
-        if (searchQuery.value.trim()) {
-          showSearchResults.value = true
+      // Show search results if we have a query
+      if (searchQuery.value.trim()) {
+        showSearchResults.value = true
+      }
+      
+      // Debounce live search (500ms like inventory)
+      liveSearchTimeout.value = setTimeout(async () => {
+        if (searchQuery.value && searchQuery.value.trim().length >= 2) {
+          const results = await performLiveSearch()
+          liveSearchResults.value = results
         } else {
-          showSearchResults.value = false
+          liveSearchResults.value = []
         }
-      }, 300) // 300ms debounce delay
+      }, 500)
     }
     
     const clearSearch = () => {
       searchQuery.value = ''
       showSearchResults.value = false
-      // Clear any pending debounce timer
-      if (searchDebounceTimer.value) {
-        clearTimeout(searchDebounceTimer.value)
-        searchDebounceTimer.value = null
+      liveSearchResults.value = []
+      isLiveSearching.value = false
+      
+      // Clear any pending timeout
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
+        liveSearchTimeout.value = null
       }
     }
     
@@ -576,8 +716,16 @@ export default {
       clearSearch()
     })
     
-    // Clean up timer on unmount
+    // Watch search type to clear live search results
+    watch(() => searchType.value, () => {
+      liveSearchResults.value = []
+    })
+    
+    // Clean up on unmount
     onUnmounted(() => {
+      if (liveSearchTimeout.value) {
+        clearTimeout(liveSearchTimeout.value)
+      }
       if (searchDebounceTimer.value) {
         clearTimeout(searchDebounceTimer.value)
       }
@@ -601,6 +749,7 @@ export default {
       showSearchResults,
       searchType,
       searchResults,
+      isLiveSearching,
       
       // Computed
       pageTitle,
@@ -613,6 +762,7 @@ export default {
       // Methods
       getUserInitials,
       getWarehouseLabel,
+      getDestinationLabel,
       formatTime,
       toggleDarkMode,
       showNotifications,
@@ -621,7 +771,9 @@ export default {
       closeProfileMenu,
       handleSearchInput,
       clearSearch,
-      onSearchBlur
+      onSearchBlur,
+      getQuantityClass,
+      getShortName
     }
   }
 }
@@ -670,5 +822,28 @@ export default {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Live search badge animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Enhanced hover effects */
+.group:hover .group-hover\:text-blue-600 {
+  color: #2563eb;
+}
+
+.dark .group:hover .group-hover\:text-blue-400 {
+  color: #60a5fa;
 }
 </style>
