@@ -171,7 +171,27 @@ export default createStore({
         state.inventory.splice(index, 1, updatedItem);
       } else {
         // If item not in current view, add it (will be sorted by createdAt)
-        const ADD_ITEM(state, updatedItem);
+        // Call ADD_ITEM mutation recursively
+        const addItem = (state, item) => {
+          if (item && typeof item === 'object') {
+            const itemDate = item.createdAt || item.created_at || new Date();
+            const insertIndex = state.inventory.findIndex(existingItem => {
+              const existingDate = existingItem.createdAt || existingItem.created_at || 0;
+              return new Date(existingDate) < new Date(itemDate);
+            });
+            
+            if (insertIndex === -1) {
+              state.inventory.push(item);
+            } else {
+              state.inventory.splice(insertIndex, 0, item);
+            }
+            
+            if (state.inventory.length > PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE) {
+              state.inventory = state.inventory.slice(0, PERFORMANCE_CONFIG.INVENTORY_PAGE_SIZE);
+            }
+          }
+        };
+        addItem(state, updatedItem);
       }
     },
     REMOVE_ITEM(state, itemId) {
