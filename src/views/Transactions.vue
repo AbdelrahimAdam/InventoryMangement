@@ -1,18 +1,50 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Live Update Indicator -->
-      <div v-if="showLiveUpdate" class="mb-4">
-        <div class="flex items-center justify-center animate-pulse">
-          <div class="flex items-center px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-medium">
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-ping mr-2"></div>
-            <span>Live Update Applied</span>
-            <button @click="showLiveUpdate = false" class="mr-2 text-green-600 hover:text-green-800">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
+      <!-- Header Section -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">📊 سجل حركات المخزون</h1>
+          <p class="text-gray-600 dark:text-gray-400">تتبع كامل لتاريخ جميع الحركات في نظام المخزون</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <!-- Live Update Toggle -->
+          <button 
+            @click="toggleLiveUpdates"
+            :class="[
+              'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+              liveUpdatesEnabled 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/40' 
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            ]"
+          >
+            <div :class="['w-2 h-2 rounded-full mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
+            {{ liveUpdatesEnabled ? 'تحديث مباشر مفعل' : 'تفعيل التحديث المباشر' }}
+          </button>
+          
+          <!-- Refresh Button -->
+          <button 
+            @click="manualRefresh"
+            :disabled="loading"
+            class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors duration-200 disabled:opacity-50"
+          >
+            <svg :class="['w-4 h-4 mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            تحديث
+          </button>
+          
+          <!-- Export Button -->
+          <button 
+            v-if="canExport"
+            @click="exportTransactions"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            تصدير Excel
+          </button>
         </div>
       </div>
 
@@ -27,7 +59,7 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Transactions</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الحركات</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.total) }}</p>
             </div>
           </div>
@@ -35,7 +67,7 @@
             <svg v-if="statsLoading" class="w-3 h-3 animate-spin mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {{ liveStats.updated ? 'Live Update' : 'Cached Data' }}
+            {{ liveStats.updated ? 'بيانات مباشرة' : 'بيانات مخزنة' }}
           </div>
         </div>
 
@@ -48,12 +80,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Additions</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الإضافات اليوم</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.add) }}</p>
             </div>
           </div>
           <div class="mt-1 text-xs text-green-600 dark:text-green-400">
-            +{{ transactionStats.add }} today
+            +{{ transactionStats.add }} اليوم
           </div>
         </div>
 
@@ -66,12 +98,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Transfers</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">التحويلات اليوم</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.transfer) }}</p>
             </div>
           </div>
           <div class="mt-1 text-xs text-purple-600 dark:text-purple-400">
-            +{{ transactionStats.transfer }} today
+            +{{ transactionStats.transfer }} اليوم
           </div>
         </div>
 
@@ -84,12 +116,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Dispatches</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الصرفيات اليوم</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.dispatch) }}</p>
             </div>
           </div>
           <div class="mt-1 text-xs text-red-600 dark:text-red-400">
-            +{{ transactionStats.dispatch }} today
+            +{{ transactionStats.dispatch }} اليوم
           </div>
         </div>
       </div>
@@ -104,7 +136,7 @@
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                Advanced Search
+                بحث متقدم
               </span>
             </label>
             <div class="relative">
@@ -112,7 +144,7 @@
                 type="text"
                 v-model="searchTerm"
                 @input="handleSearch"
-                placeholder="Search by item name, code, notes..."
+                placeholder="ابحث باسم المنتج، الكود، الملاحظات..."
                 class="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200"
               >
               <svg class="absolute right-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,7 +160,7 @@
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
-                Date Range
+                نطاق التاريخ
               </span>
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -138,7 +170,7 @@
                   v-model="dateFrom"
                   class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">From</label>
+                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">من</label>
               </div>
               <div class="relative">
                 <input 
@@ -146,63 +178,43 @@
                   v-model="dateTo"
                   class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">To</label>
+                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">إلى</label>
               </div>
             </div>
           </div>
 
-          <!-- Type Filter and Export -->
+          <!-- Type Filter -->
           <div class="lg:w-1/3">
-            <div class="flex flex-col sm:flex-row gap-3">
-              <!-- Type Filter -->
-              <div class="flex-1">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  <span class="inline-flex items-center">
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                    Transaction Type
-                  </span>
-                </label>
-                <select 
-                  v-model="typeFilter"
-                  @change="handleFilter"
-                  class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Types</option>
-                  <option value="ADD">Addition</option>
-                  <option value="TRANSFER">Transfer</option>
-                  <option value="DISPATCH">Dispatch</option>
-                  <option value="UPDATE">Update</option>
-                  <option value="DELETE">Delete</option>
-                </select>
-              </div>
-
-              <!-- Export Button -->
-              <div class="flex-1">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 opacity-0">Export</label>
-                <button 
-                  v-if="canExport"
-                  @click="exportTransactions"
-                  class="w-full h-full inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                >
-                  <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                  </svg>
-                  Export Excel
-                </button>
-              </div>
-            </div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              <span class="inline-flex items-center">
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                نوع الحركة
+              </span>
+            </label>
+            <select 
+              v-model="typeFilter"
+              @change="handleFilter"
+              class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">جميع الأنواع</option>
+              <option value="ADD">إضافة</option>
+              <option value="TRANSFER">تحويل</option>
+              <option value="DISPATCH">صرف</option>
+              <option value="UPDATE">تحديث</option>
+              <option value="DELETE">حذف</option>
+            </select>
           </div>
         </div>
 
         <!-- Active Filters Badges -->
         <div v-if="hasActiveFilters" class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Filters:</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">الفلاتر النشطة:</span>
             
             <span v-if="searchTerm" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-              Search: "{{ searchTerm }}"
+              بحث: "{{ searchTerm }}"
               <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -211,7 +223,7 @@
             </span>
             
             <span v-if="typeFilter" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
-              Type: {{ getTypeLabel(typeFilter) }}
+              نوع: {{ getTypeLabel(typeFilter) }}
               <button @click="typeFilter = ''" class="mr-1 hover:text-purple-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -220,7 +232,7 @@
             </span>
             
             <span v-if="dateFrom || dateTo" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
-              Date: {{ formatDateRange(dateFrom, dateTo) }}
+              تاريخ: {{ formatDateRange(dateFrom, dateTo) }}
               <button @click="dateFrom = ''; dateTo = ''" class="mr-1 hover:text-yellow-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -236,90 +248,185 @@
               <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              Reset
+              إعادة تعيين
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Transaction History Component -->
+      <!-- Transaction Table Container -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- Table Header -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transaction History</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">View and track all inventory operations</p>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">سجل الحركات</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">عرض وتتبع جميع عمليات المخزون</p>
             </div>
             <div class="flex items-center gap-3">
-              <!-- Live Update Toggle -->
-              <button 
-                @click="toggleLiveUpdates"
-                :class="[
-                  'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200',
-                  liveUpdatesEnabled 
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/40' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                ]"
-              >
-                <div :class="['w-2 h-2 rounded-full mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
-                {{ liveUpdatesEnabled ? 'Live Updates Active' : 'Enable Live Updates' }}
-              </button>
-              
-              <!-- Refresh Button -->
-              <button 
-                @click="manualRefresh"
-                :disabled="loading"
-                class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors duration-200 disabled:opacity-50"
-              >
-                <svg :class="['w-3 h-3 mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                Manual Refresh
-              </button>
-              
-              <!-- Stats Badge -->
               <span class="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium">
-                {{ formatNumber(filteredTransactions.length) }} transactions
+                {{ formatNumber(filteredTransactions.length) }} حركة
               </span>
-              
               <div class="text-sm text-gray-500 dark:text-gray-400">
-                Filtered: {{ filterPercentage }}%
+                تم التصفية: {{ filterPercentage }}%
               </div>
             </div>
           </div>
         </div>
-        
+
         <!-- Loading State -->
         <div v-if="loading" class="p-8 text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p class="text-gray-700 dark:text-gray-300 font-medium">Loading data...</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Please wait</p>
+          <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل البيانات...</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
         </div>
 
-        <!-- Transaction History Component -->
-        <TransactionHistory 
-          v-else
-          :transactions="displayedTransactions"
-          :loading="false"
-          :can-export="canExport"
-          @refresh="manualRefresh"
-        />
+        <!-- Transactions Table -->
+        <div v-else class="overflow-x-auto">
+          <!-- Fixed Table Headers -->
+          <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <div class="col-span-2">التاريخ والوقت</div>
+              <div class="col-span-2">نوع الحركة</div>
+              <div class="col-span-2">المنتج</div>
+              <div class="col-span-1">الكمية</div>
+              <div class="col-span-2">من/إلى مستودع</div>
+              <div class="col-span-2">المستخدم</div>
+              <div class="col-span-1">الملاحظات</div>
+            </div>
+          </div>
+          
+          <!-- Scrollable Table Body -->
+          <div class="max-h-[500px] overflow-y-auto">
+            <div v-if="displayedTransactions.length === 0" class="p-8 text-center">
+              <div class="text-gray-400 dark:text-gray-500 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <p class="text-gray-600 dark:text-gray-400 font-medium">لا توجد حركات</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على أي حركات مطابقة للفلاتر</p>
+            </div>
+            
+            <div v-else>
+              <div 
+                v-for="(transaction, index) in displayedTransactions" 
+                :key="transaction.id || index"
+                class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors duration-150"
+              >
+                <!-- Date & Time -->
+                <div class="col-span-2">
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ formatTransactionDate(transaction) }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ formatTransactionTime(transaction) }}
+                  </div>
+                </div>
+                
+                <!-- Transaction Type -->
+                <div class="col-span-2">
+                  <span :class="getTypeBadgeClass(transaction.type)">
+                    {{ getTypeLabel(transaction.type) }}
+                  </span>
+                </div>
+                
+                <!-- Product -->
+                <div class="col-span-2">
+                  <div class="font-medium text-gray-900 dark:text-white">
+                    {{ transaction.item_name || 'غير محدد' }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ transaction.item_code || 'لا يوجد كود' }}
+                  </div>
+                </div>
+                
+                <!-- Quantity -->
+                <div class="col-span-1">
+                  <span :class="getQuantityClass(transaction.type)">
+                    {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
+                  </span>
+                </div>
+                
+                <!-- Warehouses -->
+                <div class="col-span-2">
+                  <div v-if="transaction.type === 'TRANSFER'" class="space-y-1">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">من:</div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">إلى:</div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
+                    </div>
+                  </div>
+                  <div v-else-if="transaction.type === 'DISPATCH'">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                    </div>
+                  </div>
+                  <div v-else>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- User -->
+                <div class="col-span-2">
+                  <div class="font-medium text-gray-900 dark:text-white">
+                    {{ transaction.user_name || 'مستخدم غير معروف' }}
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ getUserRoleLabel(transaction.user_role) }}
+                  </div>
+                </div>
+                
+                <!-- Notes -->
+                <div class="col-span-1">
+                  <div v-if="transaction.notes" class="relative group">
+                    <button 
+                      @click="showNotes(transaction)"
+                      class="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      عرض
+                    </button>
+                  </div>
+                  <span v-else class="text-xs text-gray-400">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
+
+    <!-- Notes Modal -->
+    <div v-if="selectedNotes" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الملاحظات</h3>
+          <button @click="selectedNotes = null" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="px-6 py-4">
+          <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ selectedNotes }}</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import TransactionHistory from '@/components/transactions/TransactionHistory.vue';
 
 export default {
   name: 'Transactions',
-  components: {
-    TransactionHistory
-  },
   setup() {
     const store = useStore();
     
@@ -328,9 +435,9 @@ export default {
     const dateFrom = ref('');
     const dateTo = ref('');
     const typeFilter = ref('');
-    const showLiveUpdate = ref(false);
     const liveUpdatesEnabled = ref(true);
     const statsLoading = ref(false);
+    const selectedNotes = ref(null);
 
     // 🔥 Use store getters for warehouse labels and stats
     const userRole = computed(() => store.getters.userRole);
@@ -340,12 +447,11 @@ export default {
     
     // 🔥 Use store data
     const allTransactions = computed(() => store.state.transactions || []);
-    const recentTransactions = computed(() => store.state.recentTransactions || []);
     const loading = computed(() => store.state.transactionsLoading);
-    const warehouses = computed(() => store.state.warehouses || []);
     
     // 🔥 Use the new store getter for warehouse label
     const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return 'غير محدد';
       return store.getters.getWarehouseLabel(warehouseId);
     };
     
@@ -441,35 +547,74 @@ export default {
     // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
-      return new Intl.NumberFormat('en-US').format(num);
+      return new Intl.NumberFormat('ar-SA').format(num);
     };
     
     const getTypeLabel = (type) => {
       const labels = {
-        'ADD': 'Addition',
-        'TRANSFER': 'Transfer',
-        'DISPATCH': 'Dispatch',
-        'UPDATE': 'Update',
-        'DELETE': 'Delete'
+        'ADD': 'إضافة',
+        'TRANSFER': 'تحويل',
+        'DISPATCH': 'صرف',
+        'UPDATE': 'تحديث',
+        'DELETE': 'حذف'
       };
       return labels[type] || type;
     };
     
-    const formatDateRange = (from, to) => {
-      if (!from && !to) return '';
-      if (from && to) {
-        return `${formatShortDate(from)} - ${formatShortDate(to)}`;
-      } else if (from) {
-        return `From ${formatShortDate(from)}`;
-      } else {
-        return `To ${formatShortDate(to)}`;
-      }
+    const getTypeBadgeClass = (type) => {
+      const classes = {
+        'ADD': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+        'TRANSFER': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+        'DISPATCH': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+        'UPDATE': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+        'DELETE': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+      };
+      return classes[type] || 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
     };
     
-    const formatShortDate = (dateStr) => {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const getQuantityClass = (type) => {
+      const classes = {
+        'ADD': 'text-green-600 dark:text-green-400 font-medium',
+        'TRANSFER': 'text-purple-600 dark:text-purple-400 font-medium',
+        'DISPATCH': 'text-red-600 dark:text-red-400 font-medium'
+      };
+      return classes[type] || 'text-gray-700 dark:text-gray-300 font-medium';
+    };
+    
+    const getUserRoleLabel = (role) => {
+      const labels = {
+        'superadmin': 'مدير عام',
+        'company_manager': 'مدير شركة',
+        'warehouse_manager': 'مدير مستودع',
+        'staff': 'موظف'
+      };
+      return labels[role] || role || 'غير معروف';
+    };
+    
+    const formatTransactionDate = (transaction) => {
+      const date = getTransactionTime(transaction);
+      return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+    
+    const formatTransactionTime = (transaction) => {
+      const date = getTransactionTime(transaction);
+      return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    };
+    
+    const formatDateRange = (from, to) => {
+      if (!from && !to) return '';
+      const format = (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+      };
+      
+      if (from && to) {
+        return `${format(from)} - ${format(to)}`;
+      } else if (from) {
+        return `من ${format(from)}`;
+      } else {
+        return `إلى ${format(to)}`;
+      }
     };
     
     const handleSearch = () => {
@@ -486,6 +631,10 @@ export default {
       dateFrom.value = '';
       dateTo.value = '';
     };
+    
+    const showNotes = (transaction) => {
+      selectedNotes.value = transaction.notes;
+    };
 
     // 🔥 Manual refresh using store actions
     const manualRefresh = async () => {
@@ -493,25 +642,18 @@ export default {
       try {
         // Use store actions to refresh data
         await store.dispatch('fetchTransactions');
-        await store.dispatch('getRecentTransactions');
         
         // Show notification through store
         store.dispatch('showNotification', {
           type: 'success',
-          message: 'Data refreshed successfully'
+          message: 'تم تحديث البيانات بنجاح'
         });
-
-        // Show live update indicator
-        showLiveUpdate.value = true;
-        setTimeout(() => {
-          showLiveUpdate.value = false;
-        }, 3000);
         
       } catch (error) {
         console.error('Error refreshing data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'Error refreshing data'
+          message: 'حدث خطأ أثناء تحديث البيانات'
         });
       } finally {
         statsLoading.value = false;
@@ -527,7 +669,7 @@ export default {
       
       store.dispatch('showNotification', {
         type: 'info',
-        message: liveUpdatesEnabled.value ? 'Live updates enabled' : 'Live updates disabled'
+        message: liveUpdatesEnabled.value ? 'تم تفعيل التحديث المباشر' : 'تم إيقاف التحديث المباشر'
       });
     };
 
@@ -546,19 +688,19 @@ export default {
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
           
           return {
-            'Transaction Date': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleDateString('en-US') : '',
-            'Transaction Time': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleTimeString('en-US') : '',
-            'Transaction Type': getTypeLabel(transaction.type),
-            'Item Name': transaction.item_name || '',
-            'Item Code': transaction.item_code || '',
-            'Quantity': transaction.total_quantity || transaction.total_delta || 0,
-            'From Warehouse': getWarehouseName(fromWarehouseId),
-            'To Warehouse': getWarehouseName(toWarehouseId),
-            'User': transaction.user_name || '',
-            'Notes': transaction.notes || '',
-            'User Role': transaction.user_role || ''
+            'التاريخ': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleDateString('ar-SA') : '',
+            'الوقت': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleTimeString('ar-SA') : '',
+            'نوع الحركة': getTypeLabel(transaction.type),
+            'اسم المنتج': transaction.item_name || '',
+            'كود المنتج': transaction.item_code || '',
+            'الكمية': transaction.total_quantity || transaction.total_delta || 0,
+            'من مستودع': getWarehouseName(fromWarehouseId),
+            'إلى مستودع': getWarehouseName(toWarehouseId),
+            'المستخدم': transaction.user_name || '',
+            'ملاحظات': transaction.notes || '',
+            'صلاحية المستخدم': getUserRoleLabel(transaction.user_role)
           };
         });
         
@@ -566,24 +708,24 @@ export default {
         const ws = XLSX.utils.json_to_sheet(exportData);
         
         // Add to workbook
-        XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+        XLSX.utils.book_append_sheet(wb, ws, 'الحركات');
         
         // Generate filename
-        const filename = `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const filename = `حركات_المخزون_${new Date().toISOString().split('T')[0]}.xlsx`;
         
         // Save file
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: `Exported ${exportData.length} transactions to Excel successfully`
+          message: `تم تصدير ${exportData.length} حركة إلى ملف Excel بنجاح`
         });
         
       } catch (error) {
         console.error('Error exporting transactions:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'Error exporting transactions'
+          message: 'حدث خطأ أثناء تصدير الحركات'
         });
       } finally {
         store.commit('SET_TRANSACTIONS_LOADING', false);
@@ -597,7 +739,6 @@ export default {
         
         // Use store actions to load data
         await store.dispatch('fetchTransactions');
-        await store.dispatch('getRecentTransactions');
         
         // Load warehouses if not already loaded
         if (!store.state.warehousesLoaded) {
@@ -613,7 +754,7 @@ export default {
         console.error('Error loading initial data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'Error loading data'
+          message: 'حدث خطأ أثناء تحميل البيانات'
         });
       } finally {
         statsLoading.value = false;
@@ -634,10 +775,10 @@ export default {
       dateFrom,
       dateTo,
       typeFilter,
-      showLiveUpdate,
       liveUpdatesEnabled,
       liveStats,
       statsLoading,
+      selectedNotes,
       
       // Computed
       displayedTransactions,
@@ -652,6 +793,11 @@ export default {
       // Methods
       formatNumber,
       getTypeLabel,
+      getTypeBadgeClass,
+      getQuantityClass,
+      getUserRoleLabel,
+      formatTransactionDate,
+      formatTransactionTime,
       formatDateRange,
       handleSearch,
       handleFilter,
@@ -660,22 +806,18 @@ export default {
       toggleLiveUpdates,
       exportTransactions,
       getWarehouseName,
-      getTransactionTime
+      getTransactionTime,
+      showNotes
     };
   }
 };
 </script>
 
 <style scoped>
-/* Keep your existing styles */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
-
-body {
-  font-family: 'Cairo', sans-serif;
-}
-
-.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
+/* RTL Support */
+body, .text-right {
+  text-align: right;
+  direction: rtl;
 }
 
 /* Custom scrollbar */
@@ -759,6 +901,12 @@ body {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
+/* Fixed header styling */
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .mobile-stack {
@@ -767,6 +915,14 @@ body {
   
   .mobile-full {
     width: 100% !important;
+  }
+  
+  .grid-cols-12 {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+  
+  .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6 {
+    grid-column: span 3 !important;
   }
 }
 </style>
