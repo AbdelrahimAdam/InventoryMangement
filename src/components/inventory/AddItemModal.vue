@@ -590,6 +590,7 @@ export default {
       
       addMode.value = 'both';
       errorMessage.value = '';
+      successMessage.value = '';
       existingItem.value = null;
       selectedFile.value = null;
       previewPhoto.value = '';
@@ -742,22 +743,42 @@ export default {
       }
 
       try {
-        // Dispatch action to check for existing item
-        const result = await store.dispatch('checkExistingItem', {
-          name: formData.value.name.trim(),
-          code: formData.value.code.trim(),
-          color: formData.value.color.trim(),
-          warehouse_id: formData.value.warehouse_id
-        });
-
-        if (result && result.exists && result.item) {
-          existingItem.value = result.item;
-          // If existing item has a photo, show it in preview
-          if (result.item.photo_url) {
-            previewPhoto.value = result.item.photo_url;
-            formData.value.photo_url = result.item.photo_url;
+        // Check in local inventory first for immediate feedback
+        const inventory = store.state.inventory || [];
+        const existing = inventory.find(item => 
+          item.name?.toLowerCase() === formData.value.name.toLowerCase() &&
+          item.code?.toLowerCase() === formData.value.code.toLowerCase() &&
+          item.color?.toLowerCase() === formData.value.color.toLowerCase() &&
+          item.warehouse_id === formData.value.warehouse_id
+        );
+        
+        if (existing) {
+          existingItem.value = existing;
+          if (existing.photo_url) {
+            previewPhoto.value = existing.photo_url;
+            formData.value.photo_url = existing.photo_url;
           }
-        } else {
+          return;
+        }
+        
+        // If not found locally, try to check in Firestore
+        try {
+          const result = await store.dispatch('getItemById', { 
+            itemCode: formData.value.code,
+            itemName: formData.value.name 
+          });
+          
+          if (result && result.warehouse_id === formData.value.warehouse_id) {
+            existingItem.value = result;
+            if (result.photo_url) {
+              previewPhoto.value = result.photo_url;
+              formData.value.photo_url = result.photo_url;
+            }
+          } else {
+            existingItem.value = null;
+          }
+        } catch (firestoreError) {
+          console.log('Not found in Firestore:', firestoreError.message);
           existingItem.value = null;
         }
       } catch (error) {
@@ -869,14 +890,16 @@ export default {
 
       try {
         // Upload photo if selected
+        let photoUrl = null;
         if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
-          const photoUrl = await uploadPhotoToStorage();
+          photoUrl = await uploadPhotoToStorage();
           if (photoUrl) {
             formData.value.photo_url = photoUrl;
           }
         } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
           // If we have a data URL from paste or file upload, use it directly
-          formData.value.photo_url = previewPhoto.value;
+          photoUrl = previewPhoto.value;
+          formData.value.photo_url = photoUrl;
         }
 
         // Prepare item data properly
@@ -911,32 +934,54 @@ export default {
           existingItem: existingItem.value
         });
 
-        // Call the atomic action with correct parameters
-        const result = await store.dispatch('addInventoryItemAtomic', {
+        // Use the store's existing addInventoryItem action (not atomic version)
+        const result = await store.dispatch('addInventoryItem', {
           itemData,
-          userId,
           isAddingCartons: addingCartons
         });
 
-        console.log('Item operation completed:', result);
+        console.log('Item added successfully:', result);
 
         // Show success message
         if (result?.type === 'created') {
-          successMessage.value = 'تم إضافة الصنف الجديد بنجاح!';
+          successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح! سيظهر في البحث فوراً.';
         } else if (result?.type === 'updated') {
-          successMessage.value = 'تم تحديث الكميات بنجاح!';
+          successMessage.value = '✅ تم تحديث الكميات بنجاح! سيظهر في البحث فوراً.';
         } else {
-          successMessage.value = 'تم حفظ التغييرات بنجاح!';
+          successMessage.value = '✅ تم حفظ التغييرات بنجاح! سيظهر في البحث فوراً.';
         }
 
+        // Force refresh inventory in store to ensure new item is immediately available for search
+        // This ensures the item appears in live search results
+        setTimeout(async () => {
+          try {
+            // Force refresh the store inventory without showing loading
+            console.log('🔄 Refreshing inventory silently for immediate search...');
+            
+            // Manually dispatch to update the store state with the new item
+            // This ensures the item is immediately available in the inventory array
+            if (result?.item && result.item.id) {
+              // Add the item to store inventory immediately
+              store.commit('UPDATE_INVENTORY_ITEM', result.item);
+              console.log('✅ Item added to store inventory immediately for search');
+            }
+            
+            // Also trigger a silent refresh of the entire inventory
+            await store.dispatch('refreshInventorySilently');
+            
+          } catch (refreshError) {
+            console.warn('Could not refresh inventory silently:', refreshError.message);
+          }
+        }, 500);
+        
         // Clear the form after successful submission but keep modal open
         setTimeout(() => {
           emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
           clearFormAfterSuccess();
-        }, 1000);
+        }, 1500);
         
       } catch (error) {
-        console.error('Error in handleSubmit:', error);
+        console.error('❌ Error in handleSubmit:', error);
         
         // Show appropriate error message
         if (error.message?.includes('يجب تسجيل الدخول')) {
@@ -951,7 +996,7 @@ export default {
           // Use store error if available
           errorMessage.value = storeOperationError.value;
         } else {
-          errorMessage.value = `حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
+          errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
         }
       } finally {
         loading.value = false;
