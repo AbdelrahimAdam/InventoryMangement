@@ -28,7 +28,7 @@
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Transactions</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalTransactions) }}</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.total) }}</p>
             </div>
           </div>
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
@@ -48,9 +48,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Additions</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.add) }}</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Additions</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.add) }}</p>
             </div>
+          </div>
+          <div class="mt-1 text-xs text-green-600 dark:text-green-400">
+            +{{ transactionStats.add }} today
           </div>
         </div>
 
@@ -63,9 +66,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Transfers</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.transfer) }}</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Transfers</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.transfer) }}</p>
             </div>
+          </div>
+          <div class="mt-1 text-xs text-purple-600 dark:text-purple-400">
+            +{{ transactionStats.transfer }} today
           </div>
         </div>
 
@@ -78,9 +84,12 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Dispatches</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.dispatch) }}</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Today's Dispatches</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.dispatch) }}</p>
             </div>
+          </div>
+          <div class="mt-1 text-xs text-red-600 dark:text-red-400">
+            +{{ transactionStats.dispatch }} today
           </div>
         </div>
       </div>
@@ -321,36 +330,42 @@ export default {
     const typeFilter = ref('');
     const showLiveUpdate = ref(false);
     const liveUpdatesEnabled = ref(true);
-    const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, update: 0, delete: 0, updated: false });
+    const statsLoading = ref(false);
 
-    // Computed properties from store
+    // 🔥 Use store getters for warehouse labels and stats
     const userRole = computed(() => store.getters.userRole);
     const canExport = computed(() => {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    // Use store state directly
+    // 🔥 Use store data
     const allTransactions = computed(() => store.state.transactions || []);
     const recentTransactions = computed(() => store.state.recentTransactions || []);
     const loading = computed(() => store.state.transactionsLoading);
     const warehouses = computed(() => store.state.warehouses || []);
-
-    // Create a warehouse name lookup from store
-    const warehouseMap = computed(() => {
-      const map = {};
-      warehouses.value.forEach(w => {
-        map[w.id] = w.name_ar || w.name || w.id;
-      });
-      return map;
+    
+    // 🔥 Use the new store getter for warehouse label
+    const getWarehouseName = (warehouseId) => {
+      return store.getters.getWarehouseLabel(warehouseId);
+    };
+    
+    // 🔥 Use the new store getter for transaction stats
+    const transactionStats = computed(() => {
+      return store.getters.getTransactionStats;
     });
 
-    // Helper function to get warehouse name
-    const getWarehouseName = (warehouseId) => {
-      if (!warehouseId) return '';
-      return warehouseMap.value[warehouseId] || warehouseId;
-    };
+    // 🔥 Calculate live stats from store
+    const liveStats = computed(() => {
+      const stats = transactionStats.value;
+      return {
+        add: stats.add,
+        transfer: stats.transfer,
+        dispatch: stats.dispatch,
+        updated: true
+      };
+    });
 
-    // Filtered transactions computed property
+    // 🔥 Filtered transactions computed property
     const filteredTransactions = computed(() => {
       let filtered = [...allTransactions.value];
       
@@ -391,7 +406,7 @@ export default {
       return filtered;
     });
     
-    // Display only the most recent transactions (for performance)
+    // Display only the most recent transactions
     const displayedTransactions = computed(() => {
       return filteredTransactions.value.slice(0, 100);
     });
@@ -408,52 +423,20 @@ export default {
       return 100 - percentage;
     });
 
-    // Helper function to get transaction time
+    // Helper function to get transaction time (handles Firebase timestamps)
     const getTransactionTime = (transaction) => {
       if (!transaction.timestamp) return new Date(0);
       try {
-        return transaction.timestamp?.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
+        // Handle Firebase Timestamp
+        if (transaction.timestamp?.toDate) {
+          return transaction.timestamp.toDate();
+        }
+        // Handle regular date string
+        return new Date(transaction.timestamp);
       } catch {
         return new Date(0);
       }
     };
-
-    // Calculate live stats from store data
-    const calculateLiveStats = () => {
-      const now = Date.now();
-      
-      // Only recalculate if stats are stale (older than 5 minutes)
-      if (liveStats.value.updated && (now - liveStats.value.lastUpdate < 300000)) {
-        return;
-      }
-      
-      try {
-        const transactions = recentTransactions.value.length > 0 ? recentTransactions.value : allTransactions.value;
-        
-        const addCount = transactions.filter(t => t.type === 'ADD').length;
-        const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
-        const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
-        const updateCount = transactions.filter(t => t.type === 'UPDATE').length;
-        const deleteCount = transactions.filter(t => t.type === 'DELETE').length;
-        
-        liveStats.value = {
-          add: addCount,
-          transfer: transferCount,
-          dispatch: dispatchCount,
-          update: updateCount,
-          delete: deleteCount,
-          updated: true,
-          lastUpdate: now
-        };
-      } catch (error) {
-        console.error('Error calculating stats:', error);
-      }
-    };
-
-    // Watch for transaction changes to update stats
-    watch([allTransactions, recentTransactions], () => {
-      calculateLiveStats();
-    }, { deep: true });
 
     // Methods
     const formatNumber = (num) => {
@@ -504,10 +487,11 @@ export default {
       dateTo.value = '';
     };
 
-    // Manual refresh using store action
+    // 🔥 Manual refresh using store actions
     const manualRefresh = async () => {
+      statsLoading.value = true;
       try {
-        // Use store action to refresh transactions
+        // Use store actions to refresh data
         await store.dispatch('fetchTransactions');
         await store.dispatch('getRecentTransactions');
         
@@ -529,10 +513,12 @@ export default {
           type: 'error',
           message: 'Error refreshing data'
         });
+      } finally {
+        statsLoading.value = false;
       }
     };
 
-    // Toggle live updates (simplified - store handles real-time)
+    // 🔥 Toggle live updates
     const toggleLiveUpdates = () => {
       liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
       
@@ -545,7 +531,7 @@ export default {
       });
     };
 
-    // Export transactions to Excel
+    // 🔥 Export transactions to Excel
     const exportTransactions = () => {
       try {
         // Set loading state through store
@@ -571,7 +557,8 @@ export default {
             'From Warehouse': getWarehouseName(fromWarehouseId),
             'To Warehouse': getWarehouseName(toWarehouseId),
             'User': transaction.user_name || '',
-            'Notes': transaction.notes || ''
+            'Notes': transaction.notes || '',
+            'User Role': transaction.user_role || ''
           };
         });
         
@@ -603,9 +590,11 @@ export default {
       }
     };
 
-    // Initial data load using store actions
+    // 🔥 Initial data load using store actions
     const loadInitialData = async () => {
       try {
+        statsLoading.value = true;
+        
         // Use store actions to load data
         await store.dispatch('fetchTransactions');
         await store.dispatch('getRecentTransactions');
@@ -614,9 +603,6 @@ export default {
         if (!store.state.warehousesLoaded) {
           await store.dispatch('loadWarehouses');
         }
-        
-        // Calculate initial stats
-        calculateLiveStats();
         
         // Enable real-time updates if configured
         if (store.state.realtimeMode) {
@@ -629,6 +615,8 @@ export default {
           type: 'error',
           message: 'Error loading data'
         });
+      } finally {
+        statsLoading.value = false;
       }
     };
     
@@ -649,6 +637,7 @@ export default {
       showLiveUpdate,
       liveUpdatesEnabled,
       liveStats,
+      statsLoading,
       
       // Computed
       displayedTransactions,
@@ -658,6 +647,7 @@ export default {
       hasActiveFilters,
       filterPercentage,
       loading,
+      transactionStats,
       
       // Methods
       formatNumber,
@@ -668,13 +658,16 @@ export default {
       clearFilters,
       manualRefresh,
       toggleLiveUpdates,
-      exportTransactions
+      exportTransactions,
+      getWarehouseName,
+      getTransactionTime
     };
   }
 };
 </script>
 
 <style scoped>
+/* Keep your existing styles */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
 
 body {
