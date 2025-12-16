@@ -1,70 +1,72 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-    <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
       <!-- Header Section -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">📊 سجل حركات المخزون</h1>
-          <p class="text-gray-600 dark:text-gray-400">تتبع كامل لتاريخ جميع الحركات في نظام المخزون</p>
+          <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">📊 سجل حركات المخزون</h1>
+          <p class="text-sm text-gray-600 dark:text-gray-400">تتبع كامل لتاريخ جميع الحركات في نظام المخزون</p>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
           <!-- Live Update Toggle -->
           <button 
             @click="toggleLiveUpdates"
             :class="[
-              'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+              'inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200',
               liveUpdatesEnabled 
                 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/40' 
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             ]"
           >
-            <div :class="['w-2 h-2 rounded-full mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
-            {{ liveUpdatesEnabled ? 'تحديث مباشر مفعل' : 'تفعيل التحديث المباشر' }}
+            <div :class="['w-2 h-2 rounded-full ml-1 sm:mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
+            <span class="hidden sm:inline">{{ liveUpdatesEnabled ? 'تحديث مباشر مفعل' : 'تفعيل التحديث المباشر' }}</span>
+            <span class="sm:hidden">{{ liveUpdatesEnabled ? 'مباشر' : 'يدوي' }}</span>
           </button>
           
           <!-- Refresh Button -->
           <button 
             @click="manualRefresh"
             :disabled="loading"
-            class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors duration-200 disabled:opacity-50"
+            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors duration-200 disabled:opacity-50"
           >
-            <svg :class="['w-4 h-4 mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg :class="['w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            تحديث
+            <span class="hidden sm:inline">تحديث</span>
           </button>
           
           <!-- Export Button -->
           <button 
             v-if="canExport"
             @click="exportTransactions"
-            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
-            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            تصدير Excel
+            <span class="hidden sm:inline">تصدير Excel</span>
+            <span class="sm:hidden">تصدير</span>
           </button>
         </div>
       </div>
 
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <!-- Total Transactions Card -->
-        <div class="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div class="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center ml-3 shadow-md">
-              <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center ml-2 sm:ml-3 shadow-md">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الحركات</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.total) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white english-numbers">{{ formatNumber(transactionStats.total) }}</p>
             </div>
           </div>
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
-            <svg v-if="statsLoading" class="w-3 h-3 animate-spin mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="statsLoading" class="w-3 h-3 animate-spin ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
             {{ liveStats.updated ? 'بيانات مباشرة' : 'بيانات مخزنة' }}
@@ -72,63 +74,63 @@
         </div>
 
         <!-- Add Transactions Card -->
-        <div class="bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-green-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div class="bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-green-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center ml-3 shadow-md">
-              <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center ml-2 sm:ml-3 shadow-md">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
               </svg>
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الإضافات اليوم</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.add) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white english-numbers">{{ formatNumber(transactionStats.add) }}</p>
             </div>
           </div>
-          <div class="mt-1 text-xs text-green-600 dark:text-green-400">
+          <div class="mt-1 text-xs text-green-600 dark:text-green-400 english-numbers">
             +{{ transactionStats.add }} اليوم
           </div>
         </div>
 
         <!-- Transfer Transactions Card -->
-        <div class="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div class="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center ml-3 shadow-md">
-              <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center ml-2 sm:ml-3 shadow-md">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
               </svg>
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">التحويلات اليوم</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.transfer) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white english-numbers">{{ formatNumber(transactionStats.transfer) }}</p>
             </div>
           </div>
-          <div class="mt-1 text-xs text-purple-600 dark:text-purple-400">
+          <div class="mt-1 text-xs text-purple-600 dark:text-purple-400 english-numbers">
             +{{ transactionStats.transfer }} اليوم
           </div>
         </div>
 
         <!-- Dispatch Transactions Card -->
-        <div class="bg-gradient-to-br from-white to-red-50 dark:from-gray-800 dark:to-red-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div class="bg-gradient-to-br from-white to-red-50 dark:from-gray-800 dark:to-red-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div class="flex items-center">
-            <div class="h-12 w-12 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center ml-3 shadow-md">
-              <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center ml-2 sm:ml-3 shadow-md">
+              <svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
             </div>
             <div class="flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الصرفيات اليوم</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(transactionStats.dispatch) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white english-numbers">{{ formatNumber(transactionStats.dispatch) }}</p>
             </div>
           </div>
-          <div class="mt-1 text-xs text-red-600 dark:text-red-400">
+          <div class="mt-1 text-xs text-red-600 dark:text-red-400 english-numbers">
             +{{ transactionStats.dispatch }} اليوم
           </div>
         </div>
       </div>
 
       <!-- Filters Section -->
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
           <!-- Search Box -->
           <div class="lg:w-1/4">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -145,9 +147,9 @@
                 v-model="searchTerm"
                 @input="handleSearch"
                 placeholder="ابحث باسم المنتج، الكود، الملاحظات..."
-                class="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200"
+                class="w-full px-4 py-2.5 sm:py-3 pr-10 sm:pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200 text-sm sm:text-base"
               >
-              <svg class="absolute right-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="absolute right-3 top-2.5 sm:right-4 sm:top-3.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>
@@ -166,7 +168,7 @@
             <select 
               v-model="warehouseFilter"
               @change="handleWarehouseFilter"
-              class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
             >
               <option value="">جميع المخازن</option>
               <option 
@@ -189,12 +191,12 @@
                 نطاق التاريخ
               </span>
             </label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <div class="relative">
                 <input 
                   type="date" 
                   v-model="dateFrom"
-                  class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                 <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">من</label>
               </div>
@@ -202,7 +204,7 @@
                 <input 
                   type="date" 
                   v-model="dateTo"
-                  class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                 <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">إلى</label>
               </div>
@@ -222,7 +224,7 @@
             <select 
               v-model="typeFilter"
               @change="handleFilter"
-              class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
             >
               <option value="">جميع الأنواع</option>
               <option value="ADD">إضافة</option>
@@ -235,11 +237,11 @@
         </div>
 
         <!-- Active Filters Badges -->
-        <div v-if="hasActiveFilters" class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div v-if="hasActiveFilters" class="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium text-gray-600 dark:text-gray-400">الفلاتر النشطة:</span>
             
-            <span v-if="searchTerm" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+            <span v-if="searchTerm" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
               بحث: "{{ searchTerm }}"
               <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -248,7 +250,7 @@
               </button>
             </span>
             
-            <span v-if="warehouseFilter" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+            <span v-if="warehouseFilter" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
               مخزن: {{ getWarehouseName(warehouseFilter) }}
               <button @click="warehouseFilter = ''" class="mr-1 hover:text-indigo-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -257,7 +259,7 @@
               </button>
             </span>
             
-            <span v-if="typeFilter" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+            <span v-if="typeFilter" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
               نوع: {{ getTypeLabel(typeFilter) }}
               <button @click="typeFilter = ''" class="mr-1 hover:text-purple-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -266,7 +268,7 @@
               </button>
             </span>
             
-            <span v-if="dateFrom || dateTo" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+            <span v-if="dateFrom || dateTo" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
               تاريخ: {{ formatDateRange(dateFrom, dateTo) }}
               <button @click="dateFrom = ''; dateTo = ''" class="mr-1 hover:text-yellow-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -278,7 +280,7 @@
             <button 
               v-if="hasActiveFilters"
               @click="clearFilters"
-              class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
             >
               <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -292,17 +294,17 @@
       <!-- Transaction Table Container -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Table Header -->
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">سجل الحركات</h2>
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">عرض وتتبع جميع عمليات المخزون</p>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium">
+              <span class="text-xs px-2 py-1 sm:px-3 sm:py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium english-numbers">
                 {{ formatNumber(filteredTransactions.length) }} حركة
               </span>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+              <div class="text-sm text-gray-500 dark:text-gray-400 english-numbers">
                 تم التصفية: {{ filterPercentage }}%
               </div>
             </div>
@@ -310,32 +312,138 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="p-8 text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <div v-if="loading" class="p-6 sm:p-8 text-center">
+          <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
           <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل البيانات...</p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
         </div>
 
         <!-- Transactions Table -->
         <div v-else class="overflow-x-auto">
-          <!-- Fixed Table Headers -->
-          <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div class="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-              <div class="col-span-2">التاريخ والوقت</div>
-              <div class="col-span-2">نوع الحركة</div>
-              <div class="col-span-2">المنتج</div>
-              <div class="col-span-1">الكمية</div>
-              <div class="col-span-2">من/إلى مستودع</div>
-              <div class="col-span-2">المستخدم</div>
-              <div class="col-span-1">الملاحظات</div>
+          <!-- Desktop View -->
+          <div class="hidden lg:block">
+            <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <div class="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <div class="col-span-2">التاريخ والوقت</div>
+                <div class="col-span-2">نوع الحركة</div>
+                <div class="col-span-2">المنتج</div>
+                <div class="col-span-1">الكمية</div>
+                <div class="col-span-2">من/إلى مستودع</div>
+                <div class="col-span-2">المستخدم</div>
+                <div class="col-span-1">الملاحظات</div>
+              </div>
+            </div>
+            
+            <div class="max-h-[500px] overflow-y-auto">
+              <div v-if="displayedTransactions.length === 0" class="p-8 text-center">
+                <div class="text-gray-400 dark:text-gray-500 mb-4">
+                  <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 font-medium">لا توجد حركات</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على أي حركات مطابقة للفلاتر</p>
+              </div>
+              
+              <div v-else>
+                <div 
+                  v-for="(transaction, index) in displayedTransactions" 
+                  :key="transaction.id || index"
+                  class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors duration-150"
+                >
+                  <!-- Date & Time -->
+                  <div class="col-span-2">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ formatTransactionDate(transaction) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ formatTransactionTime(transaction) }}
+                    </div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {{ formatRelativeTime(transaction.timestamp) }}
+                    </div>
+                  </div>
+                  
+                  <!-- Transaction Type -->
+                  <div class="col-span-2">
+                    <span :class="getTypeBadgeClass(transaction.type)">
+                      {{ getTypeLabel(transaction.type) }}
+                    </span>
+                  </div>
+                  
+                  <!-- Product -->
+                  <div class="col-span-2">
+                    <div class="font-medium text-gray-900 dark:text-white">
+                      {{ transaction.item_name || 'غير محدد' }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ transaction.item_code || 'لا يوجد كود' }}
+                    </div>
+                  </div>
+                  
+                  <!-- Quantity -->
+                  <div class="col-span-1">
+                    <span :class="getQuantityClass(transaction.type)" class="english-numbers">
+                      {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
+                    </span>
+                  </div>
+                  
+                  <!-- Warehouses -->
+                  <div class="col-span-2">
+                    <div v-if="transaction.type === 'TRANSFER'" class="space-y-1">
+                      <div class="text-xs text-gray-500 dark:text-gray-400">من:</div>
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">إلى:</div>
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
+                      </div>
+                    </div>
+                    <div v-else-if="transaction.type === 'DISPATCH'">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                      </div>
+                    </div>
+                    <div v-else>
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- User -->
+                  <div class="col-span-2">
+                    <div class="font-medium text-gray-900 dark:text-white">
+                      {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ getUserRoleLabel(transaction.user_role) }}
+                    </div>
+                  </div>
+                  
+                  <!-- Notes -->
+                  <div class="col-span-1">
+                    <div v-if="transaction.notes" class="relative group">
+                      <button 
+                        @click="showNotes(transaction)"
+                        class="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        عرض
+                      </button>
+                    </div>
+                    <span v-else class="text-xs text-gray-400">-</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <!-- Scrollable Table Body -->
-          <div class="max-h-[500px] overflow-y-auto">
-            <div v-if="displayedTransactions.length === 0" class="p-8 text-center">
+
+          <!-- Mobile & Tablet View -->
+          <div class="lg:hidden">
+            <div v-if="displayedTransactions.length === 0" class="p-6 text-center">
               <div class="text-gray-400 dark:text-gray-500 mb-4">
-                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
               </div>
@@ -343,91 +451,110 @@
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على أي حركات مطابقة للفلاتر</p>
             </div>
             
-            <div v-else>
+            <div v-else class="space-y-3 p-4">
               <div 
                 v-for="(transaction, index) in displayedTransactions" 
                 :key="transaction.id || index"
-                class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors duration-150"
+                class="bg-gray-50 dark:bg-gray-750 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
               >
+                <!-- Header Row -->
+                <div class="flex justify-between items-start mb-3">
+                  <div>
+                    <span :class="getTypeBadgeClass(transaction.type)">
+                      {{ getTypeLabel(transaction.type) }}
+                    </span>
+                  </div>
+                  <div class="text-left">
+                    <span :class="getQuantityClass(transaction.type)" class="text-lg font-bold english-numbers">
+                      {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
+                    </span>
+                  </div>
+                </div>
+                
                 <!-- Date & Time -->
-                <div class="col-span-2">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ formatTransactionDate(transaction) }}
+                <div class="mb-3">
+                  <div class="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>{{ formatTransactionDate(transaction) }}</span>
                   </div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ formatTransactionTime(transaction) }}
+                  <div class="flex items-center text-sm text-gray-500 dark:text-gray-500">
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ formatTransactionTime(transaction) }}</span>
+                    <span class="mr-2 text-xs text-gray-400">•</span>
+                    <span class="text-xs">{{ formatRelativeTime(transaction.timestamp) }}</span>
                   </div>
                 </div>
                 
-                <!-- Transaction Type -->
-                <div class="col-span-2">
-                  <span :class="getTypeBadgeClass(transaction.type)">
-                    {{ getTypeLabel(transaction.type) }}
-                  </span>
-                </div>
-                
-                <!-- Product -->
-                <div class="col-span-2">
-                  <div class="font-medium text-gray-900 dark:text-white">
+                <!-- Product Info -->
+                <div class="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+                  <div class="font-medium text-gray-900 dark:text-white mb-1">
                     {{ transaction.item_name || 'غير محدد' }}
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ transaction.item_code || 'لا يوجد كود' }}
+                    كود: {{ transaction.item_code || 'لا يوجد' }}
                   </div>
                 </div>
                 
-                <!-- Quantity -->
-                <div class="col-span-1">
-                  <span :class="getQuantityClass(transaction.type)">
-                    {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
-                  </span>
+                <!-- Warehouse Info -->
+                <div class="mb-3">
+                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المخزن:</div>
+                  <div v-if="transaction.type === 'TRANSFER'" class="space-y-2">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                      </svg>
+                      <span class="text-sm">{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    </div>
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                      </svg>
+                      <span class="text-sm">{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                    </div>
+                  </div>
+                  <div v-else-if="transaction.type === 'DISPATCH'" class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                    </svg>
+                    <span class="text-sm">{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                  </div>
+                  <div v-else class="flex items-center">
+                    <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                    </svg>
+                    <span class="text-sm">{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                  </div>
                 </div>
                 
-                <!-- Warehouses -->
-                <div class="col-span-2">
-                  <div v-if="transaction.type === 'TRANSFER'" class="space-y-1">
-                    <div class="text-xs text-gray-500 dark:text-gray-400">من:</div>
-                    <div class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">إلى:</div>
-                    <div class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
-                    </div>
+                <!-- User Info -->
+                <div class="mb-3 flex items-center">
+                  <div class="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center ml-2">
+                    <svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
                   </div>
-                  <div v-else-if="transaction.type === 'DISPATCH'">
+                  <div>
                     <div class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                      {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
                     </div>
-                  </div>
-                  <div v-else>
-                    <div class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ getUserRoleLabel(transaction.user_role) }}
                     </div>
-                  </div>
-                </div>
-                
-                <!-- User -->
-                <div class="col-span-2">
-                  <div class="font-medium text-gray-900 dark:text-white">
-                    {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
-                  </div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ getUserRoleLabel(transaction.user_role) }}
                   </div>
                 </div>
                 
                 <!-- Notes -->
-                <div class="col-span-1">
-                  <div v-if="transaction.notes" class="relative group">
-                    <button 
-                      @click="showNotes(transaction)"
-                      class="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      عرض
-                    </button>
-                  </div>
-                  <span v-else class="text-xs text-gray-400">-</span>
+                <div v-if="transaction.notes">
+                  <button 
+                    @click="showNotes(transaction)"
+                    class="w-full text-center px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                  >
+                    عرض الملاحظات
+                  </button>
                 </div>
               </div>
             </div>
@@ -438,7 +565,7 @@
 
     <!-- Notes Modal -->
     <div v-if="selectedNotes" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الملاحظات</h3>
           <button @click="selectedNotes = null" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -447,8 +574,16 @@
             </svg>
           </button>
         </div>
-        <div class="px-6 py-4">
+        <div class="px-6 py-4 overflow-y-auto max-h-[60vh]">
           <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ selectedNotes }}</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <button 
+            @click="selectedNotes = null"
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            إغلاق
+          </button>
         </div>
       </div>
     </div>
@@ -565,6 +700,16 @@ export default {
       }
     };
 
+    // Arabic months for custom date formatting
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+
+    const arabicDays = [
+      'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
+    ];
+
     // Methods - FORCE ENGLISH NUMBERS
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -585,13 +730,13 @@ export default {
     
     const getTypeBadgeClass = (type) => {
       const classes = {
-        'ADD': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-        'TRANSFER': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-        'DISPATCH': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-        'UPDATE': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
-        'DELETE': 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+        'ADD': 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+        'TRANSFER': 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+        'DISPATCH': 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+        'UPDATE': 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+        'DELETE': 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
       };
-      return classes[type] || 'inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
+      return classes[type] || 'inline-flex px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
     };
     
     const getQuantityClass = (type) => {
@@ -613,23 +758,60 @@ export default {
       return labels[role] || role || 'غير معروف';
     };
     
+    // Updated date formatting function
     const formatTransactionDate = (transaction) => {
       const date = getTransactionTime(transaction);
-      // Use Arabic date format
-      return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' });
+      const day = date.getDate();
+      const month = arabicMonths[date.getMonth()];
+      const dayOfWeek = arabicDays[date.getDay()];
+      
+      return `${day} ${month}، ${dayOfWeek}`;
     };
     
+    // Updated time formatting function
     const formatTransactionTime = (transaction) => {
       const date = getTransactionTime(transaction);
-      // Time will show in 12-hour format with Arabic
-      return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+      const hours = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+      const displayHours = hours % 12 || 12;
+      
+      return `الساعة ${displayHours}:${minutes} ${ampm}`;
+    };
+    
+    // Relative time formatting
+    const formatRelativeTime = (timestamp) => {
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp || 0);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffMins < 1) {
+        return 'الآن';
+      } else if (diffMins < 60) {
+        return `قبل ${diffMins} دقيقة`;
+      } else if (diffHours < 24) {
+        return `قبل ${diffHours} ساعة`;
+      } else if (diffDays === 1) {
+        return 'أمس';
+      } else if (diffDays < 7) {
+        return `قبل ${diffDays} يوم`;
+      } else if (diffDays < 30) {
+        return `قبل ${Math.floor(diffDays / 7)} أسبوع`;
+      } else {
+        return formatTransactionDate({ timestamp: date });
+      }
     };
     
     const formatDateRange = (from, to) => {
       if (!from && !to) return '';
       const format = (dateStr) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+        const day = date.getDate();
+        const month = arabicMonths[date.getMonth()];
+        return `${day} ${month}`;
       };
       
       if (from && to) {
@@ -723,10 +905,8 @@ export default {
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
           
           return {
-            'التاريخ': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleDateString('ar-SA') : '',
-            'الوقت': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleTimeString('ar-SA') : '',
+            'التاريخ': formatTransactionDate(transaction),
+            'الوقت': formatTransactionTime(transaction),
             'نوع الحركة': getTypeLabel(transaction.type),
             'اسم المنتج': transaction.item_name || '',
             'كود المنتج': transaction.item_code || '',
@@ -898,6 +1078,7 @@ export default {
       getWarehouseName,
       formatTransactionDate,
       formatTransactionTime,
+      formatRelativeTime,
       formatDateRange,
       handleSearch,
       handleFilter,
@@ -920,16 +1101,25 @@ body, .text-right {
   direction: rtl;
 }
 
-/* Ensure numbers are displayed in English/LTR */
-.numbers-ltr {
+/* English numbers styling */
+.english-numbers {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-feature-settings: "lnum";
+  font-variant-numeric: lining-nums;
   direction: ltr;
-  text-align: left;
+  display: inline-block;
+}
+
+/* Force English numbers in inputs and selects */
+input, select {
+  font-feature-settings: "lnum";
+  font-variant-numeric: lining-nums;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -1030,12 +1220,47 @@ body, .text-right {
     width: 100% !important;
   }
   
+  /* Adjust grid for mobile */
+  .grid-cols-12 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  
+  .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6 {
+    grid-column: span 1 !important;
+  }
+  
+  /* Better spacing on mobile */
+  .p-4 {
+    padding: 1rem;
+  }
+  
+  .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Smaller text on mobile */
+  .text-lg {
+    font-size: 1.125rem;
+  }
+  
+  .text-xl {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) and (min-width: 641px) {
+  /* Tablet adjustments */
   .grid-cols-12 {
     grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
   }
   
-  .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6 {
+  .col-span-2 {
     grid-column: span 3 !important;
+  }
+  
+  .col-span-1 {
+    grid-column: span 1 !important;
   }
 }
 
@@ -1049,9 +1274,58 @@ body, .text-right {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
 }
 
-/* Style for English numbers */
-.english-numbers {
-  font-feature-settings: "lnum";
-  font-variant-numeric: lining-nums;
+/* Mobile card shadow */
+@media (max-width: 640px) {
+  .shadow-xl {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Touch-friendly buttons on mobile */
+@media (max-width: 640px) {
+  button {
+    min-height: 40px;
+  }
+  
+  .py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 640px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Better modal for mobile */
+@media (max-width: 640px) {
+  .fixed.inset-0 {
+    padding: 0.5rem;
+  }
+  
+  .max-w-md {
+    width: 95%;
+  }
+}
+
+/* Improved spacing for filter badges on mobile */
+@media (max-width: 640px) {
+  .gap-2 {
+    gap: 0.5rem;
+  }
+}
+
+/* Optimize table display on small screens */
+@media (max-width: 1024px) {
+  .hidden-lg\:block {
+    display: block !important;
+  }
+  
+  .lg\:hidden {
+    display: none !important;
+  }
 }
 </style>
