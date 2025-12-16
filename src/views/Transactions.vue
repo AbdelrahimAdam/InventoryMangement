@@ -304,7 +304,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import TransactionHistory from '@/components/transactions/TransactionHistory.vue';
 
@@ -386,7 +386,7 @@ export default {
     
     // Display only the most recent transactions (for performance)
     const displayedTransactions = computed(() => {
-      return filteredTransactions.value.slice(0, 100); // Limit to 100 for performance
+      return filteredTransactions.value.slice(0, 100);
     });
     
     const totalTransactions = computed(() => allTransactions.value.length);
@@ -415,7 +415,6 @@ export default {
     const calculateLiveStats = () => {
       const now = Date.now();
       
-      // Only recalculate if stats are stale (older than 5 minutes)
       if (liveStats.value.updated && (now - liveStats.value.lastUpdate < 300000)) {
         return;
       }
@@ -518,10 +517,8 @@ export default {
           ...doc.data()
         }));
 
-        // Update Vuex store
         store.commit('SET_TRANSACTIONS', newTransactions);
 
-        // Show live update notification
         if (liveUpdatesEnabled.value && newTransactions.length > 0) {
           showLiveUpdate.value = true;
           setTimeout(() => {
@@ -529,7 +526,6 @@ export default {
           }, 3000);
         }
 
-        // Recalculate stats
         calculateLiveStats();
       }, (error) => {
         console.error('Real-time listener error:', error);
@@ -544,10 +540,7 @@ export default {
     const manualRefresh = async () => {
       loading.value = true;
       try {
-        // Refresh transactions from store
         await store.dispatch('fetchTransactions');
-        
-        // Also refresh recent transactions
         await store.dispatch('getRecentTransactions');
         
         store.dispatch('showNotification', {
@@ -587,67 +580,38 @@ export default {
       }
     };
 
-    // Initial data load
-    const loadInitialData = async () => {
-      loading.value = true;
-      try {
-        // Load transactions from store (which fetches from Firestore)
-        await store.dispatch('fetchTransactions');
-        
-        // Load recent transactions
-        await store.dispatch('getRecentTransactions');
-        
-        // Calculate initial stats
-        calculateLiveStats();
-        
-        // Start real-time updates if enabled
-        if (liveUpdatesEnabled.value) {
-          setupRealtimeListener();
-        }
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل البيانات'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
-    
+    // Export transactions to Excel
     const exportTransactions = () => {
       try {
         loading.value = true;
         
-        // Create workbook
         const wb = XLSX.utils.book_new();
         
-        // Prepare data for export
-        const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => ({
-          'تاريخ الحركة': transaction.timestamp ? 
-            getTransactionTime(transaction).toLocaleDateString('ar-EG') : '',
-          'وقت الحركة': transaction.timestamp ? 
-            getTransactionTime(transaction).toLocaleTimeString('ar-EG') : '',
-          'نوع الحركة': getTypeLabel(transaction.type),
-          'اسم الصنف': transaction.item_name || '',
-          'كود الصنف': transaction.item_code || '',
-          'الكمية': transaction.total_quantity || transaction.total_delta || 0,
-          'من المخزن': store.getters.getWarehouseName(transaction.from_warehouse) || store.getters.getWarehouseName(transaction.from_warehouse_id) || '',
-          'إلى المخزن': store.getters.getWarehouseName(transaction.to_warehouse) || store.getters.getWarehouseName(transaction.to_warehouse_id) || '',
-          'المستخدم': transaction.user_name || '',
-          'ملاحظات': transaction.notes || ''
-        }));
+        const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => {
+          // Handle both old and new field names for warehouse
+          const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
+          const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
+          
+          return {
+            'تاريخ الحركة': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleDateString('ar-EG') : '',
+            'وقت الحركة': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleTimeString('ar-EG') : '',
+            'نوع الحركة': getTypeLabel(transaction.type),
+            'اسم الصنف': transaction.item_name || '',
+            'كود الصنف': transaction.item_code || '',
+            'الكمية': transaction.total_quantity || transaction.total_delta || 0,
+            'من المخزن': fromWarehouseId ? getWarehouseName(fromWarehouseId) : '',
+            'إلى المخزن': toWarehouseId ? getWarehouseName(toWarehouseId) : '',
+            'المستخدم': transaction.user_name || '',
+            'ملاحظات': transaction.notes || ''
+          };
+        });
         
-        // Convert to worksheet
         const ws = XLSX.utils.json_to_sheet(exportData);
-        
-        // Add to workbook
         XLSX.utils.book_append_sheet(wb, ws, 'الحركات');
         
-        // Generate filename
         const filename = `سجل_الحركات_${new Date().toISOString().split('T')[0]}.xlsx`;
-        
-        // Save file
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
@@ -665,13 +629,53 @@ export default {
         loading.value = false;
       }
     };
+
+    // Helper function to get warehouse name
+    const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return '';
+      try {
+        // First try to get from store getter
+        if (store.getters.getWarehouseName) {
+          return store.getters.getWarehouseName(warehouseId) || '';
+        }
+        
+        // Fallback: get from warehouses array
+        const warehouses = store.state.warehouses || [];
+        const warehouse = warehouses.find(w => w.id === warehouseId);
+        return warehouse ? warehouse.name_ar || warehouse.name || warehouseId : warehouseId;
+      } catch {
+        return warehouseId;
+      }
+    };
+
+    // Initial data load
+    const loadInitialData = async () => {
+      loading.value = true;
+      try {
+        await store.dispatch('fetchTransactions');
+        await store.dispatch('getRecentTransactions');
+        
+        calculateLiveStats();
+        
+        if (liveUpdatesEnabled.value) {
+          setupRealtimeListener();
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل البيانات'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
     
     onMounted(() => {
       loadInitialData();
     });
     
     onUnmounted(() => {
-      // Clean up real-time listener
       if (realtimeUnsubscribe.value) {
         realtimeUnsubscribe.value();
       }
