@@ -83,7 +83,7 @@
 
     <!-- Migration Tool (Superadmin only - Temporary) -->
     <router-link 
-      v-if="canManageUsers"
+      v-if="isSuperadmin"
       to="/migrate" 
       class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border border-transparent"
       :class="getLinkClasses('/migrate')"
@@ -128,12 +128,13 @@ export default {
     const store = useStore();
     const route = useRoute();
     
-    // Store getters
-    const userRole = computed(() => store.getters.userRole);
+    // Store getters - direct access to ensure they exist
+    const userRole = computed(() => store.state.userProfile?.role || '');
     
-    // Permission checks
-    const canManageUsers = computed(() => store.getters.canManageUsers);
-    const canManageWarehouses = computed(() => store.getters.canManageWarehouses);
+    // Permission checks - simplified and direct
+    const isSuperadmin = computed(() => userRole.value === 'superadmin');
+    const canManageUsers = computed(() => userRole.value === 'superadmin');
+    const canManageWarehouses = computed(() => userRole.value === 'superadmin');
     const canViewReports = computed(() => {
       const role = userRole.value;
       return ['superadmin', 'company_manager'].includes(role);
@@ -149,6 +150,7 @@ export default {
     };
     
     return {
+      isSuperadmin,
       canManageUsers,
       canManageWarehouses,
       canViewReports,
