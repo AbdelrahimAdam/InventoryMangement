@@ -32,20 +32,7 @@
       </transition-group>
     </div>
 
-    <!-- MIGRATION BUTTON - ADDED HERE (Visible on all pages for superadmin) -->
-    <div v-if="showMigrationButton" class="fixed bottom-20 right-4 z-40">
-      <router-link 
-        to="/migrate"
-        class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        <span class="font-medium text-sm">ترقية البيانات</span>
-      </router-link>
-    </div>
-
-    <!-- REFRESH BUTTON - ADDED HERE -->
+    <!-- REFRESH BUTTON - UPDATED -->
     <div v-if="showRefreshButton" class="fixed bottom-4 left-4 right-4 z-40 lg:left-auto lg:right-4 lg:bottom-4 lg:w-auto">
       <div class="flex items-center justify-center lg:justify-end">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-2">
@@ -236,7 +223,7 @@ export default {
     const initialDataLoaded = ref(false);
     const showPreloadIndicator = ref(false);
     
-    // NEW: Refresh button refs
+    // Refresh button refs
     const refreshing = ref(false);
     const lastRefreshTime = ref(null);
     
@@ -258,21 +245,10 @@ export default {
       return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
     });
 
-    // NEW: Show refresh button condition
+    // Show refresh button condition - UPDATED: Now checks for authenticated routes only
     const showRefreshButton = computed(() => {
       return isAuthenticated.value && !isPublicRoute.value && !isMobileRoute.value && !initializing.value;
     });
-
-    // NEW: Show migration button condition
-    const showMigrationButton = computed(() => {
-      const isSuperadmin = store.state.userProfile?.role === 'superadmin';
-      return isSuperadmin && isAuthenticated.value && !isPublicRoute.value && !isMobileRoute.value && !initializing.value;
-    });
-
-    // Check mobile on mount and resize
-    const checkMobile = () => {
-      isMobile.value = window.innerWidth < 1024;
-    };
 
     // Methods
     const removeNotification = (notificationId) => {
@@ -288,7 +264,7 @@ export default {
       mobileMenuOpen.value = !mobileMenuOpen.value;
     };
 
-    // NEW: Format time for display
+    // Format time for display
     const formatTime = (date) => {
       if (!date) return '';
       const d = new Date(date);
@@ -299,19 +275,17 @@ export default {
       });
     };
 
-    // NEW: Refresh all data
+    // 🔥 UPDATED: Refresh all data using store actions
     const refreshAllData = async () => {
       if (refreshing.value) return;
       
       refreshing.value = true;
       try {
-        // Refresh all data in parallel
-        await Promise.all([
-          store.dispatch('fetchInventory'),
-          store.dispatch('fetchTransactions'),
-          store.dispatch('fetchWarehouses'),
-          store.dispatch('getRecentTransactions')
-        ]);
+        // Use store actions to refresh data
+        await store.dispatch('refreshInventory'); // This reloads all inventory
+        await store.dispatch('fetchTransactions'); // Refresh transactions
+        await store.dispatch('loadWarehouses'); // Refresh warehouses
+        await store.dispatch('getRecentTransactions'); // Refresh recent transactions
         
         lastRefreshTime.value = new Date();
         
@@ -358,9 +332,25 @@ export default {
         
         // 2. If user is authenticated, preload minimal inventory
         if (isAuthenticated.value) {
-          // Get user's accessible warehouses
-          const userWarehouses = store.getters.accessibleWarehouses || [];
-          const warehouseIds = userWarehouses.map(w => w.id);
+          // Get user's accessible warehouses from store
+          const userProfile = store.state.userProfile;
+          let accessibleWarehouses = [];
+          
+          if (userProfile) {
+            if (userProfile.role === 'superadmin' || userProfile.role === 'company_manager') {
+              // Superadmins and company managers can access all warehouses
+              accessibleWarehouses = warehouses;
+            } else if (userProfile.role === 'warehouse_manager') {
+              const allowedWarehouses = userProfile.allowed_warehouses || [];
+              if (allowedWarehouses.includes('all')) {
+                accessibleWarehouses = warehouses;
+              } else {
+                accessibleWarehouses = warehouses.filter(w => allowedWarehouses.includes(w.id));
+              }
+            }
+          }
+          
+          const warehouseIds = accessibleWarehouses.map(w => w.id);
           
           let itemsQuery;
           
@@ -425,31 +415,11 @@ export default {
     // ✅ Load remaining data in background
     const loadRemainingDataInBackground = async () => {
       try {
-        // 1. Load full inventory in background
-        store.dispatch('fetchInventory');
+        // 1. Load full inventory in background using store action
+        store.dispatch('loadAllInventory');
         
-        // 2. Load recent transactions
-        const { db } = await import('@/firebase/config');
-        const { collection, query, orderBy, limit, getDocs } = await import('firebase/firestore');
-        
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(50)
-        );
-        
-        const transactionsSnapshot = await getDocs(transactionsQuery);
-        const transactions = transactionsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        store.commit('SET_TRANSACTIONS', transactions);
-        
-        // 3. Load user profile details
-        if (store.state.user?.uid) {
-          store.dispatch('fetchUserProfile');
-        }
+        // 2. Load recent transactions (already handled by store)
+        // No need to load separately as store will handle it
         
       } catch (error) {
         console.error('Background load error:', error);
@@ -463,7 +433,7 @@ export default {
         // Start preloading immediately (before auth check)
         const preloadPromise = preloadEssentialData();
         
-        // Initialize auth
+        // Initialize auth using store action
         await store.dispatch('initializeAuth');
         
         // Wait for preload to complete (but don't block if it's slow)
@@ -574,6 +544,11 @@ export default {
       }
     });
 
+    // Check mobile on mount and resize
+    const checkMobile = () => {
+      isMobile.value = window.innerWidth < 1024;
+    };
+
     // Provide data to child components
     return {
       // Refs
@@ -595,7 +570,6 @@ export default {
       notifications,
       preloadedProgress,
       showRefreshButton,
-      showMigrationButton,
       
       // Methods
       removeNotification,
