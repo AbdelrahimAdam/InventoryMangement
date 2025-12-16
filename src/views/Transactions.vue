@@ -130,7 +130,7 @@
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <!-- Search Box -->
-          <div class="lg:w-1/3">
+          <div class="lg:w-1/4">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               <span class="inline-flex items-center">
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,8 +153,34 @@
             </div>
           </div>
 
+          <!-- Warehouse Filter -->
+          <div class="lg:w-1/4">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              <span class="inline-flex items-center">
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                تصفية بالمخزن
+              </span>
+            </label>
+            <select 
+              v-model="warehouseFilter"
+              @change="handleWarehouseFilter"
+              class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">جميع المخازن</option>
+              <option 
+                v-for="warehouse in accessibleWarehouses" 
+                :key="warehouse.id" 
+                :value="warehouse.id"
+              >
+                {{ warehouse.name_ar || warehouse.name }}
+              </option>
+            </select>
+          </div>
+
           <!-- Date Range Filters -->
-          <div class="lg:w-1/3">
+          <div class="lg:w-1/4">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               <span class="inline-flex items-center">
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,7 +210,7 @@
           </div>
 
           <!-- Type Filter -->
-          <div class="lg:w-1/3">
+          <div class="lg:w-1/4">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               <span class="inline-flex items-center">
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,6 +242,15 @@
             <span v-if="searchTerm" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
               بحث: "{{ searchTerm }}"
               <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+            </span>
+            
+            <span v-if="warehouseFilter" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+              مخزن: {{ getWarehouseName(warehouseFilter) }}
+              <button @click="warehouseFilter = ''" class="mr-1 hover:text-indigo-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
                 </svg>
@@ -375,7 +410,7 @@
                 <!-- User -->
                 <div class="col-span-2">
                   <div class="font-medium text-gray-900 dark:text-white">
-                    {{ transaction.user_name || 'مستخدم غير معروف' }}
+                    {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">
                     {{ getUserRoleLabel(transaction.user_role) }}
@@ -421,9 +456,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '@/firebase/config';
 
 export default {
   name: 'Transactions',
@@ -435,11 +472,13 @@ export default {
     const dateFrom = ref('');
     const dateTo = ref('');
     const typeFilter = ref('');
+    const warehouseFilter = ref('');
     const liveUpdatesEnabled = ref(true);
     const statsLoading = ref(false);
     const selectedNotes = ref(null);
+    const filterTimeout = ref(null);
 
-    // 🔥 Use store getters for warehouse labels and stats
+    // 🔥 Use store getters
     const userRole = computed(() => store.getters.userRole);
     const canExport = computed(() => {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
@@ -448,14 +487,15 @@ export default {
     // 🔥 Use store data
     const allTransactions = computed(() => store.state.transactions || []);
     const loading = computed(() => store.state.transactionsLoading);
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
     
-    // 🔥 Use the new store getter for warehouse label
+    // 🔥 Use store getter for warehouse label
     const getWarehouseName = (warehouseId) => {
       if (!warehouseId) return 'غير محدد';
       return store.getters.getWarehouseLabel(warehouseId);
     };
     
-    // 🔥 Use the new store getter for transaction stats
+    // 🔥 Use store getter for transaction stats
     const transactionStats = computed(() => {
       return store.getters.getTransactionStats;
     });
@@ -471,45 +511,26 @@ export default {
       };
     });
 
-    // 🔥 Filtered transactions computed property
+    // 🔥 Use store's filteredTransactions getter with our filters
     const filteredTransactions = computed(() => {
-      let filtered = [...allTransactions.value];
+      // First get transactions filtered by store getter
+      const storeFiltered = store.getters.filteredTransactions({
+        search: searchTerm.value,
+        type: typeFilter.value,
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value
+      });
       
-      // Apply search filter
-      if (searchTerm.value) {
-        const term = searchTerm.value.toLowerCase();
-        filtered = filtered.filter(transaction => 
-          (transaction.item_name?.toLowerCase() || '').includes(term) ||
-          (transaction.item_code?.toLowerCase() || '').includes(term) ||
-          (transaction.notes?.toLowerCase() || '').includes(term) ||
-          (transaction.user_name?.toLowerCase() || '').includes(term)
-        );
-      }
+      // Apply additional warehouse filter if selected
+      if (!warehouseFilter.value) return storeFiltered;
       
-      // Apply type filter
-      if (typeFilter.value) {
-        filtered = filtered.filter(transaction => transaction.type === typeFilter.value);
-      }
-      
-      // Apply date range filter
-      if (dateFrom.value) {
-        const fromDate = new Date(dateFrom.value);
-        filtered = filtered.filter(transaction => {
-          const transDate = getTransactionTime(transaction);
-          return transDate >= fromDate;
-        });
-      }
-      
-      if (dateTo.value) {
-        const toDate = new Date(dateTo.value);
-        toDate.setHours(23, 59, 59, 999);
-        filtered = filtered.filter(transaction => {
-          const transDate = getTransactionTime(transaction);
-          return transDate <= toDate;
-        });
-      }
-      
-      return filtered;
+      return storeFiltered.filter(transaction => {
+        const fromWarehouse = transaction.from_warehouse || transaction.from_warehouse_id;
+        const toWarehouse = transaction.to_warehouse || transaction.to_warehouse_id;
+        
+        // Show transactions where the selected warehouse is involved (either from or to)
+        return fromWarehouse === warehouseFilter.value || toWarehouse === warehouseFilter.value;
+      });
     });
     
     // Display only the most recent transactions
@@ -520,7 +541,7 @@ export default {
     const totalTransactions = computed(() => allTransactions.value.length);
     
     const hasActiveFilters = computed(() => {
-      return searchTerm.value || typeFilter.value || dateFrom.value || dateTo.value;
+      return searchTerm.value || typeFilter.value || warehouseFilter.value || dateFrom.value || dateTo.value;
     });
     
     const filterPercentage = computed(() => {
@@ -544,10 +565,11 @@ export default {
       }
     };
 
-    // Methods
+    // Methods - FORCE ENGLISH NUMBERS
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
-      return new Intl.NumberFormat('ar-SA').format(num);
+      // Always return English numbers
+      return new Intl.NumberFormat('en-US').format(num);
     };
     
     const getTypeLabel = (type) => {
@@ -593,11 +615,13 @@ export default {
     
     const formatTransactionDate = (transaction) => {
       const date = getTransactionTime(transaction);
+      // Use Arabic date format
       return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' });
     };
     
     const formatTransactionTime = (transaction) => {
       const date = getTransactionTime(transaction);
+      // Time will show in 12-hour format with Arabic
       return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
     };
     
@@ -617,17 +641,28 @@ export default {
       }
     };
     
+    // 🔥 Debounced search for better performance
     const handleSearch = () => {
-      // Search is handled by computed property
+      if (filterTimeout.value) {
+        clearTimeout(filterTimeout.value);
+      }
+      filterTimeout.value = setTimeout(() => {
+        // Search is handled by computed property through store getter
+      }, 300);
     };
     
     const handleFilter = () => {
       // Filter is handled by computed property
     };
     
+    const handleWarehouseFilter = () => {
+      // Warehouse filter is handled by computed property
+    };
+    
     const clearFilters = () => {
       searchTerm.value = '';
       typeFilter.value = '';
+      warehouseFilter.value = '';
       dateFrom.value = '';
       dateTo.value = '';
     };
@@ -698,7 +733,7 @@ export default {
             'الكمية': transaction.total_quantity || transaction.total_delta || 0,
             'من مستودع': getWarehouseName(fromWarehouseId),
             'إلى مستودع': getWarehouseName(toWarehouseId),
-            'المستخدم': transaction.user_name || '',
+            'المستخدم': transaction.user_name || transaction.created_by || '',
             'ملاحظات': transaction.notes || '',
             'صلاحية المستخدم': getUserRoleLabel(transaction.user_role)
           };
@@ -760,13 +795,75 @@ export default {
         statsLoading.value = false;
       }
     };
+
+    // 🔥 Setup real-time transactions listener
+    const setupRealtimeTransactions = () => {
+      if (!liveUpdatesEnabled.value) return;
+
+      try {
+        const transactionsRef = collection(db, 'transactions');
+        const q = query(
+          transactionsRef,
+          orderBy('timestamp', 'desc'),
+          limit(100)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const transactions = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          store.commit('SET_TRANSACTIONS', transactions);
+          
+          // Add notification for new transactions
+          if (transactions.length > 0 && allTransactions.value.length > 0) {
+            const latestTransaction = transactions[0];
+            const isNew = !allTransactions.value.find(t => t.id === latestTransaction.id);
+            
+            if (isNew) {
+              store.dispatch('showNotification', {
+                type: 'info',
+                message: `حركة جديدة: ${getTypeLabel(latestTransaction.type)} - ${latestTransaction.item_name}`,
+                duration: 5000
+              });
+            }
+          }
+        });
+
+        store.commit('ADD_REALTIME_LISTENER', unsubscribe);
+      } catch (error) {
+        console.error('Error setting up real-time transactions:', error);
+      }
+    };
+
+    // 🔥 Watch for real-time mode changes
+    watch(liveUpdatesEnabled, (newValue) => {
+      if (newValue) {
+        setupRealtimeTransactions();
+      } else {
+        // Clear listeners when real-time is disabled
+        store.commit('CLEAR_REALTIME_LISTENERS');
+      }
+    });
+
+    // 🔥 Watch for warehouse changes and update store filters
+    watch(warehouseFilter, (newWarehouse) => {
+      // Update store filters if needed for other components
+      store.commit('SET_FILTERS', { warehouse: newWarehouse });
+    });
     
     onMounted(() => {
       loadInitialData();
+      setupRealtimeTransactions();
     });
     
     onUnmounted(() => {
-      // Cleanup if needed
+      // Cleanup
+      if (filterTimeout.value) {
+        clearTimeout(filterTimeout.value);
+      }
+      store.commit('CLEAR_REALTIME_LISTENERS');
     });
     
     return {
@@ -775,6 +872,7 @@ export default {
       dateFrom,
       dateTo,
       typeFilter,
+      warehouseFilter,
       liveUpdatesEnabled,
       liveStats,
       statsLoading,
@@ -789,6 +887,7 @@ export default {
       filterPercentage,
       loading,
       transactionStats,
+      accessibleWarehouses,
       
       // Methods
       formatNumber,
@@ -796,16 +895,17 @@ export default {
       getTypeBadgeClass,
       getQuantityClass,
       getUserRoleLabel,
+      getWarehouseName,
       formatTransactionDate,
       formatTransactionTime,
       formatDateRange,
       handleSearch,
       handleFilter,
+      handleWarehouseFilter,
       clearFilters,
       manualRefresh,
       toggleLiveUpdates,
       exportTransactions,
-      getWarehouseName,
       getTransactionTime,
       showNotes
     };
@@ -818,6 +918,12 @@ export default {
 body, .text-right {
   text-align: right;
   direction: rtl;
+}
+
+/* Ensure numbers are displayed in English/LTR */
+.numbers-ltr {
+  direction: ltr;
+  text-align: left;
 }
 
 /* Custom scrollbar */
@@ -907,6 +1013,13 @@ body, .text-right {
   position: sticky;
 }
 
+/* Force LTR for numbers in quantity cells */
+.quantity-cell {
+  direction: ltr;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .mobile-stack {
@@ -924,5 +1037,21 @@ body, .text-right {
   .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6 {
     grid-column: span 3 !important;
   }
+}
+
+/* Dark mode adjustments */
+.dark .hover\:bg-gray-750:hover {
+  background-color: rgba(55, 65, 81, 0.5);
+}
+
+/* Ensure numbers in stats cards are English */
+.text-xl.font-bold {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Style for English numbers */
+.english-numbers {
+  font-feature-settings: "lnum";
+  font-variant-numeric: lining-nums;
 }
 </style>
