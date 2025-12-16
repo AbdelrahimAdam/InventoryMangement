@@ -140,10 +140,10 @@ const routes = [
       allowedRoles: ['superadmin']
     }
   },
-  
+
   // استخدام المسار المحسن للمخزون
   inventoryRoutes,
-  
+
   {
     path: '/inventory/add',
     name: 'AddInventory',
@@ -282,6 +282,16 @@ const routes = [
     }
   },
   {
+    path: '/migrate',
+    name: 'Migrate',
+    component: () => import('@/components/MigrationTool.vue'),
+    meta: { 
+      requiresAuth: true,
+      allowedRoles: ['superadmin'],
+      title: 'ترقية البيانات'
+    }
+  },
+  {
     path: '/unauthorized',
     name: 'Unauthorized',
     component: {
@@ -389,7 +399,7 @@ const canAccessRouteCached = (userRole, routeMeta) => {
 
   const cacheKey = `${userRole}_${JSON.stringify(routeMeta)}`;
   const cached = routePermissionCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.result;
   }
@@ -473,7 +483,7 @@ router.onError((error, to) => {
 
   if (error.message.includes('Failed to fetch dynamically imported module')) {
     console.log('🔄 فشل في تحميل المكون ديناميكياً. جاري إعادة التوجيه...');
-    
+
     // إذا كان خطأ في تحميل Inventory، أعد التوجيه إلى صفحة مؤقتة
     if (to.path.includes('/inventory')) {
       next({
@@ -533,10 +543,10 @@ router.addRoute({
 // إضافة تحميل مسبق للمسارات بعد تحميل الصفحة الرئيسية - الإصلاح هنا
 router.isReady().then(() => {
   console.log('✅ الموجه جاهز للتشغيل');
-  
+
   // تعطيل التحميل المسبق مؤقتاً لحل مشكلة المكونات
   console.log('⏸️ تم تعطيل التحميل المسبق لحل مشكلة المكونات غير المعرفة');
-  
+
   // التحقق من هيكل المسارات عند بدء التشغيل
   console.log('📋 المسارات المسجلة:');
   routes.forEach(route => {
