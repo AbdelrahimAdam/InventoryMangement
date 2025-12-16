@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay">
+  <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <!-- رأس المودال -->
       <div class="modal-header">
@@ -7,6 +7,7 @@
         <button 
           @click="closeModal"
           class="modal-close-btn"
+          type="button"
         >
           <svg class="modal-close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -118,7 +119,7 @@
               class="form-input"
               placeholder="أدخل اسم الصنف"
               ref="nameInput"
-              @keydown.enter.prevent="focusNextField('codeInput')"
+              @keydown="handleKeyDown($event, 'codeInput')"
             />
           </div>
 
@@ -135,7 +136,7 @@
                 class="form-input"
                 placeholder="كود الصنف"
                 ref="codeInput"
-                @keydown.enter.prevent="focusNextField('colorInput')"
+                @keydown="handleKeyDown($event, 'colorInput')"
               />
             </div>
 
@@ -150,7 +151,7 @@
                 class="form-input"
                 placeholder="لون الصنف"
                 ref="colorInput"
-                @keydown.enter.prevent="focusNextField('warehouseSelect')"
+                @keydown="handleKeyDown($event, 'warehouseSelect')"
               />
             </div>
           </div>
@@ -185,6 +186,7 @@
                 class="form-input"
                 placeholder="اسم المورد"
                 ref="supplierInput"
+                @keydown="handleKeyDown($event, 'locationInput')"
               />
             </div>
 
@@ -198,6 +200,7 @@
                 class="form-input"
                 placeholder="مكان الصنف داخل المخزن"
                 ref="locationInput"
+                @keydown="handleKeyDown($event, 'cartonsCountInput')"
               />
             </div>
           </div>
@@ -245,6 +248,7 @@
                 v-model.number="formData.cartons_count"
                 class="form-input"
                 ref="cartonsCountInput"
+                @keydown="handleKeyDown($event, 'perCartonInput')"
               />
             </div>
 
@@ -259,6 +263,7 @@
                 v-model.number="formData.per_carton_count"
                 class="form-input"
                 ref="perCartonInput"
+                @keydown="handleKeyDown($event, 'singleBottlesInput')"
               />
             </div>
           </div>
@@ -275,6 +280,7 @@
               v-model.number="formData.single_bottles_count"
               class="form-input"
               ref="singleBottlesInput"
+              @keydown="handleKeyDown($event, 'notesInput')"
             />
           </div>
 
@@ -520,10 +526,10 @@ export default {
 
     watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
       () => {
-        // تنظيف البيانات أثناء الكتابة
-        if (formData.value.name) formData.value.name = formData.value.name.trim();
-        if (formData.value.code) formData.value.code = formData.value.code.trim();
-        if (formData.value.color) formData.value.color = formData.value.color.trim();
+        // تنظيف البيانات أثناء الكتابة (بدون إزالة المسافات الداخلية)
+        if (formData.value.name) formData.value.name = formData.value.name.trimStart();
+        if (formData.value.code) formData.value.code = formData.value.code.trimStart();
+        if (formData.value.color) formData.value.color = formData.value.color.trimStart();
         
         checkExistingItemDebounced();
       }
@@ -533,6 +539,20 @@ export default {
     const closeModal = () => {
       emit('close');
       resetForm();
+    };
+
+    const handleKeyDown = (event, nextFieldRef) => {
+      // السماح بالمسافة والمفاتيح العادية للعمل
+      if (event.key === ' ') {
+        // السماح بالمسافة - لا تقم بمنع السلوك الافتراضي
+        return;
+      }
+      
+      // Enter للانتقال للحقل التالي
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        focusNextField(nextFieldRef);
+      }
     };
 
     const resetForm = () => {
@@ -995,13 +1015,6 @@ export default {
           formData.value.photo_url = photoUrl;
         }
 
-        // تحضير بيانات العنصر بشكل صحيح
-        const userId = currentUserId.value;
-        
-        if (!userId) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
-
         // استخدام الخاصية المحسوبة بدلاً من إنشاء متغير جديد بنفس الاسم
         const addingCartons = isAddingCartonsComputed.value;
 
@@ -1022,7 +1035,6 @@ export default {
 
         console.log('إرسال العنصر بالبيانات:', {
           itemData,
-          userId,
           addingCartons,
           existingItem: existingItem.value
         });
@@ -1045,16 +1057,12 @@ export default {
         }
 
         // إجبار تحديث المخزون في المتجر للتأكد من أن العنصر الجديد متاح فوراً للبحث
-        // هذا يضمن ظهور العنصر في نتائج البحث المباشر
         setTimeout(async () => {
           try {
-            // إجبار تحديث مخزون المتجر دون إظهار التحميل
             console.log('🔄 تحديث المخزون بصمت للبحث الفوري...');
             
             // التوزيع يدوياً لتحديث حالة المتجر بالعنصر الجديد
-            // هذا يضمن أن العنصر متاح فوراً في مصفوفة المخزون
             if (result?.item && result.item.id) {
-              // إضافة العنصر إلى مخزون المتجر فوراً
               store.commit('UPDATE_INVENTORY_ITEM', result.item);
               console.log('✅ تم إضافة العنصر إلى مخزون المتجر فوراً للبحث');
             }
@@ -1068,8 +1076,9 @@ export default {
         }, 500);
         
         // تنظيف النموذج بعد الإرسال الناجح ولكن المودال يبقى مفتوحاً
+        // إزالة emit('success') الذي كان يغلق المودال تلقائياً
         setTimeout(() => {
-          emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
+          // فقط نظف النموذج للتحضير للإدخال التالي
           clearFormAfterSuccess();
         }, 1500);
         
@@ -1147,7 +1156,8 @@ export default {
       handleFileUpload,
       handlePasteFromClipboard,
       removePhoto,
-      focusNextField
+      focusNextField,
+      handleKeyDown
     };
   }
 };
@@ -1278,6 +1288,9 @@ export default {
   color: #1f2937;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-size: 0.875rem;
+  /* السماح بالمسافات للعمل */
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 .dark .form-input,
