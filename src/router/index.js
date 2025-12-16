@@ -409,71 +409,96 @@ const canAccessRouteCached = (userRole, routeMeta) => {
   return result;
 };
 
+// متغير لتجنب تكرار التحقق
+let isCheckingRoute = false;
+
 router.beforeEach((to, from, next) => {
-  const store = useStore();
-  const user = store.state.user;
-  const userProfile = store.state.userProfile;
-
-  // Track if we're navigating after logout
-  const isAfterLogout = from.name === null || from.name === undefined;
-
-  // Handle post-logout navigation
-  if (isAfterLogout && to.path === '/login') {
+  // إذا كان التحقق جارياً بالفعل، اخرج لمنع التكرار
+  if (isCheckingRoute) {
     next();
     return;
   }
 
-  // Check if route is public (Transfers or Dispatch)
-  if (to.meta.publicView) {
-    console.log('🔓 الصفحة العامة:', to.name, '- السماح بالوصول للجميع');
-    next();
-    return;
-  }
+  isCheckingRoute = true;
 
-  // Check if route requires authentication
-  if (to.meta.requiresAuth && !user) {
-    if (to.path !== '/login') {
-      console.log('🔒 الصفحة تتطلب تسجيل الدخول - إعادة التوجيه إلى /login');
-      next('/login');
-    } else {
+  try {
+    const store = useStore();
+    const user = store.state.user;
+    const userProfile = store.state.userProfile;
+
+    console.log('🔍 Navigation Guard Checking:', {
+      from: from.name,
+      to: to.name,
+      user: !!user,
+      userRole: userProfile?.role,
+      requiresAuth: to.meta.requiresAuth,
+      publicView: to.meta.publicView,
+      requiresGuest: to.meta.requiresGuest
+    });
+
+    // Check if route is public (Transfers or Dispatch)
+    if (to.meta.publicView) {
+      console.log('🔓 الصفحة العامة:', to.name, '- السماح بالوصول للجميع');
       next();
+      return;
     }
-    return;
-  }
 
-  // Handle requiresGuest
-  if (to.meta.requiresGuest && user) {
-    if (to.path === '/login') {
-      next('/');
-    } else {
-      next('/');
+    // Handle requiresGuest (login page)
+    if (to.meta.requiresGuest) {
+      if (user) {
+        console.log('📱 المستخدم مسجل دخول بالفعل - إعادة التوجيه إلى الرئيسية');
+        next('/');
+      } else {
+        console.log('👤 صفحة تسجيل الدخول - السماح بالوصول');
+        next();
+      }
+      return;
     }
-    return;
-  }
 
-  // If user exists, check role-based access
-  if (user && userProfile) {
-    const userRole = userProfile.role;
-
-    // Check if route has role restrictions
-    if (to.meta.allowedRoles) {
-      // استخدام النسخة المحسنة مع cache
-      if (!canAccessRouteCached(userRole, to.meta)) {
-        console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
-        next('/unauthorized');
+    // Check if route requires authentication
+    if (to.meta.requiresAuth) {
+      if (!user) {
+        console.log('🔒 الصفحة تتطلب تسجيل الدخول - إعادة التوجيه إلى /login');
+        next('/login');
         return;
       }
 
-      // Special checks for warehouse managers
-      if (!canWarehouseManagerAccess(userProfile, to.name)) {
-        console.log('⛔ مدير المخزن ليس لديه مخازن مسموحة:', to.name);
-        next('/unauthorized');
-        return;
+      // If user exists, check role-based access
+      if (userProfile) {
+        const userRole = userProfile.role;
+
+        // Check if route has role restrictions
+        if (to.meta.allowedRoles) {
+          // استخدام النسخة المحسنة مع cache
+          if (!canAccessRouteCached(userRole, to.meta)) {
+            console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
+            next('/unauthorized');
+            return;
+          }
+
+          // Special checks for warehouse managers
+          if (!canWarehouseManagerAccess(userProfile, to.name)) {
+            console.log('⛔ مدير المخزن ليس لديه مخازن مسموحة:', to.name);
+            next('/unauthorized');
+            return;
+          }
+        }
       }
     }
-  }
 
-  next();
+    // Allow navigation
+    next();
+
+  } catch (error) {
+    console.error('❌ Error in navigation guard:', error);
+    // In case of error, allow navigation to prevent blocking
+    next();
+  } finally {
+    // Reset flag
+    setTimeout(() => {
+      isCheckingRoute = false;
+    }, 100);
+  }
 });
 
 // Add navigation error handler to prevent redirect loops
