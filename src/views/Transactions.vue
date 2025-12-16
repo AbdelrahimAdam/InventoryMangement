@@ -164,6 +164,8 @@
                   <option value="ADD">الإضافة</option>
                   <option value="TRANSFER">النقل</option>
                   <option value="DISPATCH">الصرف</option>
+                  <option value="UPDATE">التحديث</option>
+                  <option value="DELETE">الحذف</option>
                 </select>
               </div>
 
@@ -302,7 +304,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import TransactionHistory from '@/components/transactions/TransactionHistory.vue';
 
@@ -323,12 +325,8 @@ export default {
     const typeFilter = ref('');
     const showLiveUpdate = ref(false);
     const liveUpdatesEnabled = ref(true);
-    const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, updated: false });
-    const liveTransactions = ref([]);
-    
-    // Firebase real-time listener reference
-    let unsubscribe = null;
-    let lastUpdateTime = null;
+    const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, update: 0, delete: 0, updated: false });
+    const realtimeUnsubscribe = ref(null);
 
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
@@ -336,30 +334,14 @@ export default {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    // Combine cached transactions with live updates
+    // Get all transactions from Vuex store
     const allTransactions = computed(() => {
-      const cached = store.state.transactions || [];
-      const live = liveTransactions.value || [];
-      
-      // Merge and deduplicate by ID
-      const allMap = new Map();
-      
-      // Add cached transactions first
-      cached.forEach(t => {
-        if (t.id) allMap.set(t.id, t);
-      });
-      
-      // Add live transactions (will overwrite cached with same ID if newer)
-      live.forEach(t => {
-        if (t.id) allMap.set(t.id, t);
-      });
-      
-      // Convert to array and sort by timestamp
-      return Array.from(allMap.values()).sort((a, b) => {
-        const timeA = getTransactionTime(a);
-        const timeB = getTransactionTime(b);
-        return timeB - timeA; // Newest first
-      });
+      return store.state.transactions || [];
+    });
+
+    // Get recent transactions for quick stats
+    const recentTransactions = computed(() => {
+      return store.state.recentTransactions || [];
     });
 
     const filteredTransactions = computed(() => {
@@ -429,7 +411,7 @@ export default {
       }
     };
 
-    // Calculate live stats
+    // Calculate live stats from recent transactions
     const calculateLiveStats = () => {
       const now = Date.now();
       
@@ -440,14 +422,20 @@ export default {
       
       statsLoading.value = true;
       try {
-        const addCount = allTransactions.value.filter(t => t.type === 'ADD').length;
-        const transferCount = allTransactions.value.filter(t => t.type === 'TRANSFER').length;
-        const dispatchCount = allTransactions.value.filter(t => t.type === 'DISPATCH').length;
+        const transactions = recentTransactions.value.length > 0 ? recentTransactions.value : allTransactions.value;
+        
+        const addCount = transactions.filter(t => t.type === 'ADD').length;
+        const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
+        const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
+        const updateCount = transactions.filter(t => t.type === 'UPDATE').length;
+        const deleteCount = transactions.filter(t => t.type === 'DELETE').length;
         
         liveStats.value = {
           add: addCount,
           transfer: transferCount,
           dispatch: dispatchCount,
+          update: updateCount,
+          delete: deleteCount,
           updated: true,
           lastUpdate: now
         };
@@ -457,7 +445,7 @@ export default {
     };
 
     // Watch for transaction changes to update stats
-    watch(allTransactions, () => {
+    watch([allTransactions, recentTransactions], () => {
       calculateLiveStats();
     }, { deep: true });
 
@@ -510,60 +498,70 @@ export default {
       dateTo.value = '';
     };
 
-    // Optimized fetch function - only gets new transactions
-    const fetchNewTransactions = async () => {
-      try {
-        loading.value = true;
-        
-        // Get the latest timestamp from existing transactions
-        const latestTimestamp = lastUpdateTime || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default to 24 hours ago
-        
-        const transactionsRef = collection(db, 'transactions');
-        const q = query(
-          transactionsRef,
-          where('created_at', '>', latestTimestamp),
-          orderBy('created_at', 'desc'),
-          limit(50)
-        );
-        
-        const snapshot = await getDocs(q);
+    // Setup real-time listener for transactions
+    const setupRealtimeListener = () => {
+      // Clear existing listener
+      if (realtimeUnsubscribe.value) {
+        realtimeUnsubscribe.value();
+      }
+
+      const transactionsRef = collection(db, 'transactions');
+      const q = query(
+        transactionsRef,
+        orderBy('timestamp', 'desc'),
+        limit(100)
+      );
+
+      realtimeUnsubscribe.value = onSnapshot(q, (snapshot) => {
         const newTransactions = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
-        if (newTransactions.length > 0) {
-          // Update live transactions
-          liveTransactions.value = [...newTransactions, ...liveTransactions.value].slice(0, 100);
-          
-          // Update last update time
-          lastUpdateTime = new Date();
-          
-          // Show live update notification
+
+        // Update Vuex store
+        store.commit('SET_TRANSACTIONS', newTransactions);
+
+        // Show live update notification
+        if (liveUpdatesEnabled.value && newTransactions.length > 0) {
           showLiveUpdate.value = true;
           setTimeout(() => {
             showLiveUpdate.value = false;
           }, 3000);
         }
-        
-        return newTransactions;
-      } catch (error) {
-        console.error('Error fetching new transactions:', error);
-        return [];
-      } finally {
-        loading.value = false;
-      }
+
+        // Recalculate stats
+        calculateLiveStats();
+      }, (error) => {
+        console.error('Real-time listener error:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في الاتصال بالبيانات المباشرة'
+        });
+      });
     };
 
     // Manual refresh
     const manualRefresh = async () => {
-      await fetchNewTransactions();
-      
-      // Also refresh cached data from store (optional)
+      loading.value = true;
       try {
+        // Refresh transactions from store
+        await store.dispatch('fetchTransactions');
+        
+        // Also refresh recent transactions
         await store.dispatch('getRecentTransactions');
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تحديث البيانات بنجاح'
+        });
       } catch (error) {
-        console.error('Error refreshing store transactions:', error);
+        console.error('Error refreshing data:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحديث البيانات'
+        });
+      } finally {
+        loading.value = false;
       }
     };
 
@@ -572,36 +570,20 @@ export default {
       liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
       
       if (liveUpdatesEnabled.value) {
-        startLiveUpdates();
+        setupRealtimeListener();
+        store.dispatch('showNotification', {
+          type: 'info',
+          message: 'تم تفعيل التحديثات الحية'
+        });
       } else {
-        stopLiveUpdates();
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'info',
-        message: liveUpdatesEnabled.value ? 'تم تفعيل التحديثات الحية' : 'تم إيقاف التحديثات الحية'
-      });
-    };
-
-    // Start live updates (polling for simplicity - real-time listeners can be added later)
-    const startLiveUpdates = () => {
-      // Poll every 30 seconds for new transactions
-      if (window.liveUpdateInterval) {
-        clearInterval(window.liveUpdateInterval);
-      }
-      
-      window.liveUpdateInterval = setInterval(() => {
-        if (liveUpdatesEnabled.value) {
-          fetchNewTransactions();
+        if (realtimeUnsubscribe.value) {
+          realtimeUnsubscribe.value();
+          realtimeUnsubscribe.value = null;
         }
-      }, 30000); // 30 seconds
-    };
-
-    // Stop live updates
-    const stopLiveUpdates = () => {
-      if (window.liveUpdateInterval) {
-        clearInterval(window.liveUpdateInterval);
-        window.liveUpdateInterval = null;
+        store.dispatch('showNotification', {
+          type: 'info',
+          message: 'تم إيقاف التحديثات الحية'
+        });
       }
     };
 
@@ -609,18 +591,18 @@ export default {
     const loadInitialData = async () => {
       loading.value = true;
       try {
-        // Load cached data from store
-        await store.dispatch('getRecentTransactions');
+        // Load transactions from store (which fetches from Firestore)
+        await store.dispatch('fetchTransactions');
         
-        // Fetch recent transactions from Firebase
-        await fetchNewTransactions();
+        // Load recent transactions
+        await store.dispatch('getRecentTransactions');
         
         // Calculate initial stats
         calculateLiveStats();
         
-        // Start live updates if enabled
+        // Start real-time updates if enabled
         if (liveUpdatesEnabled.value) {
-          startLiveUpdates();
+          setupRealtimeListener();
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -650,8 +632,8 @@ export default {
           'اسم الصنف': transaction.item_name || '',
           'كود الصنف': transaction.item_code || '',
           'الكمية': transaction.total_quantity || transaction.total_delta || 0,
-          'من المخزن': store.getters.getWarehouseLabel(transaction.from_warehouse_id) || '',
-          'إلى المخزن': store.getters.getWarehouseLabel(transaction.to_warehouse_id) || '',
+          'من المخزن': store.getters.getWarehouseName(transaction.from_warehouse) || store.getters.getWarehouseName(transaction.from_warehouse_id) || '',
+          'إلى المخزن': store.getters.getWarehouseName(transaction.to_warehouse) || store.getters.getWarehouseName(transaction.to_warehouse_id) || '',
           'المستخدم': transaction.user_name || '',
           'ملاحظات': transaction.notes || ''
         }));
@@ -689,13 +671,9 @@ export default {
     });
     
     onUnmounted(() => {
-      // Clean up intervals
-      stopLiveUpdates();
-      
-      // Clean up Firebase listener if exists
-      if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
+      // Clean up real-time listener
+      if (realtimeUnsubscribe.value) {
+        realtimeUnsubscribe.value();
       }
     });
     
