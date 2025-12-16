@@ -327,6 +327,7 @@ export default {
     const liveUpdatesEnabled = ref(true);
     const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, update: 0, delete: 0, updated: false });
     const realtimeUnsubscribe = ref(null);
+    const warehousesCache = ref({});
 
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
@@ -343,6 +344,21 @@ export default {
     const recentTransactions = computed(() => {
       return store.state.recentTransactions || [];
     });
+
+    // Get warehouses for name lookup
+    const warehouses = computed(() => {
+      return store.state.warehouses || [];
+    });
+
+    // Cache warehouse names when warehouses are loaded
+    watch(warehouses, (newWarehouses) => {
+      warehousesCache.value = {};
+      newWarehouses.forEach(w => {
+        if (w.id) {
+          warehousesCache.value[w.id] = w.name_ar || w.name || w.id;
+        }
+      });
+    }, { immediate: true });
 
     const filteredTransactions = computed(() => {
       let filtered = [...allTransactions.value];
@@ -409,6 +425,12 @@ export default {
       } catch {
         return new Date(0);
       }
+    };
+
+    // Helper function to get warehouse name (avoiding getters)
+    const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return '';
+      return warehousesCache.value[warehouseId] || warehouseId;
     };
 
     // Calculate live stats from recent transactions
@@ -601,8 +623,8 @@ export default {
             'اسم الصنف': transaction.item_name || '',
             'كود الصنف': transaction.item_code || '',
             'الكمية': transaction.total_quantity || transaction.total_delta || 0,
-            'من المخزن': fromWarehouseId ? getWarehouseName(fromWarehouseId) : '',
-            'إلى المخزن': toWarehouseId ? getWarehouseName(toWarehouseId) : '',
+            'من المخزن': getWarehouseName(fromWarehouseId),
+            'إلى المخزن': getWarehouseName(toWarehouseId),
             'المستخدم': transaction.user_name || '',
             'ملاحظات': transaction.notes || ''
           };
@@ -627,24 +649,6 @@ export default {
         });
       } finally {
         loading.value = false;
-      }
-    };
-
-    // Helper function to get warehouse name
-    const getWarehouseName = (warehouseId) => {
-      if (!warehouseId) return '';
-      try {
-        // First try to get from store getter
-        if (store.getters.getWarehouseName) {
-          return store.getters.getWarehouseName(warehouseId) || '';
-        }
-        
-        // Fallback: get from warehouses array
-        const warehouses = store.state.warehouses || [];
-        const warehouse = warehouses.find(w => w.id === warehouseId);
-        return warehouse ? warehouse.name_ar || warehouse.name || warehouseId : warehouseId;
-      } catch {
-        return warehouseId;
       }
     };
 
