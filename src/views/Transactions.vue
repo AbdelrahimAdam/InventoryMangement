@@ -6,7 +6,7 @@
         <div class="flex items-center justify-center animate-pulse">
           <div class="flex items-center px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-medium">
             <div class="w-2 h-2 bg-green-500 rounded-full animate-ping mr-2"></div>
-            <span>تم تحديث البيانات تلقائياً</span>
+            <span>Live Update Applied</span>
             <button @click="showLiveUpdate = false" class="mr-2 text-green-600 hover:text-green-800">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -27,7 +27,7 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الحركات</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Transactions</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalTransactions) }}</p>
             </div>
           </div>
@@ -35,7 +35,7 @@
             <svg v-if="statsLoading" class="w-3 h-3 animate-spin mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {{ liveStats.updated ? 'تحديث حي' : 'بيانات محفوظة' }}
+            {{ liveStats.updated ? 'Live Update' : 'Cached Data' }}
           </div>
         </div>
 
@@ -48,7 +48,7 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الإضافات</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Additions</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.add) }}</p>
             </div>
           </div>
@@ -63,7 +63,7 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">النقل</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Transfers</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.transfer) }}</p>
             </div>
           </div>
@@ -78,7 +78,7 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">الصرف</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Dispatches</p>
               <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(liveStats.dispatch) }}</p>
             </div>
           </div>
@@ -95,7 +95,7 @@
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                بحث متقدم
+                Advanced Search
               </span>
             </label>
             <div class="relative">
@@ -103,7 +103,7 @@
                 type="text"
                 v-model="searchTerm"
                 @input="handleSearch"
-                placeholder="ابحث باسم الصنف، الكود، الملاحظات..."
+                placeholder="Search by item name, code, notes..."
                 class="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200"
               >
               <svg class="absolute right-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +119,7 @@
                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
-                نطاق التاريخ
+                Date Range
               </span>
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -129,7 +129,7 @@
                   v-model="dateFrom"
                   class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">من</label>
+                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">From</label>
               </div>
               <div class="relative">
                 <input 
@@ -137,7 +137,7 @@
                   v-model="dateTo"
                   class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">إلى</label>
+                <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">To</label>
               </div>
             </div>
           </div>
@@ -152,7 +152,7 @@
                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
-                    نوع الحركة
+                    Transaction Type
                   </span>
                 </label>
                 <select 
@@ -160,18 +160,18 @@
                   @change="handleFilter"
                   class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">جميع الأنواع</option>
-                  <option value="ADD">الإضافة</option>
-                  <option value="TRANSFER">النقل</option>
-                  <option value="DISPATCH">الصرف</option>
-                  <option value="UPDATE">التحديث</option>
-                  <option value="DELETE">الحذف</option>
+                  <option value="">All Types</option>
+                  <option value="ADD">Addition</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="DISPATCH">Dispatch</option>
+                  <option value="UPDATE">Update</option>
+                  <option value="DELETE">Delete</option>
                 </select>
               </div>
 
               <!-- Export Button -->
               <div class="flex-1">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 opacity-0">تصدير</label>
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 opacity-0">Export</label>
                 <button 
                   v-if="canExport"
                   @click="exportTransactions"
@@ -180,7 +180,7 @@
                   <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                   </svg>
-                  تصدير Excel
+                  Export Excel
                 </button>
               </div>
             </div>
@@ -190,10 +190,10 @@
         <!-- Active Filters Badges -->
         <div v-if="hasActiveFilters" class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">التصفيات النشطة:</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Filters:</span>
             
             <span v-if="searchTerm" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-              بحث: "{{ searchTerm }}"
+              Search: "{{ searchTerm }}"
               <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -202,7 +202,7 @@
             </span>
             
             <span v-if="typeFilter" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
-              نوع: {{ getTypeLabel(typeFilter) }}
+              Type: {{ getTypeLabel(typeFilter) }}
               <button @click="typeFilter = ''" class="mr-1 hover:text-purple-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -211,7 +211,7 @@
             </span>
             
             <span v-if="dateFrom || dateTo" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
-              تاريخ: {{ formatDateRange(dateFrom, dateTo) }}
+              Date: {{ formatDateRange(dateFrom, dateTo) }}
               <button @click="dateFrom = ''; dateTo = ''" class="mr-1 hover:text-yellow-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -227,7 +227,7 @@
               <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              إعادة الضبط
+              Reset
             </button>
           </div>
         </div>
@@ -238,8 +238,8 @@
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">سجل جميع الحركات</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">عرض وتتبع جميع عمليات المخزون</p>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transaction History</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">View and track all inventory operations</p>
             </div>
             <div class="flex items-center gap-3">
               <!-- Live Update Toggle -->
@@ -253,7 +253,7 @@
                 ]"
               >
                 <div :class="['w-2 h-2 rounded-full mr-2', liveUpdatesEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400']"></div>
-                {{ liveUpdatesEnabled ? 'التحديثات الحية نشطة' : 'تفعيل التحديثات الحية' }}
+                {{ liveUpdatesEnabled ? 'Live Updates Active' : 'Enable Live Updates' }}
               </button>
               
               <!-- Refresh Button -->
@@ -265,16 +265,16 @@
                 <svg :class="['w-3 h-3 mr-2', loading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                تحديث يدوي
+                Manual Refresh
               </button>
               
               <!-- Stats Badge -->
               <span class="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium">
-                {{ formatNumber(filteredTransactions.length) }} حركة
+                {{ formatNumber(filteredTransactions.length) }} transactions
               </span>
               
               <div class="text-sm text-gray-500 dark:text-gray-400">
-                تم التصفية: {{ filterPercentage }}%
+                Filtered: {{ filterPercentage }}%
               </div>
             </div>
           </div>
@@ -283,8 +283,8 @@
         <!-- Loading State -->
         <div v-if="loading" class="p-8 text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل البيانات...</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
+          <p class="text-gray-700 dark:text-gray-300 font-medium">Loading data...</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Please wait</p>
         </div>
 
         <!-- Transaction History Component -->
@@ -304,8 +304,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db } from '@/firebase/config';
 import TransactionHistory from '@/components/transactions/TransactionHistory.vue';
 
 export default {
@@ -316,9 +314,7 @@ export default {
   setup() {
     const store = useStore();
     
-    // Refs
-    const loading = ref(false);
-    const statsLoading = ref(false);
+    // Refs for local component state
     const searchTerm = ref('');
     const dateFrom = ref('');
     const dateTo = ref('');
@@ -326,40 +322,35 @@ export default {
     const showLiveUpdate = ref(false);
     const liveUpdatesEnabled = ref(true);
     const liveStats = ref({ add: 0, transfer: 0, dispatch: 0, update: 0, delete: 0, updated: false });
-    const realtimeUnsubscribe = ref(null);
-    const warehousesCache = ref({});
 
-    // Computed properties
+    // Computed properties from store
     const userRole = computed(() => store.getters.userRole);
     const canExport = computed(() => {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    // Get all transactions from Vuex store
-    const allTransactions = computed(() => {
-      return store.state.transactions || [];
-    });
+    // Use store state directly
+    const allTransactions = computed(() => store.state.transactions || []);
+    const recentTransactions = computed(() => store.state.recentTransactions || []);
+    const loading = computed(() => store.state.transactionsLoading);
+    const warehouses = computed(() => store.state.warehouses || []);
 
-    // Get recent transactions for quick stats
-    const recentTransactions = computed(() => {
-      return store.state.recentTransactions || [];
-    });
-
-    // Get warehouses for name lookup
-    const warehouses = computed(() => {
-      return store.state.warehouses || [];
-    });
-
-    // Cache warehouse names when warehouses are loaded
-    watch(warehouses, (newWarehouses) => {
-      warehousesCache.value = {};
-      newWarehouses.forEach(w => {
-        if (w.id) {
-          warehousesCache.value[w.id] = w.name_ar || w.name || w.id;
-        }
+    // Create a warehouse name lookup from store
+    const warehouseMap = computed(() => {
+      const map = {};
+      warehouses.value.forEach(w => {
+        map[w.id] = w.name_ar || w.name || w.id;
       });
-    }, { immediate: true });
+      return map;
+    });
 
+    // Helper function to get warehouse name
+    const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return '';
+      return warehouseMap.value[warehouseId] || warehouseId;
+    };
+
+    // Filtered transactions computed property
     const filteredTransactions = computed(() => {
       let filtered = [...allTransactions.value];
       
@@ -427,21 +418,15 @@ export default {
       }
     };
 
-    // Helper function to get warehouse name (avoiding getters)
-    const getWarehouseName = (warehouseId) => {
-      if (!warehouseId) return '';
-      return warehousesCache.value[warehouseId] || warehouseId;
-    };
-
-    // Calculate live stats from recent transactions
+    // Calculate live stats from store data
     const calculateLiveStats = () => {
       const now = Date.now();
       
+      // Only recalculate if stats are stale (older than 5 minutes)
       if (liveStats.value.updated && (now - liveStats.value.lastUpdate < 300000)) {
         return;
       }
       
-      statsLoading.value = true;
       try {
         const transactions = recentTransactions.value.length > 0 ? recentTransactions.value : allTransactions.value;
         
@@ -460,8 +445,8 @@ export default {
           updated: true,
           lastUpdate: now
         };
-      } finally {
-        statsLoading.value = false;
+      } catch (error) {
+        console.error('Error calculating stats:', error);
       }
     };
 
@@ -473,16 +458,16 @@ export default {
     // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
-      return new Intl.NumberFormat('ar-EG').format(num);
+      return new Intl.NumberFormat('en-US').format(num);
     };
     
     const getTypeLabel = (type) => {
       const labels = {
-        'ADD': 'الإضافة',
-        'TRANSFER': 'النقل',
-        'DISPATCH': 'الصرف',
-        'UPDATE': 'التحديث',
-        'DELETE': 'الحذف'
+        'ADD': 'Addition',
+        'TRANSFER': 'Transfer',
+        'DISPATCH': 'Dispatch',
+        'UPDATE': 'Update',
+        'DELETE': 'Delete'
       };
       return labels[type] || type;
     };
@@ -492,16 +477,16 @@ export default {
       if (from && to) {
         return `${formatShortDate(from)} - ${formatShortDate(to)}`;
       } else if (from) {
-        return `من ${formatShortDate(from)}`;
+        return `From ${formatShortDate(from)}`;
       } else {
-        return `إلى ${formatShortDate(to)}`;
+        return `To ${formatShortDate(to)}`;
       }
     };
     
     const formatShortDate = (dateStr) => {
       if (!dateStr) return '';
       const date = new Date(dateStr);
-      return date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
     };
     
     const handleSearch = () => {
@@ -519,159 +504,131 @@ export default {
       dateTo.value = '';
     };
 
-    // Setup real-time listener for transactions
-    const setupRealtimeListener = () => {
-      // Clear existing listener
-      if (realtimeUnsubscribe.value) {
-        realtimeUnsubscribe.value();
-      }
-
-      const transactionsRef = collection(db, 'transactions');
-      const q = query(
-        transactionsRef,
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-
-      realtimeUnsubscribe.value = onSnapshot(q, (snapshot) => {
-        const newTransactions = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        store.commit('SET_TRANSACTIONS', newTransactions);
-
-        if (liveUpdatesEnabled.value && newTransactions.length > 0) {
-          showLiveUpdate.value = true;
-          setTimeout(() => {
-            showLiveUpdate.value = false;
-          }, 3000);
-        }
-
-        calculateLiveStats();
-      }, (error) => {
-        console.error('Real-time listener error:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في الاتصال بالبيانات المباشرة'
-        });
-      });
-    };
-
-    // Manual refresh
+    // Manual refresh using store action
     const manualRefresh = async () => {
-      loading.value = true;
       try {
+        // Use store action to refresh transactions
         await store.dispatch('fetchTransactions');
         await store.dispatch('getRecentTransactions');
         
+        // Show notification through store
         store.dispatch('showNotification', {
           type: 'success',
-          message: 'تم تحديث البيانات بنجاح'
+          message: 'Data refreshed successfully'
         });
+
+        // Show live update indicator
+        showLiveUpdate.value = true;
+        setTimeout(() => {
+          showLiveUpdate.value = false;
+        }, 3000);
+        
       } catch (error) {
         console.error('Error refreshing data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تحديث البيانات'
+          message: 'Error refreshing data'
         });
-      } finally {
-        loading.value = false;
       }
     };
 
-    // Toggle live updates
+    // Toggle live updates (simplified - store handles real-time)
     const toggleLiveUpdates = () => {
       liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
       
-      if (liveUpdatesEnabled.value) {
-        setupRealtimeListener();
-        store.dispatch('showNotification', {
-          type: 'info',
-          message: 'تم تفعيل التحديثات الحية'
-        });
-      } else {
-        if (realtimeUnsubscribe.value) {
-          realtimeUnsubscribe.value();
-          realtimeUnsubscribe.value = null;
-        }
-        store.dispatch('showNotification', {
-          type: 'info',
-          message: 'تم إيقاف التحديثات الحية'
-        });
-      }
+      // Update store real-time mode
+      store.commit('SET_REALTIME_MODE', liveUpdatesEnabled.value);
+      
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: liveUpdatesEnabled.value ? 'Live updates enabled' : 'Live updates disabled'
+      });
     };
 
     // Export transactions to Excel
     const exportTransactions = () => {
       try {
-        loading.value = true;
+        // Set loading state through store
+        store.commit('SET_TRANSACTIONS_LOADING', true);
         
+        // Create workbook
         const wb = XLSX.utils.book_new();
         
+        // Prepare data for export using store data
         const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => {
-          // Handle both old and new field names for warehouse
           const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
           
           return {
-            'تاريخ الحركة': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleDateString('ar-EG') : '',
-            'وقت الحركة': transaction.timestamp ? 
-              getTransactionTime(transaction).toLocaleTimeString('ar-EG') : '',
-            'نوع الحركة': getTypeLabel(transaction.type),
-            'اسم الصنف': transaction.item_name || '',
-            'كود الصنف': transaction.item_code || '',
-            'الكمية': transaction.total_quantity || transaction.total_delta || 0,
-            'من المخزن': getWarehouseName(fromWarehouseId),
-            'إلى المخزن': getWarehouseName(toWarehouseId),
-            'المستخدم': transaction.user_name || '',
-            'ملاحظات': transaction.notes || ''
+            'Transaction Date': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleDateString('en-US') : '',
+            'Transaction Time': transaction.timestamp ? 
+              getTransactionTime(transaction).toLocaleTimeString('en-US') : '',
+            'Transaction Type': getTypeLabel(transaction.type),
+            'Item Name': transaction.item_name || '',
+            'Item Code': transaction.item_code || '',
+            'Quantity': transaction.total_quantity || transaction.total_delta || 0,
+            'From Warehouse': getWarehouseName(fromWarehouseId),
+            'To Warehouse': getWarehouseName(toWarehouseId),
+            'User': transaction.user_name || '',
+            'Notes': transaction.notes || ''
           };
         });
         
+        // Convert to worksheet
         const ws = XLSX.utils.json_to_sheet(exportData);
-        XLSX.utils.book_append_sheet(wb, ws, 'الحركات');
         
-        const filename = `سجل_الحركات_${new Date().toISOString().split('T')[0]}.xlsx`;
+        // Add to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+        
+        // Generate filename
+        const filename = `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Save file
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${exportData.length} حركة إلى Excel بنجاح`
+          message: `Exported ${exportData.length} transactions to Excel successfully`
         });
         
       } catch (error) {
         console.error('Error exporting transactions:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تصدير الحركات'
+          message: 'Error exporting transactions'
         });
       } finally {
-        loading.value = false;
+        store.commit('SET_TRANSACTIONS_LOADING', false);
       }
     };
 
-    // Initial data load
+    // Initial data load using store actions
     const loadInitialData = async () => {
-      loading.value = true;
       try {
+        // Use store actions to load data
         await store.dispatch('fetchTransactions');
         await store.dispatch('getRecentTransactions');
         
+        // Load warehouses if not already loaded
+        if (!store.state.warehousesLoaded) {
+          await store.dispatch('loadWarehouses');
+        }
+        
+        // Calculate initial stats
         calculateLiveStats();
         
-        if (liveUpdatesEnabled.value) {
-          setupRealtimeListener();
+        // Enable real-time updates if configured
+        if (store.state.realtimeMode) {
+          liveUpdatesEnabled.value = true;
         }
+        
       } catch (error) {
         console.error('Error loading initial data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تحميل البيانات'
+          message: 'Error loading data'
         });
-      } finally {
-        loading.value = false;
       }
     };
     
@@ -680,15 +637,11 @@ export default {
     });
     
     onUnmounted(() => {
-      if (realtimeUnsubscribe.value) {
-        realtimeUnsubscribe.value();
-      }
+      // Cleanup if needed
     });
     
     return {
       // State
-      loading,
-      statsLoading,
       searchTerm,
       dateFrom,
       dateTo,
@@ -704,6 +657,7 @@ export default {
       canExport,
       hasActiveFilters,
       filterPercentage,
+      loading,
       
       // Methods
       formatNumber,
