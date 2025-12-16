@@ -1,7 +1,7 @@
 <template>
   <div v-if="isOpen" class="modal-overlay">
     <div class="modal-content">
-      <!-- Modal Header -->
+      <!-- رأس المودال -->
       <div class="modal-header">
         <h2 class="modal-title">إضافة صنف جديد</h2>
         <button 
@@ -14,16 +14,16 @@
         </button>
       </div>
 
-      <!-- Scrollable Content -->
+      <!-- محتوى المودال -->
       <div class="modal-body">
         <form @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Photo Upload Section -->
+          <!-- قسم رفع الصورة -->
           <div class="form-group">
             <label class="form-label">
               صورة الصنف
             </label>
             <div class="photo-upload-container">
-              <!-- Photo Preview -->
+              <!-- معاينة الصورة -->
               <div class="photo-preview-wrapper">
                 <div 
                   v-if="previewPhoto" 
@@ -50,7 +50,7 @@
                 </div>
               </div>
 
-              <!-- Photo Upload Actions -->
+              <!-- أزرار رفع الصورة -->
               <div class="photo-actions">
                 <input
                   type="file"
@@ -97,7 +97,7 @@
                 </button>
               </div>
 
-              <!-- Photo Info -->
+              <!-- معلومات الصورة -->
               <div v-if="selectedFile" class="photo-info">
                 <p class="photo-info-text">
                   {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
@@ -106,7 +106,7 @@
             </div>
           </div>
 
-          <!-- Name Field -->
+          <!-- حقل الاسم -->
           <div class="form-group">
             <label class="form-label">
               الاسم <span class="required-star">*</span>
@@ -122,7 +122,7 @@
             />
           </div>
 
-          <!-- Code and Color Fields -->
+          <!-- حقل الكود واللون -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -155,7 +155,7 @@
             </div>
           </div>
 
-          <!-- Warehouse Selection -->
+          <!-- اختيار المخزن -->
           <div class="form-group">
             <label class="form-label">
               المخزن <span class="required-star">*</span>
@@ -173,7 +173,7 @@
             </select>
           </div>
 
-          <!-- Supplier and Location Fields -->
+          <!-- حقل المورد والمكان -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -202,7 +202,7 @@
             </div>
           </div>
 
-          <!-- Add Mode Selection -->
+          <!-- اختيار طريقة الإضافة -->
           <div class="form-group">
             <label class="form-label">
               طريقة الإضافة
@@ -232,7 +232,7 @@
             </div>
           </div>
 
-          <!-- Cartons Fields (Conditional) -->
+          <!-- حقول الكراتين (ظرفية) -->
           <div v-if="addMode === 'cartons' || addMode === 'both'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -263,7 +263,7 @@
             </div>
           </div>
 
-          <!-- Single Bottles Field (Conditional) -->
+          <!-- حقل القزاز الفردي (ظرفي) -->
           <div v-if="addMode === 'single' || addMode === 'both'" class="form-group">
             <label class="form-label">
               عدد القزاز الفردي <span class="required-star">*</span>
@@ -278,7 +278,7 @@
             />
           </div>
 
-          <!-- Notes Field -->
+          <!-- حقل الملاحظات -->
           <div class="form-group">
             <label class="form-label">
               ملاحظات
@@ -292,7 +292,7 @@
             ></textarea>
           </div>
 
-          <!-- Summary Section -->
+          <!-- قسم الملخص -->
           <div v-if="showSummary" class="alert alert-info">
             <h4 class="alert-title">ملخص الكمية:</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -308,7 +308,7 @@
             </div>
           </div>
 
-          <!-- Existing Item Warning -->
+          <!-- تحذير الصنف الموجود -->
           <div v-if="existingItem && !storeOperationError" class="alert alert-warning">
             <div class="flex items-center">
               <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
@@ -326,22 +326,22 @@
             </div>
           </div>
 
-          <!-- Store Operation Error -->
+          <!-- خطأ في العملية -->
           <div v-if="storeOperationError" class="alert alert-danger">
             <p class="alert-message">{{ storeOperationError }}</p>
           </div>
 
-          <!-- Success Message -->
+          <!-- رسالة النجاح -->
           <div v-if="successMessage" class="alert alert-success">
             <p class="alert-message">{{ successMessage }}</p>
           </div>
 
-          <!-- Error Message -->
+          <!-- رسالة الخطأ -->
           <div v-if="errorMessage" class="alert alert-danger">
             <p class="alert-message">{{ errorMessage }}</p>
           </div>
 
-          <!-- Action Buttons (Fixed at bottom) -->
+          <!-- أزرار الإجراءات (ثابتة في الأسفل) -->
           <div class="modal-footer">
             <div class="flex gap-2">
               <button
@@ -410,7 +410,7 @@ export default {
     const fileInput = ref(null);
     const isFormResetting = ref(false);
     
-    // Refs for form inputs
+    // مراجع لحقول النموذج
     const nameInput = ref(null);
     const codeInput = ref(null);
     const colorInput = ref(null);
@@ -437,7 +437,7 @@ export default {
       photo_url: null
     });
 
-    // Computed properties
+    // الخصائص المحسوبة
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
     const storeOperationLoading = computed(() => store.state.operationLoading);
     const storeOperationError = computed(() => store.state.operationError);
@@ -466,7 +466,7 @@ export default {
       if (!formData.value.color.trim()) return false;
       if (!formData.value.warehouse_id) return false;
       
-      // Check mode-specific validation
+      // التحقق من الصلاحية الخاصة بالوضع
       if (addMode.value === 'cartons') {
         return formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
       } else if (addMode.value === 'single') {
@@ -482,17 +482,17 @@ export default {
       return (addMode.value === 'cartons' || addMode.value === 'both') && formData.value.cartons_count > 0;
     });
 
-    // Watchers
+    // المراقبون
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
-        // Don't reset form when modal opens, just focus on first input
+        // لا تقم بإعادة تعيين النموذج عند فتح المودال، فقط ركز على الحقل الأول
         setTimeout(() => {
           if (nameInput.value) {
             nameInput.value.focus();
           }
         }, 100);
         
-        // Set default warehouse if accessible warehouses exist
+        // تعيين المخزن الافتراضي إذا كان هناك مخازن متاحة
         if (accessibleWarehouses.value.length > 0 && !formData.value.warehouse_id) {
           const mainWarehouse = store.getters.mainWarehouse;
           formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
@@ -507,7 +507,7 @@ export default {
       }
     }, { immediate: true });
 
-    // Watch for form changes to check for existing items
+    // مراقبة تغييرات النموذج للتحقق من العناصر الموجودة
     const checkExistingItemDebounced = debounce(async () => {
       if (isFormResetting.value) return;
       
@@ -520,11 +520,16 @@ export default {
 
     watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
       () => {
+        // تنظيف البيانات أثناء الكتابة
+        if (formData.value.name) formData.value.name = formData.value.name.trim();
+        if (formData.value.code) formData.value.code = formData.value.code.trim();
+        if (formData.value.color) formData.value.color = formData.value.color.trim();
+        
         checkExistingItemDebounced();
       }
     );
 
-    // Methods
+    // الوظائف
     const closeModal = () => {
       emit('close');
       resetForm();
@@ -533,7 +538,7 @@ export default {
     const resetForm = () => {
       isFormResetting.value = true;
       
-      // Store current warehouse_id to preserve it
+      // حفظ معرف المخزن الحالي للحفاظ عليه
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -559,7 +564,7 @@ export default {
       previewPhoto.value = '';
       store.dispatch('clearOperationError');
       
-      // Focus on name input after reset
+      // التركيز على حقل الاسم بعد الإعادة
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -571,7 +576,7 @@ export default {
     const clearFormAfterSuccess = () => {
       isFormResetting.value = true;
       
-      // Preserve warehouse selection
+      // الحفاظ على اختيار المخزن
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -596,7 +601,7 @@ export default {
       previewPhoto.value = '';
       store.dispatch('clearOperationError');
       
-      // Focus on name input
+      // التركيز على حقل الاسم
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -606,9 +611,9 @@ export default {
     };
 
     const formatFileSize = (bytes) => {
-      if (bytes === 0) return '0 Bytes';
+      if (bytes === 0) return '0 بايت';
       const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const sizes = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
@@ -623,28 +628,28 @@ export default {
       const file = event.target.files[0];
       if (!file) return;
 
-      // Validate file type
+      // التحقق من نوع الملف
       if (!file.type.startsWith('image/')) {
         errorMessage.value = 'يرجى اختيار ملف صورة فقط';
         return;
       }
 
-      // Validate file size (max 5MB)
+      // التحقق من حجم الملف (حد أقصى 5 ميجابايت)
       if (file.size > 5 * 1024 * 1024) {
-        errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5MB';
+        errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت';
         return;
       }
 
       selectedFile.value = file;
       
-      // Create preview
+      // إنشاء معاينة
       const reader = new FileReader();
       reader.onload = (e) => {
         previewPhoto.value = e.target.result;
       };
       reader.readAsDataURL(file);
 
-      // Reset file input
+      // إعادة تعيين إدخال الملف
       if (fileInput.value) {
         fileInput.value.value = '';
       }
@@ -661,28 +666,28 @@ export default {
       errorMessage.value = '';
 
       try {
-        // Check if clipboard API is available
+        // التحقق مما إذا كانت واجهة برمجة التطبيقات للتعليق متاحة
         if (!navigator.clipboard || !navigator.clipboard.read) {
           errorMessage.value = 'ميزة لصق الصور من الحافظة غير مدعومة في هذا المتصفح';
           return;
         }
 
-        // Read clipboard contents
+        // قراءة محتويات الحافظة
         const clipboardItems = await navigator.clipboard.read();
         
         for (const clipboardItem of clipboardItems) {
-          // Look for image types
+          // البحث عن أنواع الصور
           const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
           
           if (imageTypes.length > 0) {
             const imageType = imageTypes[0];
             const blob = await clipboardItem.getType(imageType);
             
-            // Create file from blob
-            const file = new File([blob], `pasted-image-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
+            // إنشاء ملف من blob
+            const file = new File([blob], `صورة-ملصقة-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
             selectedFile.value = file;
             
-            // Create preview
+            // إنشاء معاينة
             const reader = new FileReader();
             reader.onload = (e) => {
               previewPhoto.value = e.target.result;
@@ -698,7 +703,7 @@ export default {
           errorMessage.value = 'لا توجد صورة في الحافظة';
         }
       } catch (error) {
-        console.error('Error pasting from clipboard:', error);
+        console.error('خطأ في اللصق من الحافظة:', error);
         errorMessage.value = 'حدث خطأ أثناء لصق الصورة من الحافظة. تأكد من وجود صورة في الحافظة وأنك قد منحت الإذن للوصول إلى الحافظة.';
       } finally {
         clipboardLoading.value = false;
@@ -711,22 +716,22 @@ export default {
       uploadingPhoto.value = true;
 
       try {
-        // In a real implementation, you would upload to Firebase Storage
-        // For now, we'll simulate by returning a base64 data URL
-        // In production, replace this with actual Firebase Storage upload
+        // في التطبيق الفعلي، ستقوم برفع الصورة إلى Firebase Storage
+        // في الوقت الحالي، سنقوم بالمحاكاة بإرجاع عنوان URL للبيانات base64
+        // في الإنتاج، استبدل هذا برفع فعلي إلى Firebase Storage
         
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            // Simulate upload delay
+            // محاكاة تأخير الرفع
             setTimeout(() => {
-              resolve(e.target.result); // Return base64 data URL
+              resolve(e.target.result); // إرجاع عنوان URL للبيانات base64
             }, 1000);
           };
           reader.readAsDataURL(selectedFile.value);
         });
       } catch (error) {
-        console.error('Error uploading photo:', error);
+        console.error('خطأ في رفع الصورة:', error);
         errorMessage.value = 'حدث خطأ أثناء رفع الصورة';
         return null;
       } finally {
@@ -737,52 +742,140 @@ export default {
     const checkExistingItem = async () => {
       if (isFormResetting.value) return;
       
-      if (!formData.value.name || !formData.value.code || !formData.value.color || !formData.value.warehouse_id) {
+      // تنظيف و التحقق من المدخلات
+      const cleanName = formData.value.name?.trim() || '';
+      const cleanCode = formData.value.code?.trim() || '';
+      const cleanColor = formData.value.color?.trim() || '';
+      const cleanWarehouseId = formData.value.warehouse_id;
+      
+      // التحقق مما إذا كانت لدينا جميع الحقول المطلوبة
+      const hasRequiredFields = cleanName && cleanCode && cleanColor && cleanWarehouseId;
+      
+      if (!hasRequiredFields) {
         existingItem.value = null;
         return;
       }
 
       try {
-        // Check in local inventory first for immediate feedback
+        console.log('🔍 البحث عن صنف موجود مع تطابق تام:', {
+          name: cleanName,
+          code: cleanCode,
+          color: cleanColor,
+          warehouse_id: cleanWarehouseId
+        });
+
+        // البحث في المخزون المحلي أولاً (غير حساس لحالة الأحرف مع تنظيف المسافات)
         const inventory = store.state.inventory || [];
-        const existing = inventory.find(item => 
-          item.name?.toLowerCase() === formData.value.name.toLowerCase() &&
-          item.code?.toLowerCase() === formData.value.code.toLowerCase() &&
-          item.color?.toLowerCase() === formData.value.color.toLowerCase() &&
-          item.warehouse_id === formData.value.warehouse_id
-        );
+        const exactMatches = [];
         
-        if (existing) {
+        for (const item of inventory) {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          const isExactMatch = 
+            itemName === cleanName.toLowerCase() && 
+            itemCode === cleanCode.toLowerCase() && 
+            itemColor === cleanColor.toLowerCase() && 
+            item.warehouse_id === cleanWarehouseId;
+          
+          if (isExactMatch) {
+            exactMatches.push(item);
+          }
+        }
+        
+        if (exactMatches.length > 0) {
+          // استخدام أول تطابق تام
+          const existing = exactMatches[0];
+          console.log('✅ تم العثور على تطابق تام في المخزون المحلي:', existing);
           existingItem.value = existing;
-          if (existing.photo_url) {
+          
+          // ملء الصورة تلقائياً إذا كانت متاحة
+          if (existing.photo_url && !previewPhoto.value) {
             previewPhoto.value = existing.photo_url;
             formData.value.photo_url = existing.photo_url;
           }
+          
           return;
         }
         
-        // If not found locally, try to check in Firestore
+        console.log('⚠️ لم يتم العثور على تطابق تام في المخزون المحلي، البحث في Firebase...');
+        
+        // إذا لم يتم العثور محلياً، حاول البحث في Firebase
         try {
-          const result = await store.dispatch('getItemById', { 
-            itemCode: formData.value.code,
-            itemName: formData.value.name 
+          // تجربة استراتيجيات بحث متعددة للحصول على نتائج أفضل
+          let firestoreMatches = [];
+          
+          // الإستراتيجية 1: البحث بواسطة الكود (الأكثر موثوقية)
+          if (cleanCode) {
+            try {
+              const codeResults = await store.dispatch('searchItemsForTransactions', {
+                searchTerm: cleanCode,
+                limitResults: 10
+              });
+              
+              const exactCodeMatches = codeResults.filter(item => {
+                const itemCode = item.code?.trim().toLowerCase() || '';
+                return itemCode === cleanCode.toLowerCase();
+              });
+              
+              firestoreMatches = [...firestoreMatches, ...exactCodeMatches];
+            } catch (codeError) {
+              console.log('فشل البحث عن الكود:', codeError.message);
+            }
+          }
+          
+          // الإستراتيجية 2: البحث بواسطة الاسم
+          if (cleanName) {
+            try {
+              const nameResults = await store.dispatch('searchItemsForTransactions', {
+                searchTerm: cleanName,
+                limitResults: 10
+              });
+              
+              const exactNameMatches = nameResults.filter(item => {
+                const itemName = item.name?.trim().toLowerCase() || '';
+                return itemName === cleanName.toLowerCase();
+              });
+              
+              firestoreMatches = [...firestoreMatches, ...exactNameMatches];
+            } catch (nameError) {
+              console.log('فشل البحث عن الاسم:', nameError.message);
+            }
+          }
+          
+          // البحث عن تطابق تام بين جميع نتائج Firebase
+          const exactMatch = firestoreMatches.find(item => {
+            const itemName = item.name?.trim().toLowerCase() || '';
+            const itemCode = item.code?.trim().toLowerCase() || '';
+            const itemColor = item.color?.trim().toLowerCase() || '';
+            
+            return itemName === cleanName.toLowerCase() && 
+                   itemCode === cleanCode.toLowerCase() && 
+                   itemColor === cleanColor.toLowerCase() && 
+                   item.warehouse_id === cleanWarehouseId;
           });
           
-          if (result && result.warehouse_id === formData.value.warehouse_id) {
-            existingItem.value = result;
-            if (result.photo_url) {
-              previewPhoto.value = result.photo_url;
-              formData.value.photo_url = result.photo_url;
+          if (exactMatch) {
+            console.log('✅ تم العثور على تطابق تام في Firebase:', exactMatch);
+            existingItem.value = exactMatch;
+            
+            // ملء الصورة تلقائياً إذا كانت متاحة
+            if (exactMatch.photo_url && !previewPhoto.value) {
+              previewPhoto.value = exactMatch.photo_url;
+              formData.value.photo_url = exactMatch.photo_url;
             }
           } else {
+            console.log('❌ لم يتم العثور على تطابق تام في أي مكان');
             existingItem.value = null;
           }
+          
         } catch (firestoreError) {
-          console.log('Not found in Firestore:', firestoreError.message);
+          console.error('خطأ في البحث في Firebase:', firestoreError);
           existingItem.value = null;
         }
       } catch (error) {
-        console.error('Error checking existing item:', error);
+        console.error('خطأ في التحقق من العنصر الموجود:', error);
         existingItem.value = null;
       }
     };
@@ -812,19 +905,19 @@ export default {
         return false;
       }
 
-      // Check if user is logged in
+      // التحقق مما إذا كان المستخدم قد سجل الدخول
       if (!currentUserId.value) {
         errorMessage.value = 'يجب تسجيل الدخول أولاً';
         return false;
       }
 
-      // Check user permissions
+      // التحقق من صلاحيات المستخدم
       if (!store.getters.canEdit) {
         errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         return false;
       }
 
-      // Mode-specific validation
+      // التحقق من الصلاحية الخاصة بالوضع
       if (addMode.value === 'cartons') {
         if (!formData.value.cartons_count || formData.value.cartons_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد كراتين صحيح';
@@ -889,7 +982,7 @@ export default {
       successMessage.value = '';
 
       try {
-        // Upload photo if selected
+        // رفع الصورة إذا تم اختيارها
         let photoUrl = null;
         if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
           photoUrl = await uploadPhotoToStorage();
@@ -897,22 +990,22 @@ export default {
             formData.value.photo_url = photoUrl;
           }
         } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
-          // If we have a data URL from paste or file upload, use it directly
+          // إذا كان لدينا عنوان URL للبيانات من اللصق أو رفع الملف، استخدمه مباشرة
           photoUrl = previewPhoto.value;
           formData.value.photo_url = photoUrl;
         }
 
-        // Prepare item data properly
+        // تحضير بيانات العنصر بشكل صحيح
         const userId = currentUserId.value;
         
         if (!userId) {
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Use the computed property instead of creating a new variable with same name
+        // استخدام الخاصية المحسوبة بدلاً من إنشاء متغير جديد بنفس الاسم
         const addingCartons = isAddingCartonsComputed.value;
 
-        // Prepare the item data object
+        // تحضير كائن بيانات العنصر
         const itemData = {
           name: formData.value.name.trim(),
           code: formData.value.code.trim(),
@@ -927,22 +1020,22 @@ export default {
           photo_url: formData.value.photo_url || null
         };
 
-        console.log('Submitting item with data:', {
+        console.log('إرسال العنصر بالبيانات:', {
           itemData,
           userId,
           addingCartons,
           existingItem: existingItem.value
         });
 
-        // Use the store's existing addInventoryItem action (not atomic version)
+        // استخدام إجراء addInventoryItem الحالي في المتجر
         const result = await store.dispatch('addInventoryItem', {
           itemData,
           isAddingCartons: addingCartons
         });
 
-        console.log('Item added successfully:', result);
+        console.log('تم إضافة العنصر بنجاح:', result);
 
-        // Show success message
+        // عرض رسالة النجاح
         if (result?.type === 'created') {
           successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح! سيظهر في البحث فوراً.';
         } else if (result?.type === 'updated') {
@@ -951,39 +1044,39 @@ export default {
           successMessage.value = '✅ تم حفظ التغييرات بنجاح! سيظهر في البحث فوراً.';
         }
 
-        // Force refresh inventory in store to ensure new item is immediately available for search
-        // This ensures the item appears in live search results
+        // إجبار تحديث المخزون في المتجر للتأكد من أن العنصر الجديد متاح فوراً للبحث
+        // هذا يضمن ظهور العنصر في نتائج البحث المباشر
         setTimeout(async () => {
           try {
-            // Force refresh the store inventory without showing loading
-            console.log('🔄 Refreshing inventory silently for immediate search...');
+            // إجبار تحديث مخزون المتجر دون إظهار التحميل
+            console.log('🔄 تحديث المخزون بصمت للبحث الفوري...');
             
-            // Manually dispatch to update the store state with the new item
-            // This ensures the item is immediately available in the inventory array
+            // التوزيع يدوياً لتحديث حالة المتجر بالعنصر الجديد
+            // هذا يضمن أن العنصر متاح فوراً في مصفوفة المخزون
             if (result?.item && result.item.id) {
-              // Add the item to store inventory immediately
+              // إضافة العنصر إلى مخزون المتجر فوراً
               store.commit('UPDATE_INVENTORY_ITEM', result.item);
-              console.log('✅ Item added to store inventory immediately for search');
+              console.log('✅ تم إضافة العنصر إلى مخزون المتجر فوراً للبحث');
             }
             
-            // Also trigger a silent refresh of the entire inventory
+            // أيضاً تشغيل تحديث صامت للمخزون بالكامل
             await store.dispatch('refreshInventorySilently');
             
           } catch (refreshError) {
-            console.warn('Could not refresh inventory silently:', refreshError.message);
+            console.warn('تعذر تحديث المخزون بصمت:', refreshError.message);
           }
         }, 500);
         
-        // Clear the form after successful submission but keep modal open
+        // تنظيف النموذج بعد الإرسال الناجح ولكن المودال يبقى مفتوحاً
         setTimeout(() => {
           emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
           clearFormAfterSuccess();
         }, 1500);
         
       } catch (error) {
-        console.error('❌ Error in handleSubmit:', error);
+        console.error('❌ خطأ في handleSubmit:', error);
         
-        // Show appropriate error message
+        // عرض رسالة خطأ مناسبة
         if (error.message?.includes('يجب تسجيل الدخول')) {
           errorMessage.value = 'يجب تسجيل الدخول أولاً';
         } else if (error.message?.includes('صلاحية')) {
@@ -993,7 +1086,7 @@ export default {
         } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
           errorMessage.value = 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
         } else if (storeOperationError.value) {
-          // Use store error if available
+          // استخدام خطأ المتجر إذا كان متاحاً
           errorMessage.value = storeOperationError.value;
         } else {
           errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
@@ -1003,7 +1096,7 @@ export default {
       }
     };
 
-    // Debounce helper function
+    // دالة المساعدة للحد من الطلبات
     function debounce(func, wait) {
       let timeout;
       return function executedFunction(...args) {
@@ -1061,7 +1154,7 @@ export default {
 </script>
 
 <style scoped>
-/* Modal overlay */
+/* خلفية المودال */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1077,7 +1170,7 @@ export default {
   background-color: rgba(0, 0, 0, 0.7);
 }
 
-/* Modal content */
+/* محتوى المودال */
 .modal-content {
   background-color: white;
   border-radius: 0.75rem;
@@ -1092,7 +1185,7 @@ export default {
   background-color: #1f2937;
 }
 
-/* Modal header */
+/* رأس المودال */
 .modal-header {
   position: sticky;
   top: 0;
@@ -1146,14 +1239,14 @@ export default {
   height: 1.25rem;
 }
 
-/* Modal body */
+/* جسم المودال */
 .modal-body {
   padding: 1rem;
   max-height: calc(90vh - 130px);
   overflow-y: auto;
 }
 
-/* Modal footer */
+/* تذييل المودال */
 .modal-footer {
   position: sticky;
   bottom: 0;
@@ -1172,7 +1265,7 @@ export default {
   border-top-color: #374151;
 }
 
-/* Form elements */
+/* عناصر النموذج */
 .form-input,
 .form-select,
 .form-textarea {
@@ -1208,7 +1301,7 @@ export default {
   min-height: 5rem;
 }
 
-/* Form label */
+/* تسمية النموذج */
 .form-label {
   display: block;
   font-size: 0.875rem;
@@ -1226,7 +1319,7 @@ export default {
   margin-right: 0.125rem;
 }
 
-/* Form group */
+/* مجموعة النموذج */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -1235,7 +1328,7 @@ export default {
   margin-top: 1rem;
 }
 
-/* Grid layout */
+/* تخطيط الشبكة */
 .grid {
   display: grid;
 }
@@ -1254,7 +1347,7 @@ export default {
   }
 }
 
-/* Photo upload section */
+/* قسم رفع الصورة */
 .photo-upload-container {
   display: flex;
   flex-direction: column;
@@ -1341,7 +1434,7 @@ export default {
   color: #9ca3af;
 }
 
-/* Photo actions */
+/* أزرار الصورة */
 .photo-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1413,7 +1506,7 @@ export default {
   height: 1rem;
 }
 
-/* Photo info */
+/* معلومات الصورة */
 .photo-info {
   text-align: center;
   margin-top: 0.25rem;
@@ -1429,12 +1522,12 @@ export default {
   color: #9ca3af;
 }
 
-/* Hidden file input */
+/* إدخال الملف المخفي */
 .hidden {
   display: none;
 }
 
-/* Mode buttons */
+/* أزرار الوضع */
 .mode-btn {
   flex: 1;
   padding: 0.5rem 0.75rem;
@@ -1479,7 +1572,7 @@ export default {
   border-color: #6b7280;
 }
 
-/* Flex utilities */
+/* أدوات المرونة */
 .flex {
   display: flex;
 }
@@ -1522,7 +1615,7 @@ export default {
   }
 }
 
-/* Buttons */
+/* الأزرار */
 .btn-primary {
   flex: 1;
   padding: 0.5rem 1rem;
@@ -1580,12 +1673,12 @@ export default {
   cursor: not-allowed;
 }
 
-/* Gap utility */
+/* أداة الفجوة */
 .gap-2 {
   gap: 0.5rem;
 }
 
-/* Alert styles */
+/* أنماط التنبيهات */
 .alert {
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -1661,7 +1754,7 @@ export default {
   margin-left: 0.5rem;
 }
 
-/* Spinner */
+/* المغزل */
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -1686,7 +1779,7 @@ export default {
   }
 }
 
-/* Text utilities */
+/* أدوات النص */
 .text-sm {
   font-size: 0.875rem;
 }
@@ -1711,12 +1804,12 @@ export default {
   margin-top: 0.25rem;
 }
 
-/* Column utilities */
+/* أدوات العمود */
 .col-span-full {
   grid-column: 1 / -1;
 }
 
-/* Responsive adjustments */
+/* التعديلات المتجاوبة */
 @media (max-width: 640px) {
   .modal-content {
     margin: 0.5rem;
@@ -1759,7 +1852,7 @@ export default {
   }
 }
 
-/* Icon styles */
+/* أنماط الأيقونات */
 .w-4 {
   width: 1rem;
 }
