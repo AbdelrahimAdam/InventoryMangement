@@ -22,7 +22,7 @@
             <span class="hidden sm:inline">{{ liveUpdatesEnabled ? 'تحديث مباشر مفعل' : 'تفعيل التحديث المباشر' }}</span>
             <span class="sm:hidden">{{ liveUpdatesEnabled ? 'مباشر' : 'يدوي' }}</span>
           </button>
-          
+
           <!-- Refresh Button -->
           <button 
             @click="manualRefresh"
@@ -34,7 +34,7 @@
             </svg>
             <span class="hidden sm:inline">تحديث</span>
           </button>
-          
+
           <!-- Export Button -->
           <button 
             v-if="canExport"
@@ -50,8 +50,8 @@
         </div>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <!-- Stats Cards - Updated for Mobile -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <!-- Total Transactions Card -->
         <div class="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div class="flex items-center">
@@ -240,7 +240,7 @@
         <div v-if="hasActiveFilters" class="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium text-gray-600 dark:text-gray-400">الفلاتر النشطة:</span>
-            
+
             <span v-if="searchTerm" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
               بحث: "{{ searchTerm }}"
               <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
@@ -249,7 +249,7 @@
                 </svg>
               </button>
             </span>
-            
+
             <span v-if="warehouseFilter" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
               مخزن: {{ getWarehouseName(warehouseFilter) }}
               <button @click="warehouseFilter = ''" class="mr-1 hover:text-indigo-900">
@@ -258,7 +258,7 @@
                 </svg>
               </button>
             </span>
-            
+
             <span v-if="typeFilter" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
               نوع: {{ getTypeLabel(typeFilter) }}
               <button @click="typeFilter = ''" class="mr-1 hover:text-purple-900">
@@ -267,7 +267,7 @@
                 </svg>
               </button>
             </span>
-            
+
             <span v-if="dateFrom || dateTo" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
               تاريخ: {{ formatDateRange(dateFrom, dateTo) }}
               <button @click="dateFrom = ''; dateTo = ''" class="mr-1 hover:text-yellow-900">
@@ -276,7 +276,7 @@
                 </svg>
               </button>
             </span>
-            
+
             <button 
               v-if="hasActiveFilters"
               @click="clearFilters"
@@ -333,7 +333,7 @@
                 <div class="col-span-1">الملاحظات</div>
               </div>
             </div>
-            
+
             <div class="max-h-[500px] overflow-y-auto">
               <div v-if="displayedTransactions.length === 0" class="p-8 text-center">
                 <div class="text-gray-400 dark:text-gray-500 mb-4">
@@ -344,7 +344,7 @@
                 <p class="text-gray-600 dark:text-gray-400 font-medium">لا توجد حركات</p>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على أي حركات مطابقة للفلاتر</p>
               </div>
-              
+
               <div v-else>
                 <div 
                   v-for="(transaction, index) in displayedTransactions" 
@@ -363,14 +363,14 @@
                       {{ formatRelativeTime(transaction.timestamp) }}
                     </div>
                   </div>
-                  
+
                   <!-- Transaction Type -->
                   <div class="col-span-2">
                     <span :class="getTypeBadgeClass(transaction.type)">
                       {{ getTypeLabel(transaction.type) }}
                     </span>
                   </div>
-                  
+
                   <!-- Product -->
                   <div class="col-span-2">
                     <div class="font-medium text-gray-900 dark:text-white">
@@ -380,14 +380,14 @@
                       {{ transaction.item_code || 'لا يوجد كود' }}
                     </div>
                   </div>
-                  
+
                   <!-- Quantity -->
                   <div class="col-span-1">
                     <span :class="getQuantityClass(transaction.type)" class="english-numbers">
                       {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
                     </span>
                   </div>
-                  
+
                   <!-- Warehouses -->
                   <div class="col-span-2">
                     <div v-if="transaction.type === 'TRANSFER'" class="space-y-1">
@@ -411,7 +411,7 @@
                       </div>
                     </div>
                   </div>
-                  
+
                   <!-- User -->
                   <div class="col-span-2">
                     <div class="font-medium text-gray-900 dark:text-white">
@@ -421,7 +421,7 @@
                       {{ getUserRoleLabel(transaction.user_role) }}
                     </div>
                   </div>
-                  
+
                   <!-- Notes -->
                   <div class="col-span-1">
                     <div v-if="transaction.notes" class="relative group">
@@ -450,7 +450,7 @@
               <p class="text-gray-600 dark:text-gray-400 font-medium">لا توجد حركات</p>
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على أي حركات مطابقة للفلاتر</p>
             </div>
-            
+
             <div v-else class="space-y-3 p-4">
               <div 
                 v-for="(transaction, index) in displayedTransactions" 
@@ -470,7 +470,7 @@
                     </span>
                   </div>
                 </div>
-                
+
                 <!-- Date & Time -->
                 <div class="mb-3">
                   <div class="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -488,7 +488,7 @@
                     <span class="text-xs">{{ formatRelativeTime(transaction.timestamp) }}</span>
                   </div>
                 </div>
-                
+
                 <!-- Product Info -->
                 <div class="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
                   <div class="font-medium text-gray-900 dark:text-white mb-1">
@@ -498,7 +498,7 @@
                     كود: {{ transaction.item_code || 'لا يوجد' }}
                   </div>
                 </div>
-                
+
                 <!-- Warehouse Info -->
                 <div class="mb-3">
                   <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المخزن:</div>
@@ -529,7 +529,7 @@
                     <span class="text-sm">{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                   </div>
                 </div>
-                
+
                 <!-- User Info -->
                 <div class="mb-3 flex items-center">
                   <div class="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center ml-2">
@@ -546,7 +546,7 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- Notes -->
                 <div v-if="transaction.notes">
                   <button 
@@ -594,8 +594,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { debounce } from 'lodash';
 
 export default {
   name: 'Transactions',
@@ -612,6 +613,18 @@ export default {
     const statsLoading = ref(false);
     const selectedNotes = ref(null);
     const filterTimeout = ref(null);
+    const dataCache = ref(null);
+    const lastFetchTime = ref(0);
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+    const transactionsRef = ref(null);
+    const transactionStats = computed(() => store.getters.transactionStats || {
+      total: 0,
+      add: 0,
+      transfer: 0,
+      dispatch: 0,
+      update: 0,
+      delete: 0
+    });
 
     // 🔥 Use store getters
     const userRole = computed(() => store.getters.userRole);
@@ -630,11 +643,6 @@ export default {
       return store.getters.getWarehouseLabel(warehouseId);
     };
     
-    // 🔥 Use store getter for transaction stats
-    const transactionStats = computed(() => {
-      return store.getters.getTransactionStats;
-    });
-
     // 🔥 Calculate live stats from store
     const liveStats = computed(() => {
       const stats = transactionStats.value;
@@ -824,14 +832,9 @@ export default {
     };
     
     // 🔥 Debounced search for better performance
-    const handleSearch = () => {
-      if (filterTimeout.value) {
-        clearTimeout(filterTimeout.value);
-      }
-      filterTimeout.value = setTimeout(() => {
-        // Search is handled by computed property through store getter
-      }, 300);
-    };
+    const handleSearch = debounce(() => {
+      // Search is handled by computed property through store getter
+    }, 300);
     
     const handleFilter = () => {
       // Filter is handled by computed property
@@ -853,14 +856,132 @@ export default {
       selectedNotes.value = transaction.notes;
     };
 
-    // 🔥 Manual refresh using store actions
+    // 🔥 Check cache first
+    const loadFromCache = () => {
+      try {
+        const cached = localStorage.getItem('transactions_cache');
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const now = Date.now();
+          if (now - timestamp < CACHE_DURATION) {
+            dataCache.value = data;
+            lastFetchTime.value = timestamp;
+            store.commit('SET_TRANSACTIONS', data);
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading from cache:', error);
+      }
+      return false;
+    };
+
+    // 🔥 Save to cache
+    const saveToCache = (data) => {
+      try {
+        const cacheData = {
+          data,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('transactions_cache', JSON.stringify(cacheData));
+        dataCache.value = data;
+        lastFetchTime.value = cacheData.timestamp;
+      } catch (error) {
+        console.error('Error saving to cache:', error);
+      }
+    };
+
+    // 🔥 Smart data loading with cache checking
+    const loadTransactionsFromFirestore = async () => {
+      try {
+        // Check cache first
+        if (loadFromCache()) {
+          console.log('✅ Loaded transactions from cache');
+          return;
+        }
+
+        console.log('📡 Fetching transactions from Firestore...');
+        statsLoading.value = true;
+        
+        // First, get the total count for efficient loading
+        const countQuery = query(collection(db, 'transactions'));
+        const countSnapshot = await getDocs(countQuery);
+        const totalCount = countSnapshot.size;
+        
+        console.log(`📊 Total transactions in system: ${totalCount}`);
+        
+        // If there are many transactions, load in batches
+        const batchSize = 100;
+        let allTransactionsData = [];
+        
+        for (let i = 0; i < totalCount; i += batchSize) {
+          const batchQuery = query(
+            collection(db, 'transactions'),
+            orderBy('timestamp', 'desc'),
+            limit(batchSize)
+          );
+          
+          const batchSnapshot = await getDocs(batchQuery);
+          const batchData = batchSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          allTransactionsData = [...allTransactionsData, ...batchData];
+          
+          // Update store incrementally for better UX
+          store.commit('SET_TRANSACTIONS', allTransactionsData);
+          
+          // Small delay to prevent overwhelming Firestore
+          if (i + batchSize < totalCount) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+        
+        // Save to cache
+        saveToCache(allTransactionsData);
+        
+        // Calculate stats
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todayStats = allTransactionsData.filter(transaction => {
+          const transactionDate = getTransactionTime(transaction);
+          return transactionDate >= today;
+        });
+        
+        const stats = {
+          total: allTransactionsData.length,
+          add: todayStats.filter(t => t.type === 'ADD').length,
+          transfer: todayStats.filter(t => t.type === 'TRANSFER').length,
+          dispatch: todayStats.filter(t => t.type === 'DISPATCH').length,
+          update: todayStats.filter(t => t.type === 'UPDATE').length,
+          delete: todayStats.filter(t => t.type === 'DELETE').length
+        };
+        
+        store.commit('SET_TRANSACTION_STATS', stats);
+        
+        console.log('✅ Successfully loaded all transactions');
+        
+      } catch (error) {
+        console.error('❌ Error loading transactions:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ أثناء تحميل الحركات'
+        });
+      } finally {
+        statsLoading.value = false;
+      }
+    };
+
+    // 🔥 Manual refresh
     const manualRefresh = async () => {
       statsLoading.value = true;
       try {
-        // Use store actions to refresh data
-        await store.dispatch('fetchTransactions');
+        // Clear cache and force refresh
+        localStorage.removeItem('transactions_cache');
+        await loadTransactionsFromFirestore();
         
-        // Show notification through store
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم تحديث البيانات بنجاح'
@@ -881,25 +1002,31 @@ export default {
     const toggleLiveUpdates = () => {
       liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
       
-      // Update store real-time mode
-      store.commit('SET_REALTIME_MODE', liveUpdatesEnabled.value);
-      
-      store.dispatch('showNotification', {
-        type: 'info',
-        message: liveUpdatesEnabled.value ? 'تم تفعيل التحديث المباشر' : 'تم إيقاف التحديث المباشر'
-      });
+      if (liveUpdatesEnabled.value) {
+        setupRealtimeTransactions();
+        store.dispatch('showNotification', {
+          type: 'info',
+          message: 'تم تفعيل التحديث المباشر'
+        });
+      } else {
+        if (transactionsRef.value) {
+          transactionsRef.value();
+          transactionsRef.value = null;
+        }
+        store.dispatch('showNotification', {
+          type: 'info',
+          message: 'تم إيقاف التحديث المباشر'
+        });
+      }
     };
 
     // 🔥 Export transactions to Excel
     const exportTransactions = () => {
       try {
-        // Set loading state through store
         store.commit('SET_TRANSACTIONS_LOADING', true);
         
-        // Create workbook
         const wb = XLSX.utils.book_new();
         
-        // Prepare data for export using store data
         const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => {
           const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
@@ -919,16 +1046,15 @@ export default {
           };
         });
         
-        // Convert to worksheet
         const ws = XLSX.utils.json_to_sheet(exportData);
         
-        // Add to workbook
+        // Add auto-filter
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+        
         XLSX.utils.book_append_sheet(wb, ws, 'الحركات');
         
-        // Generate filename
         const filename = `حركات_المخزون_${new Date().toISOString().split('T')[0]}.xlsx`;
-        
-        // Save file
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
@@ -947,23 +1073,71 @@ export default {
       }
     };
 
-    // 🔥 Initial data load using store actions
+    // 🔥 Setup real-time transactions listener
+    const setupRealtimeTransactions = () => {
+      if (!liveUpdatesEnabled.value) return;
+
+      try {
+        const q = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(50)
+        );
+
+        transactionsRef.value = onSnapshot(q, (snapshot) => {
+          const transactions = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          // Merge with existing data, avoiding duplicates
+          const existingIds = new Set(allTransactions.value.map(t => t.id));
+          const newTransactions = transactions.filter(t => !existingIds.has(t.id));
+          
+          if (newTransactions.length > 0) {
+            const updatedTransactions = [...newTransactions, ...allTransactions.value]
+              .sort((a, b) => {
+                const dateA = getTransactionTime(a);
+                const dateB = getTransactionTime(b);
+                return dateB - dateA;
+              })
+              .slice(0, 500); // Keep only latest 500
+            
+            store.commit('SET_TRANSACTIONS', updatedTransactions);
+            
+            // Update cache
+            saveToCache(updatedTransactions);
+            
+            // Show notification for new transactions
+            const latestTransaction = newTransactions[0];
+            store.dispatch('showNotification', {
+              type: 'info',
+              message: `حركة جديدة: ${getTypeLabel(latestTransaction.type)} - ${latestTransaction.item_name}`,
+              duration: 3000
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('Error setting up real-time transactions:', error);
+      }
+    };
+
+    // 🔥 Initial data load
     const loadInitialData = async () => {
       try {
         statsLoading.value = true;
-        
-        // Use store actions to load data
-        await store.dispatch('fetchTransactions');
         
         // Load warehouses if not already loaded
         if (!store.state.warehousesLoaded) {
           await store.dispatch('loadWarehouses');
         }
         
-        // Enable real-time updates if configured
-        if (store.state.realtimeMode) {
-          liveUpdatesEnabled.value = true;
-        }
+        // Load transactions with smart caching
+        await loadTransactionsFromFirestore();
+        
+        // Enable real-time updates by default
+        setupRealtimeTransactions();
         
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -976,66 +1150,13 @@ export default {
       }
     };
 
-    // 🔥 Setup real-time transactions listener
-    const setupRealtimeTransactions = () => {
-      if (!liveUpdatesEnabled.value) return;
-
-      try {
-        const transactionsRef = collection(db, 'transactions');
-        const q = query(
-          transactionsRef,
-          orderBy('timestamp', 'desc'),
-          limit(100)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const transactions = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          store.commit('SET_TRANSACTIONS', transactions);
-          
-          // Add notification for new transactions
-          if (transactions.length > 0 && allTransactions.value.length > 0) {
-            const latestTransaction = transactions[0];
-            const isNew = !allTransactions.value.find(t => t.id === latestTransaction.id);
-            
-            if (isNew) {
-              store.dispatch('showNotification', {
-                type: 'info',
-                message: `حركة جديدة: ${getTypeLabel(latestTransaction.type)} - ${latestTransaction.item_name}`,
-                duration: 5000
-              });
-            }
-          }
-        });
-
-        store.commit('ADD_REALTIME_LISTENER', unsubscribe);
-      } catch (error) {
-        console.error('Error setting up real-time transactions:', error);
-      }
-    };
-
-    // 🔥 Watch for real-time mode changes
-    watch(liveUpdatesEnabled, (newValue) => {
-      if (newValue) {
-        setupRealtimeTransactions();
-      } else {
-        // Clear listeners when real-time is disabled
-        store.commit('CLEAR_REALTIME_LISTENERS');
-      }
-    });
-
-    // 🔥 Watch for warehouse changes and update store filters
+    // 🔥 Watch for warehouse changes
     watch(warehouseFilter, (newWarehouse) => {
-      // Update store filters if needed for other components
       store.commit('SET_FILTERS', { warehouse: newWarehouse });
     });
     
     onMounted(() => {
       loadInitialData();
-      setupRealtimeTransactions();
     });
     
     onUnmounted(() => {
@@ -1043,7 +1164,9 @@ export default {
       if (filterTimeout.value) {
         clearTimeout(filterTimeout.value);
       }
-      store.commit('CLEAR_REALTIME_LISTENERS');
+      if (transactionsRef.value) {
+        transactionsRef.value();
+      }
     });
     
     return {
@@ -1210,8 +1333,33 @@ input, select {
   font-family: 'Courier New', monospace;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments for mobile cards */
 @media (max-width: 640px) {
+  /* Make cards compact on mobile */
+  .grid-cols-2 > div {
+    min-height: 100px;
+  }
+  
+  .p-3 {
+    padding: 0.75rem;
+  }
+  
+  .h-10 {
+    height: 2.5rem;
+  }
+  
+  .w-10 {
+    width: 2.5rem;
+  }
+  
+  .ml-2 {
+    margin-left: 0.5rem;
+  }
+  
+  .text-lg {
+    font-size: 1.125rem;
+  }
+  
   .mobile-stack {
     flex-direction: column !important;
   }
@@ -1240,10 +1388,6 @@ input, select {
   }
   
   /* Smaller text on mobile */
-  .text-lg {
-    font-size: 1.125rem;
-  }
-  
   .text-xl {
     font-size: 1.25rem;
   }
@@ -1326,6 +1470,77 @@ input, select {
   
   .lg\:hidden {
     display: none !important;
+  }
+}
+
+/* Mobile card specific improvements */
+@media (max-width: 640px) {
+  /* Compact card content */
+  .card-content {
+    padding: 0.5rem;
+  }
+  
+  /* Smaller icons on mobile */
+  .card-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  /* Better text hierarchy */
+  .card-title {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+  
+  .card-value {
+    font-size: 1.125rem;
+    line-height: 1.2;
+  }
+  
+  /* Reduce spacing between cards */
+  .card-grid-mobile {
+    gap: 0.5rem;
+  }
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 640px) {
+  /* Stack filters vertically on mobile */
+  .lg\:flex-row {
+    flex-direction: column;
+  }
+  
+  .lg\:w-1\/4 {
+    width: 100%;
+  }
+  
+  /* Improve filter dropdowns on mobile */
+  select {
+    font-size: 0.875rem;
+  }
+  
+  /* Better date input on mobile */
+  input[type="date"] {
+    font-size: 0.875rem;
+  }
+}
+
+/* Performance optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Optimize animations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 </style>
