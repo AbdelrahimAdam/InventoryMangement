@@ -312,10 +312,30 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="p-6 sm:p-8 text-center">
+        <div v-if="transactionsLoading" class="p-6 sm:p-8 text-center">
           <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
           <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل البيانات...</p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="transactionsError" class="p-6 sm:p-8 text-center">
+          <div class="text-red-500 dark:text-red-400 mb-4">
+            <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">حدث خطأ في تحميل البيانات</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ transactionsError }}</p>
+          <button 
+            @click="manualRefresh"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            إعادة المحاولة
+          </button>
         </div>
 
         <!-- Transactions Table -->
@@ -384,7 +404,7 @@
                   <!-- Quantity -->
                   <div class="col-span-1">
                     <span :class="getQuantityClass(transaction.type)" class="english-numbers">
-                      {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
+                      {{ formatNumber(transaction.total_delta || transaction.total_quantity || 0) }}
                     </span>
                   </div>
 
@@ -415,7 +435,7 @@
                   <!-- User -->
                   <div class="col-span-2">
                     <div class="font-medium text-gray-900 dark:text-white">
-                      {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
+                      {{ transaction.created_by || transaction.user_name || 'مستخدم غير معروف' }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
                       {{ getUserRoleLabel(transaction.user_role) }}
@@ -466,7 +486,7 @@
                   </div>
                   <div class="text-left">
                     <span :class="getQuantityClass(transaction.type)" class="text-lg font-bold english-numbers">
-                      {{ formatNumber(transaction.total_quantity || transaction.total_delta || 0) }}
+                      {{ formatNumber(transaction.total_delta || transaction.total_quantity || 0) }}
                     </span>
                   </div>
                 </div>
@@ -539,7 +559,7 @@
                   </div>
                   <div>
                     <div class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ transaction.user_name || transaction.created_by || 'مستخدم غير معروف' }}
+                      {{ transaction.created_by || transaction.user_name || 'مستخدم غير معروف' }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
                       {{ getUserRoleLabel(transaction.user_role) }}
@@ -617,7 +637,17 @@ export default {
     const lastFetchTime = ref(0);
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
     const transactionsRef = ref(null);
-    const transactionStats = computed(() => store.getters.transactionStats || {
+    
+    // Use Vuex state and getters
+    const userRole = computed(() => store.getters.userRole);
+    const canExport = computed(() => {
+      return userRole.value === 'superadmin' || userRole.value === 'company_manager';
+    });
+    
+    // Use store data
+    const allTransactions = computed(() => store.state.transactions || []);
+    const transactionsLoading = computed(() => store.state.transactionsLoading);
+    const transactionStats = computed(() => store.state.transactionStats || {
       total: 0,
       add: 0,
       transfer: 0,
@@ -625,60 +655,44 @@ export default {
       update: 0,
       delete: 0
     });
-
-    // 🔥 Use store getters
-    const userRole = computed(() => store.getters.userRole);
-    const canExport = computed(() => {
-      return userRole.value === 'superadmin' || userRole.value === 'company_manager';
-    });
     
-    // 🔥 Use store data
-    const allTransactions = computed(() => store.state.transactions || []);
-    const loading = computed(() => store.state.transactionsLoading);
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
     
-    // 🔥 Use store getter for warehouse label
-    const getWarehouseName = (warehouseId) => {
-      if (!warehouseId) return 'غير محدد';
-      return store.getters.getWarehouseLabel(warehouseId);
-    };
-    
-    // 🔥 Calculate live stats from store
+    // Calculate live stats from store
     const liveStats = computed(() => {
-      const stats = transactionStats.value;
       return {
-        add: stats.add,
-        transfer: stats.transfer,
-        dispatch: stats.dispatch,
+        add: transactionStats.value.add,
+        transfer: transactionStats.value.transfer,
+        dispatch: transactionStats.value.dispatch,
         updated: true
       };
     });
 
-    // 🔥 Use store's filteredTransactions getter with our filters
+    // Use store's filteredTransactions getter
     const filteredTransactions = computed(() => {
-      // First get transactions filtered by store getter
-      const storeFiltered = store.getters.filteredTransactions({
+      return store.getters.filteredTransactions({
         search: searchTerm.value,
         type: typeFilter.value,
         dateFrom: dateFrom.value,
         dateTo: dateTo.value
       });
-      
-      // Apply additional warehouse filter if selected
-      if (!warehouseFilter.value) return storeFiltered;
-      
-      return storeFiltered.filter(transaction => {
-        const fromWarehouse = transaction.from_warehouse || transaction.from_warehouse_id;
-        const toWarehouse = transaction.to_warehouse || transaction.to_warehouse_id;
-        
-        // Show transactions where the selected warehouse is involved (either from or to)
-        return fromWarehouse === warehouseFilter.value || toWarehouse === warehouseFilter.value;
-      });
     });
     
     // Display only the most recent transactions
     const displayedTransactions = computed(() => {
-      return filteredTransactions.value.slice(0, 100);
+      // Apply warehouse filter if selected
+      let transactions = filteredTransactions.value;
+      
+      if (warehouseFilter.value) {
+        transactions = transactions.filter(transaction => {
+          const fromWarehouse = transaction.from_warehouse || transaction.from_warehouse_id;
+          const toWarehouse = transaction.to_warehouse || transaction.to_warehouse_id;
+          
+          return fromWarehouse === warehouseFilter.value || toWarehouse === warehouseFilter.value;
+        });
+      }
+      
+      return transactions.slice(0, 100);
     });
     
     const totalTransactions = computed(() => allTransactions.value.length);
@@ -689,19 +703,17 @@ export default {
     
     const filterPercentage = computed(() => {
       if (allTransactions.value.length === 0) return 0;
-      const percentage = Math.round((filteredTransactions.value.length / allTransactions.value.length) * 100);
+      const percentage = Math.round((displayedTransactions.value.length / allTransactions.value.length) * 100);
       return 100 - percentage;
     });
 
-    // Helper function to get transaction time (handles Firebase timestamps)
+    // Helper function to get transaction time
     const getTransactionTime = (transaction) => {
       if (!transaction.timestamp) return new Date(0);
       try {
-        // Handle Firebase Timestamp
         if (transaction.timestamp?.toDate) {
           return transaction.timestamp.toDate();
         }
-        // Handle regular date string
         return new Date(transaction.timestamp);
       } catch {
         return new Date(0);
@@ -718,10 +730,9 @@ export default {
       'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
     ];
 
-    // Methods - FORCE ENGLISH NUMBERS
+    // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
-      // Always return English numbers
       return new Intl.NumberFormat('en-US').format(num);
     };
     
@@ -766,7 +777,12 @@ export default {
       return labels[role] || role || 'غير معروف';
     };
     
-    // Updated date formatting function
+    const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return 'غير محدد';
+      return store.getters.getWarehouseLabel(warehouseId);
+    };
+    
+    // Date formatting functions
     const formatTransactionDate = (transaction) => {
       const date = getTransactionTime(transaction);
       const day = date.getDate();
@@ -776,7 +792,6 @@ export default {
       return `${day} ${month}، ${dayOfWeek}`;
     };
     
-    // Updated time formatting function
     const formatTransactionTime = (transaction) => {
       const date = getTransactionTime(transaction);
       const hours = date.getHours();
@@ -831,7 +846,7 @@ export default {
       }
     };
     
-    // 🔥 Debounced search for better performance
+    // Debounced search
     const handleSearch = debounce(() => {
       // Search is handled by computed property through store getter
     }, 300);
@@ -856,7 +871,7 @@ export default {
       selectedNotes.value = transaction.notes;
     };
 
-    // 🔥 Check cache first
+    // Check cache first
     const loadFromCache = () => {
       try {
         const cached = localStorage.getItem('transactions_cache');
@@ -876,7 +891,7 @@ export default {
       return false;
     };
 
-    // 🔥 Save to cache
+    // Save to cache
     const saveToCache = (data) => {
       try {
         const cacheData = {
@@ -891,7 +906,7 @@ export default {
       }
     };
 
-    // 🔥 Smart data loading with cache checking
+    // Smart data loading with cache checking
     const loadTransactionsFromFirestore = async () => {
       try {
         // Check cache first
@@ -902,64 +917,31 @@ export default {
 
         console.log('📡 Fetching transactions from Firestore...');
         statsLoading.value = true;
+        store.commit('SET_TRANSACTIONS_LOADING', true);
         
-        // First, get the total count for efficient loading
-        const countQuery = query(collection(db, 'transactions'));
-        const countSnapshot = await getDocs(countQuery);
-        const totalCount = countSnapshot.size;
+        // Get transactions from Firestore
+        const transactionsQuery = query(
+          collection(db, 'transactions'),
+          orderBy('timestamp', 'desc'),
+          limit(100)
+        );
         
-        console.log(`📊 Total transactions in system: ${totalCount}`);
+        const snapshot = await getDocs(transactionsQuery);
+        console.log(`📊 Found ${snapshot.size} transactions`);
         
-        // If there are many transactions, load in batches
-        const batchSize = 100;
-        let allTransactionsData = [];
-        
-        for (let i = 0; i < totalCount; i += batchSize) {
-          const batchQuery = query(
-            collection(db, 'transactions'),
-            orderBy('timestamp', 'desc'),
-            limit(batchSize)
-          );
-          
-          const batchSnapshot = await getDocs(batchQuery);
-          const batchData = batchSnapshot.docs.map(doc => ({
+        const transactions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
             id: doc.id,
-            ...doc.data()
-          }));
-          
-          allTransactionsData = [...allTransactionsData, ...batchData];
-          
-          // Update store incrementally for better UX
-          store.commit('SET_TRANSACTIONS', allTransactionsData);
-          
-          // Small delay to prevent overwhelming Firestore
-          if (i + batchSize < totalCount) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        }
-        
-        // Save to cache
-        saveToCache(allTransactionsData);
-        
-        // Calculate stats
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayStats = allTransactionsData.filter(transaction => {
-          const transactionDate = getTransactionTime(transaction);
-          return transactionDate >= today;
+            ...data
+          };
         });
         
-        const stats = {
-          total: allTransactionsData.length,
-          add: todayStats.filter(t => t.type === 'ADD').length,
-          transfer: todayStats.filter(t => t.type === 'TRANSFER').length,
-          dispatch: todayStats.filter(t => t.type === 'DISPATCH').length,
-          update: todayStats.filter(t => t.type === 'UPDATE').length,
-          delete: todayStats.filter(t => t.type === 'DELETE').length
-        };
+        // Save to Vuex store
+        store.commit('SET_TRANSACTIONS', transactions);
         
-        store.commit('SET_TRANSACTION_STATS', stats);
+        // Save to cache
+        saveToCache(transactions);
         
         console.log('✅ Successfully loaded all transactions');
         
@@ -971,10 +953,11 @@ export default {
         });
       } finally {
         statsLoading.value = false;
+        store.commit('SET_TRANSACTIONS_LOADING', false);
       }
     };
 
-    // 🔥 Manual refresh
+    // Manual refresh
     const manualRefresh = async () => {
       statsLoading.value = true;
       try {
@@ -998,7 +981,7 @@ export default {
       }
     };
 
-    // 🔥 Toggle live updates
+    // Toggle live updates
     const toggleLiveUpdates = () => {
       liveUpdatesEnabled.value = !liveUpdatesEnabled.value;
       
@@ -1020,14 +1003,14 @@ export default {
       }
     };
 
-    // 🔥 Export transactions to Excel
+    // Export transactions to Excel
     const exportTransactions = () => {
       try {
         store.commit('SET_TRANSACTIONS_LOADING', true);
         
         const wb = XLSX.utils.book_new();
         
-        const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => {
+        const exportData = displayedTransactions.value.slice(0, 1000).map(transaction => {
           const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
           
@@ -1037,10 +1020,10 @@ export default {
             'نوع الحركة': getTypeLabel(transaction.type),
             'اسم المنتج': transaction.item_name || '',
             'كود المنتج': transaction.item_code || '',
-            'الكمية': transaction.total_quantity || transaction.total_delta || 0,
+            'الكمية': transaction.total_delta || transaction.total_quantity || 0,
             'من مستودع': getWarehouseName(fromWarehouseId),
             'إلى مستودع': getWarehouseName(toWarehouseId),
-            'المستخدم': transaction.user_name || transaction.created_by || '',
+            'المستخدم': transaction.created_by || transaction.user_name || '',
             'ملاحظات': transaction.notes || '',
             'صلاحية المستخدم': getUserRoleLabel(transaction.user_role)
           };
@@ -1073,7 +1056,7 @@ export default {
       }
     };
 
-    // 🔥 Setup real-time transactions listener
+    // Setup real-time transactions listener
     const setupRealtimeTransactions = () => {
       if (!liveUpdatesEnabled.value) return;
 
@@ -1095,13 +1078,14 @@ export default {
           const newTransactions = transactions.filter(t => !existingIds.has(t.id));
           
           if (newTransactions.length > 0) {
+            // Update Vuex store with new transactions
             const updatedTransactions = [...newTransactions, ...allTransactions.value]
               .sort((a, b) => {
                 const dateA = getTransactionTime(a);
                 const dateB = getTransactionTime(b);
                 return dateB - dateA;
               })
-              .slice(0, 500); // Keep only latest 500
+              .slice(0, 500);
             
             store.commit('SET_TRANSACTIONS', updatedTransactions);
             
@@ -1123,7 +1107,7 @@ export default {
       }
     };
 
-    // 🔥 Initial data load
+    // Initial data load
     const loadInitialData = async () => {
       try {
         statsLoading.value = true;
@@ -1150,9 +1134,9 @@ export default {
       }
     };
 
-    // 🔥 Watch for warehouse changes
+    // Watch for warehouse changes
     watch(warehouseFilter, (newWarehouse) => {
-      store.commit('SET_FILTERS', { warehouse: newWarehouse });
+      // This filter is handled in displayedTransactions computed property
     });
     
     onMounted(() => {
@@ -1188,7 +1172,7 @@ export default {
       canExport,
       hasActiveFilters,
       filterPercentage,
-      loading,
+      transactionsLoading,
       transactionStats,
       accessibleWarehouses,
       
@@ -1318,12 +1302,6 @@ input, select {
 .hover-lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Fixed header styling */
-.sticky {
-  position: -webkit-sticky;
-  position: sticky;
 }
 
 /* Force LTR for numbers in quantity cells */
