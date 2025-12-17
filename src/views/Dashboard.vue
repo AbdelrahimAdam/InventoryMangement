@@ -13,7 +13,6 @@
         <div class="flex gap-3">
           <select 
             v-model="selectedWarehouse"
-            @change="handleWarehouseChange"
             class="w-full lg:w-64 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200"
           >
             <option value="all">جميع المخازن</option>
@@ -28,10 +27,10 @@
           
           <button
             @click="refreshDashboard"
-            :disabled="loading || statsLoading"
+            :disabled="loading"
             class="px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg v-if="loading || statsLoading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg v-if="loading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -41,7 +40,7 @@
       </div>
     </div>
 
-    <!-- Stats Overview - REAL TOTALS -->
+    <!-- Stats Overview -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
       <!-- Total Items -->
       <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
@@ -54,15 +53,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(currentStats.totalItems) }}
-                <span v-if="statsLoading" class="text-xs text-gray-400">(جاري التحميل...)</span>
-              </dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalItems) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {{ getCurrentWarehouseName() }}
-              </div>
-              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                مجموع {{ warehouses.length }} مخزن
+                من أصل {{ formatEnglishNumber(safeDashboardStats.totalItems) }}
               </div>
             </div>
           </div>
@@ -80,15 +73,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(currentStats.totalQuantity) }}
-                <span v-if="statsLoading" class="text-xs text-gray-400">(جاري التحميل...)</span>
-              </dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalQuantity) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {{ getCurrentWarehouseName() }}
-              </div>
-              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                مجموع {{ warehouses.length }} مخزن
+                من أصل {{ formatEnglishNumber(safeDashboardStats.totalQuantity) }}
               </div>
             </div>
           </div>
@@ -106,15 +93,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">
-                {{ formatEnglishNumber(currentStats.lowStockItems) }}
-                <span v-if="statsLoading" class="text-xs text-gray-400">(جاري التحميل...)</span>
-              </dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ formatEnglishNumber(filteredStats.lowStockItems) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {{ getCurrentWarehouseName() }}
-              </div>
-              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                مجموع {{ warehouses.length }} مخزن
+                من أصل {{ formatEnglishNumber(safeDashboardStats.lowStockItems) }}
               </div>
             </div>
           </div>
@@ -132,12 +113,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(currentStats.recentTransactions) }}
-                <span v-if="statsLoading" class="text-xs text-gray-400">(جاري التحميل...)</span>
-              </dd>
-              <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {{ selectedWarehouse === 'all' ? 'جميع المخازن' : getCurrentWarehouseName() }}
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.recentTransactions) }}</dd>
+              <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                من أصل {{ formatEnglishNumber(safeDashboardStats.recentTransactions) }}
               </div>
             </div>
           </div>
@@ -145,8 +123,427 @@
       </div>
     </div>
 
-    <!-- Rest of your template remains the same... -->
-    <!-- Keep all the existing template code for Quick Actions, Recent Inventory, and Recent Transactions -->
+    <!-- Quick Actions Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <!-- View Full Inventory -->
+      <router-link 
+        to="/inventory" 
+        class="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg p-5 lg:p-6 text-white hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 transform"
+      >
+        <div class="flex items-center">
+          <div class="h-12 w-12 lg:h-14 lg:w-14 rounded-lg bg-white/20 flex items-center justify-center">
+            <svg class="h-6 w-6 lg:h-7 lg:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <div class="mr-4">
+            <h3 class="text-lg lg:text-xl font-bold">المخزون الكامل</h3>
+            <p class="text-blue-100 text-sm lg:text-base mt-1">عرض جميع الأصناف مع تفاصيل كاملة</p>
+          </div>
+          <svg class="h-5 w-5 lg:h-6 lg:w-6 mr-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </router-link>
+
+      <!-- View Reports -->
+      <router-link 
+        to="/reports" 
+        class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg p-5 lg:p-6 text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 transform"
+      >
+        <div class="flex items-center">
+          <div class="h-12 w-12 lg:h-14 lg:w-14 rounded-lg bg-white/20 flex items-center justify-center">
+            <svg class="h-6 w-6 lg:h-7 lg:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <div class="mr-4">
+            <h3 class="text-lg lg:text-xl font-bold">التقارير والإحصائيات</h3>
+            <p class="text-purple-100 text-sm lg:text-base mt-1">تحليل كامل للأداء والحركات</p>
+          </div>
+          <svg class="h-5 w-5 lg:h-6 lg:w-6 mr-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </router-link>
+
+      <!-- Quick Add Item -->
+      <router-link 
+        v-if="canModifyItems"
+        to="/inventory/add" 
+        class="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl shadow-lg p-5 lg:p-6 text-white hover:from-green-600 hover:to-emerald-600 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 transform"
+      >
+        <div class="flex items-center">
+          <div class="h-12 w-12 lg:h-14 lg:w-14 rounded-lg bg-white/20 flex items-center justify-center">
+            <svg class="h-6 w-6 lg:h-7 lg:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <div class="mr-4">
+            <h3 class="text-lg lg:text-xl font-bold">إضافة صنف جديد</h3>
+            <p class="text-green-100 text-sm lg:text-base mt-1">إضافة صنف جديد إلى المخزون</p>
+          </div>
+          <svg class="h-5 w-5 lg:h-6 lg:w-6 mr-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </router-link>
+    </div>
+
+    <!-- Recent Inventory Preview -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 lg:mb-6">
+        <div>
+          <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
+          <p class="text-xs lg:text-sm text-gray-500 dark:text-gray-400">أحدث 5 أصناف تمت إضافتها للمخزون</p>
+        </div>
+        
+        <router-link 
+          to="/inventory"
+          class="inline-flex items-center text-sm lg:text-base font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 transition-colors duration-200"
+        >
+          عرض الكل
+          <svg class="h-4 w-4 lg:h-5 lg:w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </router-link>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
+      </div>
+
+      <!-- Inventory Preview Table -->
+      <div v-else-if="filteredRecentInventory.length > 0" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الصنف</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الكود</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المخزن</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الكمية</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tr v-for="item in filteredRecentInventory" :key="item.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
+              <td class="px-4 py-3">
+                <div class="flex items-center">
+                  <div v-if="item.photo_url" class="h-8 w-8 lg:h-10 lg:w-10 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex-shrink-0 ml-3">
+                    <img :src="item.photo_url" :alt="item.name" class="h-full w-full object-cover">
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.name || 'غير محدد' }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.color || '-' }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
+                  {{ item.code || '-' }}
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                {{ getWarehouseLabel(item.warehouse_id) }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span :class="getQuantityClass(item.remaining_quantity)" class="font-bold">
+                  {{ formatEnglishNumber(item.remaining_quantity || 0) }}
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span :class="getStatusClass(item.remaining_quantity)" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium">
+                  {{ getStatusText(item.remaining_quantity) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else class="text-center py-8 lg:py-12">
+        <svg class="mx-auto h-10 w-10 lg:h-12 lg:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد بيانات</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
+      </div>
+    </div>
+
+    <!-- Recent Transactions Table with Additional Information -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 lg:mb-6">
+        <div>
+          <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">آخر الحركات</h2>
+          <p class="text-xs lg:text-sm text-gray-500 dark:text-gray-400">أحدث الحركات في النظام مع تفاصيل كاملة</p>
+        </div>
+        
+        <router-link 
+          to="/reports"
+          class="inline-flex items-center text-sm lg:text-base font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 transition-colors duration-200"
+        >
+          عرض الكل
+          <svg class="h-4 w-4 lg:h-5 lg:w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </router-link>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الحركات...</p>
+      </div>
+
+      <!-- Recent Transactions Table -->
+      <div v-else-if="filteredRecentTransactions.length > 0" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">نوع الحركة</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الصنف</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الكمية</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المخزن / الوجهة</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المستخدم</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الوقت</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tr 
+              v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
+              :key="transaction.id"
+              class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+            >
+              <!-- Type Column -->
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div :class="[
+                    'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ml-2',
+                    transaction.type === 'ADD' ? 'bg-blue-100 dark:bg-blue-900/20' :
+                    transaction.type === 'TRANSFER' ? 'bg-purple-100 dark:bg-purple-900/20' :
+                    'bg-red-100 dark:bg-red-900/20'
+                  ]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="transaction.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      <path v-if="transaction.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      <path v-if="transaction.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                  </div>
+                  <span :class="[
+                    'text-sm font-medium',
+                    transaction.type === 'ADD' ? 'text-blue-600 dark:text-blue-300' :
+                    transaction.type === 'TRANSFER' ? 'text-purple-600 dark:text-purple-300' :
+                    'text-red-600 dark:text-red-300'
+                  ]">
+                    {{ getTransactionTypeLabel(transaction.type) }}
+                  </span>
+                </div>
+              </td>
+              
+              <!-- Item Column -->
+              <td class="px-4 py-3">
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ transaction.item_name || 'غير معروف' }}
+                  </span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                    {{ transaction.item_code || '' }}
+                  </span>
+                </div>
+              </td>
+              
+              <!-- Quantity Column -->
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex flex-col items-end">
+                  <span :class="[
+                    'text-lg font-bold',
+                    transaction.type === 'ADD' ? 'text-green-600 dark:text-green-400' :
+                    transaction.type === 'DISPATCH' ? 'text-red-600 dark:text-red-400' :
+                    'text-gray-600 dark:text-gray-400'
+                  ]">
+                    {{ transaction.type === 'ADD' ? '+' : '' }}{{ formatEnglishNumber(transaction.total_delta || 0) }}
+                  </span>
+                  <div class="flex gap-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="transaction.cartons_delta > 0">
+                      {{ formatEnglishNumber(transaction.cartons_delta) }} ك
+                    </span>
+                    <span v-if="transaction.single_delta > 0">
+                      +{{ formatEnglishNumber(transaction.single_delta) }} فردي
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    متبقي: {{ formatEnglishNumber(transaction.new_remaining || 0) }}
+                  </div>
+                </div>
+              </td>
+              
+              <!-- Warehouse/Destination Column -->
+              <td class="px-4 py-3">
+                <div class="flex flex-col">
+                  <template v-if="transaction.type === 'TRANSFER'">
+                    <div class="flex items-center text-sm">
+                      <svg class="h-4 w-4 text-gray-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                      <span class="text-gray-600 dark:text-gray-300">{{ getWarehouseLabel(transaction.from_warehouse) }}</span>
+                    </div>
+                    <div class="flex items-center text-sm mt-1">
+                      <svg class="h-4 w-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                      </svg>
+                      <span class="text-green-600 dark:text-green-400">{{ getWarehouseLabel(transaction.to_warehouse) }}</span>
+                    </div>
+                  </template>
+                  <template v-else-if="transaction.type === 'DISPATCH'">
+                    <div class="flex items-center text-sm">
+                      <svg class="h-4 w-4 text-gray-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                      </svg>
+                      <span class="text-gray-600 dark:text-gray-300">{{ getWarehouseLabel(transaction.from_warehouse) }}</span>
+                    </div>
+                    <div class="flex items-center text-sm mt-1">
+                      <svg class="h-4 w-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                      </svg>
+                      <span class="text-red-600 dark:text-red-400">{{ getDestinationLabel(transaction.destination) }}</span>
+                    </div>
+                  </template>
+                  <template v-else-if="transaction.type === 'ADD'">
+                    <div class="flex items-center text-sm">
+                      <svg class="h-4 w-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                      </svg>
+                      <span class="text-green-600 dark:text-green-400">{{ getWarehouseLabel(transaction.to_warehouse) }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                  </template>
+                </div>
+              </td>
+              
+              <!-- User Column -->
+              <td class="px-4 py-3">
+                <div class="flex items-center">
+                  <div class="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center ml-2">
+                    <svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ transaction.created_by || 'نظام' }}
+                    </span>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ getUserRoleBadge(transaction.created_by) }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              
+              <!-- Time Column -->
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex flex-col items-end">
+                  <span class="text-sm text-gray-900 dark:text-white">
+                    {{ formatDetailedTime(transaction.timestamp) }}
+                  </span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ formatRelativeTime(transaction.timestamp) }}
+                  </span>
+                </div>
+              </td>
+              
+              <!-- Notes Column -->
+              <td class="px-4 py-3">
+                <div class="max-w-xs">
+                  <span class="text-sm text-gray-600 dark:text-gray-400 truncate block" :title="transaction.notes">
+                    {{ transaction.notes || '-' }}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty Transactions State -->
+      <div v-else class="text-center py-8">
+        <svg class="mx-auto h-10 w-10 lg:h-12 lg:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد حركات</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم تتم أي حركات في هذا المخزن.</p>
+      </div>
+    </div>
+    
+    <!-- Cache Management Section (Debug) -->
+    <div v-if="showCacheDebug" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">إدارة الذاكرة المؤقتة</h2>
+        <button @click="toggleCacheDebug" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+          إخفاء
+        </button>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">معلومات الذاكرة</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">حجم الذاكرة:</span>
+              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
+                {{ cacheStats.totalSize }}
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">عدد الأصناف:</span>
+              <span class="text-gray-800 dark:text-gray-200">{{ formatEnglishNumber(cacheStats.itemCount) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">الحالة:</span>
+              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
+                {{ cacheHealth === 'critical' ? 'حرجة' : cacheHealth === 'warning' ? 'تحذير' : 'جيدة' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الإجراءات</h3>
+          <div class="space-y-2">
+            <button 
+              @click="cleanupCache(false)"
+              class="w-full px-3 py-2 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تنظيف الذاكرة
+            </button>
+            <button 
+              @click="cleanupCache(true)"
+              class="w-full px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تنظيف قوي
+            </button>
+            <button 
+              @click="refreshCache"
+              class="w-full px-3 py-2 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors"
+              :disabled="cacheLoading"
+            >
+              تحديث البيانات
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="cacheMessage" class="mt-3 p-2 rounded text-sm" :class="cacheMessage.type === 'success' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'">
+        {{ cacheMessage.text }}
+      </div>
+    </div>
   </div>
 </template>
 
@@ -162,24 +559,135 @@ export default {
     const router = useRouter();
     
     const loading = ref(true);
-    const statsLoading = ref(false);
+    const showCacheDebug = ref(false);
+    const cacheLoading = ref(false);
+    const cacheMessage = ref(null);
     const selectedWarehouse = ref('all');
-    const currentStats = ref({
-      totalItems: 0,
-      totalQuantity: 0,
-      lowStockItems: 0,
-      recentTransactions: 0,
-      lastUpdated: null
-    });
+    let cacheMessageTimeout = null;
 
-    // Cache for performance
-    const statsCache = ref({
-      'all': null,
-      lastCalculated: {}
-    });
-
-    // Computed properties
+    // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
+    
+    // Safe dashboard stats with default values
+    const safeDashboardStats = computed(() => {
+      try {
+        const stats = store.getters.dashboardStats;
+        return stats || {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          estimatedValue: 0,
+          recentTransactions: 0,
+          addTransactions: 0,
+          transferTransactions: 0,
+          dispatchTransactions: 0,
+          transactionsByType: {
+            add: 0,
+            transfer: 0,
+            dispatch: 0
+          }
+        };
+      } catch (error) {
+        console.error('Error getting dashboard stats:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          estimatedValue: 0,
+          recentTransactions: 0,
+          addTransactions: 0,
+          transferTransactions: 0,
+          dispatchTransactions: 0,
+          transactionsByType: {
+            add: 0,
+            transfer: 0,
+            dispatch: 0
+          }
+        };
+      }
+    });
+    
+    // Filtered stats based on selected warehouse
+    const filteredStats = computed(() => {
+      if (selectedWarehouse.value === 'all') {
+        return safeDashboardStats.value;
+      }
+      
+      try {
+        const inventory = store.getters.inventoryItems;
+        const recentTransactions = store.getters.recentTransactions;
+        
+        // Filter inventory by selected warehouse
+        const filteredInventory = Array.isArray(inventory) 
+          ? inventory.filter(item => item.warehouse_id === selectedWarehouse.value)
+          : [];
+        
+        // Filter transactions by selected warehouse
+        const filteredTransactions = Array.isArray(recentTransactions)
+          ? recentTransactions.filter(transaction => 
+              transaction.from_warehouse === selectedWarehouse.value || 
+              transaction.to_warehouse === selectedWarehouse.value
+            )
+          : [];
+        
+        const totalItems = filteredInventory.length;
+        const totalQuantity = filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+        const lowStockItems = filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length;
+        const recentTransactionsCount = filteredTransactions.length;
+        
+        return {
+          totalItems,
+          totalQuantity,
+          lowStockItems,
+          recentTransactions: recentTransactionsCount
+        };
+      } catch (error) {
+        console.error('Error calculating filtered stats:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          recentTransactions: 0
+        };
+      }
+    });
+    
+    // Cache statistics
+    const cacheStats = computed(() => {
+      try {
+        return store.getters.cacheStats || {
+          totalSize: '0 MB',
+          itemCount: 0,
+          pinnedItems: 0,
+          frequentlyAccessed: 0,
+          lastCleanup: '',
+          cleanupCount: 0,
+          rotationCount: 0,
+          status: 'healthy'
+        };
+      } catch (error) {
+        return {
+          totalSize: '0 MB',
+          itemCount: 0,
+          pinnedItems: 0,
+          frequentlyAccessed: 0,
+          lastCleanup: '',
+          cleanupCount: 0,
+          rotationCount: 0,
+          status: 'healthy'
+        };
+      }
+    });
+    
+    const cacheHealth = computed(() => {
+      try {
+        return store.getters.cacheHealth || 'healthy';
+      } catch (error) {
+        return 'healthy';
+      }
+    });
     
     // Warehouses list
     const warehouses = computed(() => {
@@ -190,9 +698,9 @@ export default {
         return [];
       }
     });
-
-    // Get ALL inventory items from Vuex store
-    const allInventoryItems = computed(() => {
+    
+    // Access inventory items correctly
+    const inventoryItems = computed(() => {
       try {
         const inventory = store.getters.inventoryItems;
         return Array.isArray(inventory) ? inventory : [];
@@ -201,9 +709,9 @@ export default {
         return [];
       }
     });
-
-    // Recent transactions
-    const recentTransactions = computed(() => {
+    
+    // Access transactions correctly
+    const recentStoreTransactions = computed(() => {
       try {
         const items = store.getters.recentTransactions;
         return Array.isArray(items) ? items : [];
@@ -212,7 +720,7 @@ export default {
         return [];
       }
     });
-
+    
     // Permission check
     const canModifyItems = computed(() => {
       try {
@@ -240,7 +748,7 @@ export default {
     // Recent inventory (last 5 items sorted by date)
     const recentInventory = computed(() => {
       try {
-        const items = allInventoryItems.value;
+        const items = inventoryItems.value;
         if (!Array.isArray(items) || items.length === 0) return [];
         
         return [...items]
@@ -270,6 +778,29 @@ export default {
       return recentInventory.value.filter(item => item.warehouse_id === selectedWarehouse.value);
     });
 
+    // Recent transactions
+    const recentTransactions = computed(() => {
+      try {
+        const items = recentStoreTransactions.value;
+        if (!Array.isArray(items) || items.length === 0) return [];
+        
+        return [...items]
+          .filter(transaction => transaction && typeof transaction === 'object')
+          .sort((a, b) => {
+            try {
+              const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+              const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+              return dateB - dateA;
+            } catch (error) {
+              return 0;
+            }
+          });
+      } catch (error) {
+        console.error('Error getting recent transactions:', error);
+        return [];
+      }
+    });
+
     // Filtered recent transactions based on selected warehouse
     const filteredRecentTransactions = computed(() => {
       if (selectedWarehouse.value === 'all') {
@@ -282,106 +813,7 @@ export default {
       );
     });
 
-    // ==================== STATS CALCULATION FUNCTIONS ====================
-
-    /**
-     * Calculate warehouse stats from ALL loaded inventory items
-     * This uses the Vuex store data that's already loaded (no extra Firestore reads)
-     */
-    const calculateWarehouseStats = (warehouseId) => {
-      try {
-        const items = allInventoryItems.value;
-        
-        // Filter items for this warehouse
-        const warehouseItems = warehouseId === 'all' 
-          ? items 
-          : items.filter(item => item.warehouse_id === warehouseId);
-        
-        // Calculate stats
-        const totalItems = warehouseItems.length;
-        const totalQuantity = warehouseItems.reduce((sum, item) => 
-          sum + (item.remaining_quantity || 0), 0
-        );
-        const lowStockItems = warehouseItems.filter(item => 
-          (item.remaining_quantity || 0) < 10
-        ).length;
-
-        // Calculate today's transactions for this warehouse
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayTransactions = recentTransactions.value.filter(transaction => {
-          if (!transaction.timestamp) return false;
-          
-          try {
-            const transDate = transaction.timestamp?.toDate ? 
-              transaction.timestamp.toDate() : new Date(transaction.timestamp);
-            
-            const isToday = transDate >= today;
-            
-            // Check warehouse filter
-            if (warehouseId === 'all') {
-              return isToday;
-            } else {
-              return isToday && (
-                transaction.from_warehouse === warehouseId || 
-                transaction.to_warehouse === warehouseId
-              );
-            }
-          } catch (error) {
-            return false;
-          }
-        });
-
-        const recentTransactionsCount = todayTransactions.length;
-        
-        console.log(`📊 Calculated stats for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}:`);
-        console.log(`   Total Items: ${totalItems}`);
-        console.log(`   Total Quantity: ${totalQuantity}`);
-        console.log(`   Low Stock: ${lowStockItems}`);
-        console.log(`   Today's Transactions: ${recentTransactionsCount}`);
-        
-        return {
-          totalItems,
-          totalQuantity,
-          lowStockItems,
-          recentTransactions: recentTransactionsCount,
-          lastUpdated: new Date(),
-          itemCount: warehouseItems.length
-        };
-      } catch (error) {
-        console.error('Error calculating warehouse stats:', error);
-        return getDefaultStats();
-      }
-    };
-
-    /**
-     * Get warehouse stats with caching
-     */
-    const getWarehouseStats = (warehouseId) => {
-      // Check cache first (5 minute cache)
-      const cacheKey = warehouseId;
-      const cached = statsCache.value[cacheKey];
-      const cacheExpiry = 5 * 60 * 1000; // 5 minutes
-      
-      if (cached && !isCacheExpired(cached.lastUpdated, cacheExpiry)) {
-        console.log(`Using cached stats for ${warehouseId}`);
-        return cached;
-      }
-      
-      // Calculate fresh stats
-      console.log(`Calculating fresh stats for ${warehouseId}`);
-      const stats = calculateWarehouseStats(warehouseId);
-      
-      // Update cache
-      statsCache.value[cacheKey] = stats;
-      statsCache.value.lastCalculated[cacheKey] = Date.now();
-      
-      return stats;
-    };
-
-    // ==================== HELPER FUNCTIONS ====================
-
+    // Helper functions
     const formatEnglishNumber = (num) => {
       if (isNaN(num) || num === null || num === undefined) return '0';
       return new Intl.NumberFormat('en-US').format(num);
@@ -391,7 +823,7 @@ export default {
       if (!timestamp) return '';
       
       try {
-        const date = new Date(timestamp);
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -471,12 +903,6 @@ export default {
       }
     };
 
-    const getCurrentWarehouseName = () => {
-      if (selectedWarehouse.value === 'all') return 'جميع المخازن';
-      const warehouse = warehouses.value.find(w => w.id === selectedWarehouse.value);
-      return warehouse ? warehouse.name_ar || warehouse.name : 'مخزن غير معروف';
-    };
-
     const getTransactionTypeLabel = (type) => {
       const labels = {
         'ADD': 'إضافة',
@@ -507,66 +933,71 @@ export default {
     };
 
     const getUserRoleBadge = (userName) => {
+      // This is a simplified version - in a real app, you would get the actual role
       if (userName?.includes('admin') || userName?.includes('مشرف')) {
         return 'مشرف';
       }
       return 'مستخدم';
     };
 
-    function getDefaultStats() {
-      return {
-        totalItems: 0,
-        totalQuantity: 0,
-        lowStockItems: 0,
-        recentTransactions: 0,
-        lastUpdated: null
-      };
-    }
+    // Cache management functions
+    const toggleCacheDebug = () => {
+      showCacheDebug.value = !showCacheDebug.value;
+    };
 
-    function isCacheExpired(timestamp, expiryMs = 5 * 60 * 1000) {
-      if (!timestamp) return true;
-      const cacheTime = new Date(timestamp).getTime();
-      const now = Date.now();
-      return now - cacheTime > expiryMs;
-    }
-
-    // ==================== EVENT HANDLERS ====================
-
-    const handleWarehouseChange = async () => {
-      statsLoading.value = true;
+    const showCacheMessage = (text, type = 'success') => {
+      if (cacheMessageTimeout) {
+        clearTimeout(cacheMessageTimeout);
+      }
       
+      cacheMessage.value = { text, type };
+      
+      cacheMessageTimeout = setTimeout(() => {
+        cacheMessage.value = null;
+      }, 5000);
+    };
+
+    const cleanupCache = async (aggressive = false) => {
+      cacheLoading.value = true;
       try {
-        // Calculate stats for selected warehouse
-        const stats = getWarehouseStats(selectedWarehouse.value);
-        currentStats.value = stats;
-        
-        console.log('Updated stats for warehouse:', selectedWarehouse.value, stats);
+        await store.dispatch('cleanupCache', { aggressive });
+        showCacheMessage(
+          aggressive ? 'تم التنظيف القوي للذاكرة المؤقتة' : 'تم تنظيف الذاكرة المؤقتة',
+          'success'
+        );
       } catch (error) {
-        console.error('Error updating warehouse stats:', error);
-        currentStats.value = getDefaultStats();
+        console.error('Error cleaning cache:', error);
+        showCacheMessage('حدث خطأ في تنظيف الذاكرة المؤقتة', 'error');
       } finally {
-        statsLoading.value = false;
+        cacheLoading.value = false;
       }
     };
 
+    const refreshCache = async () => {
+      cacheLoading.value = true;
+      loading.value = true;
+      try {
+        await store.dispatch('refreshInventoryWithCacheManagement');
+        await store.dispatch('getRecentTransactions');
+        showCacheMessage('تم تحديث البيانات بنجاح', 'success');
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        showCacheMessage('حدث خطأ في تحديث البيانات', 'error');
+      } finally {
+        cacheLoading.value = false;
+        loading.value = false;
+      }
+    };
+
+    // Refresh dashboard function
     const refreshDashboard = async () => {
       loading.value = true;
-      
       try {
-        // Clear cache
-        statsCache.value = {
-          'all': null,
-          lastCalculated: {}
-        };
-        
-        // Refresh all data
-        await store.dispatch('refreshInventory');
         await store.dispatch('getRecentTransactions');
-        
-        // Recalculate stats
-        await handleWarehouseChange();
-        
-        console.log('Dashboard refreshed successfully');
+        if (selectedWarehouse.value !== 'all') {
+          // Trigger a refresh for filtered data
+          await store.dispatch('loadAllInventory', { forceRefresh: true });
+        }
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
       } finally {
@@ -579,49 +1010,33 @@ export default {
       loading.value = true;
       
       try {
-        console.log('Loading dashboard data...');
-        
-        // Load warehouses if needed
-        if (warehouses.value.length === 0) {
-          await store.dispatch('loadWarehouses');
-        }
-        
-        // Make sure inventory is loaded
-        if (allInventoryItems.value.length === 0) {
-          await store.dispatch('loadAllInventory');
-        }
-        
         // Load recent transactions
-        await store.dispatch('getRecentTransactions');
+        const recentTransactionsPromise = store.dispatch('getRecentTransactions');
         
-        // Calculate initial stats
-        await handleWarehouseChange();
+        // Set timeout to prevent hanging
+        const timeoutPromise = new Promise(resolve => {
+          setTimeout(() => {
+            resolve();
+          }, 3000);
+        });
         
-        console.log('Dashboard data loaded successfully');
-        console.log(`Total inventory items loaded: ${allInventoryItems.value.length}`);
+        // Wait for either transactions to load or timeout
+        await Promise.race([recentTransactionsPromise, timeoutPromise]);
         
       } catch (error) {
         console.error('Error loading dashboard data:', error);
-        currentStats.value = getDefaultStats();
       } finally {
         loading.value = false;
       }
     };
 
-    // Watch for inventory changes to recalculate stats
-    watch(allInventoryItems, (newItems) => {
-      if (newItems.length > 0 && !statsLoading.value) {
-        console.log(`Inventory updated: ${newItems.length} items, recalculating stats...`);
-        handleWarehouseChange();
+    // Watch for warehouse filter changes
+    watch(selectedWarehouse, (newValue) => {
+      // Update stats automatically when filter changes
+      if (!loading.value) {
+        console.log('Warehouse filter changed to:', newValue);
       }
-    }, { deep: true });
-
-    watch(recentTransactions, (newTransactions) => {
-      if (newTransactions.length > 0 && !statsLoading.value) {
-        console.log(`Transactions updated: ${newTransactions.length} transactions, recalculating stats...`);
-        handleWarehouseChange();
-      }
-    }, { deep: true });
+    });
 
     onMounted(async () => {
       console.log('Dashboard mounted');
@@ -632,17 +1047,34 @@ export default {
         console.error('Error in dashboard mounted:', error);
         loading.value = false;
       }
+      
+      // Show cache debug if health is critical
+      if (cacheHealth.value === 'critical') {
+        showCacheDebug.value = true;
+      }
+    });
+
+    onUnmounted(() => {
+      if (cacheMessageTimeout) {
+        clearTimeout(cacheMessageTimeout);
+        cacheMessageTimeout = null;
+      }
     });
 
     return {
       // State
       loading,
-      statsLoading,
+      showCacheDebug,
+      cacheLoading,
+      cacheMessage,
       selectedWarehouse,
-      currentStats,
       
       // Computed
       userRole,
+      safeDashboardStats,
+      filteredStats,
+      cacheStats,
+      cacheHealth,
       warehouses,
       canModifyItems,
       recentInventory,
@@ -662,15 +1094,17 @@ export default {
       getStatusClass,
       getStatusText,
       getUserRoleBadge,
-      getCurrentWarehouseName,
       
       // Actions
-      refreshDashboard,
-      handleWarehouseChange
+      toggleCacheDebug,
+      cleanupCache,
+      refreshCache,
+      refreshDashboard
     };
   }
 };
 </script>
+
 <style scoped>
 /* Custom scrollbar for dark mode */
 .dark ::-webkit-scrollbar {
