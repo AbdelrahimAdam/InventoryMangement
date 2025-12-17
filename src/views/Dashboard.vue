@@ -28,10 +28,10 @@
           
           <button
             @click="refreshDashboard"
-            :disabled="loading"
+            :disabled="loading || statsLoading"
             class="px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg v-if="loading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg v-if="loading || statsLoading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -54,10 +54,16 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalItems) }}</dd>
+              <dd v-if="statsLoading" class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                <div class="h-6 lg:h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-16"></div>
+              </dd>
+              <dd v-else class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(dashboardStats.totalItems) }}
+              </dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
-                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.totalItems) }}</span>
+                <span v-if="allWarehouseStats.totalItems > 0">
+                  من أصل {{ formatEnglishNumber(allWarehouseStats.totalItems) }}
+                </span>
               </div>
             </div>
           </div>
@@ -75,10 +81,16 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalQuantity) }}</dd>
+              <dd v-if="statsLoading" class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                <div class="h-6 lg:h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20"></div>
+              </dd>
+              <dd v-else class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(dashboardStats.totalQuantity) }}
+              </dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
-                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.totalQuantity) }}</span>
+                <span v-if="allWarehouseStats.totalQuantity > 0">
+                  من أصل {{ formatEnglishNumber(allWarehouseStats.totalQuantity) }}
+                </span>
               </div>
             </div>
           </div>
@@ -96,10 +108,16 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ formatEnglishNumber(filteredStats.lowStockItems) }}</dd>
+              <dd v-if="statsLoading" class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">
+                <div class="h-6 lg:h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-12"></div>
+              </dd>
+              <dd v-else class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">
+                {{ formatEnglishNumber(dashboardStats.lowStockItems) }}
+              </dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
-                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.lowStockItems) }}</span>
+                <span v-if="allWarehouseStats.lowStockItems > 0">
+                  من أصل {{ formatEnglishNumber(allWarehouseStats.lowStockItems) }}
+                </span>
               </div>
             </div>
           </div>
@@ -117,7 +135,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(todayTransactionsCount) }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(todayTransactionsCount) }}
+              </dd>
               <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 آخر تحديث: {{ lastUpdatedTime }}
               </div>
@@ -483,71 +503,6 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم تتم أي حركات في هذا المخزن.</p>
       </div>
     </div>
-    
-    <!-- Cache Management Section (Debug) -->
-    <div v-if="showCacheDebug" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">إدارة الذاكرة المؤقتة</h2>
-        <button @click="toggleCacheDebug" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-          إخفاء
-        </button>
-      </div>
-      
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">معلومات الذاكرة</h3>
-          <div class="space-y-2">
-            <div class="flex justify-between">
-              <span class="text-gray-600 dark:text-gray-400">حجم الذاكرة:</span>
-              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
-                {{ cacheStats.totalSize }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600 dark:text-gray-400">عدد الأصناف:</span>
-              <span class="text-gray-800 dark:text-gray-200">{{ formatEnglishNumber(cacheStats.itemCount) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600 dark:text-gray-400">الحالة:</span>
-              <span :class="cacheHealth === 'critical' ? 'text-red-600 font-bold' : cacheHealth === 'warning' ? 'text-orange-600' : 'text-green-600'">
-                {{ cacheHealth === 'critical' ? 'حرجة' : cacheHealth === 'warning' ? 'تحذير' : 'جيدة' }}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div>
-          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الإجراءات</h3>
-          <div class="space-y-2">
-            <button 
-              @click="cleanupCache(false)"
-              class="w-full px-3 py-2 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
-              :disabled="cacheLoading"
-            >
-              تنظيف الذاكرة
-            </button>
-            <button 
-              @click="cleanupCache(true)"
-              class="w-full px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"
-              :disabled="cacheLoading"
-            >
-              تنظيف قوي
-            </button>
-            <button 
-              @click="refreshCache"
-              class="w-full px-3 py-2 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors"
-              :disabled="cacheLoading"
-            >
-              تحديث البيانات
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div v-if="cacheMessage" class="mt-3 p-2 rounded text-sm" :class="cacheMessage.type === 'success' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'">
-        {{ cacheMessage.text }}
-      </div>
-    </div>
   </div>
 </template>
 
@@ -564,14 +519,23 @@ export default {
     
     const loading = ref(true);
     const statsLoading = ref(false);
-    const showCacheDebug = ref(false);
-    const cacheLoading = ref(false);
-    const cacheMessage = ref(null);
     const selectedWarehouse = ref('all');
-    const dashboardStatsCache = ref(null);
-    let cacheMessageTimeout = null;
+    
+    // Store stats in refs for reactivity
+    const dashboardStats = ref({
+      totalItems: 0,
+      totalQuantity: 0,
+      lowStockItems: 0,
+      lastUpdated: null
+    });
+    
+    const allWarehouseStats = ref({
+      totalItems: 0,
+      totalQuantity: 0,
+      lowStockItems: 0
+    });
 
-    // Computed properties with safe defaults
+    // Computed properties
     const userRole = computed(() => store.getters.userRole || '');
     
     // Today's transactions count
@@ -595,76 +559,6 @@ export default {
         return formatDetailedTime(date);
       } catch (error) {
         return 'غير متاح';
-      }
-    });
-    
-    // Safe dashboard stats with default values
-    const safeDashboardStats = computed(() => {
-      try {
-        // Use the new REAL stats function
-        return store.getters.dashboardRealStats('all') || {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          lastUpdated: new Date()
-        };
-      } catch (error) {
-        console.error('Error getting dashboard stats:', error);
-        return {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          lastUpdated: new Date()
-        };
-      }
-    });
-    
-    // Filtered stats based on selected warehouse - USING NEW STORE ACTIONS
-    const filteredStats = computed(() => {
-      if (!dashboardStatsCache.value) {
-        return {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          recentTransactions: 0
-        };
-      }
-      
-      return dashboardStatsCache.value;
-    });
-    
-    // Cache statistics
-    const cacheStats = computed(() => {
-      try {
-        return store.getters.cacheStats || {
-          totalSize: '0 MB',
-          itemCount: 0,
-          pinnedItems: 0,
-          frequentlyAccessed: 0,
-          lastCleanup: '',
-          cleanupCount: 0,
-          rotationCount: 0,
-          status: 'healthy'
-        };
-      } catch (error) {
-        return {
-          totalSize: '0 MB',
-          itemCount: 0,
-          pinnedItems: 0,
-          frequentlyAccessed: 0,
-          lastCleanup: '',
-          cleanupCount: 0,
-          rotationCount: 0,
-          status: 'healthy'
-        };
-      }
-    });
-    
-    const cacheHealth = computed(() => {
-      try {
-        return store.getters.cacheHealth || 'healthy';
-      } catch (error) {
-        return 'healthy';
       }
     });
     
@@ -798,28 +692,6 @@ export default {
       return new Intl.NumberFormat('en-US').format(num);
     };
 
-    const formatTime = (timestamp) => {
-      if (!timestamp) return '';
-      
-      try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        
-        if (diffMins < 60) {
-          return `منذ ${diffMins} دقيقة`;
-        } else if (diffHours < 24) {
-          return `منذ ${diffHours} ساعة`;
-        } else {
-          return date.toLocaleDateString('ar-EG');
-        }
-      } catch (error) {
-        return '';
-      }
-    };
-
     const formatDetailedTime = (timestamp) => {
       if (!timestamp) return '';
       
@@ -912,127 +784,94 @@ export default {
     };
 
     const getUserRoleBadge = (userName) => {
-      // This is a simplified version - in a real app, you would get the actual role
       if (userName?.includes('admin') || userName?.includes('مشرف')) {
         return 'مشرف';
       }
       return 'مستخدم';
     };
 
-    // 🔥 NEW FUNCTION: Load dashboard stats using new store actions
+    // 🔥 MAIN FUNCTION: Load dashboard stats using new store actions
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
         if (warehouseId === 'all') {
-          // Use the new store action for all warehouses
-          const counts = await store.dispatch('refreshDashboardCounts', 'all');
+          // Use the new store action for all warehouses - this will give REAL counts
+          const counts = await store.dispatch('getDashboardStats', 'all');
           
-          // Get today's transactions count
-          const todayTransactions = store.getters.getTodayTransactions || [];
-          
-          dashboardStatsCache.value = {
+          dashboardStats.value = {
             ...counts,
-            recentTransactions: todayTransactions.length
+            lastUpdated: new Date()
           };
+          
+          // Also load all warehouse stats for comparison
+          allWarehouseStats.value = counts;
         } else {
           // For specific warehouse, use the new store action
-          const counts = await store.dispatch('refreshDashboardCounts', warehouseId);
+          const counts = await store.dispatch('getDashboardStats', warehouseId);
           
-          // Filter today's transactions for this warehouse
-          const todayTransactions = store.getters.getTodayTransactions || [];
-          const warehouseTodayTransactions = todayTransactions.filter(transaction => 
-            transaction.from_warehouse === warehouseId || 
-            transaction.to_warehouse === warehouseId
-          );
-          
-          dashboardStatsCache.value = {
+          dashboardStats.value = {
             ...counts,
-            recentTransactions: warehouseTodayTransactions.length
+            lastUpdated: new Date()
           };
+          
+          // Load "all" stats for comparison
+          const allCounts = await store.dispatch('getDashboardStats', 'all');
+          allWarehouseStats.value = allCounts;
         }
         
-        console.log('✅ Dashboard stats loaded:', dashboardStatsCache.value);
+        console.log('✅ Dashboard stats loaded:', dashboardStats.value);
       } catch (error) {
         console.error('❌ Error loading dashboard stats:', error);
         
-        // Fallback to calculated stats
+        // Fallback to calculated stats from local inventory
         const inventory = inventoryItems.value;
         const filteredInventory = warehouseId === 'all' 
           ? inventory 
           : inventory.filter(item => item.warehouse_id === warehouseId);
         
-        const todayTransactions = store.getters.getTodayTransactions || [];
-        const warehouseTodayTransactions = warehouseId === 'all' 
-          ? todayTransactions 
-          : todayTransactions.filter(transaction => 
-              transaction.from_warehouse === warehouseId || 
-              transaction.to_warehouse === warehouseId
-            );
+        // Calculate total quantity
+        const totalQuantity = filteredInventory.reduce((sum, item) => {
+          // Get the full quantity from cartons and singles
+          const cartons = item.cartons_count || 0;
+          const perCarton = item.per_carton_count || 12;
+          const singles = item.single_bottles_count || 0;
+          return sum + (cartons * perCarton) + singles;
+        }, 0);
         
-        dashboardStatsCache.value = {
+        dashboardStats.value = {
           totalItems: filteredInventory.length,
-          totalQuantity: filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-          lowStockItems: filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length,
-          recentTransactions: warehouseTodayTransactions.length,
+          totalQuantity: totalQuantity,
+          lowStockItems: filteredInventory.filter(item => {
+            const remaining = item.remaining_quantity || 0;
+            return remaining < 10 && remaining > 0;
+          }).length,
           lastUpdated: new Date()
         };
+        
+        // For "all" comparison
+        if (warehouseId !== 'all') {
+          allWarehouseStats.value = {
+            totalItems: inventory.length,
+            totalQuantity: inventory.reduce((sum, item) => {
+              const cartons = item.cartons_count || 0;
+              const perCarton = item.per_carton_count || 12;
+              const singles = item.single_bottles_count || 0;
+              return sum + (cartons * perCarton) + singles;
+            }, 0),
+            lowStockItems: inventory.filter(item => {
+              const remaining = item.remaining_quantity || 0;
+              return remaining < 10 && remaining > 0;
+            }).length
+          };
+        }
       } finally {
         statsLoading.value = false;
       }
     };
 
-    // Cache management functions
-    const toggleCacheDebug = () => {
-      showCacheDebug.value = !showCacheDebug.value;
-    };
-
-    const showCacheMessage = (text, type = 'success') => {
-      if (cacheMessageTimeout) {
-        clearTimeout(cacheMessageTimeout);
-      }
-      
-      cacheMessage.value = { text, type };
-      
-      cacheMessageTimeout = setTimeout(() => {
-        cacheMessage.value = null;
-      }, 5000);
-    };
-
-    const cleanupCache = async (aggressive = false) => {
-      cacheLoading.value = true;
-      try {
-        await store.dispatch('cleanupCache', { aggressive });
-        showCacheMessage(
-          aggressive ? 'تم التنظيف القوي للذاكرة المؤقتة' : 'تم تنظيف الذاكرة المؤقتة',
-          'success'
-        );
-      } catch (error) {
-        console.error('Error cleaning cache:', error);
-        showCacheMessage('حدث خطأ في تنظيف الذاكرة المؤقتة', 'error');
-      } finally {
-        cacheLoading.value = false;
-      }
-    };
-
-    const refreshCache = async () => {
-      cacheLoading.value = true;
-      loading.value = true;
-      try {
-        await store.dispatch('refreshInventoryWithCacheManagement');
-        await store.dispatch('getRecentTransactions');
-        showCacheMessage('تم تحديث البيانات بنجاح', 'success');
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-        showCacheMessage('حدث خطأ في تحديث البيانات', 'error');
-      } finally {
-        cacheLoading.value = false;
-        loading.value = false;
-      }
-    };
-
-    // Refresh dashboard function - UPDATED to use new stats function
+    // Refresh dashboard function
     const refreshDashboard = async () => {
       loading.value = true;
       try {
@@ -1111,37 +950,26 @@ export default {
         console.error('Error in dashboard mounted:', error);
         loading.value = false;
       }
-      
-      // Show cache debug if health is critical
-      if (cacheHealth.value === 'critical') {
-        showCacheDebug.value = true;
-      }
     });
 
     onUnmounted(() => {
-      if (cacheMessageTimeout) {
-        clearTimeout(cacheMessageTimeout);
-        cacheMessageTimeout = null;
-      }
+      // Cleanup if needed
     });
 
     return {
       // State
       loading,
       statsLoading,
-      showCacheDebug,
-      cacheLoading,
-      cacheMessage,
       selectedWarehouse,
+      
+      // Stats
+      dashboardStats,
+      allWarehouseStats,
       
       // Computed
       userRole,
       todayTransactionsCount,
       lastUpdatedTime,
-      safeDashboardStats,
-      filteredStats,
-      cacheStats,
-      cacheHealth,
       warehouses,
       canModifyItems,
       recentInventory,
@@ -1151,7 +979,6 @@ export default {
       
       // Helper methods
       formatEnglishNumber,
-      formatTime,
       formatDetailedTime,
       formatRelativeTime,
       getWarehouseLabel,
@@ -1163,9 +990,6 @@ export default {
       getUserRoleBadge,
       
       // Actions
-      toggleCacheDebug,
-      cleanupCache,
-      refreshCache,
       refreshDashboard,
       handleWarehouseChange
     };
