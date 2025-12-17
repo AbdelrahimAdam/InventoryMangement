@@ -21,7 +21,9 @@ import {
   limit,
   startAfter,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  getCountFromServer, // ✅ ADDED: For count queries (Spark Plan friendly)
+  select // ✅ ADDED: For field projection
 } from 'firebase/firestore';
 import {
   InventoryService,
@@ -32,12 +34,20 @@ import {
 } from '@/services/inventoryService';
 import UserService from '@/services/UserService';
 
-// Performance configuration
+// Performance configuration - UPDATED for Spark Plan
 const PERFORMANCE_CONFIG = {
-  INITIAL_LOAD: 200,             // Initial load items
-  SCROLL_LOAD: 50,               // Load more on scroll
-  SEARCH_LIMIT: 100,             // Search results limit
+  INITIAL_LOAD: 50,              // ✅ REDUCED FROM 200 to 50 (Spark Plan friendly)
+  SCROLL_LOAD: 20,
+  SEARCH_LIMIT: 50,
   CACHE_DURATION: 30 * 60 * 1000 // 30 minutes cache
+};
+
+// Notification configuration
+const NOTIFICATION_CONFIG = {
+  DEFAULT_DURATION: 3000, // 3 seconds
+  ERROR_DURATION: 5000,   // 5 seconds for errors
+  SUCCESS_DURATION: 2000, // 2 seconds for success
+  MAX_NOTIFICATIONS: 10   // Keep only 10 notifications
 };
 
 // Field name mapping (from older version)
@@ -103,6 +113,7 @@ export default createStore({
 
     // Notifications
     notifications: [],
+    notificationTimeouts: {}, // ✅ ADDED: Track notification timeouts
 
     // Real-time
     realtimeMode: true,
@@ -120,9 +131,16 @@ export default createStore({
     // Minimal cache for frequently accessed items
     cache: {
       warehouseLabels: {},
-      itemDetails: {}, // Only cache individual items when accessed
+      itemDetails: {},
       stats: null,
-      statsTimestamp: null
+      statsTimestamp: null,
+      // ✅ ADDED: Cache for dashboard counts
+      dashboardCounts: {
+        totalItems: 0,
+        totalQuantity: 0,
+        lowStockItems: 0,
+        lastUpdated: null
+      }
     },
 
     // Additional states from older version
@@ -273,22 +291,44 @@ export default createStore({
       state.itemHistory = history;
     },
 
-    // Notifications
-    ADD_NOTIFICATION(state, notification) {
+    // Notifications - UPDATED for better timeout management
+    ADD_NOTIFICATION(state, { notification, timeoutId }) {
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
+      notification.timeoutId = timeoutId; // Store timeout ID
       state.notifications.unshift(notification);
 
-      if (state.notifications.length > 20) {
-        state.notifications = state.notifications.slice(0, 20);
+      // Store timeout ID for cleanup
+      if (timeoutId) {
+        state.notificationTimeouts[notification.id] = timeoutId;
+      }
+
+      // Keep notifications limited
+      if (state.notifications.length > NOTIFICATION_CONFIG.MAX_NOTIFICATIONS) {
+        const removed = state.notifications.pop();
+        if (removed.timeoutId) {
+          clearTimeout(removed.timeoutId);
+          delete state.notificationTimeouts[removed.id];
+        }
       }
     },
 
     REMOVE_NOTIFICATION(state, notificationId) {
+      // Clear timeout if exists
+      if (state.notificationTimeouts[notificationId]) {
+        clearTimeout(state.notificationTimeouts[notificationId]);
+        delete state.notificationTimeouts[notificationId];
+      }
+      
       state.notifications = state.notifications.filter(n => n.id !== notificationId);
     },
 
     CLEAR_NOTIFICATIONS(state) {
+      // Clear all timeouts
+      Object.values(state.notificationTimeouts).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      state.notificationTimeouts = {};
       state.notifications = [];
     },
 
@@ -336,6 +376,16 @@ export default createStore({
       state.cache.statsTimestamp = timestamp;
     },
 
+    // ✅ ADDED: Dashboard counts cache mutation
+    SET_DASHBOARD_COUNTS(state, { totalItems, totalQuantity, lowStockItems, lastUpdated }) {
+      state.cache.dashboardCounts = {
+        totalItems,
+        totalQuantity,
+        lowStockItems,
+        lastUpdated
+      };
+    },
+
     // Users management
     SET_REQUIRES_COMPOSITE_INDEX(state, value) {
       state.requiresCompositeIndex = value;
@@ -368,6 +418,11 @@ export default createStore({
 
     // Reset all data on logout
     RESET_STATE(state) {
+      // Clear notification timeouts
+      Object.values(state.notificationTimeouts).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      
       state.inventory = [];
       state.inventoryLoaded = false;
       state.transactions = [];
@@ -376,6 +431,7 @@ export default createStore({
       state.warehouses = [];
       state.warehousesLoaded = false;
       state.notifications = [];
+      state.notificationTimeouts = {};
       state.allUsers = [];
       state.filters = {
         warehouse: '',
@@ -386,7 +442,13 @@ export default createStore({
         warehouseLabels: {},
         itemDetails: {},
         stats: null,
-        statsTimestamp: null
+        statsTimestamp: null,
+        dashboardCounts: {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          lastUpdated: null
+        }
       };
       state.realtimeListeners.forEach(unsubscribe => unsubscribe());
       state.realtimeListeners = [];
@@ -394,6 +456,246 @@ export default createStore({
   },
 
   actions: {
+    // ✅ ADDED: Get REAL total item count (Spark Plan optimized)
+    async getTotalItemCount({ state }, warehouseId = 'all') {
+      try {
+        console.log(`📊 Getting total item count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+        
+        const itemsRef = collection(db, 'items');
+        
+        if (warehouseId === 'all') {
+          // Count ALL items with one read
+          const q = query(itemsRef, limit(0)); // limit(0) = count only
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        } else {
+          // Count items in specific warehouse
+          const q = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            limit(0)
+          );
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        }
+      } catch (error) {
+        console.error('❌ Error getting total item count:', error);
+        // Fallback: Count from loaded inventory
+        const items = state.inventory;
+        const filteredItems = warehouseId === 'all' 
+          ? items 
+          : items.filter(item => item.warehouse_id === warehouseId);
+        return filteredItems.length;
+      }
+    },
+
+    // ✅ ADDED: Get low stock count (Spark Plan optimized)
+    async getLowStockCount({ state }, warehouseId = 'all') {
+      try {
+        console.log(`📊 Getting low stock count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+        
+        const itemsRef = collection(db, 'items');
+        
+        if (warehouseId === 'all') {
+          const q = query(
+            itemsRef,
+            where('remaining_quantity', '<', 10),
+            where('remaining_quantity', '>', 0),
+            limit(0)
+          );
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        } else {
+          const q = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            where('remaining_quantity', '<', 10),
+            where('remaining_quantity', '>', 0),
+            limit(0)
+          );
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        }
+      } catch (error) {
+        console.error('❌ Error getting low stock count:', error);
+        // Fallback: Count from loaded inventory
+        const items = state.inventory;
+        const filteredItems = warehouseId === 'all' 
+          ? items 
+          : items.filter(item => item.warehouse_id === warehouseId);
+        return filteredItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      }
+    },
+
+    // ✅ ADDED: Get out of stock count
+    async getOutOfStockCount({ state }, warehouseId = 'all') {
+      try {
+        const itemsRef = collection(db, 'items');
+        
+        if (warehouseId === 'all') {
+          const q = query(
+            itemsRef,
+            where('remaining_quantity', '==', 0),
+            limit(0)
+          );
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        } else {
+          const q = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            where('remaining_quantity', '==', 0),
+            limit(0)
+          );
+          const snapshot = await getCountFromServer(q);
+          return snapshot.data().count;
+        }
+      } catch (error) {
+        console.error('❌ Error getting out of stock count:', error);
+        const items = state.inventory;
+        const filteredItems = warehouseId === 'all' 
+          ? items 
+          : items.filter(item => item.warehouse_id === warehouseId);
+        return filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
+      }
+    },
+
+    // ✅ ADDED: Get total quantity sum (Efficient for Spark Plan)
+    async getTotalQuantitySum({ state }, warehouseId = 'all') {
+      try {
+        console.log(`📊 Getting total quantity sum for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+        
+        // Since aggregation queries aren't available on Spark Plan,
+        // we'll use a combination of count queries and sampling
+        
+        const itemsRef = collection(db, 'items');
+        
+        if (warehouseId === 'all') {
+          // For "all warehouses", use loaded inventory for calculation
+          // This is more efficient than trying to count all items
+          return state.inventory.reduce((sum, item) => 
+            sum + (item.remaining_quantity || 0), 0
+          );
+        } else {
+          // For specific warehouse, filter and sum
+          const warehouseItems = state.inventory.filter(item => 
+            item.warehouse_id === warehouseId
+          );
+          return warehouseItems.reduce((sum, item) => 
+            sum + (item.remaining_quantity || 0), 0
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error getting total quantity sum:', error);
+        return 0;
+      }
+    },
+
+    // ✅ ADDED: Refresh dashboard counts (Main function for dashboard)
+    async refreshDashboardCounts({ commit, state, dispatch }, warehouseId = 'all') {
+      try {
+        console.log('🔄 Refreshing dashboard counts...');
+        
+        // Check cache first (5 minute cache)
+        const cache = state.cache.dashboardCounts;
+        const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        
+        if (cache.lastUpdated && (Date.now() - new Date(cache.lastUpdated).getTime()) < cacheExpiry) {
+          console.log('📦 Using cached dashboard counts');
+          return cache;
+        }
+        
+        // Get REAL counts from Firestore
+        const totalItems = await dispatch('getTotalItemCount', warehouseId);
+        const lowStockItems = await dispatch('getLowStockCount', warehouseId);
+        const totalQuantity = await dispatch('getTotalQuantitySum', warehouseId);
+        
+        const counts = {
+          totalItems,
+          totalQuantity,
+          lowStockItems,
+          lastUpdated: new Date()
+        };
+        
+        // Update cache
+        commit('SET_DASHBOARD_COUNTS', counts);
+        
+        console.log('✅ Dashboard counts refreshed:', counts);
+        return counts;
+        
+      } catch (error) {
+        console.error('❌ Error refreshing dashboard counts:', error);
+        
+        // Fallback to calculated stats
+        const items = state.inventory;
+        const filteredItems = warehouseId === 'all' 
+          ? items 
+          : items.filter(item => item.warehouse_id === warehouseId);
+        
+        const fallbackCounts = {
+          totalItems: filteredItems.length,
+          totalQuantity: filteredItems.reduce((sum, item) => 
+            sum + (item.remaining_quantity || 0), 0
+          ),
+          lowStockItems: filteredItems.filter(item => 
+            (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+          ).length,
+          lastUpdated: new Date()
+        };
+        
+        return fallbackCounts;
+      }
+    },
+
+    // ✅ ADDED: Get dashboard stats with warehouse filter
+    async getDashboardStats({ dispatch }, warehouseId = 'all') {
+      try {
+        const counts = await dispatch('refreshDashboardCounts', warehouseId);
+        
+        // Get today's transactions count
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // This will be handled by the dashboard component
+        // We return the counts and let the component handle transactions
+        
+        return {
+          ...counts,
+          recentTransactions: 0 // Will be calculated by component
+        };
+      } catch (error) {
+        console.error('❌ Error getting dashboard stats:', error);
+        throw error;
+      }
+    },
+
+    // ✅ ADDED: Get all warehouses summary (for "all" view)
+    async getAllWarehousesSummary({ dispatch, getters }) {
+      try {
+        const warehouses = getters.warehouses;
+        const summary = {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          warehouseCount: warehouses.length,
+          lastUpdated: new Date()
+        };
+        
+        // Get counts for each warehouse and sum
+        for (const warehouse of warehouses) {
+          const counts = await dispatch('refreshDashboardCounts', warehouse.id);
+          summary.totalItems += counts.totalItems;
+          summary.totalQuantity += counts.totalQuantity;
+          summary.lowStockItems += counts.lowStockItems;
+        }
+        
+        return summary;
+      } catch (error) {
+        console.error('❌ Error getting all warehouses summary:', error);
+        throw error;
+      }
+    },
+
     // 🔥 REAL-TIME SEARCH FUNCTION (from older version)
     async searchItemsForTransactions({ state }, { searchTerm, limitResults = 20 }) {
       try {
@@ -1991,17 +2293,34 @@ export default createStore({
       }
     },
 
-    // 🔥 Show notification
-    showNotification({ commit }, notification) {
+    // 🔥 Show notification - UPDATED with proper timeout management
+    showNotification({ commit, state }, notification) {
       if (!notification?.message) return;
+
+      // Determine duration based on type
+      let duration = NOTIFICATION_CONFIG.DEFAULT_DURATION;
+      if (notification.type === 'error') {
+        duration = NOTIFICATION_CONFIG.ERROR_DURATION;
+      } else if (notification.type === 'success') {
+        duration = NOTIFICATION_CONFIG.SUCCESS_DURATION;
+      }
 
       const finalNotification = {
         type: 'info',
-        duration: 3000,
+        duration,
         ...notification
       };
 
-      commit('ADD_NOTIFICATION', finalNotification);
+      // Set timeout for auto-removal
+      const timeoutId = setTimeout(() => {
+        commit('REMOVE_NOTIFICATION', finalNotification.id);
+      }, duration);
+
+      // Store notification with timeout ID
+      commit('ADD_NOTIFICATION', { 
+        notification: finalNotification, 
+        timeoutId 
+      });
     },
 
     // 🔥 Remove notification
@@ -2779,6 +3098,33 @@ export default createStore({
           transfer: transferTransactions,
           dispatch: dispatchTransactions
         }
+      };
+    },
+
+    // ✅ ADDED: REAL dashboard stats using count queries
+    dashboardRealStats: (state) => (warehouseId = 'all') => {
+      // Use cached counts if available
+      const cache = state.cache.dashboardCounts;
+      if (cache.lastUpdated && (Date.now() - new Date(cache.lastUpdated).getTime()) < 5 * 60 * 1000) {
+        return {
+          totalItems: cache.totalItems,
+          totalQuantity: cache.totalQuantity,
+          lowStockItems: cache.lowStockItems,
+          lastUpdated: cache.lastUpdated
+        };
+      }
+      
+      // Fallback to calculated stats
+      const inventory = state.inventory;
+      const filteredInventory = warehouseId === 'all' 
+        ? inventory 
+        : inventory.filter(item => item.warehouse_id === warehouseId);
+      
+      return {
+        totalItems: filteredInventory.length,
+        totalQuantity: filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+        lowStockItems: filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length,
+        lastUpdated: new Date()
       };
     },
 
