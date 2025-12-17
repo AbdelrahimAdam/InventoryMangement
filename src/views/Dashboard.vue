@@ -13,6 +13,7 @@
         <div class="flex gap-3">
           <select 
             v-model="selectedWarehouse"
+            @change="onWarehouseChange"
             class="w-full lg:w-64 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200"
           >
             <option value="all">جميع المخازن</option>
@@ -40,7 +41,7 @@
       </div>
     </div>
 
-    <!-- Stats Overview -->
+    <!-- Stats Overview - Updated with Real Totals -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
       <!-- Total Items -->
       <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200 hover:shadow-md">
@@ -53,10 +54,21 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalItems) }}</dd>
-              <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.totalItems) }}
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(warehouseStats.totalItems) }}
+              </dd>
+              <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center">
+                <span>{{ getCurrentWarehouseName() }}</span>
+                <span v-if="warehouseStats.lastUpdated" class="mr-1 text-xs text-gray-500">
+                  (تحديث: {{ formatTime(warehouseStats.lastUpdated) }})
+                </span>
               </div>
+              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                مجموع {{ warehouses.length }} مخزن
+              </div>
+            </div>
+            <div v-if="statsLoading" class="mr-auto">
+              <div class="w-4 h-4 border-2 border-gray-300 border-t-yellow-500 rounded-full animate-spin"></div>
             </div>
           </div>
         </div>
@@ -73,10 +85,18 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalQuantity) }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(warehouseStats.totalQuantity) }}
+              </dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.totalQuantity) }}
+                {{ getCurrentWarehouseName() }}
               </div>
+              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                مجموع {{ warehouses.length }} مخزن
+              </div>
+            </div>
+            <div v-if="statsLoading" class="mr-auto">
+              <div class="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
             </div>
           </div>
         </div>
@@ -93,10 +113,18 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ formatEnglishNumber(filteredStats.lowStockItems) }}</dd>
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">
+                {{ formatEnglishNumber(warehouseStats.lowStockItems) }}
+              </dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.lowStockItems) }}
+                {{ getCurrentWarehouseName() }}
               </div>
+              <div v-else class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                مجموع {{ warehouses.length }} مخزن
+              </div>
+            </div>
+            <div v-if="statsLoading" class="mr-auto">
+              <div class="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
             </div>
           </div>
         </div>
@@ -113,9 +141,11 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.recentTransactions) }}</dd>
-              <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.recentTransactions) }}
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(warehouseStats.recentTransactions) }}
+              </dd>
+              <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                {{ selectedWarehouse === 'all' ? 'جميع المخازن' : getCurrentWarehouseName() }}
               </div>
             </div>
           </div>
@@ -123,6 +153,7 @@
       </div>
     </div>
 
+    <!-- Rest of the template remains the same... -->
     <!-- Quick Actions Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
       <!-- View Full Inventory -->
@@ -551,6 +582,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/firebase/config';
 
 export default {
   name: 'Dashboard',
@@ -563,7 +596,23 @@ export default {
     const cacheLoading = ref(false);
     const cacheMessage = ref(null);
     const selectedWarehouse = ref('all');
+    const statsLoading = ref(false);
+    const warehouseStats = ref({
+      totalItems: 0,
+      totalQuantity: 0,
+      lowStockItems: 0,
+      recentTransactions: 0,
+      lastUpdated: null,
+      warehouseName: '',
+      allWarehousesTotal: 0
+    });
+    
     let cacheMessageTimeout = null;
+
+    // Firestore counters collection path
+    const COUNTERS_COLLECTION = 'warehouse_counters';
+    const CACHE_KEY = 'dashboard_warehouse_stats';
+    const CACHE_EXPIRY = 30 * 60 * 1000; // 30 minutes
 
     // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
@@ -605,51 +654,6 @@ export default {
             transfer: 0,
             dispatch: 0
           }
-        };
-      }
-    });
-    
-    // Filtered stats based on selected warehouse
-    const filteredStats = computed(() => {
-      if (selectedWarehouse.value === 'all') {
-        return safeDashboardStats.value;
-      }
-      
-      try {
-        const inventory = store.getters.inventoryItems;
-        const recentTransactions = store.getters.recentTransactions;
-        
-        // Filter inventory by selected warehouse
-        const filteredInventory = Array.isArray(inventory) 
-          ? inventory.filter(item => item.warehouse_id === selectedWarehouse.value)
-          : [];
-        
-        // Filter transactions by selected warehouse
-        const filteredTransactions = Array.isArray(recentTransactions)
-          ? recentTransactions.filter(transaction => 
-              transaction.from_warehouse === selectedWarehouse.value || 
-              transaction.to_warehouse === selectedWarehouse.value
-            )
-          : [];
-        
-        const totalItems = filteredInventory.length;
-        const totalQuantity = filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-        const lowStockItems = filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length;
-        const recentTransactionsCount = filteredTransactions.length;
-        
-        return {
-          totalItems,
-          totalQuantity,
-          lowStockItems,
-          recentTransactions: recentTransactionsCount
-        };
-      } catch (error) {
-        console.error('Error calculating filtered stats:', error);
-        return {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          recentTransactions: 0
         };
       }
     });
@@ -813,7 +817,282 @@ export default {
       );
     });
 
-    // Helper functions
+    // ==================== FIREBASE COUNTER FUNCTIONS ====================
+
+    /**
+     * Get warehouse counters from Firestore (Firestore-friendly approach)
+     * Cost: 1 read per warehouse when counters are used
+     */
+    const getWarehouseCountersFromFirestore = async (warehouseId) => {
+      try {
+        const counterRef = doc(db, COUNTERS_COLLECTION, warehouseId);
+        const counterDoc = await getDoc(counterRef);
+        
+        if (counterDoc.exists()) {
+          const data = counterDoc.data();
+          return {
+            totalItems: data.total_items || 0,
+            totalQuantity: data.total_quantity || 0,
+            lowStockItems: data.low_stock_items || 0,
+            lastUpdated: data.last_updated?.toDate() || new Date()
+          };
+        } else {
+          // Counter doesn't exist, create initial counter
+          return await createInitialCounter(warehouseId);
+        }
+      } catch (error) {
+        console.error('Error getting warehouse counter:', error);
+        // Fallback to counting (expensive but reliable)
+        return await countWarehouseItems(warehouseId);
+      }
+    };
+
+    /**
+     * Create initial counter for a warehouse
+     */
+    const createInitialCounter = async (warehouseId) => {
+      try {
+        // Count items once to create initial counter
+        const counts = await countWarehouseItems(warehouseId);
+        
+        // Note: In real implementation, you would write this to Firestore
+        // For now, we'll just return the counts
+        
+        return {
+          ...counts,
+          lastUpdated: new Date()
+        };
+      } catch (error) {
+        console.error('Error creating initial counter:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          lastUpdated: new Date()
+        };
+      }
+    };
+
+    /**
+     * Count warehouse items directly (expensive - use only as fallback)
+     * Cost: 1 read per document in warehouse
+     */
+    const countWarehouseItems = async (warehouseId) => {
+      try {
+        const itemsRef = collection(db, 'inventory');
+        const q = query(itemsRef, where('warehouse_id', '==', warehouseId));
+        const snapshot = await getDocs(q);
+        
+        let totalItems = 0;
+        let totalQuantity = 0;
+        let lowStockItems = 0;
+        
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          totalItems++;
+          totalQuantity += item.remaining_quantity || 0;
+          if ((item.remaining_quantity || 0) < 10) {
+            lowStockItems++;
+          }
+        });
+        
+        console.log(`📊 Counted ${totalItems} items in warehouse ${warehouseId} (${snapshot.size} reads)`);
+        
+        return {
+          totalItems,
+          totalQuantity,
+          lowStockItems,
+          lastUpdated: new Date()
+        };
+      } catch (error) {
+        console.error('Error counting warehouse items:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          lastUpdated: new Date()
+        };
+      }
+    };
+
+    /**
+     * Get today's transactions count
+     */
+    const getTodaysTransactions = async (warehouseId) => {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const transactionsRef = collection(db, 'transactions');
+        let q;
+        
+        if (warehouseId === 'all') {
+          q = query(
+            transactionsRef,
+            where('timestamp', '>=', today),
+            orderBy('timestamp', 'desc'),
+            limit(100) // Limit to prevent too many reads
+          );
+        } else {
+          q = query(
+            transactionsRef,
+            where('timestamp', '>=', today),
+            orderBy('timestamp', 'desc'),
+            where('from_warehouse', '==', warehouseId),
+            limit(100)
+          );
+        }
+        
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+      } catch (error) {
+        console.error('Error getting today\'s transactions:', error);
+        return 0;
+      }
+    };
+
+    /**
+     * Load all warehouses totals
+     */
+    const loadAllWarehousesTotals = async () => {
+      try {
+        let totalItems = 0;
+        let totalQuantity = 0;
+        let lowStockItems = 0;
+        
+        // Try to load from cache first
+        const cached = loadFromCache('all_warehouses');
+        if (cached && !isCacheExpired(cached.lastUpdated)) {
+          return cached;
+        }
+        
+        // Load from Firestore counters if available
+        for (const warehouse of warehouses.value) {
+          const stats = await getWarehouseCountersFromFirestore(warehouse.id);
+          totalItems += stats.totalItems;
+          totalQuantity += stats.totalQuantity;
+          lowStockItems += stats.lowStockItems;
+        }
+        
+        const allStats = {
+          totalItems,
+          totalQuantity,
+          lowStockItems,
+          lastUpdated: new Date(),
+          warehouseName: 'جميع المخازن'
+        };
+        
+        // Save to cache
+        saveToCache('all_warehouses', allStats);
+        
+        return allStats;
+      } catch (error) {
+        console.error('Error loading all warehouses totals:', error);
+        // Fallback to store data (limited to 200 items)
+        const storeStats = safeDashboardStats.value;
+        return {
+          totalItems: storeStats.totalItems,
+          totalQuantity: storeStats.totalQuantity,
+          lowStockItems: storeStats.lowStockItems,
+          lastUpdated: new Date(),
+          warehouseName: 'جميع المخازن'
+        };
+      }
+    };
+
+    /**
+     * Load single warehouse stats
+     */
+    const loadWarehouseStats = async (warehouseId) => {
+      statsLoading.value = true;
+      
+      try {
+        // Try cache first
+        const cached = loadFromCache(warehouseId);
+        if (cached && !isCacheExpired(cached.lastUpdated)) {
+          warehouseStats.value = {
+            ...cached,
+            recentTransactions: await getTodaysTransactions(warehouseId)
+          };
+          return;
+        }
+        
+        // Load from Firestore
+        const counters = await getWarehouseCountersFromFirestore(warehouseId);
+        const todayTransactions = await getTodaysTransactions(warehouseId);
+        
+        const warehouse = warehouses.value.find(w => w.id === warehouseId);
+        
+        const stats = {
+          ...counters,
+          recentTransactions: todayTransactions,
+          warehouseName: warehouse ? warehouse.name_ar || warehouse.name : 'مخزن غير معروف',
+          lastUpdated: new Date()
+        };
+        
+        // Update state
+        warehouseStats.value = stats;
+        
+        // Save to cache
+        saveToCache(warehouseId, stats);
+        
+      } catch (error) {
+        console.error('Error loading warehouse stats:', error);
+        // Fallback to filtered store data
+        const filtered = filteredStats.value;
+        warehouseStats.value = {
+          totalItems: filtered.totalItems,
+          totalQuantity: filtered.totalQuantity,
+          lowStockItems: filtered.lowStockItems,
+          recentTransactions: filtered.recentTransactions,
+          warehouseName: getCurrentWarehouseName(),
+          lastUpdated: new Date()
+        };
+      } finally {
+        statsLoading.value = false;
+      }
+    };
+
+    // ==================== CACHE MANAGEMENT ====================
+
+    const loadFromCache = (key) => {
+      try {
+        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        return cache[key];
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const saveToCache = (key, data) => {
+      try {
+        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        cache[key] = data;
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      } catch (error) {
+        console.error('Error saving to cache:', error);
+      }
+    };
+
+    const isCacheExpired = (timestamp) => {
+      if (!timestamp) return true;
+      const cacheTime = new Date(timestamp).getTime();
+      const now = Date.now();
+      return now - cacheTime > CACHE_EXPIRY;
+    };
+
+    const clearCache = () => {
+      try {
+        localStorage.removeItem(CACHE_KEY);
+        return true;
+      } catch (error) {
+        console.error('Error clearing cache:', error);
+        return false;
+      }
+    };
+
+    // ==================== HELPER FUNCTIONS ====================
+
     const formatEnglishNumber = (num) => {
       if (isNaN(num) || num === null || num === undefined) return '0';
       return new Intl.NumberFormat('en-US').format(num);
@@ -823,7 +1102,7 @@ export default {
       if (!timestamp) return '';
       
       try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const date = new Date(timestamp);
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -914,6 +1193,12 @@ export default {
       return labels[type] || type;
     };
 
+    const getCurrentWarehouseName = () => {
+      if (selectedWarehouse.value === 'all') return 'جميع المخازن';
+      const warehouse = warehouses.value.find(w => w.id === selectedWarehouse.value);
+      return warehouse ? warehouse.name_ar || warehouse.name : 'مخزن غير معروف';
+    };
+
     const getQuantityClass = (quantity) => {
       if (!quantity || quantity === 0) return 'text-red-600 dark:text-red-400';
       if (quantity < 10) return 'text-orange-600 dark:text-orange-400';
@@ -933,16 +1218,29 @@ export default {
     };
 
     const getUserRoleBadge = (userName) => {
-      // This is a simplified version - in a real app, you would get the actual role
       if (userName?.includes('admin') || userName?.includes('مشرف')) {
         return 'مشرف';
       }
       return 'مستخدم';
     };
 
-    // Cache management functions
-    const toggleCacheDebug = () => {
-      showCacheDebug.value = !showCacheDebug.value;
+    // ==================== EVENT HANDLERS ====================
+
+    const onWarehouseChange = async () => {
+      if (selectedWarehouse.value === 'all') {
+        // Load all warehouses totals
+        const allStats = await loadAllWarehousesTotals();
+        const todayTransactions = await getTodaysTransactions('all');
+        
+        warehouseStats.value = {
+          ...allStats,
+          recentTransactions: todayTransactions,
+          warehouseName: 'جميع المخازن'
+        };
+      } else {
+        // Load single warehouse stats
+        await loadWarehouseStats(selectedWarehouse.value);
+      }
     };
 
     const showCacheMessage = (text, type = 'success') => {
@@ -955,6 +1253,10 @@ export default {
       cacheMessageTimeout = setTimeout(() => {
         cacheMessage.value = null;
       }, 5000);
+    };
+
+    const toggleCacheDebug = () => {
+      showCacheDebug.value = !showCacheDebug.value;
     };
 
     const cleanupCache = async (aggressive = false) => {
@@ -977,8 +1279,12 @@ export default {
       cacheLoading.value = true;
       loading.value = true;
       try {
-        await store.dispatch('refreshInventoryWithCacheManagement');
-        await store.dispatch('getRecentTransactions');
+        // Clear local cache
+        clearCache();
+        
+        // Reload data
+        await onWarehouseChange();
+        
         showCacheMessage('تم تحديث البيانات بنجاح', 'success');
       } catch (error) {
         console.error('Error refreshing data:', error);
@@ -989,15 +1295,16 @@ export default {
       }
     };
 
-    // Refresh dashboard function
     const refreshDashboard = async () => {
       loading.value = true;
       try {
+        // Clear cache and force refresh
+        clearCache();
+        await onWarehouseChange();
+        
+        // Also refresh store data
         await store.dispatch('getRecentTransactions');
-        if (selectedWarehouse.value !== 'all') {
-          // Trigger a refresh for filtered data
-          await store.dispatch('loadAllInventory', { forceRefresh: true });
-        }
+        
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
       } finally {
@@ -1010,21 +1317,29 @@ export default {
       loading.value = true;
       
       try {
+        // Load warehouses if needed
+        if (warehouses.value.length === 0) {
+          await store.dispatch('loadWarehouses');
+        }
+        
+        // Load initial warehouse stats
+        await onWarehouseChange();
+        
         // Load recent transactions
-        const recentTransactionsPromise = store.dispatch('getRecentTransactions');
-        
-        // Set timeout to prevent hanging
-        const timeoutPromise = new Promise(resolve => {
-          setTimeout(() => {
-            resolve();
-          }, 3000);
-        });
-        
-        // Wait for either transactions to load or timeout
-        await Promise.race([recentTransactionsPromise, timeoutPromise]);
+        await store.dispatch('getRecentTransactions');
         
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        // Fallback to store data
+        const filtered = filteredStats.value;
+        warehouseStats.value = {
+          totalItems: filtered.totalItems,
+          totalQuantity: filtered.totalQuantity,
+          lowStockItems: filtered.lowStockItems,
+          recentTransactions: filtered.recentTransactions,
+          warehouseName: selectedWarehouse.value === 'all' ? 'جميع المخازن' : getCurrentWarehouseName(),
+          lastUpdated: new Date()
+        };
       } finally {
         loading.value = false;
       }
@@ -1032,9 +1347,8 @@ export default {
 
     // Watch for warehouse filter changes
     watch(selectedWarehouse, (newValue) => {
-      // Update stats automatically when filter changes
       if (!loading.value) {
-        console.log('Warehouse filter changed to:', newValue);
+        onWarehouseChange();
       }
     });
 
@@ -1068,11 +1382,12 @@ export default {
       cacheLoading,
       cacheMessage,
       selectedWarehouse,
+      statsLoading,
+      warehouseStats,
       
       // Computed
       userRole,
       safeDashboardStats,
-      filteredStats,
       cacheStats,
       cacheHealth,
       warehouses,
@@ -1094,17 +1409,18 @@ export default {
       getStatusClass,
       getStatusText,
       getUserRoleBadge,
+      getCurrentWarehouseName,
       
       // Actions
       toggleCacheDebug,
       cleanupCache,
       refreshCache,
-      refreshDashboard
+      refreshDashboard,
+      onWarehouseChange
     };
   }
 };
 </script>
-
 <style scoped>
 /* Custom scrollbar for dark mode */
 .dark ::-webkit-scrollbar {
