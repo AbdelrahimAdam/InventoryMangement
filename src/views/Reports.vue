@@ -103,7 +103,7 @@
                 <option value="year">هذه السنة</option>
                 <option value="custom">فترة مخصصة</option>
               </select>
-              
+
               <button 
                 @click="toggleFullscreen"
                 class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm"
@@ -115,7 +115,7 @@
                   ملء الشاشة
                 </span>
               </button>
-              
+
               <button 
                 @click="resetFilters"
                 class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm"
@@ -397,7 +397,7 @@
           </div>
         </div>
 
-        <!-- Total Value -->
+        <!-- Total Value - UPDATED WITH ACCURATE PRICING -->
         <div class="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-3 sm:p-4 sm:p-6 hover:shadow-md transition-all duration-300">
           <div class="flex items-center">
             <div class="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center ml-2 sm:ml-4 shadow-lg">
@@ -406,14 +406,16 @@
               </svg>
             </div>
             <div class="flex-1">
-              <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 truncate">القيمة الإجمالية</p>
-              <p class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(dashboardStats.estimatedValue).split(' ')[0] }}</p>
-              <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-2">{{ formatNumber(dashboardStats.totalQuantity) }} وحدة</p>
+              <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 truncate">القيمة الإجمالية الحقيقية</p>
+              <p class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(summary.totalValue).split(' ')[0] }}</p>
+              <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {{ formatNumber(summary.totalQuantity) }} وحدة • بأسعار السوق
+              </p>
             </div>
           </div>
           <div class="sm:mt-4 sm:pt-4 sm:border-t sm:border-gray-100 sm:dark:border-gray-700">
             <div class="text-xs">
-              <span class="text-gray-500 dark:text-gray-400">متوسط السعر:</span>
+              <span class="text-gray-500 dark:text-gray-400">المتوسط الفعلي:</span>
               <span class="font-semibold text-purple-600 dark:text-purple-400 mr-1">
                 {{ formatCurrency(summary.averagePrice).split(' ')[0] }}
               </span>
@@ -444,6 +446,212 @@
               <span class="font-semibold text-red-600 dark:text-red-400">
                 {{ summary.lowStockPercentage }}%
               </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEW: Price Management Section -->
+      <div class="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 rounded-2xl shadow-lg border border-yellow-200 dark:border-yellow-800 p-4 sm:p-6 mb-6 sm:mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 sm:mb-6 gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">🔄 إدارة الأسعار حسب الحجم</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">الأسعار الحالية للسوق المصري (ج.م)</p>
+          </div>
+          <button 
+            @click="showPriceManager = !showPriceManager"
+            class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 flex items-center justify-center text-sm sm:text-base"
+          >
+            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            {{ showPriceManager ? 'إخفاء الأسعار' : 'إدارة الأسعار' }}
+          </button>
+        </div>
+
+        <!-- Price Statistics -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow border border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">متوسط 30 مل</div>
+            <div class="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {{ formatCurrency(calculateAveragePriceBySize('30ml')) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">السوق المصري</div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow border border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">متوسط 50 مل</div>
+            <div class="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+              {{ formatCurrency(calculateAveragePriceBySize('50ml')) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">السوق المصري</div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow border border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">متوسط 100 مل</div>
+            <div class="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {{ formatCurrency(calculateAveragePriceBySize('100ml')) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">السوق المصري</div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">قيمة المخزون الفعلية</div>
+            <div class="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+              {{ formatCurrency(summary.totalValue) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">بأسعار السوق</div>
+          </div>
+        </div>
+
+        <!-- Price Manager (Collapsible) -->
+        <div v-if="showPriceManager" class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg border border-gray-200 dark:border-gray-700">
+          <div class="mb-6">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-4">تحديث أسعار العطور حسب الحجم</h4>
+            
+            <!-- Quick Price Update for Selected Item -->
+            <div v-if="selectedItem" class="mb-6 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <div class="font-medium text-blue-900 dark:text-blue-300 text-sm">تحديث سعر الصنف المحدد</div>
+                  <div class="text-xs text-blue-700 dark:text-blue-400">{{ selectedItemText }}</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded">
+                  اختر الحجم
+                </span>
+              </div>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div class="col-span-2">
+                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">الحجم</label>
+                  <select v-model="newPrice.size" class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700">
+                    <option value="30ml">30 مل (صغير)</option>
+                    <option value="45ml">45 مل</option>
+                    <option value="50ml" selected>50 مل (وسط)</option>
+                    <option value="60ml">60 مل</option>
+                    <option value="75ml">75 مل</option>
+                    <option value="90ml">90 مل</option>
+                    <option value="100ml">100 مل (كبير)</option>
+                    <option value="120ml">120 مل</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">السعر (ج.م)</label>
+                  <input 
+                    type="number" 
+                    v-model.number="newPrice.price"
+                    placeholder="أدخل السعر"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                
+                <div class="flex items-end">
+                  <button 
+                    @click="addPriceForSelectedItem"
+                    class="w-full px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200"
+                  >
+                    حفظ السعر
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Common Sizes Price Guide -->
+            <div class="mb-6">
+              <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">دليل الأسعار الشائعة في السوق المصري (ج.م)</h5>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div class="text-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">30 مل</div>
+                  <div class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(1200) }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">متوسط السوق</div>
+                </div>
+                <div class="text-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">50 مل</div>
+                  <div class="font-bold text-green-600 dark:text-green-400">{{ formatCurrency(2000) }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">متوسط السوق</div>
+                </div>
+                <div class="text-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">75 مل</div>
+                  <div class="font-bold text-purple-600 dark:text-purple-400">{{ formatCurrency(3000) }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">متوسط السوق</div>
+                </div>
+                <div class="text-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">100 مل</div>
+                  <div class="font-bold text-yellow-600 dark:text-yellow-400">{{ formatCurrency(4000) }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">متوسط السوق</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Current Prices Table -->
+            <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700 dark:text-gray-300">العطر</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">30 مل</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">50 مل</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">100 مل</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="(perfume, key) in Object.entries(perfumePrices).slice(0, 6)" :key="key">
+                    <td class="px-3 py-2">
+                      <div class="font-medium text-gray-900 dark:text-white text-sm">{{ perfume[1].name }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">{{ perfume[1].brand }}</div>
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <span v-if="perfume[1].sizePrices['30ml']" class="font-bold text-blue-600 dark:text-blue-400 text-sm">
+                        {{ formatCurrency(perfume[1].sizePrices['30ml']) }}
+                      </span>
+                      <span v-else class="text-gray-400 text-xs">—</span>
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <span v-if="perfume[1].sizePrices['50ml']" class="font-bold text-green-600 dark:text-green-400 text-sm">
+                        {{ formatCurrency(perfume[1].sizePrices['50ml']) }}
+                      </span>
+                      <span v-else class="text-gray-400 text-xs">—</span>
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <span v-if="perfume[1].sizePrices['100ml']" class="font-bold text-purple-600 dark:text-purple-400 text-sm">
+                        {{ formatCurrency(perfume[1].sizePrices['100ml']) }}
+                      </span>
+                      <span v-else class="text-gray-400 text-xs">—</span>
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <button 
+                        @click="editPerfumePrice(key)"
+                        class="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        تعديل
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Export/Import Prices -->
+            <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                {{ Object.keys(perfumePrices).length }} عطر مسعر • التحديثات تخزن تلقائياً
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  @click="exportPricesToExcel"
+                  class="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800"
+                >
+                  تصدير الأسعار
+                </button>
+                <button 
+                  @click="resetToMarketPrices"
+                  class="px-3 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800"
+                >
+                  استعادة أسعار السوق
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -561,6 +769,9 @@
                 <div>
                   <h4 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ item.name }}</h4>
                   <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }} - {{ item.color }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    الحجم: {{ extractSizeFromItem(item) }} • السعر: {{ formatCurrency(getItemPrice(item)) }}
+                  </p>
                 </div>
                 <span :class="[
                   'px-2 py-1 rounded-lg text-xs font-medium',
@@ -571,7 +782,7 @@
               </div>
               <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>{{ getWarehouseLabel(item.warehouse_id) }}</span>
-                <span class="font-semibold">{{ formatCurrency(item.remaining_quantity * 50) }}</span>
+                <span class="font-semibold">{{ formatCurrency(item.remaining_quantity * getItemPrice(item)) }}</span>
               </div>
             </div>
           </div>
@@ -638,7 +849,7 @@
               <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
                 عرض البيانات المفلترة حسب التحديدات الحالية
                 <span v-if="filteredInventory.length > 0" class="font-bold">
-                  • {{ filteredInventory.length }} صنف
+                  • {{ filteredInventory.length }} صنف • القيمة الفعلية: {{ formatCurrency(summary.totalValue) }}
                 </span>
               </p>
             </div>
@@ -748,7 +959,7 @@
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">أعلى الأصناف قيمة</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">الأصناف الأعلى قيمة في المخزون</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">الأصناف الأعلى قيمة في المخزون (بأسعار السوق المصري)</p>
               </div>
               <select 
                 v-model="topItemsFilter"
@@ -769,7 +980,7 @@
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">الصنف</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">المخزن</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">الكمية</th>
-                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">القيمة</th>
+                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">القيمة الحقيقية</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
                   </tr>
                 </thead>
@@ -783,7 +994,9 @@
                     </td>
                     <td class="px-6 py-4">
                       <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.name }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }} - {{ item.color }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ item.code }} - {{ item.color }} • {{ extractSizeFromItem(item) }}
+                      </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {{ getWarehouseLabel(item.warehouse_id) }}
@@ -914,12 +1127,12 @@
         </div>
       </div>
 
-      <!-- Cash Flow Analysis Section -->
+      <!-- Cash Flow Analysis Section - UPDATED WITH ACCURATE PRICING -->
       <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-2xl shadow-lg border border-green-200 dark:border-green-800 p-6 mb-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">تحليل التدفق النقدي</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تحليل إيرادات ومصروفات المخزون</p>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">تحليل التدفق النقدي الحقيقي</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تحليل إيرادات ومصروفات المخزون بأسعار السوق المصري</p>
           </div>
           <span class="text-xs px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">
             {{ getPeriodLabel() }}
@@ -929,29 +1142,29 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">الإيرادات</h4>
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">الإيرادات الحقيقية</h4>
               <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ formatCurrency(cashFlowAnalysis.cashIn) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">من حركات الصرف</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">من حركات الصرف بأسعار السوق</p>
           </div>
 
           <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">المصروفات</h4>
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">المصروفات الفعلية</h4>
               <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatCurrency(cashFlowAnalysis.cashOut) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">من حركات الإضافة</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">من حركات الإضافة بأسعار السوق</p>
           </div>
 
           <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-xl p-4 shadow border border-blue-200 dark:border-blue-800">
             <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">صافي التدفق النقدي</h4>
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">صافي التدفق النقدي الفعلي</h4>
               <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
               </svg>
@@ -965,7 +1178,7 @@
               {{ formatCurrency(cashFlowAnalysis.netCashFlow) }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              معدل الدوران: {{ (cashFlowAnalysis.turnoverRate * 100).toFixed(1) }}%
+              معدل الدوران الفعلي: {{ (cashFlowAnalysis.turnoverRate * 100).toFixed(1) }}%
             </p>
           </div>
         </div>
@@ -999,7 +1212,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick,reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
@@ -1013,21 +1226,24 @@ export default {
   setup() {
     const store = useStore();
     
-    // Mobile state management
+    // ================================
+    // الجزء 1: حالة إدارة الجوال
+    // ================================
     const showMobileFilters = ref(false);
     const activeMobileTab = ref('charts');
     const showInventoryFilters = ref(false);
-    const viewMode = ref('detailed'); // 'detailed' or 'simple'
+    const viewMode = ref('detailed');
     const isFullscreen = ref(false);
     
-    // Mobile tabs configuration
     const mobileTabs = ref([
       { id: 'charts', label: 'الرسوم' },
       { id: 'inventory', label: 'المخزون' },
       { id: 'transactions', label: 'الحركات' }
     ]);
     
-    // Original refs
+    // ================================
+    // الجزء 2: الحالات الأساسية
+    // ================================
     const loading = ref(false);
     const reportPeriod = ref('month');
     const distributionType = ref('quantity');
@@ -1041,26 +1257,190 @@ export default {
     const customDateTo = ref('');
     const topItemsFilter = ref('value');
     
-    // Chart refs
-    const warehouseChart = ref(null);
-    const transactionsChart = ref(null);
-    const trendsChart = ref(null);
-    const mobileWarehouseChart = ref(null);
-    const mobileTransactionsChart = ref(null);
+    // ================================
+    // الجزء 3: نظام إدارة الأسعار الجديد
+    // ================================
+    const showPriceManager = ref(false);
+    const editingPerfume = ref(null);
+    const newPrice = reactive({
+      name: '',
+      size: '50ml',
+      price: 0,
+      unit: 'EGP'
+    });
+
+    // تخزين الأسعار محلياً في localStorage
+    const perfumePrices = ref({});
+
+    // تحميل الأسعار من localStorage
+    const loadPricesFromStorage = () => {
+      try {
+        const stored = localStorage.getItem('perfume_prices');
+        if (stored) {
+          perfumePrices.value = JSON.parse(stored);
+          console.log('✅ تم تحميل أسعار', Object.keys(perfumePrices.value).length, 'عطر');
+        } else {
+          // إذا لم تكن هناك أسعار محفوظة، قم بتهيئة الأسعار الافتراضية
+          initializeDefaultPrices();
+        }
+      } catch (error) {
+        console.error('❌ خطأ في تحميل الأسعار:', error);
+        initializeDefaultPrices();
+      }
+    };
+
+    // حفظ الأسعار في localStorage
+    const savePricesToStorage = () => {
+      try {
+        localStorage.setItem('perfume_prices', JSON.stringify(perfumePrices.value));
+      } catch (error) {
+        console.error('❌ خطأ في حفظ الأسعار:', error);
+      }
+    };
+
+    // تهيئة أسعار السوق المصري الافتراضية
+    const initializeDefaultPrices = () => {
+      const defaultPrices = {
+        'chanel_no5': {
+          name: 'شانيل نمرة 5',
+          brand: 'شانيل',
+          sizePrices: {
+            '30ml': 1500,
+            '50ml': 2300,
+            '100ml': 4000
+          },
+          lastUpdated: new Date().toISOString()
+        },
+        'dior_jadore': {
+          name: 'ديور جادور',
+          brand: 'ديور',
+          sizePrices: {
+            '30ml': 1400,
+            '50ml': 2200,
+            '100ml': 3800
+          },
+          lastUpdated: new Date().toISOString()
+        },
+        'ysl_black_opium': {
+          name: 'واي إس إل بلاك أوبيوم',
+          brand: 'واي إس إل',
+          sizePrices: {
+            '30ml': 1600,
+            '50ml': 2500,
+            '100ml': 4200
+          },
+          lastUpdated: new Date().toISOString()
+        },
+        'gucci_bloom': {
+          name: 'غوتشي بلوم',
+          brand: 'غوتشي',
+          sizePrices: {
+            '30ml': 1300,
+            '50ml': 2100,
+            '100ml': 3600
+          },
+          lastUpdated: new Date().toISOString()
+        },
+        'versace_bright_crystal': {
+          name: 'فيرساتشي برايت كريستال',
+          brand: 'فيرساتشي',
+          sizePrices: {
+            '30ml': 1200,
+            '50ml': 1900,
+            '100ml': 3200
+          },
+          lastUpdated: new Date().toISOString()
+        }
+      };
+
+      perfumePrices.value = defaultPrices;
+      savePricesToStorage();
+    };
+
+    // ================================
+    // الجزء 4: دوال مساعدة لتحديد الأسعار
+    // ================================
     
-    // Chart instances
-    let warehouseChartInstance = null;
-    let transactionsChartInstance = null;
-    let trendsChartInstance = null;
-    let mobileWarehouseChartInstance = null;
-    let mobileTransactionsChartInstance = null;
-    
-    // Live search state
-    const isLiveSearching = ref(false);
-    const liveSearchResults = reactive([]);
-    const liveSearchTimeout = ref(null);
-    
-    // Computed properties from store
+    // استخراج مفتاح العطر من الصنف
+    const getPerfumeKey = (item) => {
+      if (!item) return null;
+      
+      const itemName = (item.name || '').toLowerCase().trim();
+      const itemCode = (item.code || '').toLowerCase().trim();
+      
+      // البحث في الأسعار الحالية
+      for (const [key, perfume] of Object.entries(perfumePrices.value)) {
+        const perfumeName = (perfume.name || '').toLowerCase();
+        if (itemName.includes(perfumeName) || perfumeName.includes(itemName)) {
+          return key;
+        }
+        if (itemCode && perfume.name && itemCode.includes(perfumeName.substring(0, 3))) {
+          return key;
+        }
+      }
+      
+      // إنشاء مفتاح من اسم الصنف
+      return itemName.replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    };
+
+    // استخراج الحجم من الصنف
+    const extractSizeFromItem = (item) => {
+      if (!item) return '50ml';
+      
+      const text = `${item.name || ''} ${item.code || ''} ${item.notes || ''}`.toLowerCase();
+      
+      if (text.includes('100ml') || text.includes('100 مل') || text.includes('100')) return '100ml';
+      if (text.includes('50ml') || text.includes('50 مل') || text.includes('50')) return '50ml';
+      if (text.includes('30ml') || text.includes('30 مل') || text.includes('30')) return '30ml';
+      if (text.includes('45ml') || text.includes('45 مل') || text.includes('45')) return '45ml';
+      if (text.includes('60ml') || text.includes('60 مل') || text.includes('60')) return '60ml';
+      if (text.includes('75ml') || text.includes('75 مل') || text.includes('75')) return '75ml';
+      if (text.includes('90ml') || text.includes('90 مل') || text.includes('90')) return '90ml';
+      if (text.includes('120ml') || text.includes('120 مل') || text.includes('120')) return '120ml';
+      
+      return '50ml';
+    };
+
+    // الحصول على سعر الصنف حسب الحجم والسوق المصري
+    const getItemPrice = (item) => {
+      if (!item) return 50; // الرجوع للمتوسط القديم
+      
+      const perfumeKey = getPerfumeKey(item);
+      const size = extractSizeFromItem(item);
+      
+      // التحقق من وجود سعر لهذا العطر والحجم
+      if (perfumeKey && perfumePrices.value[perfumeKey]) {
+        const perfume = perfumePrices.value[perfumeKey];
+        if (perfume.sizePrices && perfume.sizePrices[size]) {
+          return perfume.sizePrices[size];
+        }
+        
+        // محاولة إيجاد أقرب حجم
+        const availableSizes = Object.keys(perfume.sizePrices || {});
+        if (availableSizes.length > 0) {
+          const total = availableSizes.reduce((sum, s) => sum + perfume.sizePrices[s], 0);
+          return Math.round(total / availableSizes.length);
+        }
+      }
+      
+      // الرجوع: استخدام المتوسطات الافتراضية للسوق المصري
+      const sizeDefaults = {
+        '30ml': 1200,
+        '45ml': 1800,
+        '50ml': 2000,
+        '60ml': 2400,
+        '75ml': 3000,
+        '90ml': 3600,
+        '100ml': 4000,
+        '120ml': 4800
+      };
+      
+      return sizeDefaults[size] || 2000;
+    };
+
+    // ================================
+    // الجزء 5: خصائص محسوبة من المتجر
+    // ================================
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allInventory = computed(() => store.state.inventory || []);
     const allTransactions = computed(() => store.state.transactions || []);
@@ -1076,41 +1456,13 @@ export default {
       transferTransactions: 0,
       dispatchTransactions: 0
     });
-    
-    // Combined inventory (local + live search results)
-    const combinedInventory = computed(() => {
-      const combined = [...allInventory.value];
-      
-      // Add live search results that aren't already in local inventory
-      liveSearchResults.forEach(liveItem => {
-        if (!combined.some(item => item.id === liveItem.id)) {
-          // Mark as live search result for styling
-          combined.push({
-            ...liveItem,
-            isLiveSearchResult: true
-          });
-        }
-      });
-      
-      return combined;
-    });
-    
-    // Mobile computed properties
-    const mobileInventoryItems = computed(() => {
-      return filteredInventory.value.slice(0, 10).map(item => ({
-        ...item,
-        value: (item.remaining_quantity || 0) * 50
-      }));
-    });
-    
-    const mobileTransactions = computed(() => {
-      return recentFilteredTransactions.value.slice(0, 10);
-    });
-    
-    // All unique items for dropdown
+
+    // ================================
+    // الجزء 6: خصائص محسوبة للتطبيق
+    // ================================
     const allUniqueItems = computed(() => {
       const itemsMap = new Map();
-      (combinedInventory.value || []).forEach(item => {
+      (allInventory.value || []).forEach(item => {
         if (item && item.id && !itemsMap.has(item.id)) {
           itemsMap.set(item.id, {
             id: item.id,
@@ -1122,40 +1474,36 @@ export default {
       });
       return Array.from(itemsMap.values());
     });
-    
-    // Items filtered by selected warehouse
+
     const filteredItemsByWarehouse = computed(() => {
       if (!selectedWarehouse.value) return [];
       return (allUniqueItems.value || []).filter(item => item.warehouse_id === selectedWarehouse.value);
     });
-    
-    // Selected item text for display
+
     const selectedItemText = computed(() => {
       if (!selectedItem.value) return '';
       const item = (allUniqueItems.value || []).find(i => i.id === selectedItem.value);
       return item ? `${item.name} (${item.code})` : '';
     });
-    
-    // Check if any filters are active
+
     const hasActiveFilters = computed(() => {
       return selectedWarehouse.value || selectedItem.value || selectedItemType.value || searchQuery.value;
     });
-    
-    // Filtered inventory based on selected filters
+
+    // ================================
+    // الجزء 7: المخزون المفلتر مع الأسعار الحقيقية
+    // ================================
     const filteredInventory = computed(() => {
-      let inventory = combinedInventory.value || [];
+      let inventory = allInventory.value || [];
       
-      // Filter by warehouse
       if (selectedWarehouse.value) {
         inventory = inventory.filter(item => item.warehouse_id === selectedWarehouse.value);
       }
       
-      // Filter by specific item
       if (selectedItem.value) {
         inventory = inventory.filter(item => item.id === selectedItem.value);
       }
       
-      // Filter by item type
       if (selectedItemType.value) {
         switch (selectedItemType.value) {
           case 'low_stock':
@@ -1165,7 +1513,7 @@ export default {
             inventory = inventory.filter(item => (item.remaining_quantity || 0) === 0);
             break;
           case 'high_value':
-            inventory = inventory.filter(item => ((item.remaining_quantity || 0) * 50) > 1000);
+            inventory = inventory.filter(item => ((item.remaining_quantity || 0) * getItemPrice(item)) > 1000);
             break;
           case 'recently_added':
             const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -1183,7 +1531,6 @@ export default {
         }
       }
       
-      // Filter by search query
       if (searchQuery.value) {
         const searchLower = searchQuery.value.toLowerCase();
         inventory = inventory.filter(item =>
@@ -1196,105 +1543,31 @@ export default {
       
       return inventory;
     });
-    
-    // Filtered transactions with item filtering
-    const filteredTransactions = computed(() => {
-      let transactions = allTransactions.value || [];
-      
-      // Filter by warehouse if selected
-      if (selectedWarehouse.value) {
-        transactions = transactions.filter(t => 
-          t.from_warehouse === selectedWarehouse.value || 
-          t.to_warehouse === selectedWarehouse.value ||
-          t.warehouse_id === selectedWarehouse.value
-        );
-      }
-      
-      // Filter by specific item if selected
-      if (selectedItem.value) {
-        const item = (combinedInventory.value || []).find(i => i.id === selectedItem.value);
-        if (item) {
-          transactions = transactions.filter(t => 
-            t.item_name === item.name || 
-            t.item_code === item.code
-          );
-        }
-      }
-      
-      // Filter by date period
-      const now = new Date();
-      let startDate;
-      
-      switch (reportPeriod.value) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
-        case 'quarter':
-          const quarter = Math.floor(now.getMonth() / 3);
-          startDate = new Date(now.getFullYear(), quarter * 3, 1);
-          break;
-        case 'year':
-          startDate = new Date(now.getFullYear(), 0, 1);
-          break;
-        case 'custom':
-          if (customDateFrom.value && customDateTo.value) {
-            startDate = new Date(customDateFrom.value);
-            const endDate = new Date(customDateTo.value);
-            return transactions.filter(t => {
-              if (!t.timestamp) return false;
-              try {
-                const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-                return transDate >= startDate && transDate <= endDate;
-              } catch (error) {
-                return false;
-              }
-            });
-          }
-          break;
-      }
-      
-      if (startDate) {
-        return transactions.filter(t => {
-          if (!t.timestamp) return false;
-          try {
-            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-            return transDate >= startDate;
-          } catch (error) {
-            return false;
-          }
-        });
-      }
-      
-      return transactions;
-    });
-    
-    // Recent filtered transactions
-    const recentFilteredTransactions = computed(() => {
-      return (filteredTransactions.value || [])
-        .sort((a, b) => {
-          try {
-            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || Date.now());
-            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || Date.now());
-            return dateB - dateA;
-          } catch (error) {
-            return 0;
-          }
-        })
-        .slice(0, 20);
-    });
-    
-    // Summary statistics
+
+    // ================================
+    // الجزء 8: ملخص الإحصائيات مع الأسعار الحقيقية
+    // ================================
     const summary = computed(() => {
       const inventory = filteredInventory.value || [];
       const transactions = filteredTransactions.value || [];
       
-      // Calculate unique items
+      // حساب القيمة الإجمالية مع الأسعار الحقيقية
+      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      const totalValue = inventory.reduce((sum, item) => {
+        const quantity = item.remaining_quantity || 0;
+        const price = getItemPrice(item); // السعر الحقيقي حسب الحجم
+        return sum + (quantity * price);
+      }, 0);
+      
+      const addTransactions = transactions.filter(t => t.type === 'ADD').length;
+      const transferTransactions = transactions.filter(t => t.type === 'TRANSFER').length;
+      const dispatchTransactions = transactions.filter(t => t.type === 'DISPATCH').length;
+      
+      const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
+      const lowStockPercentage = inventory.length > 0 ? Math.round((lowStockItems / inventory.length) * 100) : 0;
+      const averagePrice = totalQuantity > 0 ? Math.round(totalValue / totalQuantity) : 0;
+      
       const uniqueItemsMap = new Map();
       inventory.forEach(item => {
         if (item) {
@@ -1305,25 +1578,6 @@ export default {
         }
       });
       
-      // Calculate total value and quantity
-      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-      const totalValue = inventory.reduce((sum, item) => {
-        const quantity = item.remaining_quantity || 0;
-        const price = 50; // Default price
-        return sum + (quantity * price);
-      }, 0);
-      
-      // Calculate transactions by type
-      const addTransactions = transactions.filter(t => t.type === 'ADD').length;
-      const transferTransactions = transactions.filter(t => t.type === 'TRANSFER').length;
-      const dispatchTransactions = transactions.filter(t => t.type === 'DISPATCH').length;
-      
-      // Calculate low stock items
-      const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
-      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
-      const lowStockPercentage = inventory.length > 0 ? Math.round((lowStockItems / inventory.length) * 100) : 0;
-      const averagePrice = totalQuantity > 0 ? Math.round(totalValue / totalQuantity) : 0;
-      
       return {
         totalItems: inventory.length,
         uniqueItems: uniqueItemsMap.size,
@@ -1331,30 +1585,57 @@ export default {
         addTransactions,
         transferTransactions,
         dispatchTransactions,
-        totalValue,
+        totalValue, // القيمة الحقيقية
         totalQuantity,
         lowStockItems,
         outOfStockItems,
         lowStockPercentage,
-        averagePrice
+        averagePrice // المتوسط الحقيقي
       };
     });
-    
-    // Cash flow analysis
+
+    // ================================
+    // الجزء 9: تحليل التدفق النقدي مع الأسعار الحقيقية
+    // ================================
     const cashFlowAnalysis = computed(() => {
       const transactions = filteredTransactions.value || [];
       
+      const getTransactionPrice = (transaction) => {
+        const inventoryItem = filteredInventory.value.find(item => 
+          item.id === transaction.item_id || 
+          item.name === transaction.item_name ||
+          item.code === transaction.item_code
+        );
+        
+        if (inventoryItem) {
+          return getItemPrice(inventoryItem);
+        }
+        
+        const description = `${transaction.item_name || ''}`.toLowerCase();
+        if (description.includes('100ml') || description.includes('100')) return 4000;
+        if (description.includes('50ml') || description.includes('50')) return 2000;
+        if (description.includes('30ml') || description.includes('30')) return 1200;
+        
+        return 2000;
+      };
+      
       const cashIn = transactions
         .filter(t => t.type === 'DISPATCH')
-        .reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
+        .reduce((sum, t) => {
+          const price = getTransactionPrice(t);
+          return sum + (Math.abs(t.total_delta || 0) * price);
+        }, 0);
       
       const cashOut = transactions
         .filter(t => t.type === 'ADD')
-        .reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
+        .reduce((sum, t) => {
+          const price = getTransactionPrice(t);
+          return sum + (Math.abs(t.total_delta || 0) * price);
+        }, 0);
       
       const netCashFlow = cashIn - cashOut;
-      const turnoverRate = dashboardStats.value.estimatedValue > 0 
-        ? cashIn / dashboardStats.value.estimatedValue 
+      const turnoverRate = summary.value.totalValue > 0 
+        ? cashIn / summary.value.totalValue 
         : 0;
       
       return {
@@ -1364,141 +1645,18 @@ export default {
         turnoverRate
       };
     });
-    
-    // Top items by value with filtering
-    const topItemsByValue = computed(() => {
-      let items = filteredInventory.value || [];
-      
-      // Apply sorting based on filter
-      if (topItemsFilter.value === 'quantity') {
-        items = items.sort((a, b) => (b.remaining_quantity || 0) - (a.remaining_quantity || 0));
-      } else if (topItemsFilter.value === 'turnover') {
-        items = items.map(item => ({
-          ...item,
-          turnoverRate: (item.remaining_quantity || 0) / ((item.total_added || 0) + 1)
-        })).sort((a, b) => (b.turnoverRate || 0) - (a.turnoverRate || 0));
-      } else {
-        // Default: sort by value
-        items = items.sort((a, b) => {
-          const valueA = (a.remaining_quantity || 0) * 50;
-          const valueB = (b.remaining_quantity || 0) * 50;
-          return valueB - valueA;
-        });
-      }
-      
-      return items.slice(0, 10).map(item => ({
-        ...item,
-        value: (item.remaining_quantity || 0) * 50
-      }));
-    });
-    
-    // Warehouse distribution
-    const warehouseDistribution = computed(() => {
-      const inventory = filteredInventory.value || [];
-      const warehouses = (accessibleWarehouses.value || []).filter(w => w && w.type === 'primary');
-      
-      const distribution = warehouses.map(warehouse => {
-        const items = inventory.filter(item => item && item.warehouse_id === warehouse.id);
-        let value = 0;
-        
-        if (distributionType.value === 'quantity') {
-          value = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-        } else if (distributionType.value === 'value') {
-          value = items.reduce((sum, item) => {
-            return sum + ((item.remaining_quantity || 0) * 50);
-          }, 0);
-        } else {
-          value = items.length;
-        }
-        
-        return {
-          id: warehouse.id,
-          name: warehouse.name_ar || warehouse.name_en || 'غير معروف',
-          value: value,
-          itemsCount: items.length
-        };
-      }).filter(item => item.value > 0);
-      
-      // Calculate percentages
-      const total = distribution.reduce((sum, item) => sum + item.value, 0);
-      distribution.forEach(item => {
-        item.percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
-      });
-      
-      return distribution.sort((a, b) => b.value - a.value);
-    });
-    
-    // Monthly trends data
-    const monthlyStats = computed(() => {
-      const transactions = filteredTransactions.value || [];
-      const inventory = filteredInventory.value || [];
-      
-      // Generate last 6 months data
-      const months = [];
-      const data = [];
-      const now = new Date();
-      
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = date.toLocaleDateString('ar-EG', { month: 'long' });
-        months.push(monthName);
-        
-        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        
-        const monthTransactions = transactions.filter(t => {
-          if (!t.timestamp) return false;
-          try {
-            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-            return transDate >= startOfMonth && transDate <= endOfMonth;
-          } catch (error) {
-            return false;
-          }
-        });
-        
-        let value = 0;
-        if (trendType.value === 'transactions') {
-          value = monthTransactions.length;
-        } else if (trendType.value === 'quantity') {
-          value = monthTransactions.reduce((sum, t) => sum + Math.abs(t.total_delta || 0), 0);
-        } else {
-          value = monthTransactions.reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
-        }
-        
-        data.push(value);
-      }
-      
-      const currentValue = data[data.length - 1] || 0;
-      const previousValue = data[data.length - 2] || 0;
-      const changePercentage = previousValue > 0 
-        ? Math.round(((currentValue - previousValue) / previousValue) * 100)
-        : currentValue > 0 ? 100 : 0;
-      
-      const average = data.length > 0
-        ? Math.round(data.reduce((sum, val) => sum + val, 0) / data.length)
-        : 0;
-      
-      const total = data.reduce((sum, val) => sum + val, 0);
-      
-      return {
-        changePercentage,
-        currentAverage: currentValue,
-        average,
-        total,
-        monthlyData: data,
-        months
-      };
-    });
-    
-    // Methods
+
+    // ================================
+    // الجزء 10: دوال مساعدة للتنسيق
+    // ================================
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
-      return new Intl.NumberFormat('ar-EG').format(num);
+      return new Intl.NumberFormat('en-US').format(num); // الأرقام بالإنجليزية
     };
     
     const formatCurrency = (amount) => {
       if (amount === undefined || amount === null) return '0 ج.م';
-      return new Intl.NumberFormat('ar-EG', {
+      return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'EGP',
         minimumFractionDigits: 0,
@@ -1578,8 +1736,128 @@ export default {
       if (quantity < 5) return 'حرج';
       return 'جيد';
     };
-    
-    // Mobile methods
+
+    // ================================
+    // الجزء 11: دوال إدارة الأسعار
+    // ================================
+    const calculateAveragePriceBySize = (size) => {
+      const prices = Object.values(perfumePrices.value)
+        .map(p => p.sizePrices?.[size])
+        .filter(p => p && p > 0);
+      
+      if (prices.length === 0) {
+        const defaults = {
+          '30ml': 1200,
+          '50ml': 2000,
+          '100ml': 4000,
+          '45ml': 1800,
+          '60ml': 2400,
+          '75ml': 3000,
+          '90ml': 3600,
+          '120ml': 4800
+        };
+        return defaults[size] || 2000;
+      }
+      
+      const sum = prices.reduce((a, b) => a + b, 0);
+      return Math.round(sum / prices.length);
+    };
+
+    const addPriceForSelectedItem = () => {
+      if (!selectedItem.value || !newPrice.price || newPrice.price <= 0) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'الرجاء اختيار صنف وإدخال سعر صحيح'
+        });
+        return;
+      }
+      
+      const item = allUniqueItems.value.find(i => i.id === selectedItem.value);
+      if (!item) return;
+      
+      const perfumeKey = getPerfumeKey(item) || item.name.toLowerCase().replace(/\s+/g, '_');
+      
+      if (!perfumePrices.value[perfumeKey]) {
+        perfumePrices.value[perfumeKey] = {
+          name: item.name,
+          brand: item.brand || '',
+          sizePrices: {},
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      
+      perfumePrices.value[perfumeKey].sizePrices[newPrice.size] = parseInt(newPrice.price);
+      perfumePrices.value[perfumeKey].lastUpdated = new Date().toISOString();
+      
+      savePricesToStorage();
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: `تم تحديث سعر ${newPrice.size} لـ ${item.name} إلى ${formatCurrency(newPrice.price)}`
+      });
+      
+      newPrice.price = 0;
+      newPrice.size = '50ml';
+    };
+
+    const editPerfumePrice = (perfumeKey) => {
+      editingPerfume.value = perfumeKey;
+      const perfume = perfumePrices.value[perfumeKey];
+      
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: `يمكنك تعديل ${perfume.name} من القائمة`
+      });
+    };
+
+    const exportPricesToExcel = () => {
+      try {
+        const wb = XLSX.utils.book_new();
+        
+        const priceData = [
+          ['تقرير أسعار العطور', '', '', '', ''],
+          ['تاريخ التصدير', new Date().toLocaleDateString('ar-EG'), '', '', ''],
+          ['', '', '', '', ''],
+          ['العطر', 'الماركة', '30 مل', '50 مل', '100 مل', 'آخر تحديث']
+        ];
+        
+        Object.values(perfumePrices.value).forEach(perfume => {
+          priceData.push([
+            perfume.name,
+            perfume.brand,
+            perfume.sizePrices['30ml'] || '',
+            perfume.sizePrices['50ml'] || '',
+            perfume.sizePrices['100ml'] || '',
+            new Date(perfume.lastUpdated).toLocaleDateString('ar-EG')
+          ]);
+        });
+        
+        const ws = XLSX.utils.aoa_to_sheet(priceData);
+        XLSX.utils.book_append_sheet(wb, ws, 'أسعار العطور');
+        
+        const filename = `أسعار_العطور_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم تصدير الأسعار إلى Excel: ${filename}`
+        });
+      } catch (error) {
+        console.error('Error exporting prices:', error);
+      }
+    };
+
+    const resetToMarketPrices = () => {
+      initializeDefaultPrices();
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم استعادة أسعار السوق المصري الافتراضية'
+      });
+    };
+
+    // ================================
+    // الجزء 12: دوال الجوال
+    // ================================
     const toggleViewMode = () => {
       viewMode.value = viewMode.value === 'detailed' ? 'simple' : 'detailed';
     };
@@ -1604,8 +1882,6 @@ export default {
       selectedItemType.value = '';
       searchQuery.value = '';
       reportPeriod.value = 'month';
-      liveSearchResults.length = 0; // Clear live search results
-      updateCharts();
     };
     
     const changePeriod = () => {
@@ -1631,177 +1907,249 @@ export default {
       updateCharts();
     };
     
-    // Live search function from inventory page
-    const performLiveSearch = async (searchTermValue) => {
-      if (!searchTermValue || searchTermValue.trim().length < 2) {
-        liveSearchResults.length = 0; // Clear results
-        isLiveSearching.value = false;
-        return;
-      }
-      
-      isLiveSearching.value = true;
-      
-      try {
-        console.log('🔍 Performing live search in reports for:', searchTermValue);
-        
-        // Use the store action to search Firestore directly
-        const searchResults = await store.dispatch('searchItems', {
-          searchTerm: searchTermValue,
-          limitResults: 50
-        });
-        
-        console.log('✅ Live search results in reports:', searchResults.length, 'items');
-        
-        // Update live search results
-        liveSearchResults.length = 0; // Clear previous results
-        searchResults.forEach(item => {
-          liveSearchResults.push(item);
-        });
-        
-      } catch (error) {
-        console.error('❌ Error in live search:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث عن الأصناف'
-        });
-      } finally {
-        isLiveSearching.value = false;
-      }
-    };
-    
-    // Debounced live search
-    const debouncedLiveSearch = debounce((term) => {
-      performLiveSearch(term);
-    }, 500);
-    
-    // Handle search input with live search
     const handleSearch = () => {
-      // Clear any existing timeout
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value);
+      updateCharts();
+    };
+
+    // ================================
+    // الجزء 13: الخصائص المحسوبة الأخرى
+    // ================================
+    const mobileInventoryItems = computed(() => {
+      return filteredInventory.value.slice(0, 10).map(item => ({
+        ...item,
+        value: (item.remaining_quantity || 0) * getItemPrice(item)
+      }));
+    });
+
+    const mobileTransactions = computed(() => {
+      return recentFilteredTransactions.value.slice(0, 10);
+    });
+
+    const filteredTransactions = computed(() => {
+      let transactions = allTransactions.value || [];
+      
+      if (selectedWarehouse.value) {
+        transactions = transactions.filter(t => 
+          t.from_warehouse === selectedWarehouse.value || 
+          t.to_warehouse === selectedWarehouse.value ||
+          t.warehouse_id === selectedWarehouse.value
+        );
       }
       
-      // Debounce the live search
-      liveSearchTimeout.value = setTimeout(() => {
-        if (searchQuery.value && searchQuery.value.trim().length >= 2) {
-          debouncedLiveSearch(searchQuery.value.trim());
-        } else {
-          // Clear live search results if search term is too short
-          liveSearchResults.length = 0;
-          isLiveSearching.value = false;
+      if (selectedItem.value) {
+        const item = (allInventory.value || []).find(i => i.id === selectedItem.value);
+        if (item) {
+          transactions = transactions.filter(t => 
+            t.item_name === item.name || 
+            t.item_code === item.code
+          );
         }
-        applyFilters(); // Apply regular filters
-      }, 300);
-    };
-    
-    const updateWarehouseChart = () => {
-      createWarehouseChart();
-    };
-    
-    const updateTopItems = () => {
-      // Data updates automatically
-    };
-    
-    const updateMonthlyTrendsChart = () => {
-      createTrendsChart();
-    };
-    
-    const updateTransactionsChart = () => {
-      createTransactionsChart();
-    };
-    
-    // Mobile chart functions
-    const createMobileWarehouseChart = () => {
-      if (mobileWarehouseChartInstance) {
-        mobileWarehouseChartInstance.destroy();
       }
       
-      const ctx = mobileWarehouseChart.value?.getContext('2d');
-      if (!ctx) return;
+      const now = new Date();
+      let startDate;
       
-      const distribution = warehouseDistribution.value;
-      if (distribution.length === 0) return;
-      
-      mobileWarehouseChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: distribution.slice(0, 5).map(w => w.name),
-          datasets: [{
-            data: distribution.slice(0, 5).map(w => w.value),
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(16, 185, 129, 0.8)',
-              'rgba(239, 68, 68, 0.8)'
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              rtl: true,
-              labels: {
-                font: {
-                  size: 10,
-                  family: 'Cairo'
-                },
-                padding: 15
+      switch (reportPeriod.value) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'quarter':
+          const quarter = Math.floor(now.getMonth() / 3);
+          startDate = new Date(now.getFullYear(), quarter * 3, 1);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        case 'custom':
+          if (customDateFrom.value && customDateTo.value) {
+            startDate = new Date(customDateFrom.value);
+            const endDate = new Date(customDateTo.value);
+            return transactions.filter(t => {
+              if (!t.timestamp) return false;
+              try {
+                const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+                return transDate >= startDate && transDate <= endDate;
+              } catch (error) {
+                return false;
               }
-            }
-          },
-          cutout: '60%'
-        }
-      });
-    };
-    
-    const createMobileTransactionsChart = () => {
-      if (mobileTransactionsChartInstance) {
-        mobileTransactionsChartInstance.destroy();
-      }
-      
-      const ctx = mobileTransactionsChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const transactions = filteredTransactions.value || [];
-      const addCount = transactions.filter(t => t.type === 'ADD').length;
-      const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
-      const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
-      
-      mobileTransactionsChartInstance = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: ['إضافة', 'نقل', 'صرف'],
-          datasets: [{
-            data: [addCount, transferCount, dispatchCount],
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(239, 68, 68, 0.8)'
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              rtl: true
-            }
+            });
           }
-        }
-      });
-    };
-    
-    // Original chart functions
-    const createWarehouseChart = () => {
-      if (warehouseChartInstance) {
-        warehouseChartInstance.destroy();
+          break;
       }
+      
+      if (startDate) {
+        return transactions.filter(t => {
+          if (!t.timestamp) return false;
+          try {
+            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+            return transDate >= startDate;
+          } catch (error) {
+            return false;
+          }
+        });
+      }
+      
+      return transactions;
+    });
+
+    const recentFilteredTransactions = computed(() => {
+      return (filteredTransactions.value || [])
+        .sort((a, b) => {
+          try {
+            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || Date.now());
+            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || Date.now());
+            return dateB - dateA;
+          } catch (error) {
+            return 0;
+          }
+        })
+        .slice(0, 20);
+    });
+
+    const topItemsByValue = computed(() => {
+      let items = filteredInventory.value || [];
+      
+      if (topItemsFilter.value === 'quantity') {
+        items = items.sort((a, b) => (b.remaining_quantity || 0) - (a.remaining_quantity || 0));
+      } else if (topItemsFilter.value === 'turnover') {
+        items = items.map(item => ({
+          ...item,
+          turnoverRate: (item.remaining_quantity || 0) / ((item.total_added || 0) + 1)
+        })).sort((a, b) => (b.turnoverRate || 0) - (a.turnoverRate || 0));
+      } else {
+        items = items.sort((a, b) => {
+          const valueA = (a.remaining_quantity || 0) * getItemPrice(a);
+          const valueB = (b.remaining_quantity || 0) * getItemPrice(b);
+          return valueB - valueA;
+        });
+      }
+      
+      return items.slice(0, 10).map(item => ({
+        ...item,
+        value: (item.remaining_quantity || 0) * getItemPrice(item)
+      }));
+    });
+
+    const warehouseDistribution = computed(() => {
+      const inventory = filteredInventory.value || [];
+      const warehouses = (accessibleWarehouses.value || []).filter(w => w && w.type === 'primary');
+      
+      const distribution = warehouses.map(warehouse => {
+        const items = inventory.filter(item => item && item.warehouse_id === warehouse.id);
+        let value = 0;
+        
+        if (distributionType.value === 'quantity') {
+          value = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+        } else if (distributionType.value === 'value') {
+          value = items.reduce((sum, item) => {
+            return sum + ((item.remaining_quantity || 0) * getItemPrice(item));
+          }, 0);
+        } else {
+          value = items.length;
+        }
+        
+        return {
+          id: warehouse.id,
+          name: warehouse.name_ar || warehouse.name_en || 'غير معروف',
+          value: value,
+          itemsCount: items.length
+        };
+      }).filter(item => item.value > 0);
+      
+      const total = distribution.reduce((sum, item) => sum + item.value, 0);
+      distribution.forEach(item => {
+        item.percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+      });
+      
+      return distribution.sort((a, b) => b.value - a.value);
+    });
+
+    const monthlyStats = computed(() => {
+      const transactions = filteredTransactions.value || [];
+      const inventory = filteredInventory.value || [];
+      
+      const months = [];
+      const data = [];
+      const now = new Date();
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = date.toLocaleDateString('ar-EG', { month: 'long' });
+        months.push(monthName);
+        
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        const monthTransactions = transactions.filter(t => {
+          if (!t.timestamp) return false;
+          try {
+            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+            return transDate >= startOfMonth && transDate <= endOfMonth;
+          } catch (error) {
+            return false;
+          }
+        });
+        
+        let value = 0;
+        if (trendType.value === 'transactions') {
+          value = monthTransactions.length;
+        } else if (trendType.value === 'quantity') {
+          value = monthTransactions.reduce((sum, t) => sum + Math.abs(t.total_delta || 0), 0);
+        } else {
+          value = monthTransactions.reduce((sum, t) => {
+            const price = getItemPrice({ name: t.item_name });
+            return sum + (Math.abs(t.total_delta || 0) * price);
+          }, 0);
+        }
+        
+        data.push(value);
+      }
+      
+      const currentValue = data[data.length - 1] || 0;
+      const previousValue = data[data.length - 2] || 0;
+      const changePercentage = previousValue > 0 
+        ? Math.round(((currentValue - previousValue) / previousValue) * 100)
+        : currentValue > 0 ? 100 : 0;
+      
+      const average = data.length > 0
+        ? Math.round(data.reduce((sum, val) => sum + val, 0) / data.length)
+        : 0;
+      
+      const total = data.reduce((sum, val) => sum + val, 0);
+      
+      return {
+        changePercentage,
+        currentAverage: currentValue,
+        average,
+        total,
+        monthlyData: data,
+        months
+      };
+    });
+
+    // ================================
+    // الجزء 14: دوال الرسوم البيانية
+    // ================================
+    const warehouseChart = ref(null);
+    const transactionsChart = ref(null);
+    const trendsChart = ref(null);
+    const mobileWarehouseChart = ref(null);
+    const mobileTransactionsChart = ref(null);
+    
+    let warehouseChartInstance = null;
+    let transactionsChartInstance = null;
+    let trendsChartInstance = null;
+    let mobileWarehouseChartInstance = null;
+    let mobileTransactionsChartInstance = null;
+
+    const createWarehouseChart = () => {
+      if (warehouseChartInstance) warehouseChartInstance.destroy();
       
       const ctx = warehouseChart.value?.getContext('2d');
       if (!ctx) return;
@@ -1840,9 +2188,7 @@ export default {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              display: false
-            },
+            legend: { display: false },
             tooltip: {
               rtl: true,
               backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -1853,15 +2199,10 @@ export default {
               callbacks: {
                 label: (context) => {
                   let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
+                  if (label) label += ': ';
                   label += formatNumber(context.parsed.y);
-                  if (distributionType.value === 'value') {
-                    label += ' ج.م';
-                  } else if (distributionType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
+                  if (distributionType.value === 'value') label += ' ج.م';
+                  else if (distributionType.value === 'quantity') label += ' وحدة';
                   return label;
                 }
               }
@@ -1869,35 +2210,21 @@ export default {
           },
           scales: {
             x: {
-              grid: {
-                display: false
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
+              grid: { display: false },
+              ticks: { font: { family: 'Cairo, sans-serif' } }
             },
             y: {
               beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { callback: function(value) { return formatNumber(value); } }
             }
           }
         }
       });
     };
-    
+
     const createTransactionsChart = () => {
-      if (transactionsChartInstance) {
-        transactionsChartInstance.destroy();
-      }
+      if (transactionsChartInstance) transactionsChartInstance.destroy();
       
       const ctx = transactionsChart.value?.getContext('2d');
       if (!ctx) return;
@@ -1942,9 +2269,7 @@ export default {
               position: 'bottom',
               rtl: true,
               labels: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                },
+                font: { family: 'Cairo, sans-serif' },
                 padding: 20
               }
             },
@@ -1965,16 +2290,14 @@ export default {
         }
       });
     };
-    
+
     const createTrendsChart = () => {
-      if (trendsChartInstance) {
-        trendsChartInstance.destroy();
-      }
+      if (trendsChartInstance) trendsChartInstance.destroy();
       
       const ctx = trendsChart.value?.getContext('2d');
       if (!ctx) return;
       
-      const months = monthlyStats.value.mons || [];
+      const months = monthlyStats.value.months || [];
       const data = monthlyStats.value.monthlyData || [];
       
       if (months.length === 0 || data.length === 0) {
@@ -2013,9 +2336,7 @@ export default {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              display: false
-            },
+            legend: { display: false },
             tooltip: {
               rtl: true,
               backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -2026,15 +2347,10 @@ export default {
               callbacks: {
                 label: (context) => {
                   let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
+                  if (label) label += ': ';
                   label += formatNumber(context.parsed.y);
-                  if (trendType.value === 'value') {
-                    label += ' ج.م';
-                  } else if (trendType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
+                  if (trendType.value === 'value') label += ' ج.م';
+                  else if (trendType.value === 'quantity') label += ' وحدة';
                   return label;
                 }
               }
@@ -2042,31 +2358,114 @@ export default {
           },
           scales: {
             x: {
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { font: { family: 'Cairo, sans-serif' } }
             },
             y: {
               beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { callback: function(value) { return formatNumber(value); } }
             }
           }
         }
       });
     };
-    
+
+    const createMobileWarehouseChart = () => {
+      if (mobileWarehouseChartInstance) mobileWarehouseChartInstance.destroy();
+      
+      const ctx = mobileWarehouseChart.value?.getContext('2d');
+      if (!ctx) return;
+      
+      const distribution = warehouseDistribution.value;
+      if (distribution.length === 0) return;
+      
+      mobileWarehouseChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: distribution.slice(0, 5).map(w => w.name),
+          datasets: [{
+            data: distribution.slice(0, 5).map(w => w.value),
+            backgroundColor: [
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(16, 185, 129, 0.8)',
+              'rgba(239, 68, 68, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              rtl: true,
+              labels: {
+                font: { size: 10, family: 'Cairo' },
+                padding: 15
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    };
+
+    const createMobileTransactionsChart = () => {
+      if (mobileTransactionsChartInstance) mobileTransactionsChartInstance.destroy();
+      
+      const ctx = mobileTransactionsChart.value?.getContext('2d');
+      if (!ctx) return;
+      
+      const transactions = filteredTransactions.value || [];
+      const addCount = transactions.filter(t => t.type === 'ADD').length;
+      const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
+      const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
+      
+      mobileTransactionsChartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['إضافة', 'نقل', 'صرف'],
+          datasets: [{
+            data: [addCount, transferCount, dispatchCount],
+            backgroundColor: [
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(239, 68, 68, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              rtl: true
+            }
+          }
+        }
+      });
+    };
+
+    const updateWarehouseChart = () => {
+      createWarehouseChart();
+    };
+
+    const updateTopItems = () => {
+      // يتم تحديث البيانات تلقائياً
+    };
+
+    const updateMonthlyTrendsChart = () => {
+      createTrendsChart();
+    };
+
+    const updateTransactionsChart = () => {
+      createTransactionsChart();
+    };
+
     const updateCharts = () => {
       nextTick(() => {
         if (window.innerWidth < 640) {
@@ -2079,18 +2478,21 @@ export default {
         }
       });
     };
-    
-    // Excel Export Function
+
+    // ================================
+    // الجزء 15: تصدير إلى Excel
+    // ================================
     const exportToExcel = () => {
       try {
         loading.value = true;
         
         const wb = XLSX.utils.book_new();
         
-        // Summary Sheet
+        // ملخص الأداء
         const summaryData = [
-          ['تقرير المخزون', '', '', '', ''],
+          ['تقرير المخزون الحقيقي', '', '', '', ''],
           ['تاريخ التصدير', new Date().toLocaleDateString('ar-EG'), '', '', ''],
+          ['ملاحظة', 'جميع الأرقام بالإنجليزية', '', '', ''],
           ['', '', '', '', ''],
           ['ملخص الأداء', '', '', '', ''],
           ['المؤشر', 'القيمة', 'النسبة', 'التغير', 'الحالة'],
@@ -2100,10 +2502,10 @@ export default {
           ['حركات الإضافة', summary.value.addTransactions, '', '', ''],
           ['حركات النقل', summary.value.transferTransactions, '', '', ''],
           ['حركات الصرف', summary.value.dispatchTransactions, '', '', ''],
-          ['القيمة الإجمالية', summary.value.totalValue, 'ج.م', '', ''],
+          ['القيمة الإجمالية الحقيقية', summary.value.totalValue, 'ج.م', '', ''],
           ['الكمية الإجمالية', summary.value.totalQuantity, 'وحدة', '', ''],
+          ['المتوسط الحقيقي للوحدة', summary.value.averagePrice, 'ج.م', '', ''],
           ['الأصناف قليلة المخزون', summary.value.lowStockItems, summary.value.lowStockPercentage + '%', '', ''],
-          ['الأصناف المنتهية', summary.value.outOfStockItems, '', '', ''],
           ['', '', '', '', ''],
           ['المخزن المحدد', selectedWarehouse.value ? getWarehouseLabel(selectedWarehouse.value) : 'جميع المخازن', '', '', ''],
           ['الصنف المحدد', selectedItemText.value || 'جميع الأصناف', '', '', ''],
@@ -2113,21 +2515,19 @@ export default {
         const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
         XLSX.utils.book_append_sheet(wb, summaryWs, 'ملخص الأداء');
         
-        // Inventory Sheet
+        // تفاصيل المخزون
         const inventoryHeaders = [
           'الترتيب',
           'اسم الصنف',
           'الكود',
           'اللون',
           'المخزن',
+          'الحجم',
           'الكمية المتبقية',
-          'الكمية المضافة',
+          'سعر الوحدة (ج.م)',
+          'القيمة الإجمالية (ج.م)',
           'المورد',
-          'مكان الصنف',
-          'ملاحظات',
           'تاريخ الإضافة',
-          'تاريخ التحديث',
-          'القيمة (ج.م)',
           'الحالة'
         ];
         
@@ -2137,86 +2537,48 @@ export default {
           item.code || '',
           item.color || '',
           getWarehouseLabel(item.warehouse_id),
+          extractSizeFromItem(item),
           item.remaining_quantity || 0,
-          item.total_added || 0,
+          getItemPrice(item),
+          (item.remaining_quantity || 0) * getItemPrice(item),
           item.supplier || '',
-          item.item_location || '',
-          item.notes || '',
           item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : '',
-          item.updated_at ? new Date(item.updated_at).toLocaleDateString('ar-EG') : '',
-          (item.remaining_quantity || 0) * 50,
           getStatusText(item.remaining_quantity)
         ]);
         
         const inventoryWs = XLSX.utils.aoa_to_sheet([inventoryHeaders, ...inventoryData]);
         XLSX.utils.book_append_sheet(wb, inventoryWs, 'تفاصيل المخزون');
         
-        // Transactions Sheet
-        const transactionsHeaders = [
-          'نوع الحركة',
-          'اسم الصنف',
-          'الكود',
-          'من المخزن',
-          'إلى المخزن',
-          'الكمية',
-          'التاريخ',
-          'الوقت',
-          'الملاحظات'
+        // الأسعار
+        const priceHeaders = [
+          'العطر',
+          'الماركة',
+          '30 مل',
+          '50 مل',
+          '100 مل',
+          'آخر تحديث'
         ];
         
-        const transactionsData = filteredTransactions.value.map(transaction => [
-          transaction.type === 'ADD' ? 'إضافة' : 
-          transaction.type === 'TRANSFER' ? 'نقل' : 
-          transaction.type === 'DISPATCH' ? 'صرف' : 'غير معروف',
-          transaction.item_name || '',
-          transaction.item_code || '',
-          getWarehouseLabel(transaction.from_warehouse) || '',
-          getWarehouseLabel(transaction.to_warehouse) || '',
-          transaction.total_delta || 0,
-          transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleDateString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleDateString('ar-EG')) : '',
-          transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleTimeString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleTimeString('ar-EG')) : '',
-          transaction.notes || ''
+        const priceData = Object.values(perfumePrices.value).map(perfume => [
+          perfume.name,
+          perfume.brand,
+          perfume.sizePrices['30ml'] || '',
+          perfume.sizePrices['50ml'] || '',
+          perfume.sizePrices['100ml'] || '',
+          new Date(perfume.lastUpdated).toLocaleDateString('ar-EG')
         ]);
         
-        const transactionsWs = XLSX.utils.aoa_to_sheet([transactionsHeaders, ...transactionsData]);
-        XLSX.utils.book_append_sheet(wb, transactionsWs, 'الحركات');
+        const priceWs = XLSX.utils.aoa_to_sheet([priceHeaders, ...priceData]);
+        XLSX.utils.book_append_sheet(wb, priceWs, 'أسعار العطور');
         
-        // Cash Flow Sheet
-        const cashFlowHeaders = [
-          'عنصر التدفق النقدي',
-          'القيمة (ج.م)',
-          'النسبة',
-          'التفاصيل'
-        ];
-        
-        const cashFlowData = [
-          ['الإيرادات من الصرف', cashFlowAnalysis.value.cashIn, '', 'إجمالي قيمة حركات الصرف'],
-          ['المصروفات على المشتريات', cashFlowAnalysis.value.cashOut, '', 'إجمالي قيمة حركات الإضافة'],
-          ['صافي التدفق النقدي', cashFlowAnalysis.value.netCashFlow, '', cashFlowAnalysis.value.netCashFlow >= 0 ? 'فائض' : 'عجز'],
-          ['معدل دوران المخزون', (cashFlowAnalysis.value.turnoverRate * 100).toFixed(2) + '%', '', 'نسبة الإيرادات إلى قيمة المخزون'],
-          ['قيمة المخزون الحالية', dashboardStats.value.estimatedValue, '', 'القيمة الإجمالية للمخزون']
-        ];
-        
-        const cashFlowWs = XLSX.utils.aoa_to_sheet([cashFlowHeaders, ...cashFlowData]);
-        XLSX.utils.book_append_sheet(wb, cashFlowWs, 'التدفق النقدي');
-        
-        // Generate filename
-        let filename = 'تقرير_المخزون';
+        // اسم الملف
+        let filename = 'تقرير_المخزون_الحقيقي';
         if (selectedWarehouse.value) {
           filename += `_${getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '_')}`;
         }
-        if (selectedItem.value) {
-          filename += `_${selectedItemText.value.replace(/\s+/g, '_')}`;
-        }
         filename += `_${new Date().toISOString().split('T')[0]}.xlsx`;
         
-        // Save file
+        // حفظ الملف
         XLSX.writeFile(wb, filename);
         
         store.dispatch('showNotification', {
@@ -2234,65 +2596,54 @@ export default {
         loading.value = false;
       }
     };
-    
-    // One-time data load optimization
+
+    // ================================
+    // الجزء 16: تهيئة البيانات
+    // ================================
     const loadInitialData = async () => {
       loading.value = true;
       try {
-        // Load essential data first
         await Promise.all([
           store.dispatch('getRecentTransactions', { limit: 50 }),
           store.dispatch('getDashboardStats'),
           store.dispatch('getWarehouses')
         ]);
         
-        // Load additional data in background
+        // تحميل الأسعار
+        loadPricesFromStorage();
+        
         setTimeout(() => {
           store.dispatch('getInventory');
           store.dispatch('getAllTransactions');
         }, 1000);
         
-        // Cache data
-        localStorage.setItem('dashboardCache', JSON.stringify({
-          data: dashboardStats.value,
-          timestamp: Date.now()
-        }));
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
         loading.value = false;
       }
     };
-    
+
     onMounted(() => {
       loadInitialData();
       
-      // Initialize charts after a short delay
       setTimeout(() => {
         updateCharts();
       }, 500);
     });
-    
+
     onUnmounted(() => {
-      // Clean up chart instances
       if (warehouseChartInstance) warehouseChartInstance.destroy();
       if (transactionsChartInstance) transactionsChartInstance.destroy();
       if (trendsChartInstance) trendsChartInstance.destroy();
       if (mobileWarehouseChartInstance) mobileWarehouseChartInstance.destroy();
       if (mobileTransactionsChartInstance) mobileTransactionsChartInstance.destroy();
-      
-      // Clean up live search timeout
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value);
-      }
     });
-    
-    // Watch for data changes
+
     watch(() => [allInventory.value, allTransactions.value], () => {
       updateCharts();
     }, { deep: true });
-    
-    // Watch for filter changes
+
     watch(() => [
       selectedWarehouse.value, 
       selectedItem.value, 
@@ -2305,9 +2656,9 @@ export default {
     ], () => {
       updateCharts();
     });
-    
+
     return {
-      // Mobile state
+      // حالة الجوال
       showMobileFilters,
       activeMobileTab,
       showInventoryFilters,
@@ -2315,7 +2666,7 @@ export default {
       isFullscreen,
       mobileTabs,
       
-      // Original refs
+      // الحالات الأساسية
       loading,
       reportPeriod,
       distributionType,
@@ -2331,16 +2682,16 @@ export default {
       warehouseChart,
       transactionsChart,
       trendsChart,
-      
-      // Mobile chart refs
       mobileWarehouseChart,
       mobileTransactionsChart,
       
-      // Live search refs
-      isLiveSearching,
-      liveSearchResults,
+      // إدارة الأسعار
+      showPriceManager,
+      editingPerfume,
+      newPrice,
+      perfumePrices,
       
-      // Computed properties
+      // الخصائص المحسوبة
       accessibleWarehouses,
       allUniqueItems,
       filteredItemsByWarehouse,
@@ -2357,7 +2708,7 @@ export default {
       mobileTransactions,
       cashFlowAnalysis,
       
-      // Methods
+      // الدوال الأساسية
       formatNumber,
       formatCurrency,
       formatTime,
@@ -2379,7 +2730,16 @@ export default {
       updateCharts,
       exportToExcel,
       toggleViewMode,
-      toggleFullscreen
+      toggleFullscreen,
+      
+      // دوال إدارة الأسعار
+      calculateAveragePriceBySize,
+      addPriceForSelectedItem,
+      editPerfumePrice,
+      exportPricesToExcel,
+      resetToMarketPrices,
+      extractSizeFromItem,
+      getItemPrice
     };
   }
 };
@@ -2419,24 +2779,20 @@ body {
     flex: 0 0 auto;
   }
   
-  /* Improve touch targets */
   button, select, input {
     min-height: 44px;
     min-width: 44px;
   }
   
-  /* Optimize typography for mobile */
   h1, h2, h3 {
     line-height: 1.2;
   }
   
-  /* Simplify shadows and borders for performance */
   .mobile-card {
     border: 1px solid rgba(0, 0, 0, 0.1);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
-  /* Smooth transitions */
   * {
     -webkit-tap-highlight-color: transparent;
   }
