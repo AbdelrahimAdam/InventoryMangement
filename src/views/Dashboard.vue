@@ -13,6 +13,7 @@
         <div class="flex gap-3">
           <select 
             v-model="selectedWarehouse"
+            @change="handleWarehouseChange"
             class="w-full lg:w-64 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200"
           >
             <option value="all">جميع المخازن</option>
@@ -55,7 +56,8 @@
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الأصناف</dt>
               <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalItems) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.totalItems) }}
+                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
+                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.totalItems) }}</span>
               </div>
             </div>
           </div>
@@ -75,7 +77,8 @@
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي الكمية</dt>
               <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.totalQuantity) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.totalQuantity) }}
+                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
+                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.totalQuantity) }}</span>
               </div>
             </div>
           </div>
@@ -95,7 +98,8 @@
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">أصناف قليلة</dt>
               <dd class="mt-1 text-lg lg:text-2xl font-semibold text-red-600 dark:text-red-400">{{ formatEnglishNumber(filteredStats.lowStockItems) }}</dd>
               <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.lowStockItems) }}
+                <span v-if="statsLoading" class="animate-pulse">جاري التحميل...</span>
+                <span v-else>من أصل {{ formatEnglishNumber(safeDashboardStats.lowStockItems) }}</span>
               </div>
             </div>
           </div>
@@ -113,9 +117,9 @@
             </div>
             <div class="mr-3 lg:mr-4">
               <dt class="text-xs lg:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الحركات اليوم</dt>
-              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(filteredStats.recentTransactions) }}</dd>
-              <div v-if="selectedWarehouse !== 'all'" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                من أصل {{ formatEnglishNumber(safeDashboardStats.recentTransactions) }}
+              <dd class="mt-1 text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white">{{ formatEnglishNumber(todayTransactionsCount) }}</dd>
+              <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                آخر تحديث: {{ lastUpdatedTime }}
               </div>
             </div>
           </div>
@@ -559,34 +563,50 @@ export default {
     const router = useRouter();
     
     const loading = ref(true);
+    const statsLoading = ref(false);
     const showCacheDebug = ref(false);
     const cacheLoading = ref(false);
     const cacheMessage = ref(null);
     const selectedWarehouse = ref('all');
+    const dashboardStatsCache = ref(null);
     let cacheMessageTimeout = null;
 
     // Computed properties with safe defaults
     const userRole = computed(() => store.getters.userRole || '');
     
+    // Today's transactions count
+    const todayTransactionsCount = computed(() => {
+      return store.getters.getTodayTransactions?.length || 0;
+    });
+    
+    // Last updated time
+    const lastUpdatedTime = computed(() => {
+      const todayTransactions = store.getters.getTodayTransactions;
+      if (!todayTransactions || todayTransactions.length === 0) {
+        return 'لا توجد حركات اليوم';
+      }
+      
+      const lastTransaction = todayTransactions[0];
+      if (!lastTransaction.timestamp) return 'غير متاح';
+      
+      try {
+        const date = lastTransaction.timestamp?.toDate ? 
+          lastTransaction.timestamp.toDate() : new Date(lastTransaction.timestamp);
+        return formatDetailedTime(date);
+      } catch (error) {
+        return 'غير متاح';
+      }
+    });
+    
     // Safe dashboard stats with default values
     const safeDashboardStats = computed(() => {
       try {
-        const stats = store.getters.dashboardStats;
-        return stats || {
+        // Use the new REAL stats function
+        return store.getters.dashboardRealStats('all') || {
           totalItems: 0,
           totalQuantity: 0,
           lowStockItems: 0,
-          outOfStockItems: 0,
-          estimatedValue: 0,
-          recentTransactions: 0,
-          addTransactions: 0,
-          transferTransactions: 0,
-          dispatchTransactions: 0,
-          transactionsByType: {
-            add: 0,
-            transfer: 0,
-            dispatch: 0
-          }
+          lastUpdated: new Date()
         };
       } catch (error) {
         console.error('Error getting dashboard stats:', error);
@@ -594,57 +614,14 @@ export default {
           totalItems: 0,
           totalQuantity: 0,
           lowStockItems: 0,
-          outOfStockItems: 0,
-          estimatedValue: 0,
-          recentTransactions: 0,
-          addTransactions: 0,
-          transferTransactions: 0,
-          dispatchTransactions: 0,
-          transactionsByType: {
-            add: 0,
-            transfer: 0,
-            dispatch: 0
-          }
+          lastUpdated: new Date()
         };
       }
     });
     
-    // Filtered stats based on selected warehouse
+    // Filtered stats based on selected warehouse - USING NEW STORE ACTIONS
     const filteredStats = computed(() => {
-      if (selectedWarehouse.value === 'all') {
-        return safeDashboardStats.value;
-      }
-      
-      try {
-        const inventory = store.getters.inventoryItems;
-        const recentTransactions = store.getters.recentTransactions;
-        
-        // Filter inventory by selected warehouse
-        const filteredInventory = Array.isArray(inventory) 
-          ? inventory.filter(item => item.warehouse_id === selectedWarehouse.value)
-          : [];
-        
-        // Filter transactions by selected warehouse
-        const filteredTransactions = Array.isArray(recentTransactions)
-          ? recentTransactions.filter(transaction => 
-              transaction.from_warehouse === selectedWarehouse.value || 
-              transaction.to_warehouse === selectedWarehouse.value
-            )
-          : [];
-        
-        const totalItems = filteredInventory.length;
-        const totalQuantity = filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-        const lowStockItems = filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length;
-        const recentTransactionsCount = filteredTransactions.length;
-        
-        return {
-          totalItems,
-          totalQuantity,
-          lowStockItems,
-          recentTransactions: recentTransactionsCount
-        };
-      } catch (error) {
-        console.error('Error calculating filtered stats:', error);
+      if (!dashboardStatsCache.value) {
         return {
           totalItems: 0,
           totalQuantity: 0,
@@ -652,6 +629,8 @@ export default {
           recentTransactions: 0
         };
       }
+      
+      return dashboardStatsCache.value;
     });
     
     // Cache statistics
@@ -940,6 +919,70 @@ export default {
       return 'مستخدم';
     };
 
+    // 🔥 NEW FUNCTION: Load dashboard stats using new store actions
+    const loadDashboardStats = async (warehouseId = 'all') => {
+      statsLoading.value = true;
+      try {
+        console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
+        
+        if (warehouseId === 'all') {
+          // Use the new store action for all warehouses
+          const counts = await store.dispatch('refreshDashboardCounts', 'all');
+          
+          // Get today's transactions count
+          const todayTransactions = store.getters.getTodayTransactions || [];
+          
+          dashboardStatsCache.value = {
+            ...counts,
+            recentTransactions: todayTransactions.length
+          };
+        } else {
+          // For specific warehouse, use the new store action
+          const counts = await store.dispatch('refreshDashboardCounts', warehouseId);
+          
+          // Filter today's transactions for this warehouse
+          const todayTransactions = store.getters.getTodayTransactions || [];
+          const warehouseTodayTransactions = todayTransactions.filter(transaction => 
+            transaction.from_warehouse === warehouseId || 
+            transaction.to_warehouse === warehouseId
+          );
+          
+          dashboardStatsCache.value = {
+            ...counts,
+            recentTransactions: warehouseTodayTransactions.length
+          };
+        }
+        
+        console.log('✅ Dashboard stats loaded:', dashboardStatsCache.value);
+      } catch (error) {
+        console.error('❌ Error loading dashboard stats:', error);
+        
+        // Fallback to calculated stats
+        const inventory = inventoryItems.value;
+        const filteredInventory = warehouseId === 'all' 
+          ? inventory 
+          : inventory.filter(item => item.warehouse_id === warehouseId);
+        
+        const todayTransactions = store.getters.getTodayTransactions || [];
+        const warehouseTodayTransactions = warehouseId === 'all' 
+          ? todayTransactions 
+          : todayTransactions.filter(transaction => 
+              transaction.from_warehouse === warehouseId || 
+              transaction.to_warehouse === warehouseId
+            );
+        
+        dashboardStatsCache.value = {
+          totalItems: filteredInventory.length,
+          totalQuantity: filteredInventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+          lowStockItems: filteredInventory.filter(item => (item.remaining_quantity || 0) < 10).length,
+          recentTransactions: warehouseTodayTransactions.length,
+          lastUpdated: new Date()
+        };
+      } finally {
+        statsLoading.value = false;
+      }
+    };
+
     // Cache management functions
     const toggleCacheDebug = () => {
       showCacheDebug.value = !showCacheDebug.value;
@@ -989,17 +1032,34 @@ export default {
       }
     };
 
-    // Refresh dashboard function
+    // Refresh dashboard function - UPDATED to use new stats function
     const refreshDashboard = async () => {
       loading.value = true;
       try {
+        // Refresh transactions
         await store.dispatch('getRecentTransactions');
+        
+        // Refresh dashboard stats
+        await loadDashboardStats(selectedWarehouse.value);
+        
+        // If specific warehouse selected, refresh inventory data
         if (selectedWarehouse.value !== 'all') {
-          // Trigger a refresh for filtered data
           await store.dispatch('loadAllInventory', { forceRefresh: true });
         }
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    // Handle warehouse change
+    const handleWarehouseChange = async () => {
+      loading.value = true;
+      try {
+        await loadDashboardStats(selectedWarehouse.value);
+      } catch (error) {
+        console.error('Error changing warehouse:', error);
       } finally {
         loading.value = false;
       }
@@ -1013,6 +1073,9 @@ export default {
         // Load recent transactions
         const recentTransactionsPromise = store.dispatch('getRecentTransactions');
         
+        // Load dashboard stats
+        const statsPromise = loadDashboardStats(selectedWarehouse.value);
+        
         // Set timeout to prevent hanging
         const timeoutPromise = new Promise(resolve => {
           setTimeout(() => {
@@ -1020,8 +1083,8 @@ export default {
           }, 3000);
         });
         
-        // Wait for either transactions to load or timeout
-        await Promise.race([recentTransactionsPromise, timeoutPromise]);
+        // Wait for all promises
+        await Promise.race([Promise.all([recentTransactionsPromise, statsPromise]), timeoutPromise]);
         
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -1031,10 +1094,11 @@ export default {
     };
 
     // Watch for warehouse filter changes
-    watch(selectedWarehouse, (newValue) => {
+    watch(selectedWarehouse, async (newValue) => {
       // Update stats automatically when filter changes
       if (!loading.value) {
         console.log('Warehouse filter changed to:', newValue);
+        await loadDashboardStats(newValue);
       }
     });
 
@@ -1064,6 +1128,7 @@ export default {
     return {
       // State
       loading,
+      statsLoading,
       showCacheDebug,
       cacheLoading,
       cacheMessage,
@@ -1071,6 +1136,8 @@ export default {
       
       // Computed
       userRole,
+      todayTransactionsCount,
+      lastUpdatedTime,
       safeDashboardStats,
       filteredStats,
       cacheStats,
@@ -1099,7 +1166,8 @@ export default {
       toggleCacheDebug,
       cleanupCache,
       refreshCache,
-      refreshDashboard
+      refreshDashboard,
+      handleWarehouseChange
     };
   }
 };
@@ -1203,6 +1271,20 @@ tr {
 @media (max-width: 768px) {
   .table-cell {
     min-width: 120px;
+  }
+}
+
+/* Pulse animation for loading */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
   }
 }
 </style>
