@@ -235,7 +235,7 @@
         <div class="hidden lg:block">
           <div 
             class="overflow-x-auto relative" 
-            style="max-height: calc(100vh - 400px);"
+            :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
@@ -288,15 +288,15 @@
                   </th>
                   <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>أنشئ بواسطة</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">آخر تحديث بواسطة</span>
+                      <span>المستخدم</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(تم الإنشاء/آخر تحديث)</span>
                     </div>
                   </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
                       class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
                       <span>الإجراءات</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(نقل/صرف/تعديل)</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(نقل/صرف/تعديل/حذف)</span>
                     </div>
                   </th>
                   <th v-else 
@@ -420,18 +420,18 @@
                     </div>
                   </td>
                   
-                  <!-- Created By / Updated By -->
+                  <!-- User Names (Created By / Updated By) -->
                   <td class="px-6 py-4">
                     <div class="text-center space-y-1">
                       <div class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
                         <span class="block truncate">
-                          أنشئ: {{ getShortName(item.created_by) || 'غير معروف' }}
+                          أنشئ: {{ item.created_by_name || 'غير معروف' }}
                         </span>
                       </div>
-                      <div v-if="item.updated_by && item.updated_by !== item.created_by" 
+                      <div v-if="item.updated_by_name && item.updated_by_name !== item.created_by_name" 
                            class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors duration-200">
                         <span class="block truncate">
-                          عدل: {{ getShortName(item.updated_by) }}
+                          عدل: {{ item.updated_by_name }}
                         </span>
                       </div>
                     </div>
@@ -470,6 +470,17 @@
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                      </button>
+                      
+                      <button
+                        v-if="canDeleteItem(item)"
+                        @click="handleDelete(item)"
+                        class="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-lg hover:bg-red-100 dark:hover:bg-red-800/20 hover:scale-110 transition-all duration-200"
+                        title="حذف الصنف"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
                       </button>
                     </div>
@@ -570,13 +581,19 @@
                       </svg>
                       <span>اللون: {{ item.color || 'بدون' }}</span>
                     </div>
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      <span>أنشئ بواسطة: {{ item.created_by_name || 'غير معروف' }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
               
               <!-- Actions -->
               <div v-if="showActions && !readonly && userRole !== 'viewer'" class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50">
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-2">
                   <button 
                     v-if="canEditItem(item)"
                     @click="handleEdit(item)"
@@ -608,6 +625,17 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
                     <span class="hidden xs:inline">صرف</span>
+                  </button>
+                  
+                  <button 
+                    @click="handleDelete(item)"
+                    v-if="canDeleteItem(item)"
+                    class="flex items-center justify-center gap-1 px-2 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg hover:bg-red-100 dark:hover:bg-red-800/20 active:scale-95 transition-all duration-200"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span class="hidden xs:inline">حذف</span>
                   </button>
                 </div>
               </div>
@@ -786,6 +814,14 @@
                   <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">المجموع المضاف</p>
                   <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.total_added || 0 }}</p>
                 </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">أنشئ بواسطة</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.created_by_name || 'غير معروف' }}</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر تحديث بواسطة</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ selectedItem?.updated_by_name || selectedItem?.created_by_name || 'غير معروف' }}</p>
+                </div>
               </div>
 
               <!-- Action Buttons -->
@@ -822,6 +858,17 @@
                   </svg>
                   صرف
                 </button>
+
+                <button 
+                  v-if="canDeleteItem(selectedItem)"
+                  @click="handleDelete(selectedItem)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  حذف
+                </button>
               </div>
             </div>
           </div>
@@ -832,7 +879,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
@@ -876,10 +923,13 @@ export default {
     const isLiveSearching = ref(false);
     const searchTimeout = ref(null);
     
-    // Virtual scrolling state
+    // Virtual scrolling state with smooth scrolling fix
     const visibleStartIndex = ref(0);
-    const visibleItemCount = 50; // Number of items to render at once
-    const scrollBuffer = 10; // Buffer items before and after visible range
+    const visibleItemCount = 50;
+    const scrollBuffer = 20; // Increased buffer for smoother scrolling
+    const scrollThrottle = ref(null);
+    const lastScrollTime = ref(0);
+    const SCROLL_THROTTLE_DELAY = 16; // ~60fps
     
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
@@ -936,21 +986,22 @@ export default {
       return canEditItem(item);
     };
     
+    // NEW: Delete permission
+    const canDeleteItem = (item) => {
+      return canEditItem(item) && userRole.value === 'superadmin'; // Only superadmin can delete for safety
+    };
+    
     // Filtered items - switch between normal view and live search
     const filteredItems = computed(() => {
       if (useLiveSearch.value) {
-        // Return live search results
         return liveSearchResults.value;
       } else {
-        // Return normal filtered inventory
         let filtered = [...inventory.value];
         
-        // Apply warehouse filter
         if (selectedWarehouse.value) {
           filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
         }
         
-        // Apply status filter
         if (statusFilter.value) {
           filtered = filtered.filter(item => {
             const quantity = item.remaining_quantity || 0;
@@ -961,7 +1012,6 @@ export default {
           });
         }
         
-        // Apply search filter (client-side for quick updates)
         if (searchTerm.value) {
           const term = searchTerm.value.toLowerCase();
           filtered = filtered.filter(item => 
@@ -973,7 +1023,6 @@ export default {
           );
         }
         
-        // Sort by name
         return filtered.sort((a, b) => {
           const nameA = a.name?.toLowerCase() || '';
           const nameB = b.name?.toLowerCase() || '';
@@ -1008,8 +1057,10 @@ export default {
     };
     
     // Helper Methods
+    // FIX: Convert all numbers to English digits
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('ar-EG').format(num || 0);
+      const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
+      return englishDigits;
     };
     
     const getWarehouseLabel = (warehouseId) => {
@@ -1039,6 +1090,7 @@ export default {
       return colorMap[colorName] || '#6b7280';
     };
     
+    // CHANGED: Use user names directly instead of getShortName
     const getShortName = (fullName) => {
       if (!fullName) return '';
       if (fullName.length > 15) return fullName.substring(0, 15) + '...';
@@ -1070,74 +1122,71 @@ export default {
       event.target.onerror = null;
     };
     
-    // Virtual scrolling handler
+    // FIXED: Virtual scrolling handler with smooth scrolling
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
-      const scrollTop = scrollContainer.value.scrollTop;
-      const rowHeight = 80; // Approximate row height in pixels
-      const newStartIndex = Math.floor(scrollTop / rowHeight);
-      
-      // Only update if the start index has changed significantly
-      if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer) {
-        visibleStartIndex.value = newStartIndex;
+      const now = Date.now();
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
+        return;
       }
       
-      // Check if we need to load more items (only in normal mode)
-      if (!useLiveSearch.value) {
-        const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-        if (scrollBottom < 500 && hasMore.value && !isFetchingMore.value && inventoryLoaded.value) {
-          loadMoreItems();
+      lastScrollTime.value = now;
+      
+      requestAnimationFrame(() => {
+        const scrollTop = scrollContainer.value.scrollTop;
+        const rowHeight = 80;
+        const newStartIndex = Math.floor(scrollTop / rowHeight);
+        
+        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
+          visibleStartIndex.value = newStartIndex;
         }
-      }
+        
+        if (!useLiveSearch.value) {
+          const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
+          if (scrollBottom < 500 && hasMore.value && !isFetchingMore.value && inventoryLoaded.value) {
+            loadMoreItems();
+          }
+        }
+      });
     };
-    
-    // 🔥 LIVE SEARCH FUNCTIONS
     
     // Handle live search with debouncing
     const handleLiveSearch = async () => {
-      // Clear previous timeout
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
       
-      // If search term is cleared, reset to normal view
       if (!searchTerm.value.trim()) {
         resetToNormalView();
         return;
       }
       
-      // Debounce search to avoid too many requests
       searchTimeout.value = setTimeout(async () => {
         await performLiveSearch();
-      }, 300); // 300ms debounce
+      }, 300);
     };
     
-    // Perform live search using store's real-time search function
     const performLiveSearch = async () => {
       if (!searchTerm.value.trim()) {
         resetToNormalView();
         return;
       }
       
-      // Set loading state
       isLiveSearching.value = true;
       useLiveSearch.value = true;
       
       try {
-        // Use the store's real-time search function
         const results = await store.dispatch('searchItemsForTransactions', {
           searchTerm: searchTerm.value.trim(),
-          limitResults: 100 // Limit results for performance
+          limitResults: 100
         });
         
-        // Filter by selected warehouse if any
         let filteredResults = results;
         if (selectedWarehouse.value) {
           filteredResults = results.filter(item => item.warehouse_id === selectedWarehouse.value);
         }
         
-        // Apply status filter if any
         if (statusFilter.value) {
           filteredResults = filteredResults.filter(item => {
             const quantity = item.remaining_quantity || 0;
@@ -1150,13 +1199,10 @@ export default {
         
         liveSearchResults.value = filteredResults;
         
-        // Reset scroll position
         visibleStartIndex.value = 0;
         if (scrollContainer.value) {
           scrollContainer.value.scrollTop = 0;
         }
-        
-        console.log(`✅ Live search found ${filteredResults.length} items`);
         
       } catch (error) {
         console.error('❌ Error in live search:', error);
@@ -1165,31 +1211,25 @@ export default {
           message: 'خطأ في البحث الفوري'
         });
         
-        // Fallback to local search on error
         useLiveSearch.value = false;
       } finally {
         isLiveSearching.value = false;
       }
     };
     
-    // Handle warehouse change with live search
     const handleWarehouseChange = async () => {
-      // Reset scroll position
       visibleStartIndex.value = 0;
       if (scrollContainer.value) {
         scrollContainer.value.scrollTop = 0;
       }
       
-      // If we're in live search mode and have a search term, refresh search
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await performLiveSearch();
       } else if (selectedWarehouse.value) {
-        // If warehouse is selected but no search, get items from that warehouse
         await loadItemsFromSelectedWarehouse();
       }
     };
     
-    // Load items from selected warehouse
     const loadItemsFromSelectedWarehouse = async () => {
       if (!selectedWarehouse.value) {
         resetToNormalView();
@@ -1200,13 +1240,11 @@ export default {
       useLiveSearch.value = true;
       
       try {
-        // Use store's getItemsFromWarehouse function
         const results = await store.dispatch('getItemsFromWarehouse', {
           warehouseId: selectedWarehouse.value,
-          limitResults: 200 // Get more items for warehouse view
+          limitResults: 200
         });
         
-        // Apply status filter if any
         let filteredResults = results;
         if (statusFilter.value) {
           filteredResults = results.filter(item => {
@@ -1220,8 +1258,6 @@ export default {
         
         liveSearchResults.value = filteredResults;
         
-        console.log(`✅ Loaded ${filteredResults.length} items from warehouse ${selectedWarehouse.value}`);
-        
       } catch (error) {
         console.error('❌ Error loading items from warehouse:', error);
         store.dispatch('showNotification', {
@@ -1229,23 +1265,64 @@ export default {
           message: 'خطأ في تحميل الأصناف من المخزن'
         });
         
-        // Fallback to normal view
         useLiveSearch.value = false;
       } finally {
         isLiveSearching.value = false;
       }
     };
     
-    // Reset to normal view
     const resetToNormalView = () => {
       useLiveSearch.value = false;
       liveSearchResults.value = [];
       searchTerm.value = '';
       
-      // Reset scroll position
       visibleStartIndex.value = 0;
       if (scrollContainer.value) {
         scrollContainer.value.scrollTop = 0;
+      }
+    };
+    
+    // NEW: Delete functionality
+    const handleDelete = async (item) => {
+      if (!canDeleteItem(item)) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية حذف هذا الصنف'
+        });
+        return;
+      }
+      
+      const confirmed = await store.dispatch('showConfirmDialog', {
+        title: 'تأكيد الحذف',
+        message: `هل أنت متأكد من حذف الصنف "${item.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
+        confirmText: 'نعم، احذف',
+        cancelText: 'إلغاء'
+      });
+      
+      if (!confirmed) return;
+      
+      try {
+        loading.value = true;
+        await store.dispatch('deleteInventoryItem', item.id);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم حذف الصنف بنجاح!'
+        });
+        
+        // Close details modal if open
+        if (showDetailsModal.value && selectedItem.value?.id === item.id) {
+          closeDetailsModal();
+        }
+        
+      } catch (error) {
+        console.error('❌ Error deleting item:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في حذف الصنف'
+        });
+      } finally {
+        loading.value = false;
       }
     };
     
@@ -1256,7 +1333,6 @@ export default {
         scrollContainer.value.scrollTop = 0;
       }
       
-      // If we're in live search mode, refresh search with filters
       if (useLiveSearch.value) {
         if (searchTerm.value.trim()) {
           performLiveSearch();
@@ -1328,9 +1404,6 @@ export default {
     const handleItemSaved = async () => {
       showAddModal.value = false;
       
-      // The item will be automatically added to the inventory via real-time updates
-      // No need to reload all items
-      
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم إضافة الصنف بنجاح!'
@@ -1340,8 +1413,6 @@ export default {
     const handleItemUpdated = () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
-      
-      // The item will be automatically updated via real-time updates
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1353,8 +1424,6 @@ export default {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
       
-      // The item will be automatically updated via real-time updates
-      
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم نقل الصنف بنجاح!'
@@ -1365,8 +1434,6 @@ export default {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
       
-      // The item will be automatically updated via real-time updates
-      
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم صرف الصنف بنجاح!'
@@ -1375,36 +1442,43 @@ export default {
     
     // Lifecycle
     onMounted(() => {
-      // Load inventory if not already loaded
       if (!inventoryLoaded.value) {
         store.dispatch('loadAllInventory');
       }
       
-      // Load warehouses if not already loaded
       if (allWarehouses.value.length === 0) {
         store.dispatch('loadWarehouses');
       }
       
-      // Set warehouse filter if user has only one warehouse
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
-        // Load items from that warehouse
         loadItemsFromSelectedWarehouse();
       }
       
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
+      
+      // Initialize smooth scrolling
+      if (scrollContainer.value) {
+        scrollContainer.value.addEventListener('scroll', onScroll, { passive: true });
+      }
     });
     
-    // Clean up timeout on unmount
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
+      
+      if (scrollContainer.value) {
+        scrollContainer.value.removeEventListener('scroll', onScroll);
+      }
+      
+      if (scrollThrottle.value) {
+        cancelAnimationFrame(scrollThrottle.value);
+      }
     });
     
-    // Watch for filter changes to reset scroll position
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
       handleFilterChange();
     });
@@ -1468,12 +1542,14 @@ export default {
       canEditItem,
       canTransferItem,
       canDispatchItem,
+      canDeleteItem,
       
       // Action Methods
       handleFilterChange,
       handleWarehouseChange,
       handleLiveSearch,
       resetToNormalView,
+      handleDelete,
       showItemDetails,
       closeDetailsModal,
       loadMoreItems,
@@ -1491,10 +1567,15 @@ export default {
 </script>
 
 <style scoped>
-/* Virtual scrolling styles */
+/* Enhanced smooth scrolling for virtual scrolling */
 .overflow-x-auto {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-behavior: smooth;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .overflow-x-auto::-webkit-scrollbar {
@@ -1510,6 +1591,7 @@ export default {
 .overflow-x-auto::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
@@ -1535,17 +1617,26 @@ export default {
   transition-duration: 200ms;
 }
 
+/* Optimize virtual scrolling performance */
+tbody {
+  will-change: transform;
+  contain: content;
+}
+
 /* Enhanced hover effects */
 .hover\:scale-105:hover {
   transform: scale(1.05);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hover\:scale-110:hover {
   transform: scale(1.1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .active\:scale-95:active {
   transform: scale(0.95);
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Fixed header with enhanced styling */
@@ -1589,6 +1680,18 @@ thead {
   }
 }
 
+/* Ensure smooth scrolling on the entire page */
+.min-h-screen {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize virtual scrolling rows */
+tr {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .transition-all,
@@ -1601,6 +1704,10 @@ thead {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transform: none !important;
+  }
+  
+  .overflow-x-auto {
+    scroll-behavior: auto;
   }
 }
 
@@ -1615,7 +1722,6 @@ thead {
     font-size: 16px;
   }
   
-  /* Better mobile card spacing */
   .p-4 {
     padding: 1rem;
   }
@@ -1626,5 +1732,11 @@ thead {
   input, select, textarea {
     font-size: 16px;
   }
+}
+
+/* Optimize image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 </style>
