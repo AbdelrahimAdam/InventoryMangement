@@ -47,6 +47,18 @@
             <span class="hidden sm:inline">تصدير Excel</span>
             <span class="sm:hidden">تصدير</span>
           </button>
+
+          <!-- Debug Button (Temporary) -->
+          <button 
+            @click="debugData"
+            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-lg text-xs sm:text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/40 transition-colors duration-200"
+          >
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+            <span class="hidden sm:inline">فحص البيانات</span>
+            <span class="sm:hidden">فحص</span>
+          </button>
         </div>
       </div>
 
@@ -66,10 +78,10 @@
             </div>
           </div>
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
-            <svg v-if="statsLoading" class="w-3 h-3 animate-spin ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="loading" class="w-3 h-3 animate-spin ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {{ liveStats.updated ? 'بيانات مباشرة' : 'بيانات مخزنة' }}
+            {{ liveUpdatesEnabled ? 'بيانات مباشرة' : 'بيانات مخزنة' }}
           </div>
         </div>
 
@@ -196,6 +208,7 @@
                 <input 
                   type="date" 
                   v-model="dateFrom"
+                  @change="handleDateFilter"
                   class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                 <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">من</label>
@@ -204,6 +217,7 @@
                 <input 
                   type="date" 
                   v-model="dateTo"
+                  @change="handleDateFilter"
                   class="w-full px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                 <label class="absolute -top-2 right-2 px-1 text-xs bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">إلى</label>
@@ -243,7 +257,7 @@
 
             <span v-if="searchTerm" class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
               بحث: "{{ searchTerm }}"
-              <button @click="searchTerm = ''" class="mr-1 hover:text-blue-900">
+              <button @click="clearSearch" class="mr-1 hover:text-blue-900">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
                 </svg>
@@ -302,7 +316,7 @@
             </div>
             <div class="flex items-center gap-3">
               <span class="text-xs px-2 py-1 sm:px-3 sm:py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full font-medium english-numbers">
-                {{ formatNumber(filteredTransactions.length) }} حركة
+                {{ formatNumber(displayedTransactions.length) }} حركة
               </span>
               <div class="text-sm text-gray-500 dark:text-gray-400 english-numbers">
                 تم التصفية: {{ filterPercentage }}%
@@ -312,21 +326,21 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="transactionsLoading" class="p-6 sm:p-8 text-center">
+        <div v-if="loading" class="p-6 sm:p-8 text-center">
           <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
           <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل البيانات...</p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">الرجاء الانتظار</p>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="transactionsError" class="p-6 sm:p-8 text-center">
+        <div v-else-if="error" class="p-6 sm:p-8 text-center">
           <div class="text-red-500 dark:text-red-400 mb-4">
             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
           <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">حدث خطأ في تحميل البيانات</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ transactionsError }}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ error }}</p>
           <button 
             @click="manualRefresh"
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -423,6 +437,9 @@
                     <div v-else-if="transaction.type === 'DISPATCH'">
                       <div class="text-sm font-medium text-gray-900 dark:text-white">
                         {{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}
+                      </div>
+                      <div v-if="transaction.destination" class="text-xs text-gray-500 dark:text-gray-400">
+                        إلى: {{ getDestinationLabel(transaction.destination) }}
                       </div>
                     </div>
                     <div v-else>
@@ -536,11 +553,20 @@
                       <span class="text-sm">{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                     </div>
                   </div>
-                  <div v-else-if="transaction.type === 'DISPATCH'" class="flex items-center">
-                    <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                    </svg>
-                    <span class="text-sm">{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                  <div v-else-if="transaction.type === 'DISPATCH'" class="space-y-2">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                      </svg>
+                      <span class="text-sm">{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    </div>
+                    <div v-if="transaction.destination" class="flex items-center">
+                      <svg class="w-4 h-4 text-blue-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
+                      <span class="text-sm">إلى: {{ getDestinationLabel(transaction.destination) }}</span>
+                    </div>
                   </div>
                   <div v-else class="flex items-center">
                     <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -581,6 +607,21 @@
           </div>
         </div>
       </div>
+
+      <!-- Pagination (Load More) -->
+      <div v-if="displayedTransactions.length > 0 && displayedTransactions.length < filteredTransactions.length" class="mt-6 text-center">
+        <button 
+          @click="loadMore"
+          :disabled="loadingMore"
+          class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+        >
+          <svg v-if="loadingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>{{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}</span>
+          <span class="mr-2 text-sm opacity-90 english-numbers">({{ formatNumber(filteredTransactions.length - displayedTransactions.length) }} متبقي)</span>
+        </button>
+      </div>
     </main>
 
     <!-- Notes Modal -->
@@ -614,7 +655,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, getDocs, where, startAfter } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { debounce } from 'lodash';
 
@@ -630,13 +671,17 @@ export default {
     const typeFilter = ref('');
     const warehouseFilter = ref('');
     const liveUpdatesEnabled = ref(true);
-    const statsLoading = ref(false);
     const selectedNotes = ref(null);
     const filterTimeout = ref(null);
     const dataCache = ref(null);
     const lastFetchTime = ref(0);
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
     const transactionsRef = ref(null);
+    const lastVisible = ref(null);
+    const loadingMore = ref(false);
+    const pageSize = ref(50);
+    const currentPage = ref(0);
+    const hasMore = ref(true);
     
     // Use Vuex state and getters
     const userRole = computed(() => store.getters.userRole);
@@ -646,53 +691,52 @@ export default {
     
     // Use store data
     const allTransactions = computed(() => store.state.transactions || []);
-    const transactionsLoading = computed(() => store.state.transactionsLoading);
-    const transactionStats = computed(() => store.state.transactionStats || {
+    const loading = computed(() => store.state.transactionsLoading);
+    const error = computed(() => store.state.inventoryError);
+    const transactionStats = computed(() => store.getters.getTransactionStats || {
       total: 0,
+      today: 0,
       add: 0,
       transfer: 0,
       dispatch: 0,
       update: 0,
-      delete: 0
+      delete: 0,
+      lastUpdated: null
     });
     
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
-    
-    // Calculate live stats from store
-    const liveStats = computed(() => {
-      return {
-        add: transactionStats.value.add,
-        transfer: transactionStats.value.transfer,
-        dispatch: transactionStats.value.dispatch,
-        updated: true
-      };
+
+    // Display only the most recent transactions
+    const displayedTransactions = computed(() => {
+      return filteredTransactions.value.slice(0, (currentPage.value + 1) * pageSize.value);
     });
 
-    // Use store's filteredTransactions getter
+    // Use store's filteredTransactions getter with warehouse filter
     const filteredTransactions = computed(() => {
-      return store.getters.filteredTransactions({
+      let filtered = store.getters.filteredTransactions({
         search: searchTerm.value,
         type: typeFilter.value,
         dateFrom: dateFrom.value,
         dateTo: dateTo.value
       });
-    });
-    
-    // Display only the most recent transactions
-    const displayedTransactions = computed(() => {
-      // Apply warehouse filter if selected
-      let transactions = filteredTransactions.value;
-      
+
+      // Apply warehouse filter
       if (warehouseFilter.value) {
-        transactions = transactions.filter(transaction => {
-          const fromWarehouse = transaction.from_warehouse || transaction.from_warehouse_id;
-          const toWarehouse = transaction.to_warehouse || transaction.to_warehouse_id;
+        filtered = filtered.filter(transaction => {
+          // Check multiple possible field names for from warehouse
+          const fromWarehouse = transaction.from_warehouse || 
+                               transaction.from_warehouse_id;
           
-          return fromWarehouse === warehouseFilter.value || toWarehouse === warehouseFilter.value;
+          // Check multiple possible field names for to warehouse
+          const toWarehouse = transaction.to_warehouse || 
+                             transaction.to_warehouse_id;
+          
+          return fromWarehouse === warehouseFilter.value || 
+                 toWarehouse === warehouseFilter.value;
         });
       }
       
-      return transactions.slice(0, 100);
+      return filtered;
     });
     
     const totalTransactions = computed(() => allTransactions.value.length);
@@ -703,7 +747,7 @@ export default {
     
     const filterPercentage = computed(() => {
       if (allTransactions.value.length === 0) return 0;
-      const percentage = Math.round((displayedTransactions.value.length / allTransactions.value.length) * 100);
+      const percentage = Math.round((displayedTransactions.length / allTransactions.value.length) * 100);
       return 100 - percentage;
     });
 
@@ -781,6 +825,10 @@ export default {
       if (!warehouseId) return 'غير محدد';
       return store.getters.getWarehouseLabel(warehouseId);
     };
+
+    const getDestinationLabel = (destinationId) => {
+      return store.getters.getDestinationLabel(destinationId) || destinationId;
+    };
     
     // Date formatting functions
     const formatTransactionDate = (transaction) => {
@@ -850,6 +898,10 @@ export default {
     const handleSearch = debounce(() => {
       // Search is handled by computed property through store getter
     }, 300);
+
+    const clearSearch = () => {
+      searchTerm.value = '';
+    };
     
     const handleFilter = () => {
       // Filter is handled by computed property
@@ -858,6 +910,10 @@ export default {
     const handleWarehouseFilter = () => {
       // Warehouse filter is handled by computed property
     };
+
+    const handleDateFilter = () => {
+      // Date filter is handled by computed property
+    };
     
     const clearFilters = () => {
       searchTerm.value = '';
@@ -865,10 +921,18 @@ export default {
       warehouseFilter.value = '';
       dateFrom.value = '';
       dateTo.value = '';
+      currentPage.value = 0;
+      hasMore.value = true;
     };
     
     const showNotes = (transaction) => {
       selectedNotes.value = transaction.notes;
+    };
+
+    const loadMore = () => {
+      if (filteredTransactions.value.length > displayedTransactions.value.length) {
+        currentPage.value++;
+      }
     };
 
     // Check cache first
@@ -916,18 +980,16 @@ export default {
         }
 
         console.log('📡 Fetching transactions from Firestore...');
-        statsLoading.value = true;
-        store.commit('SET_TRANSACTIONS_LOADING', true);
         
-        // Get transactions from Firestore
+        // Get transactions from Firestore - INCREASED LIMIT TO 500
         const transactionsQuery = query(
           collection(db, 'transactions'),
           orderBy('timestamp', 'desc'),
-          limit(100)
+          limit(500) // Increased from 100 to 500
         );
         
         const snapshot = await getDocs(transactionsQuery);
-        console.log(`📊 Found ${snapshot.size} transactions`);
+        console.log(`📊 Found ${snapshot.size} transactions in Firestore`);
         
         const transactions = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -951,19 +1013,59 @@ export default {
           type: 'error',
           message: 'حدث خطأ أثناء تحميل الحركات'
         });
-      } finally {
-        statsLoading.value = false;
-        store.commit('SET_TRANSACTIONS_LOADING', false);
       }
+    };
+
+    // Debug function to check data
+    const debugData = () => {
+      console.log('🔍 DEBUGGING TRANSACTION DATA:');
+      console.log('📊 All transactions count:', allTransactions.value.length);
+      
+      // Count by type
+      const typeCounts = {};
+      allTransactions.value.forEach(t => {
+        typeCounts[t.type] = (typeCounts[t.type] || 0) + 1;
+      });
+      console.log('📊 Transactions by type:', typeCounts);
+      
+      // Show sample of each type
+      const samples = {};
+      ['TRANSFER', 'DISPATCH', 'ADD', 'UPDATE', 'DELETE'].forEach(type => {
+        const typeTransactions = allTransactions.value.filter(t => t.type === type);
+        if (typeTransactions.length > 0) {
+          samples[type] = typeTransactions.slice(0, 2).map(t => ({
+            id: t.id,
+            item_name: t.item_name,
+            from_warehouse: t.from_warehouse || t.from_warehouse_id,
+            to_warehouse: t.to_warehouse || t.to_warehouse_id,
+            timestamp: t.timestamp
+          }));
+        }
+      });
+      console.log('📊 Transaction samples:', samples);
+      
+      // Show filtered transactions info
+      console.log('📊 Filtered transactions:', filteredTransactions.value.length);
+      console.log('📊 Displayed transactions:', displayedTransactions.value.length);
+      
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: `فحص البيانات: ${allTransactions.value.length} حركة (${typeCounts.TRANSFER || 0} تحويل، ${typeCounts.DISPATCH || 0} صرف)`
+      });
     };
 
     // Manual refresh
     const manualRefresh = async () => {
-      statsLoading.value = true;
       try {
         // Clear cache and force refresh
         localStorage.removeItem('transactions_cache');
+        
+        // Fetch fresh data
         await loadTransactionsFromFirestore();
+        
+        // Reset pagination
+        currentPage.value = 0;
+        hasMore.value = true;
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -976,8 +1078,6 @@ export default {
           type: 'error',
           message: 'حدث خطأ أثناء تحديث البيانات'
         });
-      } finally {
-        statsLoading.value = false;
       }
     };
 
@@ -1023,6 +1123,7 @@ export default {
             'الكمية': transaction.total_delta || transaction.total_quantity || 0,
             'من مستودع': getWarehouseName(fromWarehouseId),
             'إلى مستودع': getWarehouseName(toWarehouseId),
+            'الوجهة': transaction.destination ? getDestinationLabel(transaction.destination) : '',
             'المستخدم': transaction.created_by || transaction.user_name || '',
             'ملاحظات': transaction.notes || '',
             'صلاحية المستخدم': getUserRoleLabel(transaction.user_role)
@@ -1064,7 +1165,7 @@ export default {
         const q = query(
           collection(db, 'transactions'),
           orderBy('timestamp', 'desc'),
-          limit(50)
+          limit(100) // Increased from 50 to 100
         );
 
         transactionsRef.value = onSnapshot(q, (snapshot) => {
@@ -1085,7 +1186,7 @@ export default {
                 const dateB = getTransactionTime(b);
                 return dateB - dateA;
               })
-              .slice(0, 500);
+              .slice(0, 500); // Keep only 500 most recent
             
             store.commit('SET_TRANSACTIONS', updatedTransactions);
             
@@ -1110,8 +1211,6 @@ export default {
     // Initial data load
     const loadInitialData = async () => {
       try {
-        statsLoading.value = true;
-        
         // Load warehouses if not already loaded
         if (!store.state.warehousesLoaded) {
           await store.dispatch('loadWarehouses');
@@ -1123,20 +1222,29 @@ export default {
         // Enable real-time updates by default
         setupRealtimeTransactions();
         
+        // Debug to see what data was loaded
+        debugData();
+        
       } catch (error) {
         console.error('Error loading initial data:', error);
         store.dispatch('showNotification', {
           type: 'error',
           message: 'حدث خطأ أثناء تحميل البيانات'
         });
-      } finally {
-        statsLoading.value = false;
       }
     };
 
     // Watch for warehouse changes
     watch(warehouseFilter, (newWarehouse) => {
-      // This filter is handled in displayedTransactions computed property
+      // Reset pagination when filter changes
+      currentPage.value = 0;
+      hasMore.value = true;
+    });
+    
+    watch([searchTerm, typeFilter, dateFrom, dateTo], () => {
+      // Reset pagination when any filter changes
+      currentPage.value = 0;
+      hasMore.value = true;
     });
     
     onMounted(() => {
@@ -1161,9 +1269,8 @@ export default {
       typeFilter,
       warehouseFilter,
       liveUpdatesEnabled,
-      liveStats,
-      statsLoading,
       selectedNotes,
+      loadingMore,
       
       // Computed
       displayedTransactions,
@@ -1172,7 +1279,8 @@ export default {
       canExport,
       hasActiveFilters,
       filterPercentage,
-      transactionsLoading,
+      loading,
+      error,
       transactionStats,
       accessibleWarehouses,
       
@@ -1183,19 +1291,24 @@ export default {
       getQuantityClass,
       getUserRoleLabel,
       getWarehouseName,
+      getDestinationLabel,
       formatTransactionDate,
       formatTransactionTime,
       formatRelativeTime,
       formatDateRange,
       handleSearch,
+      clearSearch,
       handleFilter,
       handleWarehouseFilter,
+      handleDateFilter,
       clearFilters,
       manualRefresh,
       toggleLiveUpdates,
       exportTransactions,
       getTransactionTime,
-      showNotes
+      showNotes,
+      loadMore,
+      debugData
     };
   }
 };
