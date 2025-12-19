@@ -22,8 +22,7 @@ import {
   startAfter,
   onSnapshot,
   serverTimestamp,
-  getCountFromServer,
-  select
+  getCountFromServer
 } from 'firebase/firestore';
 import {
   InventoryService,
@@ -32,14 +31,13 @@ import {
   FIELD_LABELS,
   TRANSACTION_TYPES
 } from '@/services/inventoryService';
-import UserService from '@/services/UserService';
 
-// Performance configuration - UPDATED for Spark Plan
+// Performance configuration
 const PERFORMANCE_CONFIG = {
   INITIAL_LOAD: 50,
   SCROLL_LOAD: 20,
   SEARCH_LIMIT: 50,
-  CACHE_DURATION: 30 * 60 * 1000 // 30 minutes cache
+  CACHE_DURATION: 30 * 60 * 1000
 };
 
 // Notification configuration
@@ -89,8 +87,8 @@ export default createStore({
     warehousesLoaded: false,
 
     // Transaction mode tracking
-    transactionMode: false, // ✅ ADDED: Track if user is in transaction mode
-    currentTransactionType: null, // ✅ ADDED: Track current transaction type
+    transactionMode: false,
+    currentTransactionType: null,
 
     // Inventory - ALL items
     inventory: [],
@@ -179,10 +177,10 @@ export default createStore({
       state.authError = error;
     },
 
-    // ✅ ADDED: Transaction mode mutations
-    SET_TRANSACTION_MODE(state, { mode, type = null }) {
-      state.transactionMode = mode;
-      state.currentTransactionType = type;
+    // Transaction mode mutations
+    SET_TRANSACTION_MODE(state, payload) {
+      state.transactionMode = payload.mode;
+      state.currentTransactionType = payload.type || null;
     },
 
     CLEAR_TRANSACTION_MODE(state) {
@@ -309,7 +307,10 @@ export default createStore({
     },
 
     // Notifications
-    ADD_NOTIFICATION(state, { notification, timeoutId }) {
+    ADD_NOTIFICATION(state, payload) {
+      const notification = payload.notification;
+      const timeoutId = payload.timeoutId;
+      
       notification.id = Date.now().toString();
       notification.timestamp = new Date();
       notification.timeoutId = timeoutId;
@@ -372,9 +373,9 @@ export default createStore({
     },
 
     // Cache mutations
-    CACHE_ITEM_DETAIL(state, { itemId, itemData }) {
-      state.cache.itemDetails[itemId] = {
-        data: itemData,
+    CACHE_ITEM_DETAIL(state, payload) {
+      state.cache.itemDetails[payload.itemId] = {
+        data: payload.itemData,
         timestamp: Date.now()
       };
     },
@@ -383,17 +384,17 @@ export default createStore({
       delete state.cache.itemDetails[itemId];
     },
 
-    SET_STATS_CACHE(state, { stats, timestamp }) {
-      state.cache.stats = stats;
-      state.cache.statsTimestamp = timestamp;
+    SET_STATS_CACHE(state, payload) {
+      state.cache.stats = payload.stats;
+      state.cache.statsTimestamp = payload.timestamp;
     },
 
-    SET_DASHBOARD_COUNTS(state, { totalItems, totalQuantity, lowStockItems, lastUpdated }) {
+    SET_DASHBOARD_COUNTS(state, payload) {
       state.cache.dashboardCounts = {
-        totalItems,
-        totalQuantity,
-        lowStockItems,
-        lastUpdated
+        totalItems: payload.totalItems,
+        totalQuantity: payload.totalQuantity,
+        lowStockItems: payload.lowStockItems,
+        lastUpdated: payload.lastUpdated
       };
     },
 
@@ -448,7 +449,7 @@ export default createStore({
         search: '',
         searchField: 'name'
       };
-      state.transactionMode = false; // ✅ ADDED: Clear transaction mode
+      state.transactionMode = false;
       state.currentTransactionType = null;
       state.cache = {
         warehouseLabels: {},
@@ -468,13 +469,13 @@ export default createStore({
   }),
 
   actions: {
-    // ✅ ADDED: Enter transaction mode
-    enterTransactionMode({ commit }, { type = null } = {}) {
-      commit('SET_TRANSACTION_MODE', { mode: true, type });
-      console.log('🔵 Entered transaction mode:', type);
+    // Enter transaction mode
+    enterTransactionMode({ commit }, payload = {}) {
+      commit('SET_TRANSACTION_MODE', { mode: true, type: payload.type || null });
+      console.log('🔵 Entered transaction mode:', payload.type);
     },
 
-    // ✅ ADDED: Exit transaction mode
+    // Exit transaction mode
     exitTransactionMode({ commit }) {
       commit('CLEAR_TRANSACTION_MODE');
       console.log('🔵 Exited transaction mode');
@@ -483,8 +484,6 @@ export default createStore({
     // Get total item count
     async getTotalItemCount({ state }, warehouseId = 'all') {
       try {
-        console.log(`📊 Getting total item count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
-
         const itemsRef = collection(db, 'items');
 
         if (warehouseId === 'all') {
@@ -513,8 +512,6 @@ export default createStore({
     // Get low stock count
     async getLowStockCount({ state }, warehouseId = 'all') {
       try {
-        console.log(`📊 Getting low stock count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
-
         const itemsRef = collection(db, 'items');
 
         if (warehouseId === 'all') {
@@ -583,8 +580,6 @@ export default createStore({
     // Get total quantity sum
     async getTotalQuantitySum({ state }, warehouseId = 'all') {
       try {
-        console.log(`📊 Getting total quantity sum for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
-
         if (warehouseId === 'all') {
           return state.inventory.reduce((sum, item) => 
             sum + (item.remaining_quantity || 0), 0
@@ -606,13 +601,10 @@ export default createStore({
     // Refresh dashboard counts
     async refreshDashboardCounts({ commit, state, dispatch }, warehouseId = 'all') {
       try {
-        console.log('🔄 Refreshing dashboard counts...');
-
         const cache = state.cache.dashboardCounts;
         const cacheExpiry = 5 * 60 * 1000;
 
         if (cache.lastUpdated && (Date.now() - new Date(cache.lastUpdated).getTime()) < cacheExpiry) {
-          console.log('📦 Using cached dashboard counts');
           return cache;
         }
 
@@ -628,7 +620,6 @@ export default createStore({
         };
 
         commit('SET_DASHBOARD_COUNTS', counts);
-        console.log('✅ Dashboard counts refreshed:', counts);
         return counts;
 
       } catch (error) {
@@ -658,7 +649,6 @@ export default createStore({
     async getDashboardStats({ dispatch }, warehouseId = 'all') {
       try {
         const counts = await dispatch('refreshDashboardCounts', warehouseId);
-
         return {
           ...counts,
           recentTransactions: 0
@@ -698,14 +688,11 @@ export default createStore({
     // REAL-TIME SEARCH FUNCTION
     async searchItemsForTransactions({ state }, { searchTerm, limitResults = 20 }) {
       try {
-        console.log('🔍 REAL-TIME SEARCH:', searchTerm);
         if (!searchTerm || searchTerm.trim().length < 2) {
           return [];
         }
         const term = searchTerm.trim().toLowerCase();
-        console.log('⚡ Searching Firestore directly...');
         const itemsRef = collection(db, 'items');
-        let firestoreQuery;
         const searchPromises = [];
         
         const codeQuery = query(
@@ -762,7 +749,6 @@ export default createStore({
         });
         
         firestoreResults = firestoreResults.slice(0, limitResults);
-        console.log(`✅ Found ${firestoreResults.length} items in Firestore search`);
         
         if (firestoreResults.length === 0) {
           const localResults = state.inventory.filter(item =>
@@ -771,7 +757,6 @@ export default createStore({
             item.color?.toLowerCase().includes(term) ||
             item.supplier?.toLowerCase().includes(term)
           ).slice(0, limitResults);
-          console.log('📦 Using local inventory as fallback:', localResults.length);
           return localResults;
         }
         
@@ -784,7 +769,6 @@ export default createStore({
           item.code?.toLowerCase().includes(term) ||
           item.color?.toLowerCase().includes(term)
         ).slice(0, 10);
-        console.log('🔄 Fallback to local search due to error:', error.message);
         return fallbackResults;
       }
     },
@@ -792,7 +776,6 @@ export default createStore({
     // Get item by ID
     async getItemById({ state, dispatch }, { itemId, itemCode, itemName }) {
       try {
-        console.log('🔍 GET ITEM (Real-time):', { itemId, itemCode, itemName });
         if (!itemId && !itemCode && !itemName) {
           throw new Error('معرف الصنف أو الكود أو الاسم مطلوب');
         }
@@ -804,11 +787,8 @@ export default createStore({
         );
         
         if (item) {
-          console.log('✅ Item found in recent inventory');
           return item;
         }
-        
-        console.log('⚡ Item not in recent inventory. Searching Firestore...');
         
         if (itemId) {
           try {
@@ -827,7 +807,6 @@ export default createStore({
                 id: itemDoc.id,
                 ...itemData
               });
-              console.log('✅ Item fetched from Firestore by ID');
               return convertedItem;
             }
           } catch (error) {
@@ -859,7 +838,6 @@ export default createStore({
                 id: doc.id,
                 ...itemData
               });
-              console.log(`✅ Item found by code`);
               return convertedItem;
             }
           }
@@ -890,13 +868,11 @@ export default createStore({
                 id: doc.id,
                 ...itemData
               });
-              console.log(`✅ Item found by name`);
               return convertedItem;
             }
           }
         }
         
-        console.log('🔄 Using real-time search...');
         const searchTerm = itemCode || itemName || '';
         if (searchTerm.length >= 2) {
           const searchResults = await dispatch('searchItemsForTransactions', {
@@ -904,9 +880,7 @@ export default createStore({
             limitResults: 10
           });
           if (searchResults.length > 0) {
-            const foundItem = searchResults[0];
-            console.log('✅ Item found through real-time search');
-            return foundItem;
+            return searchResults[0];
           }
         }
         
@@ -924,7 +898,6 @@ export default createStore({
     // Get items from warehouse
     async getItemsFromWarehouse({ state, dispatch }, { warehouseId, limitResults = 20 }) {
       try {
-        console.log('🔄 Getting items from warehouse (real-time):', warehouseId);
         if (!warehouseId) {
           throw new Error('معرف المخزن مطلوب');
         }
@@ -940,7 +913,6 @@ export default createStore({
         
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
         if (localItems.length >= limitResults) {
-          console.log('✅ Found items in recent inventory:', localItems.length);
           return localItems.slice(0, limitResults);
         }
         
@@ -960,10 +932,8 @@ export default createStore({
               ...itemData
             });
           });
-          console.log(`✅ Found ${items.length} items in warehouse ${warehouseId}`);
           return items;
         } catch (error) {
-          console.warn('Using alternative query...', error);
           const q = query(
             itemsRef,
             where('warehouse_id', '==', warehouseId),
@@ -997,12 +967,10 @@ export default createStore({
     // MAIN ACTION: Load ALL inventory
     async loadAllInventory({ commit, state, dispatch }, { forceRefresh = false } = {}) {
       if (state.inventoryLoading) {
-        console.log('Inventory load already in progress');
         return state.inventory;
       }
 
       if (state.inventoryLoaded && !forceRefresh) {
-        console.log('Inventory already loaded');
         return state.inventory;
       }
 
@@ -1011,8 +979,6 @@ export default createStore({
       commit('RESET_PAGINATION');
 
       try {
-        console.log('🔄 Loading ALL inventory...');
-
         if (!state.userProfile) {
           throw new Error('User not authenticated');
         }
@@ -1052,7 +1018,6 @@ export default createStore({
         }
 
         const snapshot = await getDocs(itemsQuery);
-        console.log(`✅ Initial inventory loaded: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -1076,7 +1041,6 @@ export default createStore({
           await dispatch('setupRealtimeUpdatesForInventory');
         }
 
-        console.log(`🎉 Inventory loaded successfully: ${inventory.length} items`);
         return inventory;
 
       } catch (error) {
@@ -1103,8 +1067,6 @@ export default createStore({
       commit('SET_PAGINATION', { isFetching: true });
 
       try {
-        console.log('📥 Loading more inventory items...');
-
         if (!state.userProfile || !state.pagination.lastDoc) {
           return [];
         }
@@ -1143,7 +1105,6 @@ export default createStore({
         }
 
         const snapshot = await getDocs(itemsQuery);
-        console.log(`📥 Loaded ${snapshot.size} more items`);
 
         if (snapshot.empty) {
           commit('SET_PAGINATION', { hasMore: false });
@@ -1194,8 +1155,6 @@ export default createStore({
       if (!state.realtimeMode || state.inventory.length === 0) return;
 
       try {
-        console.log('🔴 Setting up real-time updates for inventory...');
-
         const listeners = state.inventory.map(item => {
           const itemRef = doc(db, 'items', item.id);
 
@@ -1222,7 +1181,6 @@ export default createStore({
         });
 
         listeners.forEach(listener => commit('ADD_REALTIME_LISTENER', listener));
-        console.log(`✅ Real-time updates set up for ${listeners.length} items`);
 
       } catch (error) {
         console.error('❌ Error setting up real-time updates:', error);
@@ -1234,8 +1192,6 @@ export default createStore({
       if (!state.realtimeMode || !itemIds || itemIds.length === 0) return;
 
       try {
-        console.log(`🔴 Setting up real-time for ${itemIds.length} items`);
-
         const listeners = itemIds.map(itemId => {
           const itemRef = doc(db, 'items', itemId);
 
@@ -1366,7 +1322,6 @@ export default createStore({
         }
 
         const snapshot = await getDocs(itemsQuery);
-        console.log(`🔍 Search found: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -1414,14 +1369,12 @@ export default createStore({
 
     // Refresh inventory
     async refreshInventory({ dispatch }) {
-      console.log('🔄 Refreshing inventory...');
       await dispatch('clearRealtimeUpdates');
       return await dispatch('loadAllInventory', { forceRefresh: true });
     },
 
     // Clear real-time updates
     async clearRealtimeUpdates({ commit }) {
-      console.log('🧹 Clearing real-time listeners...');
       commit('CLEAR_REALTIME_LISTENERS');
     },
 
@@ -1432,8 +1385,6 @@ export default createStore({
         if (cachedItem && (Date.now() - cachedItem.timestamp) < PERFORMANCE_CONFIG.CACHE_DURATION) {
           return cachedItem.data;
         }
-
-        console.log(`🔍 Getting item from Firestore: ${itemId}`);
 
         const itemDoc = await getDoc(doc(db, 'items', itemId));
 
@@ -2020,8 +1971,6 @@ export default createStore({
     // Load warehouses
     async loadWarehouses({ commit, dispatch }) {
       try {
-        console.log('🔄 Loading warehouses...');
-
         const warehousesRef = collection(db, 'warehouses');
         const q = query(warehousesRef, orderBy('name_ar'));
         const snapshot = await getDocs(q);
@@ -2032,8 +1981,6 @@ export default createStore({
         }));
 
         commit('SET_WAREHOUSES', warehouses);
-        console.log(`✅ Warehouses loaded: ${warehouses.length}`);
-
         return warehouses;
 
       } catch (error) {
@@ -2246,7 +2193,6 @@ export default createStore({
     // Additional actions
     async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
       try {
-        console.log('🔍 General search:', searchTerm);
         if (!searchTerm || searchTerm.trim().length < 2) {
           return [];
         }
@@ -2257,10 +2203,8 @@ export default createStore({
           item.color?.toLowerCase().includes(term)
         ).slice(0, limitResults);
         if (localResults.length > 0) {
-          console.log('✅ Items found in loaded inventory:', localResults.length);
           return localResults;
         }
-        console.log('🔄 Item not in local cache, searching Firestore...');
         return await dispatch('searchItemsForTransactions', {
           searchTerm: searchTerm,
           limitResults: limitResults
@@ -2277,7 +2221,6 @@ export default createStore({
 
     async getItemsByIds({ dispatch }, itemIds) {
       try {
-        console.log('🔍 Getting multiple items (real-time):', itemIds.length);
         if (!Array.isArray(itemIds) || itemIds.length === 0) {
           return [];
         }
@@ -2288,7 +2231,6 @@ export default createStore({
         );
         const results = await Promise.all(promises);
         const validResults = results.filter(item => item !== null);
-        console.log(`✅ Got ${validResults.length} items`);
         return validResults;
       } catch (error) {
         console.error('❌ Error getting multiple items:', error);
@@ -2298,7 +2240,6 @@ export default createStore({
 
     async getAvailableWarehousesForTransactions({ getters }) {
       try {
-        console.log('🔄 Getting available warehouses for transactions...');
         const accessibleWarehouses = getters.accessibleWarehouses;
         const accessiblePrimaryWarehouses = getters.accessiblePrimaryWarehouses;
         return {
@@ -2318,8 +2259,6 @@ export default createStore({
       }
       commit('SET_IS_REFRESHING_SILENTLY', true);
       try {
-        console.log('🔄 Silently refreshing inventory cache...');
-
         const itemsRef = collection(db, 'items');
         const q = query(
           itemsRef,
@@ -2344,8 +2283,6 @@ export default createStore({
           hasMore: snapshot.size === PERFORMANCE_CONFIG.INITIAL_LOAD,
           totalLoaded: inventory.length
         });
-
-        console.log('✅ Inventory cache silently refreshed');
 
       } catch (error) {
         console.log('Silent refresh failed:', error.message);
@@ -2373,7 +2310,6 @@ export default createStore({
           ...doc.data()
         }));
         commit('SET_ITEM_HISTORY', history);
-        console.log('✅ Item history loaded:', history.length);
         return history;
       } catch (error) {
         console.error('❌ Error loading item history:', error);
@@ -2400,7 +2336,6 @@ export default createStore({
           ...doc.data()
         }));
         commit('SET_ALL_USERS', users);
-        console.log('✅ Users loaded:', users.length);
         return users;
       } catch (error) {
         console.error('❌ Error loading users:', error);
@@ -2742,7 +2677,6 @@ export default createStore({
         });
 
         await batch.commit();
-        console.log('✅ Admin notified about pending user');
       } catch (error) {
         console.error('❌ Error notifying admin:', error);
       }
@@ -2763,12 +2697,10 @@ export default createStore({
 
     // Alias actions for compatibility
     async fetchInventory({ dispatch }) {
-      console.log('📦 Fetching inventory...');
       return await dispatch('loadAllInventory');
     },
 
     async fetchInventoryOnce({ dispatch }) {
-      console.log('📦 Using loadAllInventory');
       return await dispatch('loadAllInventory');
     }
   },
@@ -2785,8 +2717,8 @@ export default createStore({
       state.userProfile.permissions : [],
 
     // ====== TRANSACTION MODE ======
-    isInTransactionMode: state => state.transactionMode, // ✅ ADDED
-    currentTransactionType: state => state.currentTransactionType, // ✅ ADDED
+    isInTransactionMode: state => state.transactionMode,
+    currentTransactionType: state => state.currentTransactionType,
 
     // ====== ERRORS ======
     authError: state => state.authError,
@@ -2817,7 +2749,7 @@ export default createStore({
     warehouses: state => state.warehouses,
     warehousesLoaded: state => state.warehousesLoaded,
     
-    // ✅ UPDATED: Filter warehouses based on transaction mode
+    // Filter warehouses based on transaction mode
     primaryWarehouses: (state) => {
       if (!state.warehousesLoaded) return [];
       return state.warehouses.filter(w => w.type === WAREHOUSE_TYPES.PRIMARY);
