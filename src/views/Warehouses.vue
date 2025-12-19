@@ -9,7 +9,7 @@
             إدارة وتعديل المخازن في النظام (للمشرف العام فقط)
           </p>
         </div>
-        
+
         <div class="flex items-center gap-3">
           <button
             @click="refreshWarehouses"
@@ -32,10 +32,11 @@
             </svg>
             تحديث
           </button>
-          
+
           <button
             @click="openAddWarehouseModal"
-            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md shadow-sm text-sm font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            :disabled="!canManageWarehouses"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md shadow-sm text-sm font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -132,7 +133,7 @@
             />
           </div>
         </div>
-        
+
         <div class="flex items-center gap-3">
           <!-- Type Filter -->
           <select
@@ -144,7 +145,7 @@
             <option value="primary">مخازن رئيسية</option>
             <option value="dispatch">مواقع صرف</option>
           </select>
-          
+
           <!-- Status Filter -->
           <select
             v-model="filters.status"
@@ -155,7 +156,7 @@
             <option value="active">نشط</option>
             <option value="inactive">غير نشط</option>
           </select>
-          
+
           <button
             @click="resetFilters"
             class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200"
@@ -193,8 +194,25 @@
       </button>
     </div>
 
+    <!-- Permission Error -->
+    <div v-else-if="!canManageWarehouses" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-12 text-center">
+      <svg class="h-12 w-12 text-yellow-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-6a3 3 0 110-6 3 3 0 010 6zm0 0c1.657 0 3 1.343 3 3v4.5M3 21l9-9 9 9"/>
+      </svg>
+      <h3 class="mt-4 text-lg font-medium text-yellow-800 dark:text-yellow-300">غير مصرح بالوصول</h3>
+      <p class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+        ليس لديك صلاحية للوصول إلى إدارة المخازن. يقتصر هذا القسم على المشرف العام فقط.
+      </p>
+      <router-link
+        to="/"
+        class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+      >
+        العودة إلى الرئيسية
+      </router-link>
+    </div>
+
     <!-- Empty State -->
-    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length === 0" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length === 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
       </svg>
@@ -212,7 +230,7 @@
     </div>
 
     <!-- No Results State -->
-    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length > 0" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length > 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
@@ -227,7 +245,7 @@
     </div>
 
     <!-- Warehouses Table -->
-    <div v-else class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div v-else-if="canManageWarehouses" class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead class="bg-gray-50 dark:bg-gray-900">
@@ -286,7 +304,7 @@
                   </div>
                 </div>
               </td>
-              
+
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -318,7 +336,7 @@
                   {{ warehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}
                 </span>
               </td>
-              
+
               <td class="px-6 py-4">
                 <div class="text-sm text-gray-900 dark:text-white">
                   {{ warehouse.location || 'غير محدد' }}
@@ -327,7 +345,7 @@
                   {{ warehouse.description || '-' }}
                 </div>
               </td>
-              
+
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-900 dark:text-white">
                   {{ warehouse.capacity ? formatNumber(warehouse.capacity) + ' وحدة' : 'غير محددة' }}
@@ -344,7 +362,7 @@
                   </div>
                 </div>
               </td>
-              
+
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -356,12 +374,12 @@
                   {{ warehouse.status === 'active' ? 'نشط' : 'غير نشط' }}
                 </span>
               </td>
-              
+
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 <div>{{ formatDate(warehouse.updated_at) }}</div>
                 <div class="text-xs">{{ formatTime(warehouse.updated_at) }}</div>
               </td>
-              
+
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex items-center gap-2">
                   <button
@@ -374,7 +392,7 @@
                     </svg>
                     تعديل
                   </button>
-                  
+
                   <button
                     @click="viewWarehouseDetails(warehouse)"
                     class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors duration-200"
@@ -385,7 +403,7 @@
                     </svg>
                     تفاصيل
                   </button>
-                  
+
                   <button
                     v-if="!warehouse.is_main"
                     @click="confirmDeleteWarehouse(warehouse)"
@@ -462,7 +480,7 @@
                   <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
               </button>
-              
+
               <template v-for="page in visiblePages" :key="page">
                 <button
                   v-if="page === '...'"
@@ -484,7 +502,7 @@
                   {{ page }}
                 </button>
               </template>
-              
+
               <button
                 @click="nextPage"
                 :disabled="currentPage === totalPages"
@@ -539,7 +557,7 @@
                   {{ selectedWarehouseDetails?.id }}
                 </div>
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   الاسم (عربي)
@@ -548,7 +566,7 @@
                   {{ selectedWarehouseDetails?.name_ar }}
                 </div>
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   الاسم (إنجليزي)
@@ -558,7 +576,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -578,7 +596,7 @@
                   </span>
                 </div>
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   الحالة
@@ -595,7 +613,7 @@
                   </span>
                 </div>
               </div>
-              
+
               <div v-if="selectedWarehouseDetails?.capacity">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   السعة التخزينية
@@ -606,7 +624,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Additional Info -->
           <div class="space-y-4">
             <div v-if="selectedWarehouseDetails?.location">
@@ -617,7 +635,7 @@
                 {{ selectedWarehouseDetails.location }}
               </div>
             </div>
-            
+
             <div v-if="selectedWarehouseDetails?.description">
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 الوصف
@@ -627,7 +645,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Timestamps -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div>
@@ -638,7 +656,7 @@
                 {{ selectedWarehouseDetails?.created_at ? formatFullDate(selectedWarehouseDetails.created_at) : 'غير متوفر' }}
               </div>
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 آخر تحديث
@@ -710,7 +728,8 @@ export default {
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
     const warehouses = computed(() => store.state.warehouses || []);
-    const canManageWarehouses = computed(() => store.getters.canManageWarehouses);
+    const warehousesLoaded = computed(() => store.state.warehousesLoaded || false);
+    const canManageWarehouses = computed(() => store.getters.canManageWarehouses || false);
     
     // Stats
     const stats = computed(() => {
@@ -797,11 +816,6 @@ export default {
     
     // Methods
     const loadWarehouses = async () => {
-      if (!canManageWarehouses.value) {
-        error.value = 'ليس لديك صلاحية للوصول إلى إدارة المخازن';
-        return;
-      }
-      
       loading.value = true;
       error.value = '';
       
@@ -868,16 +882,35 @@ export default {
     
     const handleWarehouseSave = async (warehouseData) => {
       try {
-        if (!warehouseData.id) {
+        if (!canManageWarehouses.value) {
           store.dispatch('showNotification', {
             type: 'error',
-            message: 'بيانات المخزن غير صالحة'
+            message: 'ليس لديك صلاحية لحفظ المخازن'
           });
           return;
         }
         
-        // Reload warehouses to get updated data
-        await loadWarehouses();
+        let result;
+        if (warehouseData.id) {
+          // Update existing warehouse
+          result = await store.dispatch('updateWarehouse', {
+            warehouseId: warehouseData.id,
+            warehouseData: warehouseData
+          });
+        } else {
+          // Add new warehouse
+          result = await store.dispatch('addWarehouse', warehouseData);
+        }
+        
+        if (result) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: warehouseData.id ? 'تم تحديث المخزن بنجاح' : 'تم إضافة المخزن بنجاح'
+          });
+          
+          // Reload warehouses to get updated data
+          await loadWarehouses();
+        }
         
       } catch (err) {
         console.error('Error handling warehouse save:', err);
@@ -929,9 +962,12 @@ export default {
       deleting.value = warehouse.id;
       
       try {
-        const result = await store.dispatch('deleteWarehouse', warehouse.id);
+        const result = await store.dispatch('deleteWarehouse', { 
+          warehouseId: warehouse.id,
+          warehouseName: warehouse.name_ar 
+        });
         
-        if (result.success) {
+        if (result) {
           store.dispatch('showNotification', {
             type: 'success',
             message: 'تم حذف المخزن بنجاح'
@@ -939,11 +975,6 @@ export default {
           
           // Reload warehouses
           await loadWarehouses();
-        } else {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: result.error || 'حدث خطأ في حذف المخزن'
-          });
         }
       } catch (err) {
         console.error('Error deleting warehouse:', err);
@@ -994,38 +1025,51 @@ export default {
     
     // Formatting methods
     const formatNumber = (num) => {
+      if (!num && num !== 0) return '0';
       return new Intl.NumberFormat('ar-EG').format(num);
     };
     
     const formatDate = (dateString) => {
       if (!dateString) return 'غير محدد';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      try {
+        const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+        return date.toLocaleDateString('ar-EG', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      } catch (error) {
+        return 'غير محدد';
+      }
     };
     
     const formatTime = (dateString) => {
       if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleTimeString('ar-EG', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      try {
+        const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+        return date.toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return '';
+      }
     };
     
     const formatFullDate = (dateString) => {
       if (!dateString) return 'غير محدد';
-      const date = new Date(dateString);
-      return date.toLocaleString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      try {
+        const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+        return date.toLocaleString('ar-EG', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return 'غير محدد';
+      }
     };
     
     // Watch for warehouses changes
@@ -1035,8 +1079,8 @@ export default {
     });
     
     // Watch for user role changes
-    watch(userRole, (newRole, oldRole) => {
-      if (newRole !== oldRole && newRole !== 'superadmin') {
+    watch(userRole, (newRole) => {
+      if (newRole !== 'superadmin') {
         error.value = 'ليس لديك صلاحية للوصول إلى إدارة المخازن';
       }
     }, { immediate: true });
@@ -1050,7 +1094,7 @@ export default {
       }
       
       // Load warehouses if not already loaded
-      if (!store.state.warehousesLoaded) {
+      if (!warehousesLoaded.value) {
         await loadWarehouses();
       }
     });
@@ -1071,8 +1115,9 @@ export default {
       
       // Computed
       userRole,
-      canManageWarehouses,
       warehouses,
+      warehousesLoaded,
+      canManageWarehouses,
       stats,
       filteredWarehouses,
       paginatedWarehouses,
