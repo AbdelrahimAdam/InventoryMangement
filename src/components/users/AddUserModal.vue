@@ -139,7 +139,7 @@
               </button>
             </div>
           </div>
-          
+
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
             اختر المخازن التي يمكن للمستخدم الوصول إليها. سيتمكن المستخدم من إجراء جميع العمليات في المخازن المختارة.
           </p>
@@ -372,7 +372,7 @@
               </button>
             </div>
           </div>
-          
+
           <div class="flex gap-3">
             <input
               :type="showPassword ? 'text' : 'password'"
@@ -389,7 +389,7 @@
               توليد عشوائي
             </button>
           </div>
-          
+
           <!-- Password Strength Indicator -->
           <div class="mt-2">
             <div class="flex items-center justify-between mb-1">
@@ -406,11 +406,11 @@
               ></div>
             </div>
           </div>
-          
+
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
             يجب أن تكون كلمة المرور 8 أحرف على الأقل وتحتوي على حروف وأرقام
           </p>
-          
+
           <!-- Temporary Password Display -->
           <div v-if="formData.password" class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
             <div class="flex items-center gap-2 mb-2">
@@ -524,35 +524,7 @@
 <script>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useStore } from 'vuex';
-import { auth, db, firebaseConfig } from '@/firebase/config'; // Make sure firebaseConfig is exported
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import WarehouseModal from '@/components/WarehouseModal.vue';
-
-// 🔥 SECONDARY AUTH SETUP - FIXES AUTO-LOGIN ISSUE 🔥
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-
-// Create a secondary Firebase app instance
-// This prevents Firebase from auto-logging us in when we create a new user
-let secondaryAuth;
-
-// Check if firebaseConfig is available
-if (firebaseConfig && Object.keys(firebaseConfig).length > 0) {
-  try {
-    const secondaryApp = initializeApp(firebaseConfig, "Secondary");
-    secondaryAuth = getAuth(secondaryApp);
-    console.log('✅ Secondary auth initialized successfully for user creation');
-  } catch (error) {
-    console.error('Failed to initialize secondary auth:', error);
-    // Fall back to main auth if secondary fails
-    secondaryAuth = auth;
-  }
-} else {
-  console.warn('Firebase config not found, using main auth as fallback');
-  secondaryAuth = auth;
-}
-// 🔥 END OF SECONDARY AUTH SETUP 🔥
 
 export default {
   name: 'AddUserModal',
@@ -837,7 +809,6 @@ export default {
     };
 
     const manageWarehouses = () => {
-      // Emit event to parent to show warehouse management
       emit('warehouse-updated');
       store.dispatch('showNotification', {
         type: 'info',
@@ -862,7 +833,6 @@ export default {
 
     const handleWarehouseSave = async (warehouseData) => {
       try {
-        // Reload warehouses after save
         await store.dispatch('loadWarehouses');
         
         // If the warehouse was added to allowed_warehouses, update the form
@@ -895,7 +865,6 @@ export default {
       showPassword.value = false;
     };
 
-    // Load warehouses if not already loaded
     const ensureWarehousesLoaded = async () => {
       if (allWarehouses.value.length === 0) {
         loadingWarehouses.value = true;
@@ -910,191 +879,103 @@ export default {
       }
     };
 
-   const handleSubmit = async () => {
-  if (!isFormValid.value) return;
+    const handleSubmit = async () => {
+      if (!isFormValid.value) return;
 
-  loading.value = true;
-  errorMessage.value = '';
-  validationErrors.value = [];
+      loading.value = true;
+      errorMessage.value = '';
+      validationErrors.value = [];
 
-  try {
-    console.log('=== DEBUG: Starting user submission ===');
+      try {
+        console.log('=== DEBUG: Starting user submission ===');
 
-    // Get current user ID (must be superadmin)
-    const currentUser = store.state.user;
-    if (!currentUser || !currentUser.uid) {
-      throw new Error('يجب تسجيل الدخول أولاً');
-    }
+        // Prepare user data EXACTLY as Vuex store expects
+        const userData = {
+          name: formData.value.name.trim(),
+          email: formData.value.email.trim().toLowerCase(),
+          role: formData.value.role,
+          is_active: formData.value.is_active !== false,
+          phone: formData.value.phone.trim() || '',
+          allowed_warehouses: formData.value.role === 'warehouse_manager' 
+            ? formData.value.allowed_warehouses 
+            : [],
+          permissions: Array.isArray(formData.value.permissions) 
+            ? formData.value.permissions 
+            : []
+        };
 
-    // Prepare user data EXACTLY as Firestore rules expect
-    const userData = {
-      name: formData.value.name.trim(),
-      email: formData.value.email.trim().toLowerCase(),
-      role: formData.value.role,
-      is_active: formData.value.is_active !== false,
-      phone: formData.value.phone.trim() || '',
-      allowed_warehouses: formData.value.role === 'warehouse_manager' 
-        ? formData.value.allowed_warehouses 
-        : [],
-      permissions: Array.isArray(formData.value.permissions) 
-        ? formData.value.permissions 
-        : [],
-      // REQUIRED FIELDS for Firestore rules validation
-      profile_complete: true,
-      email_verified: false,
-      created_by: currentUser.uid,
-      last_login: null
+        console.log('User data prepared:', userData);
+
+        let result;
+        
+        if (props.user) {
+          // UPDATE EXISTING USER
+          console.log('Updating existing user:', props.user.id);
+          
+          // Call Vuex store action
+          result = await store.dispatch('updateUser', {
+            userId: props.user.id,
+            userData: userData
+          });
+          
+          if (!result) {
+            throw new Error('فشل في تحديث المستخدم');
+          }
+          
+        } else {
+          // CREATE NEW USER
+          console.log('Creating new user...');
+          
+          // Add password for new user
+          userData.password = formData.value.password;
+
+          // Call Vuex store action (store will handle Firebase Auth + Firestore)
+          result = await store.dispatch('createUser', userData);
+          
+          if (!result || !result.success) {
+            throw new Error(result?.error || 'فشل في إنشاء المستخدم');
+          }
+        }
+
+        // Emit success and close modal
+        emit('save', result?.data || userData);
+        emit('success', result?.data || userData);
+        
+        setTimeout(() => {
+          emit('close');
+          resetForm();
+        }, 1000);
+        
+      } catch (error) {
+        console.error('❌ Error in form submission:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        
+        let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
+        
+        // Handle specific errors
+        if (error.code === 'auth/email-already-in-use') {
+          errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
+        } else if (error.code === 'auth/weak-password') {
+          errorMsg = 'كلمة المرور ضعيفة جداً. يجب أن تكون 8 أحرف على الأقل';
+        } else if (error.code === 'permission-denied' || error.message.includes('صلاحية')) {
+          errorMsg = 'صلاحيات غير كافية. تحقق من أنك مسجل كـ مشرف عام';
+        }
+        
+        errorMessage.value = errorMsg;
+        validationErrors.value = [errorMsg];
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: errorMsg
+        });
+      } finally {
+        loading.value = false;
+      }
     };
 
-    console.log('User data prepared:', userData);
-
-    let result;
-    let userId;
-    
-    if (props.user) {
-      // UPDATE EXISTING USER
-      console.log('Updating existing user:', props.user.id);
-      userId = props.user.id;
-      
-      // For updates, only include fields that can be updated
-      const updateData = { 
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        is_active: userData.is_active,
-        phone: userData.phone,
-        allowed_warehouses: userData.allowed_warehouses,
-        permissions: userData.permissions
-      };
-      
-      // Update via store
-      result = await store.dispatch('updateUser', {
-        userId: userId,
-        userData: updateData
-      });
-      
-      if (!result.success) {
-        throw new Error(result.error || 'فشل في تحديث المستخدم');
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تحديث المستخدم بنجاح'
-      });
-      
-    } else {
-      // CREATE NEW USER
-      console.log('Creating new user...');
-      
-      // Validate password
-      if (!formData.value.password) {
-        throw new Error('كلمة المرور مطلوبة');
-      }
-      
-      if (formData.value.password.length < 8) {
-        throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-      }
-
-      // 🔥 FIXED: Use secondaryAuth to prevent auto-login 🔥
-      console.log('Creating Firebase Auth user with email:', userData.email);
-      console.log('Using secondary auth to prevent auto-login...');
-      
-      const userCredential = await createUserWithEmailAndPassword(
-        secondaryAuth, // ← CHANGED FROM auth TO secondaryAuth
-        userData.email,
-        formData.value.password
-      );
-      
-      userId = userCredential.user.uid;
-      console.log('✅ Firebase Auth user created with ID:', userId);
-      
-      // Add ID fields - CRITICAL for Firestore rules
-      userData.id = userId;
-      userData.uid = userId; // Required for Firestore rules to work
-      
-      console.log('Final user data with IDs:', userData);
-
-      // Check if db is available
-      if (!db) {
-        throw new Error('Firestore database not initialized');
-      }
-      
-      // Save to Firestore
-      console.log('Saving to Firestore at path: users/', userId);
-      const userDocRef = doc(db, 'users', userId);
-      await setDoc(userDocRef, userData);
-      console.log('✅ User saved successfully to Firestore');
-      
-      // 🔥 Clean up secondary auth session 🔥
-      try {
-        await secondaryAuth.signOut();
-        console.log('✅ Cleaned up secondary auth session');
-      } catch (signOutError) {
-        console.log('Secondary auth cleanup:', signOutError);
-      }
-      
-      // Success notification
-      const resultData = {
-        ...userData,
-        temporary_password: formData.value.password
-      };
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: `تم إضافة المستخدم "${userData.name}" بنجاح`
-      });
-      
-      result = { success: true, data: resultData };
-    }
-
-    // Emit success and close modal
-    if (result && result.success) {
-      emit('save', result.data || userData);
-      emit('success', result.data || userData);
-      
-      setTimeout(() => {
-        emit('close');
-        resetForm();
-      }, 1000);
-    }
-    
-  } catch (error) {
-    console.error('❌ Error in form submission:', error);
-    console.error('Error name:', error.name);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    
-    let errorMsg = error.message || 'حدث خطأ أثناء حفظ المستخدم';
-    
-    // Handle specific Firebase errors
-    if (error.code === 'auth/email-already-in-use') {
-      errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
-    } else if (error.code === 'auth/invalid-email') {
-      errorMsg = 'صيغة البريد الإلكتروني غير صحيحة';
-    } else if (error.code === 'auth/weak-password') {
-      errorMsg = 'كلمة المرور ضعيفة جداً. يجب أن تكون 8 أحرف على الأقل';
-    } else if (error.code === 'permission-denied' || error.code === 'firestore/permission-denied') {
-      errorMsg = 'صلاحيات غير كافية. تحقق من أنك مسجل كـ مشرف عام';
-    } else if (error.message.includes('indexOf')) {
-      errorMsg = 'خطأ في إنشاء مسار المستخدم. يرجى المحاولة مرة أخرى';
-    } else if (error.message.includes('Firestore database not initialized')) {
-      errorMsg = 'خطأ في تهيئة قاعدة البيانات. يرجى تحديث الصفحة';
-    } else if (error.message.includes('secondaryAuth is not defined')) {
-      errorMsg = 'خطأ في تهيئة النظام. يرجى تحديث الصفحة وإعادة المحاولة';
-    }
-    
-    errorMessage.value = errorMsg;
-    validationErrors.value = [errorMsg];
-    
-    store.dispatch('showNotification', {
-      type: 'error',
-      message: errorMsg
-    });
-  } finally {
-    loading.value = false;
-  }
-};
     watch(() => props.isOpen, async (newVal) => {
       if (newVal) {
         resetForm();
