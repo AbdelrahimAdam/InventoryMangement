@@ -276,6 +276,152 @@
         </div>
       </div>
 
+      <!-- Warehouse Statistics Section -->
+      <div v-if="selectedWarehouse === 'all'" class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
+          
+          <div v-if="warehouseStatsLoading" class="py-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل إحصائيات المخازن...</p>
+          </div>
+          
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead>
+                <tr>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    المخزن
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    إجمالي الأصناف
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    إجمالي الكمية
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    الأصناف قليلة المخزون
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    الأصناف المنتهية
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    نسبة المخزون الجيد
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tr v-for="(stats, warehouseId) in allWarehousesStats" :key="warehouseId" 
+                    class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                        <svg class="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                          {{ getWarehouseLabel(warehouseId) }}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ formatEnglishNumber(stats.totalItems) }} صنف
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-white">
+                      {{ formatEnglishNumber(stats.totalItems) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ ((stats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) }}%
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-white">
+                      {{ formatEnglishNumber(stats.totalQuantity) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ ((stats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) }}%
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium" :class="stats.lowStockItems > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(stats.lowStockItems) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium" :class="stats.outOfStockItems > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(stats.outOfStockItems) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1">
+                        <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div 
+                            :class="getHealthColorClass(stats.healthPercentage)"
+                            class="h-full rounded-full"
+                            :style="{ width: stats.healthPercentage + '%' }"
+                          ></div>
+                        </div>
+                      </div>
+                      <span class="text-sm font-medium" :class="getHealthTextClass(stats.healthPercentage)">
+                        {{ stats.healthPercentage }}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-white">المجموع الكلي</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-white">
+                      {{ formatEnglishNumber(allWarehouseStats.totalItems) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-white">
+                      {{ formatEnglishNumber(allWarehouseStats.totalQuantity) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-orange-600 dark:text-orange-400">
+                      {{ formatEnglishNumber(allWarehouseStats.lowStockItems) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-red-600 dark:text-red-400">
+                      {{ formatEnglishNumber(allWarehouseStats.outOfStockItems) }}
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1">
+                        <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div 
+                            :class="stockHealthColor"
+                            class="h-full rounded-full"
+                            :style="{ width: stockHealthPercentage + '%' }"
+                          ></div>
+                        </div>
+                      </div>
+                      <span class="text-sm font-bold" :class="getHealthTextClass(stockHealthPercentage)">
+                        {{ stockHealthPercentage }}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Quick Actions & Recent Items -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Quick Actions -->
@@ -365,7 +511,7 @@
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف في المخزن المحدد</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-xs px-2 py-1 rounded-full" :class="recentItemsStatusClass">
@@ -449,7 +595,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 10 حركات في النظام</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 10 حركات {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
           </div>
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
@@ -851,6 +997,7 @@ export default {
     
     const loading = ref(true);
     const statsLoading = ref(false);
+    const warehouseStatsLoading = ref(false);
     const selectedWarehouse = ref('all');
     const currentTime = ref('');
     const currentDate = ref('');
@@ -877,6 +1024,9 @@ export default {
       lowStockItems: 0,
       outOfStockItems: 0
     });
+
+    // Warehouse-specific stats
+    const allWarehousesStats = ref({});
 
     // Computed properties
     const userRole = computed(() => store.getters.userRole || '');
@@ -1138,6 +1288,18 @@ export default {
       return 'bg-green-500';
     };
 
+    const getHealthColorClass = (percentage) => {
+      if (percentage >= 80) return 'bg-green-500';
+      if (percentage >= 60) return 'bg-yellow-500';
+      return 'bg-red-500';
+    };
+
+    const getHealthTextClass = (percentage) => {
+      if (percentage >= 80) return 'text-green-600 dark:text-green-400';
+      if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
+      return 'text-red-600 dark:text-red-400';
+    };
+
     const calculateTotalQuantity = (item) => {
       const cartons = item.cartons_count || 0;
       const perCarton = item.per_carton_count || 12;
@@ -1209,34 +1371,95 @@ export default {
       });
     };
 
+    // Load statistics for a specific warehouse
+    const loadWarehouseStats = async (warehouseId) => {
+      try {
+        const inventory = inventoryItems.value;
+        const warehouseInventory = warehouseId === 'all' 
+          ? inventory 
+          : inventory.filter(item => item.warehouse_id === warehouseId);
+        
+        const totalQuantity = warehouseInventory.reduce((sum, item) => {
+          const cartons = item.cartons_count || 0;
+          const perCarton = item.per_carton_count || 12;
+          const singles = item.single_bottles_count || 0;
+          return sum + (cartons * perCarton) + singles;
+        }, 0);
+        
+        const lowStockItems = warehouseInventory.filter(item => {
+          const remaining = item.remaining_quantity || 0;
+          return remaining < 10 && remaining > 0;
+        }).length;
+        
+        const outOfStockItems = warehouseInventory.filter(item => {
+          const remaining = item.remaining_quantity || 0;
+          return remaining === 0;
+        }).length;
+        
+        const healthyItems = warehouseInventory.length - lowStockItems - outOfStockItems;
+        const healthPercentage = warehouseInventory.length > 0 
+          ? Math.round((healthyItems / warehouseInventory.length) * 100) 
+          : 0;
+        
+        return {
+          totalItems: warehouseInventory.length,
+          totalQuantity: totalQuantity,
+          lowStockItems: lowStockItems,
+          outOfStockItems: outOfStockItems,
+          healthPercentage: healthPercentage,
+          lastUpdated: new Date()
+        };
+      } catch (error) {
+        console.error('Error loading warehouse stats:', error);
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          healthPercentage: 0,
+          lastUpdated: new Date()
+        };
+      }
+    };
+
+    // Load statistics for all warehouses
+    const loadAllWarehousesStats = async () => {
+      warehouseStatsLoading.value = true;
+      try {
+        const warehousesList = warehouses.value;
+        const stats = {};
+        
+        // Load stats for each warehouse
+        for (const warehouse of warehousesList) {
+          stats[warehouse.id] = await loadWarehouseStats(warehouse.id);
+        }
+        
+        allWarehousesStats.value = stats;
+      } catch (error) {
+        console.error('Error loading all warehouses stats:', error);
+        allWarehousesStats.value = {};
+      } finally {
+        warehouseStatsLoading.value = false;
+      }
+    };
+
     // Load dashboard stats
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
+        // Load stats for the selected warehouse
+        const selectedStats = await loadWarehouseStats(warehouseId);
+        dashboardStats.value = selectedStats;
+        
+        // Load "all" stats for comparison
+        const allStats = await loadWarehouseStats('all');
+        allWarehouseStats.value = allStats;
+        
+        // Load stats for all warehouses if "all" is selected
         if (warehouseId === 'all') {
-          // Use store action for all warehouses
-          const counts = await store.dispatch('getDashboardStats', 'all');
-          
-          dashboardStats.value = {
-            ...counts,
-            lastUpdated: new Date()
-          };
-          
-          allWarehouseStats.value = counts;
-        } else {
-          // For specific warehouse
-          const counts = await store.dispatch('getDashboardStats', warehouseId);
-          
-          dashboardStats.value = {
-            ...counts,
-            lastUpdated: new Date()
-          };
-          
-          // Load "all" stats for comparison
-          const allCounts = await store.dispatch('getDashboardStats', 'all');
-          allWarehouseStats.value = allCounts;
+          await loadAllWarehousesStats();
         }
         
         console.log('✅ Dashboard stats loaded:', dashboardStats.value);
@@ -1309,16 +1532,15 @@ export default {
     const refreshDashboard = async () => {
       loading.value = true;
       try {
+        // Refresh inventory data
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
+        
         // Refresh transactions
         await store.dispatch('getRecentTransactions');
         
         // Refresh dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
         
-        // If specific warehouse selected, refresh inventory data
-        if (selectedWarehouse.value !== 'all') {
-          await store.dispatch('loadAllInventory', { forceRefresh: true });
-        }
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
       } finally {
@@ -1406,10 +1628,19 @@ export default {
       }
     });
 
+    // Watch for inventory changes to update stats
+    watch(inventoryItems, async () => {
+      if (!loading.value && !statsLoading.value) {
+        console.log('Inventory changed, updating stats...');
+        await loadDashboardStats(selectedWarehouse.value);
+      }
+    }, { deep: true });
+
     return {
       // State
       loading,
       statsLoading,
+      warehouseStatsLoading,
       selectedWarehouse,
       currentTime,
       currentDate,
@@ -1424,6 +1655,7 @@ export default {
       // Stats
       dashboardStats,
       allWarehouseStats,
+      allWarehousesStats,
       
       // Computed
       userRole,
@@ -1454,6 +1686,8 @@ export default {
       getTransactionTypeLabel,
       getQuantityClass,
       getStatusClass,
+      getHealthColorClass,
+      getHealthTextClass,
       calculateTotalQuantity,
       handleImageError,
       handleModalImageError,
