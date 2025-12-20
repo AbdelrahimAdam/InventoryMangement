@@ -986,9 +986,18 @@ export default {
       return canEditItem(item);
     };
     
-    // NEW: Delete permission
+    // Delete permission - updated to match store logic
     const canDeleteItem = (item) => {
-      return canEditItem(item) && userRole.value === 'superadmin'; // Only superadmin can delete for safety
+      if (userRole.value === 'superadmin') return true;
+      if (userRole.value === 'warehouse_manager') {
+        const canDelete = userProfile.value?.permissions?.includes('full_access') || 
+                         userProfile.value?.permissions?.includes('delete_items');
+        if (!canDelete) return false;
+        
+        const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
+        return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
+      }
+      return false;
     };
     
     // Filtered items - switch between normal view and live search
@@ -1057,7 +1066,6 @@ export default {
     };
     
     // Helper Methods
-    // FIX: Convert all numbers to English digits
     const formatNumber = (num) => {
       const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
       return englishDigits;
@@ -1090,7 +1098,6 @@ export default {
       return colorMap[colorName] || '#6b7280';
     };
     
-    // CHANGED: Use user names directly instead of getShortName
     const getShortName = (fullName) => {
       if (!fullName) return '';
       if (fullName.length > 15) return fullName.substring(0, 15) + '...';
@@ -1282,7 +1289,7 @@ export default {
       }
     };
     
-    // NEW: Delete functionality
+    // UPDATED: Delete functionality - matches store action name
     const handleDelete = async (item) => {
       if (!canDeleteItem(item)) {
         store.dispatch('showNotification', {
@@ -1292,18 +1299,16 @@ export default {
         return;
       }
       
-      const confirmed = await store.dispatch('showConfirmDialog', {
-        title: 'تأكيد الحذف',
-        message: `هل أنت متأكد من حذف الصنف "${item.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
-        confirmText: 'نعم، احذف',
-        cancelText: 'إلغاء'
-      });
+      // Use browser's confirm dialog since showConfirmDialog doesn't exist in store
+      const confirmed = window.confirm(`هل أنت متأكد من حذف الصنف "${item.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`);
       
       if (!confirmed) return;
       
       try {
         loading.value = true;
-        await store.dispatch('deleteInventoryItem', item.id);
+        
+        // FIX: Changed from 'deleteInventoryItem' to 'deleteItem' to match store action
+        await store.dispatch('deleteItem', item.id);
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1319,7 +1324,7 @@ export default {
         console.error('❌ Error deleting item:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في حذف الصنف'
+          message: error.message || 'خطأ في حذف الصنف'
         });
       } finally {
         loading.value = false;
@@ -1353,9 +1358,11 @@ export default {
       selectedItem.value = null;
     };
     
+    // UPDATED: Load more items - matches store action name
     const loadMoreItems = async () => {
       if (hasMore.value && !isFetchingMore.value && !useLiveSearch.value) {
-        await store.dispatch('loadMoreInventory');
+        // FIX: Changed from 'loadMoreInventory' to 'loadMoreItems' to match store action
+        await store.dispatch('loadMoreItems');
       }
     };
     
@@ -1438,6 +1445,15 @@ export default {
         type: 'success',
         message: 'تم صرف الصنف بنجاح!'
       });
+    };
+    
+    // ADDED: Missing action that might be called by modals
+    const updateDashboardStats = async () => {
+      try {
+        await store.dispatch('refreshDashboardCounts', selectedWarehouse.value || 'all');
+      } catch (error) {
+        console.error('Error updating dashboard stats:', error);
+      }
     };
     
     // Lifecycle
@@ -1560,6 +1576,7 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
+      updateDashboardStats,
       onScroll
     };
   }
@@ -1740,3 +1757,4 @@ img {
   image-rendering: crisp-edges;
 }
 </style>
+
