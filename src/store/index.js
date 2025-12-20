@@ -1207,6 +1207,188 @@ export default createStore({
       }
     },
 
+    // =============== NEW WAREHOUSE PAGINATION ACTIONS ===============
+
+    // 🔥 Load initial warehouse items with pagination
+    async loadWarehouseItems({ commit, state, dispatch }, { warehouseId, limit = 50, lastDoc = null } = {}) {
+      try {
+        if (!warehouseId) {
+          throw new Error('معرف المخزن مطلوب');
+        }
+
+        console.log(`🔄 Loading warehouse items (${warehouseId})...`);
+
+        // Check permissions
+        if (state.user && state.userProfile?.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (!allowedWarehouses.includes(warehouseId)) {
+              throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
+            }
+          }
+        }
+
+        const itemsRef = collection(db, 'items');
+        let itemsQuery;
+
+        // Build query with pagination
+        if (lastDoc) {
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            orderBy('created_at', 'desc'),
+            startAfter(lastDoc),
+            limit(limit)
+          );
+        } else {
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            orderBy('created_at', 'desc'),
+            limit(limit)
+          );
+        }
+
+        const snapshot = await getDocs(itemsQuery);
+        console.log(`✅ Loaded ${snapshot.size} items from warehouse ${warehouseId}`);
+
+        const items = snapshot.docs.map(doc => {
+          const itemData = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...itemData
+          });
+        });
+
+        // Update pagination state
+        const newLastDoc = snapshot.docs[snapshot.docs.length - 1];
+        const hasMore = snapshot.size === limit;
+
+        return {
+          items,
+          lastDoc: newLastDoc,
+          hasMore
+        };
+
+      } catch (error) {
+        console.error('❌ Error loading warehouse items:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'خطأ في تحميل الأصناف من المخزن'
+        });
+        
+        // Fallback to local inventory
+        const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
+        return {
+          items: localItems.slice(0, limit),
+          lastDoc: null,
+          hasMore: false
+        };
+      }
+    },
+
+    // 🔥 Load more items from warehouse (for infinite scroll)
+    async loadMoreWarehouseItems({ commit, state, dispatch }, { warehouseId, currentItems = [] }) {
+      if (state.pagination.isFetching) {
+        return { items: [], hasMore: false };
+      }
+
+      commit('SET_PAGINATION', { isFetching: true });
+
+      try {
+        console.log(`📥 Loading more items from warehouse ${warehouseId}...`);
+
+        // Get last item for pagination
+        const lastItem = currentItems[currentItems.length - 1];
+        let lastDoc = null;
+
+        if (lastItem) {
+          // We need to get the document snapshot for the last item
+          const itemRef = doc(db, 'items', lastItem.id);
+          lastDoc = await getDoc(itemRef);
+        }
+
+        const result = await dispatch('loadWarehouseItems', {
+          warehouseId,
+          limit: PERFORMANCE_CONFIG.SCROLL_LOAD,
+          lastDoc: lastItem ? lastDoc : null
+        });
+
+        if (result.items.length > 0) {
+          // Append to current items
+          const allItems = [...currentItems, ...result.items];
+          
+          // Update store inventory with new items
+          const newIds = new Set(result.items.map(item => item.id));
+          const existingIds = new Set(state.inventory.map(item => item.id));
+          const itemsToAdd = result.items.filter(item => !existingIds.has(item.id));
+          
+          if (itemsToAdd.length > 0) {
+            commit('APPEND_INVENTORY', itemsToAdd);
+          }
+
+          // Update pagination state
+          commit('SET_PAGINATION', {
+            lastDoc: result.lastDoc,
+            hasMore: result.hasMore,
+            totalLoaded: state.pagination.totalLoaded + result.items.length,
+            isFetching: false
+          });
+
+          return {
+            items: result.items,
+            allItems,
+            hasMore: result.hasMore
+          };
+        } else {
+          commit('SET_PAGINATION', { 
+            hasMore: false, 
+            isFetching: false 
+          });
+          
+          return { items: [], allItems: currentItems, hasMore: false };
+        }
+
+      } catch (error) {
+        console.error('❌ Error loading more warehouse items:', error);
+        commit('SET_PAGINATION', { isFetching: false });
+        
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل المزيد من الأصناف'
+        });
+        
+        return { items: [], allItems: currentItems, hasMore: false };
+      }
+    },
+
+    // 🔥 Reset warehouse pagination
+    async resetWarehousePagination({ commit }) {
+      commit('RESET_PAGINATION');
+    },
+
+    // 🔥 Get warehouse items count (for stats)
+    async getWarehouseItemsCount({ state }, warehouseId) {
+      try {
+        const itemsRef = collection(db, 'items');
+        const q = query(
+          itemsRef,
+          where('warehouse_id', '==', warehouseId),
+          limit(0)
+        );
+        const snapshot = await getCountFromServer(q);
+        return snapshot.data().count;
+      } catch (error) {
+        console.error('❌ Error counting warehouse items:', error);
+        
+        // Fallback to local count
+        const localCount = state.inventory.filter(item => item.warehouse_id === warehouseId).length;
+        return localCount;
+      }
+    },
+
+    // =============== END OF NEW ACTIONS ===============
+
     // 🔥 Setup real-time updates for ALL inventory items
     async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       if (!state.realtimeMode || state.inventory.length === 0) return;
@@ -2095,7 +2277,7 @@ export default createStore({
       }
     },
 
-    // 🔥 Load warehouses
+    // 🔥 Load warehouses - UPDATED to filter out dispatch warehouses for dropdowns
     async loadWarehouses({ commit, dispatch }) {
       try {
         console.log('🔄 Loading warehouses...');
@@ -2109,6 +2291,7 @@ export default createStore({
           ...doc.data()
         }));
 
+        // Store all warehouses
         commit('SET_WAREHOUSES', warehouses);
         console.log(`✅ Warehouses loaded: ${warehouses.length}`);
 
@@ -2913,7 +3096,9 @@ export default createStore({
     // ====== WAREHOUSES ======
     warehouses: state => state.warehouses,
     warehousesLoaded: state => state.warehousesLoaded,
-    primaryWarehouses: state => state.warehouses.filter(w => w.type === 'primary'),
+    
+    // ✅ UPDATED: Enhanced warehouse filtering - exclude dispatch warehouses from dropdowns
+    primaryWarehouses: state => state.warehouses.filter(w => w.type === 'primary' || !w.type),
     dispatchWarehouses: state => state.warehouses.filter(w => w.type === 'dispatch'),
     mainWarehouse: state => state.warehouses.find(w => w.is_main) || null,
 
@@ -2997,9 +3182,11 @@ export default createStore({
       return [];
     },
 
+    // ✅ UPDATED: Enhanced warehouse filtering for dropdowns
     accessiblePrimaryWarehouses: (state, getters) => {
       const accessible = getters.accessibleWarehouses;
-      return accessible.filter(w => w.type === 'primary');
+      // Only show primary warehouses (or warehouses without type) in dropdowns
+      return accessible.filter(w => w.type === 'primary' || !w.type);
     },
 
     accessibleDispatchWarehouses: (state, getters) => {
@@ -3007,29 +3194,35 @@ export default createStore({
       return accessible.filter(w => w.type === 'dispatch');
     },
 
+    // ✅ UPDATED: Enhanced dispatch from warehouses filtering
     dispatchFromWarehouses: (state, getters) => {
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       if (!warehouses.length || !state.warehousesLoaded) return [];
-      // For public users, show all primary warehouses
+      
+      // Only show primary warehouses for dispatch from
+      const primaryWarehouses = warehouses.filter(w => w.type === 'primary' || !w.type);
+      
       if (!state.user) {
-        return warehouses.filter(w => w.type === 'primary');
+        return primaryWarehouses;
       }
+      
       const role = getters.userRole;
       if (role === 'superadmin') {
-        return warehouses.filter(w => w.type === 'primary');
+        return primaryWarehouses;
       }
+      
       if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
         if (allowedWarehouses.length > 0) {
           if (allowedWarehouses.includes('all')) {
-            return warehouses.filter(w => w.type === 'primary');
+            return primaryWarehouses;
           }
-          return warehouses.filter(w =>
-            w.type === 'primary' && allowedWarehouses.includes(w.id)
+          return primaryWarehouses.filter(w =>
+            allowedWarehouses.includes(w.id)
           );
         }
       }
-      // For other users, return empty
+      
       return [];
     },
 
