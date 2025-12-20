@@ -384,7 +384,7 @@
                 v-for="item in filteredRecentInventory" 
                 :key="item.id"
                 class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer"
-                @click="viewItemDetails(item)"
+                @click="openItemModal(item)"
               >
                 <div class="flex items-start gap-3">
                   <div class="relative">
@@ -562,6 +562,279 @@
         </div>
       </div>
     </div>
+
+    <!-- Item Details Modal -->
+    <div v-if="showItemModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeItemModal"></div>
+
+      <!-- Modal Container -->
+      <div class="flex min-h-full items-center justify-center p-4">
+        <!-- Modal Content -->
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden transition-all duration-300 transform scale-100">
+          <!-- Modal Header -->
+          <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                  <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-xl font-bold text-gray-900 dark:text-white">تفاصيل الصنف</h2>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">المعلومات الكاملة عن الصنف المحدد</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <!-- Edit Button -->
+                <button 
+                  v-if="canModifyItems"
+                  @click="editItem"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
+                >
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  تعديل
+                </button>
+                <!-- Close Button -->
+                <button 
+                  @click="closeItemModal"
+                  class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div v-if="modalLoading" class="py-20 text-center">
+              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="mt-4 text-gray-600 dark:text-gray-400">جاري تحميل تفاصيل الصنف...</p>
+            </div>
+
+            <div v-else-if="selectedItem" class="space-y-6">
+              <!-- Item Header -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Item Image -->
+                <div class="lg:col-span-1">
+                  <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 h-full flex flex-col items-center justify-center">
+                    <div class="relative w-48 h-48 rounded-xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg mb-4">
+                      <img 
+                        v-if="selectedItem.photo_url" 
+                        :src="selectedItem.photo_url" 
+                        :alt="selectedItem.name"
+                        class="w-full h-full object-cover"
+                        @error="handleModalImageError"
+                      >
+                      <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-600">
+                        <svg class="h-20 w-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                      </div>
+                      <div :class="[
+                        'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold',
+                        selectedItem.remaining_quantity === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                        selectedItem.remaining_quantity < 10 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      ]">
+                        {{ selectedItem.remaining_quantity === 0 ? 'منتهي' : 
+                           selectedItem.remaining_quantity < 10 ? 'قليل' : 'متوفر' }}
+                      </div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-4xl font-bold mb-2" :class="getQuantityClass(selectedItem.remaining_quantity)">
+                        {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
+                      </div>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">الكمية المتاحة</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item Info -->
+                <div class="lg:col-span-2">
+                  <div class="space-y-6">
+                    <!-- Basic Info -->
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">المعلومات الأساسية</h3>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اسم الصنف</label>
+                          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedItem.name }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الكود</label>
+                          <p class="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">{{ selectedItem.code }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اللون</label>
+                          <div class="flex items-center gap-2">
+                            <div 
+                              v-if="selectedItem.color" 
+                              class="h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600"
+                              :style="{ backgroundColor: selectedItem.color }"
+                            ></div>
+                            <span class="text-gray-900 dark:text-white">{{ selectedItem.color || 'بدون لون' }}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحجم</label>
+                          <p class="text-gray-900 dark:text-white">{{ selectedItem.size || 'غير محدد' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">المخزن</label>
+                          <div class="flex items-center gap-2">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                            <span class="text-gray-900 dark:text-white">{{ getWarehouseLabel(selectedItem.warehouse_id) }}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">آخر تحديث</label>
+                          <div class="flex items-center gap-2">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span class="text-gray-900 dark:text-white">{{ formatRelativeTime(selectedItem.updated_at || selectedItem.created_at) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Quantity Details -->
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">تفاصيل الكمية</h3>
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center">
+                          <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                            {{ formatEnglishNumber(selectedItem.cartons_count || 0) }}
+                          </div>
+                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الكراتين</p>
+                          <div class="text-xs text-gray-400 mt-1">
+                            × {{ selectedItem.per_carton_count || 12 }} لكل كرتون
+                          </div>
+                        </div>
+                        <div class="text-center">
+                          <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
+                            {{ formatEnglishNumber(selectedItem.single_bottles_count || 0) }}
+                          </div>
+                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الفردي</p>
+                        </div>
+                        <div class="text-center">
+                          <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                            {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
+                          </div>
+                          <p class="text-sm text-gray-500 dark:text-gray-400">المجموع الكلي</p>
+                          <div class="text-xs text-gray-400 mt-1">
+                            {{ calculateTotalQuantity(selectedItem) }} وحدة
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div v-if="selectedItem.description || selectedItem.notes" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">معلومات إضافية</h3>
+                      <div class="space-y-4">
+                        <div v-if="selectedItem.description">
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الوصف</label>
+                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.description }}</p>
+                        </div>
+                        <div v-if="selectedItem.notes">
+                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ملاحظات</label>
+                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.notes }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent Transactions for this item -->
+              <div v-if="itemTransactions.length > 0" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">آخر الحركات لهذا الصنف</h3>
+                <div class="space-y-3">
+                  <div 
+                    v-for="trans in itemTransactions.slice(0, 5)" 
+                    :key="trans.id"
+                    class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div :class="[
+                          'h-8 w-8 rounded-lg flex items-center justify-center',
+                          trans.type === 'ADD' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
+                          trans.type === 'TRANSFER' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' :
+                          'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
+                        ]">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path v-if="trans.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            <path v-if="trans.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            <path v-if="trans.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getTransactionTypeLabel(trans.type) }}</span>
+                          <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ formatDetailedTime(trans.timestamp) }} 
+                            ({{ formatRelativeTime(trans.timestamp) }})
+                          </p>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <span :class="[
+                          'font-bold',
+                          trans.type === 'ADD' ? 'text-green-600 dark:text-green-400' :
+                          'text-red-600 dark:text-red-400'
+                        ]">
+                          {{ trans.type === 'ADD' ? '+' : '' }}{{ formatEnglishNumber(trans.total_delta || 0) }}
+                        </span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ trans.created_by || 'نظام' }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+              <div class="text-sm text-gray-500 dark:text-gray-400">
+                {{ selectedItem ? `معرف الصنف: ${selectedItem.id}` : '' }}
+              </div>
+              <div class="flex items-center gap-3">
+                <button
+                  @click="closeItemModal"
+                  class="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  إغلاق
+                </button>
+                <router-link 
+                  v-if="selectedItem"
+                  :to="`/inventory/${selectedItem.id}`"
+                  class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
+                >
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  عرض كامل التفاصيل
+                </router-link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -582,6 +855,12 @@ export default {
     const currentTime = ref('');
     const currentDate = ref('');
     const lastUpdated = ref(new Date());
+    
+    // Modal state
+    const showItemModal = ref(false);
+    const selectedItem = ref(null);
+    const modalLoading = ref(false);
+    const itemTransactions = ref([]);
     
     // Store stats
     const dashboardStats = ref({
@@ -859,13 +1138,59 @@ export default {
       return 'bg-green-500';
     };
 
+    const calculateTotalQuantity = (item) => {
+      const cartons = item.cartons_count || 0;
+      const perCarton = item.per_carton_count || 12;
+      const singles = item.single_bottles_count || 0;
+      return (cartons * perCarton) + singles;
+    };
+
     const handleImageError = (event) => {
       event.target.style.display = 'none';
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    const viewItemDetails = (item) => {
-      router.push(`/inventory/${item.id}`);
+    const handleModalImageError = (event) => {
+      event.target.style.display = 'none';
+      event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
+    };
+
+    // Modal functions
+    const openItemModal = async (item) => {
+      selectedItem.value = item;
+      modalLoading.value = true;
+      showItemModal.value = true;
+      
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      
+      // Load item transactions
+      try {
+        // Filter transactions for this specific item
+        itemTransactions.value = recentStoreTransactions.value.filter(trans => 
+          trans.item_id === item.id || trans.item_code === item.code
+        ).slice(0, 10);
+      } catch (error) {
+        console.error('Error loading item transactions:', error);
+        itemTransactions.value = [];
+      } finally {
+        modalLoading.value = false;
+      }
+    };
+
+    const closeItemModal = () => {
+      showItemModal.value = false;
+      selectedItem.value = null;
+      itemTransactions.value = [];
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+    };
+
+    const editItem = () => {
+      if (selectedItem.value) {
+        router.push(`/inventory/edit/${selectedItem.value.id}`);
+      }
     };
 
     // Update time
@@ -1039,6 +1364,13 @@ export default {
       }
     };
 
+    // Handle escape key to close modal
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && showItemModal.value) {
+        closeItemModal();
+      }
+    };
+
     // Initialize
     onMounted(async () => {
       console.log('Dashboard mounted');
@@ -1046,6 +1378,9 @@ export default {
       // Start time update
       updateTime();
       const timeInterval = setInterval(updateTime, 60000);
+      
+      // Add event listener for escape key
+      document.addEventListener('keydown', handleEscapeKey);
       
       try {
         await loadDashboardData();
@@ -1056,6 +1391,10 @@ export default {
       
       onUnmounted(() => {
         clearInterval(timeInterval);
+        document.removeEventListener('keydown', handleEscapeKey);
+        
+        // Ensure body scroll is restored
+        document.body.style.overflow = '';
       });
     });
 
@@ -1075,6 +1414,12 @@ export default {
       currentTime,
       currentDate,
       lastUpdated,
+      
+      // Modal state
+      showItemModal,
+      selectedItem,
+      modalLoading,
+      itemTransactions,
       
       // Stats
       dashboardStats,
@@ -1109,8 +1454,14 @@ export default {
       getTransactionTypeLabel,
       getQuantityClass,
       getStatusClass,
+      calculateTotalQuantity,
       handleImageError,
-      viewItemDetails,
+      handleModalImageError,
+      
+      // Modal functions
+      openItemModal,
+      closeItemModal,
+      editItem,
       
       // Actions
       refreshDashboard,
@@ -1133,8 +1484,23 @@ export default {
   }
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
 }
 
 /* Card hover effects */
@@ -1230,6 +1596,11 @@ export default {
   border-color: #1f2937;
 }
 
+/* Modal backdrop blur effect */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .stat-card {
@@ -1243,6 +1614,12 @@ export default {
   .action-button {
     padding: 0.75rem;
   }
+  
+  /* Modal responsive */
+  .modal-content {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
 }
 
 /* Print styles */
@@ -1250,5 +1627,45 @@ export default {
   .no-print {
     display: none !important;
   }
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+/* Enhanced cursor pointer */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Disabled state */
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Focus rings */
+.focus-ring:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* Card shadows */
+.card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.dark .card-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
 }
 </style>
