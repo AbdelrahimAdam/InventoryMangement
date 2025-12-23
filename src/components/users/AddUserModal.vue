@@ -1,925 +1,705 @@
 <template>
-  <div class="user-management" :class="{ 'dark-mode': isDarkMode }">
-    <!-- Loading Overlay -->
-    <div v-if="loading && !error" class="loading-overlay">
-      <div class="spinner-container">
-        <div class="spinner"></div>
-        <p class="loading-text">جاري تحميل بيانات المستخدمين...</p>
-      </div>
-    </div>
+  <div class="add-user-module" :class="{ 'dark-mode': isDarkMode }">
+    <!-- Trigger Button (for standalone usage) -->
+    <slot name="trigger" v-if="!autoOpen">
+      <button @click="openModal" class="btn-primary add-user-btn">
+        <i class="fas fa-user-plus"></i>
+        {{ buttonText }}
+      </button>
+    </slot>
 
-    <!-- Error State -->
-    <div v-if="error" class="error-container">
-      <div class="error-card">
-        <div class="error-icon">
-          <i class="fas fa-exclamation-triangle"></i>
-        </div>
-        <h2>حدث خطأ</h2>
-        <p class="error-message">{{ error }}</p>
-        <div class="error-actions">
-          <button @click="loadUsers" class="btn-primary">
-            <i class="fas fa-redo"></i> إعادة المحاولة
-          </button>
-          <button @click="$router.push('/dashboard')" class="btn-secondary">
-            <i class="fas fa-home"></i> العودة للرئيسية
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div v-if="!loading && !error" class="main-content">
-      <!-- Header -->
-      <div class="header-section">
-        <div class="header-content">
-          <div class="header-info">
-            <h1 class="page-title">
-              <i class="fas fa-users-cog"></i> إدارة المستخدمين
-            </h1>
-            <p class="page-subtitle">
-              إدارة مستخدمي النظام، الصلاحيات، والمخازن
-            </p>
-          </div>
-          <div class="header-actions">
-            <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? 'الوضع الفاتح' : 'الوضع الداكن'">
-              <i :class="themeIcon"></i>
-            </button>
-            <button @click="exportUsers" class="btn-info" :disabled="exporting">
-              <i class="fas" :class="exporting ? 'fa-spinner fa-spin' : 'fa-file-export'"></i>
-              {{ exporting ? 'جاري التصدير...' : 'تصدير' }}
-            </button>
-            <button @click="showCreateModal = true" class="btn-success">
-              <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
-            </button>
-          </div>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon total-users">
-              <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-content">
-              <h3>إجمالي المستخدمين</h3>
-              <p class="stat-number">{{ stats.totalUsers }}</p>
-            </div>
-          </div>
-          
-          <div class="stat-card">
-            <div class="stat-icon active-users">
-              <i class="fas fa-user-check"></i>
-            </div>
-            <div class="stat-content">
-              <h3>المستخدمين النشطين</h3>
-              <p class="stat-number">{{ stats.activeUsers }}</p>
-            </div>
-          </div>
-          
-          <div class="stat-card">
-            <div class="stat-icon inactive-users">
-              <i class="fas fa-user-times"></i>
-            </div>
-            <div class="stat-content">
-              <h3>المستخدمين المعطلين</h3>
-              <p class="stat-number">{{ stats.inactiveUsers }}</p>
-            </div>
-          </div>
-          
-          <div class="stat-card">
-            <div class="stat-icon superadmins">
-              <i class="fas fa-crown"></i>
-            </div>
-            <div class="stat-content">
-              <h3>المشرفين العامين</h3>
-              <p class="stat-number">{{ stats.superadmins }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Filters and Search -->
-      <div class="filters-section">
-        <div class="filters-grid">
-          <!-- Search -->
-          <div class="filter-group">
-            <label for="search">
-              <i class="fas fa-search"></i> بحث
-            </label>
-            <div class="search-input">
-              <input
-                type="text"
-                id="search"
-                v-model="filters.search"
-                placeholder="ابحث بالاسم، البريد، أو الدور..."
-                @input="debouncedSearch"
-              >
-              <button v-if="filters.search" @click="clearSearch" class="clear-search">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Role Filter -->
-          <div class="filter-group">
-            <label for="roleFilter">
-              <i class="fas fa-user-tag"></i> الدور
-            </label>
-            <select id="roleFilter" v-model="filters.role" @change="applyFilters">
-              <option value="">جميع الأدوار</option>
-              <option value="superadmin">مشرف عام</option>
-              <option value="company_manager">مدير شركة</option>
-              <option value="warehouse_manager">مدير مخزن</option>
-            </select>
-          </div>
-
-          <!-- Status Filter -->
-          <div class="filter-group">
-            <label for="statusFilter">
-              <i class="fas fa-toggle-on"></i> الحالة
-            </label>
-            <select id="statusFilter" v-model="filters.status" @change="applyFilters">
-              <option value="">جميع الحالات</option>
-              <option value="active">نشط</option>
-              <option value="inactive">غير نشط</option>
-            </select>
-          </div>
-
-          <!-- Warehouse Filter -->
-          <div class="filter-group">
-            <label for="warehouseFilter">
-              <i class="fas fa-warehouse"></i> المخزن
-            </label>
-            <select id="warehouseFilter" v-model="filters.warehouse" @change="applyFilters">
-              <option value="">جميع المخازن</option>
-              <option value="all">جميع المخازن</option>
-              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-                {{ warehouse.name_ar || warehouse.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Date Range -->
-          <div class="filter-group date-range">
-            <label>
-              <i class="fas fa-calendar-alt"></i> الفترة الزمنية
-            </label>
-            <div class="date-inputs">
-              <input
-                type="date"
-                v-model="filters.startDate"
-                :max="filters.endDate"
-                @change="applyFilters"
-                :title="'من ' + formatDateDisplay(filters.startDate)"
-              >
-              <span class="date-separator">إلى</span>
-              <input
-                type="date"
-                v-model="filters.endDate"
-                :min="filters.startDate"
-                :max="today"
-                @change="applyFilters"
-                :title="'إلى ' + formatDateDisplay(filters.endDate)"
-              >
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-          <button @click="showBulkActions = !showBulkActions" class="btn-secondary">
-            <i class="fas fa-bars"></i> إجراءات جماعية
-          </button>
-          
-          <div v-if="showBulkActions" class="bulk-actions-dropdown">
-            <button @click="bulkActivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
-              <i class="fas fa-check-circle"></i> تفعيل المحددين
-            </button>
-            <button @click="bulkDeactivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
-              <i class="fas fa-times-circle"></i> تعطيل المحددين
-            </button>
-            <button @click="bulkDelete" :disabled="selectedUsers.length === 0" class="bulk-action-btn danger">
-              <i class="fas fa-trash-alt"></i> حذف المحددين
-            </button>
-            <button @click="exportSelected" :disabled="selectedUsers.length === 0" class="bulk-action-btn info">
-              <i class="fas fa-file-export"></i> تصدير المحددين
-            </button>
-          </div>
-
-          <button @click="refreshData" :disabled="refreshing" class="btn-info">
-            <i class="fas" :class="refreshing ? 'fa-spinner fa-spin' : 'fa-redo'"></i>
-            {{ refreshing ? 'جاري التحديث...' : 'تحديث' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Users Table -->
-      <div class="table-section">
-        <div class="table-header">
-          <div class="table-info">
-            <h3>
-              <i class="fas fa-list"></i> قائمة المستخدمين
-              <span class="table-count">({{ filteredUsers.length }} مستخدم)</span>
-            </h3>
-            <div class="selection-info" v-if="selectedUsers.length > 0">
-              <i class="fas fa-check-circle"></i>
-              تم تحديد {{ selectedUsers.length }} مستخدم
-              <button @click="clearSelection" class="clear-selection">
-                إلغاء التحديد
-              </button>
-            </div>
-          </div>
-          <div class="table-actions">
-            <button @click="toggleAllSelection" class="select-all-btn">
-              <i class="fas" :class="allSelected ? 'fa-check-square' : 'fa-square'"></i>
-              {{ allSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
-            </button>
-            <div class="view-options">
-              <button @click="viewMode = 'grid'" :class="{ 'active': viewMode === 'grid' }" class="view-btn">
-                <i class="fas fa-th-large"></i>
-              </button>
-              <button @click="viewMode = 'list'" :class="{ 'active': viewMode === 'list' }" class="view-btn">
-                <i class="fas fa-list"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Grid View -->
-        <div v-if="viewMode === 'grid' && filteredUsers.length > 0" class="users-grid">
-          <div
-            v-for="user in paginatedUsers"
-            :key="user.id"
-            class="user-card"
-            :class="{ 
-              'selected': selectedUsers.includes(user.id),
-              'inactive': !user.is_active
-            }"
-          >
-            <!-- Card Header -->
-            <div class="card-header">
-              <div class="user-avatar-section">
-                <div class="user-avatar" :style="getAvatarStyle(user)">
-                  {{ getUserInitials(user) }}
-                </div>
-                <div class="user-status" :class="{ 'online': user.is_active, 'offline': !user.is_active }">
-                  <i class="fas fa-circle"></i>
-                </div>
-              </div>
-              <div class="user-actions">
-                <button @click.stop="toggleUserSelection(user.id)" class="select-user-btn">
-                  <i class="fas" :class="selectedUsers.includes(user.id) ? 'fa-check-square' : 'fa-square'"></i>
-                </button>
-                <div class="dropdown">
-                  <button @click.stop="toggleDropdown(user.id)" class="dropdown-toggle">
-                    <i class="fas fa-ellipsis-v"></i>
-                  </button>
-                  <div v-if="activeDropdown === user.id" class="dropdown-menu">
-                    <button @click="editUser(user)" class="dropdown-item">
-                      <i class="fas fa-edit"></i> تعديل
-                    </button>
-                    <button @click="viewUserProfile(user)" class="dropdown-item">
-                      <i class="fas fa-eye"></i> عرض التفاصيل
-                    </button>
-                    <button 
-                      @click="toggleUserStatus(user)" 
-                      :class="{ 'danger': user.is_active }" 
-                      class="dropdown-item"
-                    >
-                      <i :class="user.is_active ? 'fas fa-user-times' : 'fas fa-user-check'"></i>
-                      {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
-                    </button>
-                    <button @click="showDeleteModal(user)" class="dropdown-item danger">
-                      <i class="fas fa-trash-alt"></i> حذف
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card Body -->
-            <div class="card-body">
-              <div class="user-info">
-                <h4 class="user-name">{{ user.name }}</h4>
-                <p class="user-email">{{ user.email }}</p>
-                
-                <div class="user-meta">
-                  <span class="user-role" :class="user.role">
-                    <i :class="getRoleIcon(user.role)"></i>
-                    {{ getRoleName(user.role) }}
-                  </span>
-                  <span class="user-date">
-                    <i class="fas fa-calendar"></i>
-                    {{ formatDate(user.created_at) }}
-                  </span>
-                </div>
-
-                <div class="user-stats">
-                  <div class="stat-item">
-                    <i class="fas fa-warehouse"></i>
-                    <span>{{ getUserWarehouseCount(user) }} مخزن</span>
-                  </div>
-                  <div class="stat-item">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>{{ getUserPermissionsCount(user) }} صلاحية</span>
-                  </div>
-                </div>
-
-                <div v-if="user.allowed_warehouses" class="warehouses-preview">
-                  <div class="warehouses-label">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>المخازن المسموحة:</span>
-                  </div>
-                  <div class="warehouses-list">
-                    <span v-if="user.allowed_warehouses.includes('all')" class="warehouse-tag all">
-                      جميع المخازن
-                    </span>
-                    <template v-else>
-                      <span 
-                        v-for="warehouseId in user.allowed_warehouses.slice(0, 2)" 
-                        :key="warehouseId" 
-                        class="warehouse-tag"
-                      >
-                        {{ getWarehouseName(warehouseId) }}
-                      </span>
-                      <span 
-                        v-if="user.allowed_warehouses.length > 2" 
-                        class="warehouse-tag more"
-                      >
-                        +{{ user.allowed_warehouses.length - 2 }} أخرى
-                      </span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card Footer -->
-            <div class="card-footer">
-              <button @click="impersonateUser(user)" class="btn-secondary btn-sm" :disabled="user.id === currentUserId">
-                <i class="fas fa-user-secret"></i> الدخول كمستخدم
-              </button>
-              <button @click="resetPassword(user)" class="btn-info btn-sm">
-                <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Table View -->
-        <div v-else-if="viewMode === 'list' && filteredUsers.length > 0" class="users-table-container">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th class="select-column">
-                  <input 
-                    type="checkbox" 
-                    :checked="allSelected" 
-                    @change="toggleAllSelection"
-                    class="select-checkbox"
-                  >
-                </th>
-                <th class="user-column">المستخدم</th>
-                <th class="role-column">الدور</th>
-                <th class="warehouses-column">المخازن</th>
-                <th class="status-column">الحالة</th>
-                <th class="date-column">تاريخ الإنشاء</th>
-                <th class="actions-column">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr 
-                v-for="user in paginatedUsers" 
-                :key="user.id"
-                :class="{ 
-                  'selected': selectedUsers.includes(user.id),
-                  'inactive': !user.is_active
-                }"
-              >
-                <!-- Select Checkbox -->
-                <td class="select-cell">
-                  <input 
-                    type="checkbox" 
-                    :checked="selectedUsers.includes(user.id)" 
-                    @change="toggleUserSelection(user.id)"
-                    class="select-checkbox"
-                  >
-                </td>
-
-                <!-- User Info -->
-                <td class="user-cell">
-                  <div class="user-info-row">
-                    <div class="user-avatar-sm" :style="getAvatarStyle(user)">
-                      {{ getUserInitials(user) }}
-                    </div>
-                    <div class="user-details">
-                      <div class="user-name-row">
-                        <h5 class="user-name">{{ user.name }}</h5>
-                        <span v-if="user.id === currentUserId" class="current-user-badge">
-                          <i class="fas fa-user"></i> أنت
-                        </span>
-                      </div>
-                      <p class="user-email">{{ user.email }}</p>
-                      <div class="user-meta-row">
-                        <span class="last-login" v-if="user.last_login">
-                          <i class="fas fa-sign-in-alt"></i>
-                          آخر دخول: {{ formatTimeAgo(user.last_login) }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-
-                <!-- Role -->
-                <td class="role-cell">
-                  <span class="role-badge" :class="user.role">
-                    <i :class="getRoleIcon(user.role)"></i>
-                    {{ getRoleName(user.role) }}
-                  </span>
-                  <div class="permissions-count" v-if="user.permissions">
-                    <i class="fas fa-shield-alt"></i>
-                    {{ user.permissions.length }} صلاحية
-                  </div>
-                </td>
-
-                <!-- Warehouses -->
-                <td class="warehouses-cell">
-                  <div v-if="user.allowed_warehouses" class="warehouses-list-table">
-                    <div v-if="user.allowed_warehouses.includes('all')" class="all-warehouses">
-                      <i class="fas fa-check-circle"></i>
-                      جميع المخازن
-                    </div>
-                    <template v-else>
-                      <div class="warehouses-count">
-                        <i class="fas fa-warehouse"></i>
-                        {{ user.allowed_warehouses.length }} مخزن
-                      </div>
-                      <div class="warehouses-preview-table">
-                        <span 
-                          v-for="warehouseId in user.allowed_warehouses.slice(0, 3)" 
-                          :key="warehouseId"
-                          class="warehouse-tag-sm"
-                        >
-                          {{ getWarehouseName(warehouseId) }}
-                        </span>
-                        <span 
-                          v-if="user.allowed_warehouses.length > 3" 
-                          class="warehouse-more"
-                        >
-                          +{{ user.allowed_warehouses.length - 3 }}
-                        </span>
-                      </div>
-                    </template>
-                  </div>
-                  <div v-else class="no-warehouses">
-                    <i class="fas fa-exclamation-circle"></i>
-                    لا توجد مخازن
-                  </div>
-                </td>
-
-                <!-- Status -->
-                <td class="status-cell">
-                  <div class="status-indicator" :class="{ 'active': user.is_active }">
-                    <i class="fas fa-circle"></i>
-                    <span>{{ user.is_active ? 'نشط' : 'معطل' }}</span>
-                  </div>
-                  <button 
-                    @click="toggleUserStatus(user)" 
-                    class="status-toggle-btn btn-sm"
-                    :class="{ 'danger': user.is_active, 'success': !user.is_active }"
-                  >
-                    <i :class="user.is_active ? 'fas fa-toggle-off' : 'fas fa-toggle-on'"></i>
-                    {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
-                  </button>
-                </td>
-
-                <!-- Date -->
-                <td class="date-cell">
-                  <div class="date-display">
-                    <i class="fas fa-calendar"></i>
-                    {{ formatDate(user.created_at) }}
-                  </div>
-                  <div class="time-ago" v-if="user.created_at">
-                    {{ formatTimeAgo(user.created_at) }}
-                  </div>
-                </td>
-
-                <!-- Actions -->
-                <td class="actions-cell">
-                  <div class="action-buttons">
-                    <button @click="editUser(user)" class="action-btn edit" title="تعديل">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                    <button @click="viewUserProfile(user)" class="action-btn view" title="عرض التفاصيل">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                    <button 
-                      @click="impersonateUser(user)" 
-                      class="action-btn impersonate" 
-                      title="الدخول كمستخدم"
-                      :disabled="user.id === currentUserId"
-                    >
-                      <i class="fas fa-user-secret"></i>
-                    </button>
-                    <button @click="resetPassword(user)" class="action-btn reset" title="إعادة تعيين كلمة المرور">
-                      <i class="fas fa-key"></i>
-                    </button>
-                    <button @click="showDeleteModal(user)" class="action-btn delete" title="حذف">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Empty State -->
-        <div v-else class="empty-state">
-          <div class="empty-state-icon">
-            <i class="fas fa-users-slash"></i>
-          </div>
-          <h3>لا توجد نتائج</h3>
-          <p>لا توجد مستخدمين تطابق معايير البحث</p>
-          <button @click="clearFilters" class="btn-primary">
-            <i class="fas fa-times"></i> مسح الفلاتر
-          </button>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="filteredUsers.length > 0" class="pagination-section">
-          <div class="pagination-info">
-            عرض {{ (currentPage - 1) * itemsPerPage + 1 }} إلى {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} من {{ filteredUsers.length }} مستخدم
-          </div>
-          
-          <div class="pagination-controls">
-            <select v-model="itemsPerPage" @change="itemsPerPage = parseInt($event.target.value)" class="page-size-select">
-              <option value="10">10 لكل صفحة</option>
-              <option value="25">25 لكل صفحة</option>
-              <option value="50">50 لكل صفحة</option>
-              <option value="100">100 لكل صفحة</option>
-            </select>
-
-            <button 
-              @click="prevPage" 
-              :disabled="currentPage === 1" 
-              class="pagination-btn prev"
-            >
-              <i class="fas fa-chevron-right"></i>
-            </button>
-            
-            <div class="page-numbers">
-              <button 
-                v-for="page in visiblePages" 
-                :key="page"
-                @click="goToPage(page)"
-                :class="{ 'active': currentPage === page, 'disabled': page === '...' }"
-                class="page-number"
-              >
-                {{ page }}
-              </button>
-            </div>
-            
-            <button 
-              @click="nextPage" 
-              :disabled="currentPage === totalPages" 
-              class="pagination-btn next"
-            >
-              <i class="fas fa-chevron-left"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modals -->
-    
-    <!-- Create/Edit User Modal -->
-    <div v-if="showCreateModal || editingUser" class="modal-overlay" @click.self="closeModal">
+    <!-- Modal Overlay -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-container">
         <div class="modal-content">
+          <!-- Modal Header -->
           <div class="modal-header">
-            <h2>
-              <i class="fas" :class="editingUser ? 'fa-user-edit' : 'fa-user-plus'"></i>
-              {{ editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد' }}
-            </h2>
-            <button @click="closeModal" class="modal-close">
+            <div class="header-content">
+              <h2>
+                <i class="fas fa-user-plus"></i>
+                {{ editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد' }}
+              </h2>
+              <p class="modal-subtitle">
+                {{ editingUser ? 'تعديل بيانات المستخدم الحالي' : 'إنشاء حساب جديد للمستخدم مع تحديد الصلاحيات' }}
+              </p>
+            </div>
+            <button @click="closeModal" class="modal-close" aria-label="إغلاق">
               <i class="fas fa-times"></i>
             </button>
           </div>
-          
-          <div class="modal-body">
-            <form @submit.prevent="saveUser" class="user-form">
-              <!-- Basic Information -->
+
+          <!-- Progress Steps -->
+          <div class="progress-steps">
+            <div class="steps-container">
+              <div 
+                v-for="(step, index) in steps" 
+                :key="step.id"
+                class="step-item"
+                :class="{ 
+                  'active': currentStep === index + 1,
+                  'completed': currentStep > index + 1
+                }"
+              >
+                <div class="step-number">
+                  <span v-if="currentStep > index + 1">
+                    <i class="fas fa-check"></i>
+                  </span>
+                  <span v-else>{{ index + 1 }}</span>
+                </div>
+                <div class="step-info">
+                  <h4>{{ step.title }}</h4>
+                  <p>{{ step.description }}</p>
+                </div>
+                <div class="step-connector" v-if="index < steps.length - 1"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1: Basic Information -->
+          <div v-if="currentStep === 1" class="step-content">
+            <form @submit.prevent="validateStep1" class="step-form">
               <div class="form-section">
                 <h3>
                   <i class="fas fa-user-circle"></i> المعلومات الأساسية
                 </h3>
+                
                 <div class="form-grid">
-                  <div class="form-group">
-                    <label for="userName">
+                  <!-- Full Name -->
+                  <div class="form-group" :class="{ 'error': formErrors.name }">
+                    <label for="fullName">
                       <i class="fas fa-user"></i> الاسم الكامل *
                     </label>
                     <input
                       type="text"
-                      id="userName"
-                      v-model="userForm.name"
-                      placeholder="أدخل الاسم الكامل"
-                      required
-                      :class="{ 'error': formErrors.name }"
+                      id="fullName"
+                      v-model="userData.name"
+                      placeholder="أدخل الاسم الكامل للمستخدم"
+                      @input="clearError('name')"
+                      @blur="validateField('name')"
                     >
-                    <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
+                    <div class="form-hint">
+                      <i class="fas fa-info-circle"></i>
+                      سيظهر هذا الاسم في جميع أنحاء النظام
+                    </div>
+                    <span v-if="formErrors.name" class="error-message">
+                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.name }}
+                    </span>
                   </div>
 
-                  <div class="form-group">
-                    <label for="userEmail">
+                  <!-- Email Address -->
+                  <div class="form-group" :class="{ 'error': formErrors.email }">
+                    <label for="email">
                       <i class="fas fa-envelope"></i> البريد الإلكتروني *
                     </label>
                     <input
                       type="email"
-                      id="userEmail"
-                      v-model="userForm.email"
+                      id="email"
+                      v-model="userData.email"
                       placeholder="example@company.com"
-                      required
-                      :class="{ 'error': formErrors.email }"
+                      @input="clearError('email')"
+                      @blur="validateField('email')"
                     >
-                    <span v-if="formErrors.email" class="error-message">{{ formErrors.email }}</span>
-                  </div>
-
-                  <div class="form-group">
-                    <label for="userRole">
-                      <i class="fas fa-user-tag"></i> الدور *
-                    </label>
-                    <select id="userRole" v-model="userForm.role" required>
-                      <option value="warehouse_manager">مدير مخزن</option>
-                      <option value="company_manager">مدير شركة</option>
-                      <option value="superadmin">مشرف عام</option>
-                    </select>
-                    <div class="role-description">
+                    <div class="form-hint">
                       <i class="fas fa-info-circle"></i>
-                      {{ getRoleDescription(userForm.role) }}
+                      سيستخدم هذا البريد لتسجيل الدخول واستقبال الإشعارات
                     </div>
+                    <span v-if="formErrors.email" class="error-message">
+                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.email }}
+                    </span>
                   </div>
 
-                  <div class="form-group" v-if="!editingUser">
-                    <label for="userPassword">
-                      <i class="fas fa-key"></i> كلمة المرور *
+                  <!-- User Role -->
+                  <div class="form-group" :class="{ 'error': formErrors.role }">
+                    <label for="userRole">
+                      <i class="fas fa-user-tag"></i> الدور الوظيفي *
                     </label>
-                    <div class="password-input">
-                      <input
-                        :type="showPassword ? 'text' : 'password'"
-                        id="userPassword"
-                        v-model="userForm.password"
-                        placeholder="كلمة المرور (8 أحرف على الأقل)"
-                        required
-                        :minlength="8"
-                        :class="{ 'error': formErrors.password }"
+                    <div class="role-selector">
+                      <div 
+                        v-for="role in availableRoles" 
+                        :key="role.id"
+                        class="role-option"
+                        :class="{ 'selected': userData.role === role.id }"
+                        @click="selectRole(role.id)"
                       >
-                      <button
-                        type="button"
-                        @click="showPassword = !showPassword"
-                        class="password-toggle"
-                      >
-                        <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                      </button>
-                    </div>
-                    <span v-if="formErrors.password" class="error-message">{{ formErrors.password }}</span>
-                    <div class="password-strength" :class="passwordStrength.class">
-                      <div class="strength-bar">
-                        <div class="strength-fill" :style="{ width: passwordStrength.percentage + '%' }"></div>
-                      </div>
-                      <span>{{ passwordStrength.text }}</span>
-                    </div>
-                  </div>
-
-                  <div class="form-group" v-if="!editingUser">
-                    <label for="confirmPassword">
-                      <i class="fas fa-key"></i> تأكيد كلمة المرور *
-                    </label>
-                    <div class="password-input">
-                      <input
-                        :type="showConfirmPassword ? 'text' : 'password'"
-                        id="confirmPassword"
-                        v-model="userForm.confirmPassword"
-                        placeholder="أعد إدخال كلمة المرور"
-                        required
-                        :class="{ 'error': formErrors.confirmPassword }"
-                      >
-                      <button
-                        type="button"
-                        @click="showConfirmPassword = !showConfirmPassword"
-                        class="password-toggle"
-                      >
-                        <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                      </button>
-                    </div>
-                    <span v-if="formErrors.confirmPassword" class="error-message">{{ formErrors.confirmPassword }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Warehouse Permissions -->
-              <div class="form-section">
-                <h3>
-                  <i class="fas fa-warehouse"></i> صلاحيات المخازن
-                </h3>
-                <div class="warehouse-permissions">
-                  <div class="permission-option">
-                    <label class="checkbox-label">
-                      <input
-                        type="checkbox"
-                        v-model="userForm.allWarehouses"
-                        @change="toggleAllWarehouses"
-                      >
-                      <span class="checkbox-custom"></span>
-                      الوصول إلى جميع المخازن
-                    </label>
-                  </div>
-
-                  <div v-if="!userForm.allWarehouses" class="warehouse-selection">
-                    <div class="selection-header">
-                      <h4>اختر المخازن المصرح بها:</h4>
-                      <button type="button" @click="selectAllWarehouses" class="select-all-btn">
-                        <i class="fas fa-check-square"></i> تحديد الكل
-                      </button>
-                    </div>
-                    
-                    <div class="warehouse-categories">
-                      <!-- Primary Warehouses -->
-                      <div class="category-section">
-                        <h5><i class="fas fa-building"></i> المخازن الرئيسية</h5>
-                        <div class="checkbox-grid">
-                          <label
-                            v-for="warehouse in primaryWarehouses"
-                            :key="warehouse.id"
-                            class="checkbox-item"
-                          >
-                            <input
-                              type="checkbox"
-                              :value="warehouse.id"
-                              v-model="userForm.allowedWarehouses"
-                            >
-                            <span class="checkbox-custom"></span>
-                            <div class="warehouse-label">
-                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
-                              <span class="warehouse-code">{{ warehouse.code }}</span>
-                            </div>
-                          </label>
+                        <div class="role-icon">
+                          <i :class="role.icon"></i>
                         </div>
-                      </div>
-
-                      <!-- Dispatch Warehouses -->
-                      <div class="category-section">
-                        <h5><i class="fas fa-shipping-fast"></i> مخازن التوزيع</h5>
-                        <div class="checkbox-grid">
-                          <label
-                            v-for="warehouse in dispatchWarehouses"
-                            :key="warehouse.id"
-                            class="checkbox-item"
-                          >
-                            <input
-                              type="checkbox"
-                              :value="warehouse.id"
-                              v-model="userForm.allowedWarehouses"
-                            >
-                            <span class="checkbox-custom"></span>
-                            <div class="warehouse-label">
-                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
-                              <span class="warehouse-code">{{ warehouse.code }}</span>
-                            </div>
-                          </label>
+                        <div class="role-info">
+                          <h4>{{ role.name }}</h4>
+                          <p>{{ role.description }}</p>
+                        </div>
+                        <div class="role-check">
+                          <i class="fas fa-check" v-if="userData.role === role.id"></i>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Permissions -->
-              <div class="form-section">
-                <h3>
-                  <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
-                </h3>
-                <div class="permissions-selection">
-                  <div class="permissions-presets">
-                    <h4>إعدادات سريعة:</h4>
-                    <div class="preset-buttons">
-                      <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
-                        <i class="fas fa-eye"></i> عرض فقط
-                      </button>
-                      <button type="button" @click="applyPermissionPreset('basic_management')" class="preset-btn">
-                        <i class="fas fa-user-cog"></i> إدارة أساسية
-                      </button>
-                      <button type="button" @click="applyPermissionPreset('full_access')" class="preset-btn">
-                        <i class="fas fa-crown"></i> صلاحية كاملة
-                      </button>
-                    </div>
+                    <span v-if="formErrors.role" class="error-message">
+                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.role }}
+                    </span>
                   </div>
 
-                  <div class="permission-categories">
-                    <div
-                      v-for="category in permissionCategories"
-                      :key="category.id"
-                      class="permission-category"
-                    >
-                      <div class="category-header">
-                        <h5>{{ category.name }}</h5>
-                        <label class="category-toggle">
-                          <input
-                            type="checkbox"
-                            :checked="isCategorySelected(category.permissions)"
-                            @change="toggleCategory(category.permissions, $event)"
-                          >
-                          <span>تحديد/إلغاء الكل</span>
-                        </label>
-                      </div>
-                      
-                      <div class="permission-checkboxes">
-                        <label
-                          v-for="perm in category.permissions"
-                          :key="perm.id"
-                          class="permission-checkbox"
-                        >
-                          <input
-                            type="checkbox"
-                            :value="perm.id"
-                            v-model="userForm.permissions"
-                          >
-                          <span class="checkbox-custom"></span>
-                          <div class="permission-label">
-                            <i :class="perm.icon"></i>
-                            <div>
-                              <span class="permission-name">{{ perm.name }}</span>
-                              <span class="permission-desc">{{ perm.description }}</span>
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Additional Settings -->
-              <div class="form-section">
-                <h3>
-                  <i class="fas fa-cogs"></i> إعدادات إضافية
-                </h3>
-                <div class="additional-settings">
-                  <div class="setting-group">
-                    <label class="toggle-label">
-                      <div class="toggle-info">
-                        <i class="fas fa-toggle-on"></i>
-                        <div>
-                          <h4>تفعيل الحساب</h4>
-                          <p>المستخدم يمكنه تسجيل الدخول فوراً</p>
-                        </div>
-                      </div>
-                      <label class="toggle-switch">
-                        <input type="checkbox" v-model="userForm.isActive">
-                        <span class="toggle-slider"></span>
-                      </label>
-                    </label>
-                  </div>
-
-                  <div class="setting-group">
-                    <label class="toggle-label">
-                      <div class="toggle-info">
-                        <i class="fas fa-envelope"></i>
-                        <div>
-                          <h4>إرسال بريد الترحيب</h4>
-                          <p>إرسال بريد ترحيبي للمستخدم الجديد</p>
-                        </div>
-                      </div>
-                      <label class="toggle-switch">
-                        <input type="checkbox" v-model="userForm.sendWelcomeEmail">
-                        <span class="toggle-slider"></span>
-                      </label>
-                    </label>
-                  </div>
-
+                  <!-- Phone Number (Optional) -->
                   <div class="form-group">
-                    <label for="userNotes">
-                      <i class="fas fa-sticky-note"></i> ملاحظات
+                    <label for="phone">
+                      <i class="fas fa-phone"></i> رقم الهاتف
                     </label>
-                    <textarea
-                      id="userNotes"
-                      v-model="userForm.notes"
-                      placeholder="ملاحظات إضافية حول المستخدم..."
-                      rows="3"
-                    ></textarea>
+                    <div class="phone-input">
+                      <select v-model="userData.phoneCountryCode" class="country-code">
+                        <option value="+966">+966 🇸🇦</option>
+                        <option value="+20">+20 🇪🇬</option>
+                        <option value="+971">+971 🇦🇪</option>
+                        <option value="+973">+973 🇧🇭</option>
+                        <option value="+965">+965 🇰🇼</option>
+                        <option value="+974">+974 🇶🇦</option>
+                      </select>
+                      <input
+                        type="tel"
+                        id="phone"
+                        v-model="userData.phone"
+                        placeholder="5X XXX XXXX"
+                      >
+                    </div>
+                    <div class="form-hint">
+                      <i class="fas fa-info-circle"></i>
+                      اختياري - لاستخدامه في التواصل الطارئ
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Form Actions -->
-              <div class="form-actions">
+              <!-- Step Actions -->
+              <div class="step-actions">
                 <button type="button" @click="closeModal" class="btn-secondary">
                   <i class="fas fa-times"></i> إلغاء
                 </button>
-                <button type="submit" class="btn-primary" :disabled="saving">
-                  <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-                  {{ saving ? 'جاري الحفظ...' : 'حفظ' }}
+                <button type="submit" class="btn-primary" :disabled="step1Loading">
+                  <i class="fas" :class="step1Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
+                  التالي: الصلاحيات والمخازن
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 2: Permissions & Warehouses -->
+          <div v-if="currentStep === 2" class="step-content">
+            <form @submit.prevent="validateStep2" class="step-form">
+              <div class="form-sections-grid">
+                <!-- Warehouses Section -->
+                <div class="form-section warehouse-section">
+                  <div class="section-header">
+                    <h3>
+                      <i class="fas fa-warehouse"></i> صلاحيات المخازن
+                    </h3>
+                    <div class="section-actions">
+                      <button 
+                        type="button" 
+                        @click="toggleAllWarehouses" 
+                        class="btn-sm"
+                        :class="{ 'btn-primary': !userData.allWarehouses, 'btn-secondary': userData.allWarehouses }"
+                      >
+                        <i class="fas" :class="userData.allWarehouses ? 'fa-check-square' : 'fa-square'"></i>
+                        {{ userData.allWarehouses ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="warehouse-permissions">
+                    <!-- All Warehouses Option -->
+                    <div class="permission-option all-warehouses">
+                      <label class="checkbox-label">
+                        <input
+                          type="checkbox"
+                          v-model="userData.allWarehouses"
+                          @change="toggleAllWarehousesAccess"
+                        >
+                        <span class="checkbox-custom"></span>
+                        <div class="checkbox-content">
+                          <h4>الوصول إلى جميع المخازن</h4>
+                          <p>المستخدم يمكنه الوصول إلى جميع المخازن بدون قيود</p>
+                        </div>
+                      </label>
+                    </div>
+
+                    <!-- Specific Warehouses -->
+                    <div v-if="!userData.allWarehouses" class="specific-warehouses">
+                      <div class="warehouse-categories">
+                        <!-- Primary Warehouses -->
+                        <div class="category-section">
+                          <div class="category-header">
+                            <h4>
+                              <i class="fas fa-building"></i> المخازن الرئيسية
+                            </h4>
+                            <button 
+                              type="button" 
+                              @click="toggleCategory('primary')" 
+                              class="btn-sm btn-secondary"
+                            >
+                              <i class="fas fa-check-square"></i> تحديد/إلغاء الكل
+                            </button>
+                          </div>
+                          <div class="warehouse-grid">
+                            <label
+                              v-for="warehouse in primaryWarehouses"
+                              :key="warehouse.id"
+                              class="warehouse-option"
+                              :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                            >
+                              <input
+                                type="checkbox"
+                                :value="warehouse.id"
+                                v-model="userData.allowedWarehouses"
+                                @change="updateWarehouseSelection"
+                              >
+                              <span class="checkbox-custom"></span>
+                              <div class="warehouse-info">
+                                <div class="warehouse-icon">
+                                  <i class="fas fa-warehouse"></i>
+                                </div>
+                                <div class="warehouse-details">
+                                  <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
+                                  <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
+                                  <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
+                                    <i class="fas fa-circle"></i>
+                                    {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
+                                  </div>
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Dispatch Warehouses -->
+                        <div class="category-section">
+                          <div class="category-header">
+                            <h4>
+                              <i class="fas fa-shipping-fast"></i> مخازن التوزيع
+                            </h4>
+                            <button 
+                              type="button" 
+                              @click="toggleCategory('dispatch')" 
+                              class="btn-sm btn-secondary"
+                            >
+                              <i class="fas fa-check-square"></i> تحديد/إلغاء الكل
+                            </button>
+                          </div>
+                          <div class="warehouse-grid">
+                            <label
+                              v-for="warehouse in dispatchWarehouses"
+                              :key="warehouse.id"
+                              class="warehouse-option"
+                              :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                            >
+                              <input
+                                type="checkbox"
+                                :value="warehouse.id"
+                                v-model="userData.allowedWarehouses"
+                                @change="updateWarehouseSelection"
+                              >
+                              <span class="checkbox-custom"></span>
+                              <div class="warehouse-info">
+                                <div class="warehouse-icon">
+                                  <i class="fas fa-shipping-fast"></i>
+                                </div>
+                                <div class="warehouse-details">
+                                  <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
+                                  <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
+                                  <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
+                                    <i class="fas fa-circle"></i>
+                                    {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
+                                  </div>
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- No Warehouses Message -->
+                    <div v-if="!userData.allWarehouses && userData.allowedWarehouses.length === 0" class="no-warehouses-message">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <p>لم يتم اختيار أي مخزن. المستخدم لن يتمكن من الوصول إلى أي مخزن.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Permissions Section -->
+                <div class="form-section permissions-section">
+                  <div class="section-header">
+                    <h3>
+                      <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
+                    </h3>
+                    <div class="permission-presets">
+                      <span>إعدادات سريعة:</span>
+                      <div class="preset-buttons">
+                        <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
+                          <i class="fas fa-eye"></i> عرض فقط
+                        </button>
+                        <button type="button" @click="applyPermissionPreset('basic')" class="preset-btn">
+                          <i class="fas fa-user-cog"></i> أساسي
+                        </button>
+                        <button type="button" @click="applyPermissionPreset('full')" class="preset-btn">
+                          <i class="fas fa-crown"></i> كامل
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="permissions-container">
+                    <div class="permissions-summary" v-if="selectedPermissionsCount > 0">
+                      <i class="fas fa-check-circle"></i>
+                      <div>
+                        <h4>تم اختيار {{ selectedPermissionsCount }} صلاحية</h4>
+                        <p>من أصل {{ totalPermissionsCount }} صلاحية متاحة</p>
+                      </div>
+                    </div>
+
+                    <div class="permission-categories">
+                      <div
+                        v-for="category in permissionCategories"
+                        :key="category.id"
+                        class="permission-category"
+                      >
+                        <div class="category-header">
+                          <h4>{{ category.name }}</h4>
+                          <label class="category-toggle">
+                            <input
+                              type="checkbox"
+                              :checked="isCategorySelected(category.permissions)"
+                              @change="toggleCategorySelection(category.permissions, $event)"
+                            >
+                            <span>تحديد/إلغاء الكل</span>
+                          </label>
+                        </div>
+                        
+                        <div class="permission-list">
+                          <label
+                            v-for="permission in category.permissions"
+                            :key="permission.id"
+                            class="permission-item"
+                            :class="{ 'selected': userData.permissions.includes(permission.id) }"
+                          >
+                            <input
+                              type="checkbox"
+                              :value="permission.id"
+                              v-model="userData.permissions"
+                            >
+                            <span class="checkbox-custom"></span>
+                            <div class="permission-info">
+                              <div class="permission-icon">
+                                <i :class="permission.icon"></i>
+                              </div>
+                              <div class="permission-details">
+                                <h5>{{ permission.name }}</h5>
+                                <p>{{ permission.description }}</p>
+                              </div>
+                              <div class="permission-hint" v-if="permission.hint">
+                                <i class="fas fa-info-circle"></i>
+                                <span>{{ permission.hint }}</span>
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step Actions -->
+              <div class="step-actions">
+                <button type="button" @click="prevStep" class="btn-secondary">
+                  <i class="fas fa-arrow-right"></i> السابق
+                </button>
+                <button type="submit" class="btn-primary" :disabled="step2Loading">
+                  <i class="fas" :class="step2Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
+                  التالي: كلمة المرور والإعدادات
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Password & Settings -->
+          <div v-if="currentStep === 3" class="step-content">
+            <form @submit.prevent="validateStep3" class="step-form">
+              <div class="form-section">
+                <h3>
+                  <i class="fas fa-key"></i> الأمان والإعدادات
+                </h3>
+
+                <div class="form-grid">
+                  <!-- Password Section -->
+                  <div class="password-section">
+                    <h4>
+                      <i class="fas fa-lock"></i> كلمة المرور
+                      <span class="section-badge" :class="passwordStrength.class">
+                        {{ passwordStrength.text }}
+                      </span>
+                    </h4>
+
+                    <div class="password-options">
+                      <!-- Auto Generate Password -->
+                      <div class="password-option">
+                        <label class="radio-label">
+                          <input
+                            type="radio"
+                            v-model="passwordOption"
+                            value="auto"
+                          >
+                          <span class="radio-custom"></span>
+                          <div class="option-content">
+                            <div class="option-header">
+                              <h5>توليد تلقائي</h5>
+                              <span class="option-recommended">موصى به</span>
+                            </div>
+                            <p>توليد كلمة مرور قوية عشوائية وإرسالها للمستخدم عبر البريد</p>
+                          </div>
+                        </label>
+                      </div>
+
+                      <!-- Manual Password -->
+                      <div class="password-option">
+                        <label class="radio-label">
+                          <input
+                            type="radio"
+                            v-model="passwordOption"
+                            value="manual"
+                          >
+                          <span class="radio-custom"></span>
+                          <div class="option-content">
+                            <h5>تعيين يدوي</h5>
+                            <p>تعيين كلمة مرور محددة من قبلك</p>
+                          </div>
+                        </label>
+
+                        <div v-if="passwordOption === 'manual'" class="manual-password-fields">
+                          <div class="form-group" :class="{ 'error': formErrors.password }">
+                            <label for="password">
+                              <i class="fas fa-key"></i> كلمة المرور *
+                            </label>
+                            <div class="password-input">
+                              <input
+                                :type="showPassword ? 'text' : 'password'"
+                                id="password"
+                                v-model="userData.password"
+                                placeholder="كلمة المرور (8 أحرف على الأقل)"
+                                @input="validatePassword"
+                                @blur="validateField('password')"
+                              >
+                              <button
+                                type="button"
+                                @click="showPassword = !showPassword"
+                                class="password-toggle"
+                              >
+                                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                              </button>
+                            </div>
+                            <div class="password-strength-indicator">
+                              <div class="strength-bars">
+                                <div 
+                                  v-for="n in 4" 
+                                  :key="n"
+                                  class="strength-bar"
+                                  :class="{ 
+                                    'filled': passwordStrength.score >= n,
+                                    'weak': passwordStrength.class === 'weak',
+                                    'medium': passwordStrength.class === 'medium',
+                                    'strong': passwordStrength.class === 'strong'
+                                  }"
+                                ></div>
+                              </div>
+                              <span class="strength-text">{{ passwordStrength.details }}</span>
+                            </div>
+                            <span v-if="formErrors.password" class="error-message">
+                              <i class="fas fa-exclamation-circle"></i> {{ formErrors.password }}
+                            </span>
+                          </div>
+
+                          <div class="form-group" :class="{ 'error': formErrors.confirmPassword }">
+                            <label for="confirmPassword">
+                              <i class="fas fa-key"></i> تأكيد كلمة المرور *
+                            </label>
+                            <div class="password-input">
+                              <input
+                                :type="showConfirmPassword ? 'text' : 'password'"
+                                id="confirmPassword"
+                                v-model="userData.confirmPassword"
+                                placeholder="أعد إدخال كلمة المرور"
+                                @input="clearError('confirmPassword')"
+                                @blur="validateField('confirmPassword')"
+                              >
+                              <button
+                                type="button"
+                                @click="showConfirmPassword = !showConfirmPassword"
+                                class="password-toggle"
+                              >
+                                <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                              </button>
+                            </div>
+                            <span v-if="formErrors.confirmPassword" class="error-message">
+                              <i class="fas fa-exclamation-circle"></i> {{ formErrors.confirmPassword }}
+                            </span>
+                          </div>
+
+                          <!-- Password Requirements -->
+                          <div class="password-requirements">
+                            <h5>متطلبات كلمة المرور:</h5>
+                            <ul>
+                              <li :class="{ 'met': userData.password.length >= 8 }">
+                                <i class="fas" :class="userData.password.length >= 8 ? 'fa-check-circle' : 'fa-circle'"></i>
+                                8 أحرف على الأقل
+                              </li>
+                              <li :class="{ 'met': /[A-Z]/.test(userData.password) }">
+                                <i class="fas" :class="/[A-Z]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                حرف كبير واحد على الأقل
+                              </li>
+                              <li :class="{ 'met': /[0-9]/.test(userData.password) }">
+                                <i class="fas" :class="/[0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                رقم واحد على الأقل
+                              </li>
+                              <li :class="{ 'met': /[^A-Za-z0-9]/.test(userData.password) }">
+                                <i class="fas" :class="/[^A-Za-z0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                رمز خاص واحد على الأقل
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Settings Section -->
+                  <div class="settings-section">
+                    <h4>
+                      <i class="fas fa-cogs"></i> إعدادات الحساب
+                    </h4>
+
+                    <div class="settings-options">
+                      <!-- Account Status -->
+                      <div class="setting-option">
+                        <label class="toggle-label">
+                          <div class="toggle-info">
+                            <i class="fas fa-toggle-on"></i>
+                            <div>
+                              <h5>تفعيل الحساب فوراً</h5>
+                              <p>المستخدم يمكنه تسجيل الدخول مباشرة بعد الإنشاء</p>
+                            </div>
+                          </div>
+                          <label class="toggle-switch">
+                            <input type="checkbox" v-model="userData.isActive">
+                            <span class="toggle-slider"></span>
+                          </label>
+                        </label>
+                      </div>
+
+                      <!-- Email Notification -->
+                      <div class="setting-option">
+                        <label class="toggle-label">
+                          <div class="toggle-info">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                              <h5>إرسال بريد الترحيب</h5>
+                              <p>إرسال بريد إلكتروني ترحيبي يحتوي على بيانات الحساب</p>
+                            </div>
+                          </div>
+                          <label class="toggle-switch">
+                            <input type="checkbox" v-model="userData.sendWelcomeEmail">
+                            <span class="toggle-slider"></span>
+                          </label>
+                        </label>
+                      </div>
+
+                      <!-- Two-Factor Authentication -->
+                      <div class="setting-option">
+                        <label class="toggle-label">
+                          <div class="toggle-info">
+                            <i class="fas fa-mobile-alt"></i>
+                            <div>
+                              <h5>تفعيل المصادقة الثنائية</h5>
+                              <p>إضافة طبقة أمان إضافية لحساب المستخدم</p>
+                            </div>
+                          </div>
+                          <label class="toggle-switch">
+                            <input type="checkbox" v-model="userData.twoFactorEnabled">
+                            <span class="toggle-slider"></span>
+                          </label>
+                        </label>
+                      </div>
+
+                      <!-- Notes -->
+                      <div class="form-group">
+                        <label for="notes">
+                          <i class="fas fa-sticky-note"></i> ملاحظات إضافية
+                        </label>
+                        <textarea
+                          id="notes"
+                          v-model="userData.notes"
+                          placeholder="أي ملاحظات إضافية حول المستخدم أو الحساب..."
+                          rows="3"
+                        ></textarea>
+                        <div class="form-hint">
+                          <i class="fas fa-info-circle"></i>
+                          هذه الملاحظات مرئية للمشرفين فقط
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Summary Preview -->
+                <div class="summary-preview">
+                  <h4>
+                    <i class="fas fa-clipboard-check"></i> ملخص المستخدم
+                  </h4>
+                  <div class="summary-content">
+                    <div class="summary-row">
+                      <div class="summary-item">
+                        <span class="summary-label">الاسم:</span>
+                        <span class="summary-value">{{ userData.name || 'غير محدد' }}</span>
+                      </div>
+                      <div class="summary-item">
+                        <span class="summary-label">البريد:</span>
+                        <span class="summary-value">{{ userData.email || 'غير محدد' }}</span>
+                      </div>
+                    </div>
+                    <div class="summary-row">
+                      <div class="summary-item">
+                        <span class="summary-label">الدور:</span>
+                        <span class="summary-badge" :class="userData.role">
+                          {{ getRoleName(userData.role) }}
+                        </span>
+                      </div>
+                      <div class="summary-item">
+                        <span class="summary-label">المخازن:</span>
+                        <span class="summary-value">
+                          {{ userData.allWarehouses ? 'جميع المخازن' : userData.allowedWarehouses.length + ' مخزن' }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="summary-row">
+                      <div class="summary-item">
+                        <span class="summary-label">الصلاحيات:</span>
+                        <span class="summary-value">{{ selectedPermissionsCount }} صلاحية</span>
+                      </div>
+                      <div class="summary-item">
+                        <span class="summary-label">الحالة:</span>
+                        <span class="summary-badge" :class="userData.isActive ? 'active' : 'inactive'">
+                          {{ userData.isActive ? 'نشط' : 'معطل' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step Actions -->
+              <div class="step-actions">
+                <button type="button" @click="prevStep" class="btn-secondary">
+                  <i class="fas fa-arrow-right"></i> السابق
+                </button>
+                <button type="submit" class="btn-success" :disabled="saving">
+                  <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                  {{ saving ? 'جاري إنشاء الحساب...' : (editingUser ? 'تحديث المستخدم' : 'إنشاء الحساب') }}
                 </button>
               </div>
             </form>
@@ -928,218 +708,88 @@
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
-      <div class="modal-container delete-modal">
+    <!-- Success Modal -->
+    <div v-if="showSuccessModal" class="modal-overlay" @click.self="closeSuccessModal">
+      <div class="modal-container success-modal">
         <div class="modal-content">
-          <div class="modal-header danger">
-            <h2><i class="fas fa-exclamation-triangle"></i> تأكيد الحذف</h2>
+          <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
           </div>
+          <h2>{{ editingUser ? 'تم تحديث المستخدم بنجاح!' : 'تم إنشاء الحساب بنجاح!' }}</h2>
           
-          <div class="modal-body">
-            <div class="delete-warning">
-              <i class="fas fa-trash-alt"></i>
-              <h3>هل أنت متأكد من حذف المستخدم؟</h3>
-              <p v-if="userToDelete">
-                هذا الإجراء سيحذف المستخدم <strong>{{ userToDelete.name }}</strong> (<strong>{{ userToDelete.email }}</strong>) نهائياً.
-              </p>
-              <p v-if="selectedUsers.length > 1" class="bulk-delete-warning">
-                <i class="fas fa-exclamation-circle"></i>
-                سيتم حذف <strong>{{ selectedUsers.length }}</strong> مستخدمين.
-              </p>
-              <div class="warning-list">
-                <p><i class="fas fa-exclamation-circle"></i> لا يمكن التراجع عن هذا الإجراء</p>
-                <p><i class="fas fa-history"></i> سيتم حفظ سجل الحذف في السجلات</p>
-                <p><i class="fas fa-ban"></i> المستخدم لن يتمكن من تسجيل الدخول</p>
+          <div class="success-details">
+            <div class="detail-item">
+              <i class="fas fa-user"></i>
+              <div>
+                <h4>المستخدم:</h4>
+                <p>{{ createdUser?.name }}</p>
               </div>
             </div>
-
-            <div class="delete-actions">
-              <button @click="cancelDelete" class="btn-secondary">
-                <i class="fas fa-times"></i> إلغاء
-              </button>
-              <button @click="confirmDelete" class="btn-danger" :disabled="deleting">
-                <i class="fas" :class="deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
-                {{ deleting ? 'جاري الحذف...' : 'حذف' }}
-              </button>
+            <div class="detail-item">
+              <i class="fas fa-envelope"></i>
+              <div>
+                <h4>البريد الإلكتروني:</h4>
+                <p>{{ createdUser?.email }}</p>
+              </div>
+            </div>
+            <div v-if="generatedPassword" class="detail-item">
+              <i class="fas fa-key"></i>
+              <div>
+                <h4>كلمة المرور:</h4>
+                <div class="password-display">
+                  <code>{{ generatedPassword }}</code>
+                  <button @click="copyPassword" class="copy-btn">
+                    <i class="fas fa-copy"></i> نسخ
+                  </button>
+                </div>
+                <p class="password-warning">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  احفظ هذه الكلمة وقم بإرسالها للمستخدم
+                </p>
+              </div>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <h4>ملاحظات:</h4>
+                <p>{{ userData.sendWelcomeEmail ? 'تم إرسال بريد ترحيبي للمستخدم' : 'لم يتم إرسال بريد ترحيبي' }}</p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Reset Password Modal -->
-    <div v-if="showResetPasswordModal" class="modal-overlay" @click.self="cancelResetPassword">
-      <div class="modal-container">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2><i class="fas fa-key"></i> إعادة تعيين كلمة المرور</h2>
-            <button @click="cancelResetPassword" class="modal-close">
-              <i class="fas fa-times"></i>
+          <div class="success-actions">
+            <button @click="createAnotherUser" class="btn-primary">
+              <i class="fas fa-user-plus"></i> إضافة مستخدم آخر
+            </button>
+            <button @click="viewUser" class="btn-secondary">
+              <i class="fas fa-eye"></i> عرض المستخدم
+            </button>
+            <button @click="closeSuccessModal" class="btn-success">
+              <i class="fas fa-check"></i> تم
             </button>
           </div>
-          
-          <div class="modal-body">
-            <div class="reset-info">
-              <i class="fas fa-user-shield"></i>
-              <h3>إعادة تعيين كلمة المرور للمستخدم</h3>
-              <p v-if="userToReset">
-                ستقوم بإعادة تعيين كلمة مرور المستخدم <strong>{{ userToReset.name }}</strong> (<strong>{{ userToReset.email }}</strong>)
-              </p>
-            </div>
-
-            <div class="reset-options">
-              <div class="option-group">
-                <label class="option-label">
-                  <input
-                    type="radio"
-                    v-model="resetMethod"
-                    value="auto"
-                    checked
-                  >
-                  <span class="radio-custom"></span>
-                  <div class="option-content">
-                    <h4>توليد تلقائي</h4>
-                    <p>توليد كلمة مرور قوية عشوائية وإرسالها بالبريد</p>
-                  </div>
-                </label>
-
-                <label class="option-label">
-                  <input
-                    type="radio"
-                    v-model="resetMethod"
-                    value="manual"
-                  >
-                  <span class="radio-custom"></span>
-                  <div class="option-content">
-                    <h4>تعيين يدوي</h4>
-                    <p>تعيين كلمة مرور محددة</p>
-                  </div>
-                </label>
-              </div>
-
-              <div v-if="resetMethod === 'manual'" class="manual-password">
-                <div class="form-group">
-                  <label for="newPassword">
-                    <i class="fas fa-key"></i> كلمة المرور الجديدة
-                  </label>
-                  <div class="password-input">
-                    <input
-                      :type="showNewPassword ? 'text' : 'password'"
-                      id="newPassword"
-                      v-model="newPassword"
-                      placeholder="أدخل كلمة المرور الجديدة"
-                      required
-                      minlength="8"
-                    >
-                    <button
-                      type="button"
-                      @click="showNewPassword = !showNewPassword"
-                      class="password-toggle"
-                    >
-                      <i :class="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                    </button>
-                  </div>
-                  <div class="password-strength" :class="newPasswordStrength.class">
-                    <div class="strength-bar">
-                      <div class="strength-fill" :style="{ width: newPasswordStrength.percentage + '%' }"></div>
-                    </div>
-                    <span>{{ newPasswordStrength.text }}</span>
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label for="confirmNewPassword">
-                    <i class="fas fa-key"></i> تأكيد كلمة المرور
-                  </label>
-                  <div class="password-input">
-                    <input
-                      :type="showConfirmNewPassword ? 'text' : 'password'"
-                      id="confirmNewPassword"
-                      v-model="confirmNewPassword"
-                      placeholder="أعد إدخال كلمة المرور الجديدة"
-                      required
-                    >
-                    <button
-                      type="button"
-                      @click="showConfirmNewPassword = !showConfirmNewPassword"
-                      class="password-toggle"
-                    >
-                      <i :class="showConfirmNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                    </button>
-                  </div>
-                  <span v-if="passwordMatchError" class="error-message">{{ passwordMatchError }}</span>
-                </div>
-              </div>
-
-              <div class="notification-option">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="sendResetNotification">
-                  <span class="checkbox-custom"></span>
-                  <div class="checkbox-content">
-                    <h4>إرسال إشعار للمستخدم</h4>
-                    <p>إرسال بريد إلكتروني للمستخدم يحتوي على كلمة المرور الجديدة</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div class="reset-actions">
-              <button @click="cancelResetPassword" class="btn-secondary">
-                <i class="fas fa-times"></i> إلغاء
-              </button>
-              <button @click="confirmResetPassword" class="btn-primary" :disabled="resetting">
-                <i class="fas" :class="resetting ? 'fa-spinner fa-spin' : 'fa-key'"></i>
-                {{ resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين' }}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
 
-    <!-- Impersonate Confirmation Modal -->
-    <div v-if="showImpersonateModal" class="modal-overlay" @click.self="cancelImpersonate">
-      <div class="modal-container">
-        <div class="modal-content">
-          <div class="modal-header warning">
-            <h2><i class="fas fa-user-secret"></i> الدخول كمستخدم</h2>
-          </div>
-          
-          <div class="modal-body">
-            <div class="impersonate-warning">
-              <i class="fas fa-exclamation-triangle"></i>
-              <h3>هل تريد الدخول كمستخدم آخر؟</h3>
-              <p v-if="userToImpersonate">
-                ستقوم بتسجيل الدخول كمستخدم <strong>{{ userToImpersonate.name }}</strong> (<strong>{{ userToImpersonate.email }}</strong>)
-              </p>
-              <div class="warning-list">
-                <p><i class="fas fa-shield-alt"></i> ستفقد صلاحياتك كمدير مؤقتاً</p>
-                <p><i class="fas fa-history"></i> سيتم تسجيل هذا الإجراء في السجلات</p>
-                <p><i class="fas fa-sign-out-alt"></i> يمكنك الرجوع لحسابك في أي وقت</p>
-              </div>
-            </div>
-
-            <div class="impersonate-actions">
-              <button @click="cancelImpersonate" class="btn-secondary">
-                <i class="fas fa-times"></i> إلغاء
-              </button>
-              <button @click="confirmImpersonate" class="btn-warning">
-                <i class="fas fa-user-secret"></i> متابعة والدخول
-              </button>
-            </div>
-          </div>
-        </div>
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p>{{ loadingMessage }}</p>
       </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div v-if="toast.show" class="toast-container" :class="toast.type">
+    <!-- Error Toast -->
+    <div v-if="showError" class="error-toast">
       <div class="toast-content">
-        <i :class="toast.icon"></i>
-        <p>{{ toast.message }}</p>
+        <i class="fas fa-exclamation-circle"></i>
+        <div>
+          <h4>حدث خطأ</h4>
+          <p>{{ errorMessage }}</p>
+        </div>
       </div>
-      <button @click="hideToast" class="toast-close">
+      <button @click="hideError" class="toast-close">
         <i class="fas fa-times"></i>
       </button>
     </div>
@@ -1148,361 +798,450 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
-import { createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
-import { auth } from '@/firebase/config'
+import { generatePassword } from '@/utils/passwordGenerator'
 
 export default {
-  name: 'UserManagement',
+  name: 'AddUserModal',
+  
+  props: {
+    // Trigger button text
+    buttonText: {
+      type: String,
+      default: 'إضافة مستخدم'
+    },
+    
+    // Auto open modal (for direct usage)
+    autoOpen: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Edit existing user
+    editUser: {
+      type: Object,
+      default: null
+    },
+    
+    // Custom roles (override default)
+    customRoles: {
+      type: Array,
+      default: null
+    },
+    
+    // Custom permissions
+    customPermissions: {
+      type: Array,
+      default: null
+    },
+    
+    // Callback after success
+    onSuccess: {
+      type: Function,
+      default: null
+    }
+  },
   
   data() {
     return {
-      loading: true,
-      error: null,
-      refreshing: false,
-      exporting: false,
-      saving: false,
-      deleting: false,
-      resetting: false,
-      
-      // View Mode
-      viewMode: 'grid',
+      // Modal State
+      showModal: false,
+      showSuccessModal: false,
       isDarkMode: false,
       
-      // Filters
-      filters: {
-        search: '',
-        role: '',
-        status: '',
-        warehouse: '',
-        startDate: '',
-        endDate: ''
-      },
+      // Steps
+      currentStep: 1,
+      steps: [
+        {
+          id: 'basic',
+          title: 'المعلومات الأساسية',
+          description: 'بيانات المستخدم الأساسية'
+        },
+        {
+          id: 'permissions',
+          title: 'الصلاحيات والمخازن',
+          description: 'تحديد المخازن والصلاحيات'
+        },
+        {
+          id: 'security',
+          title: 'الأمان والإعدادات',
+          description: 'كلمة المرور والإعدادات'
+        }
+      ],
       
-      // Selected Users
-      selectedUsers: [],
-      showBulkActions: false,
-      activeDropdown: null,
-      
-      // Pagination
-      currentPage: 1,
-      itemsPerPage: 25,
-      
-      // Modals
-      showCreateModal: false,
-      editingUser: null,
-      showDeleteModal: false,
-      userToDelete: null,
-      showResetPasswordModal: false,
-      userToReset: null,
-      showImpersonateModal: false,
-      userToImpersonate: null,
-      
-      // User Form
-      userForm: {
+      // User Data
+      userData: {
         name: '',
         email: '',
         role: 'warehouse_manager',
-        password: '',
-        confirmPassword: '',
+        phone: '',
+        phoneCountryCode: '+966',
         allWarehouses: false,
         allowedWarehouses: [],
         permissions: [],
+        password: '',
+        confirmPassword: '',
         isActive: true,
         sendWelcomeEmail: true,
+        twoFactorEnabled: false,
         notes: ''
       },
+      
+      // Form State
       formErrors: {},
+      passwordOption: 'auto',
       showPassword: false,
       showConfirmPassword: false,
       
-      // Reset Password
-      resetMethod: 'auto',
-      newPassword: '',
-      confirmNewPassword: '',
-      showNewPassword: false,
-      showConfirmNewPassword: false,
-      sendResetNotification: true,
-      passwordMatchError: '',
+      // Loading States
+      step1Loading: false,
+      step2Loading: false,
+      saving: false,
+      loading: false,
+      loadingMessage: '',
       
-      // Toast
-      toast: {
-        show: false,
-        type: 'success',
-        message: '',
-        icon: 'fas fa-check-circle'
-      },
+      // Success Data
+      createdUser: null,
+      generatedPassword: '',
       
-      // Debounce search
-      searchTimeout: null
+      // Error State
+      showError: false,
+      errorMessage: '',
+      
+      // Edit Mode
+      editingUser: null
     }
   },
   
   computed: {
-    ...mapState(['allUsers', 'warehouses', 'user']),
+    ...mapState(['warehouses']),
     ...mapGetters(['primaryWarehouses', 'dispatchWarehouses']),
     
-    // Current User ID
-    currentUserId() {
-      return this.user?.uid
-    },
-    
-    // Theme
-    themeIcon() {
-      return this.isDarkMode ? 'fas fa-sun' : 'fas fa-moon'
-    },
-    
-    // Today's date for date picker max
-    today() {
-      return new Date().toISOString().split('T')[0]
-    },
-    
-    // User Statistics
-    stats() {
-      const stats = {
-        totalUsers: this.allUsers.length,
-        activeUsers: 0,
-        inactiveUsers: 0,
-        superadmins: 0,
-        companyManagers: 0,
-        warehouseManagers: 0
-      }
+    // Available Roles
+    availableRoles() {
+      if (this.customRoles) return this.customRoles
       
-      this.allUsers.forEach(user => {
-        if (user.is_active !== false) {
-          stats.activeUsers++
-        } else {
-          stats.inactiveUsers++
+      return [
+        {
+          id: 'warehouse_manager',
+          name: 'مدير مخزن',
+          description: 'إدارة المخازن والأصناف المحددة',
+          icon: 'fas fa-warehouse'
+        },
+        {
+          id: 'company_manager',
+          name: 'مدير شركة',
+          description: 'إدارة المستخدمين والمخازن والتقارير',
+          icon: 'fas fa-user-tie'
+        },
+        {
+          id: 'superadmin',
+          name: 'مشرف عام',
+          description: 'صلاحيات كاملة على النظام بأكمله',
+          icon: 'fas fa-crown'
         }
-        
-        switch (user.role) {
-          case 'superadmin':
-            stats.superadmins++
-            break
-          case 'company_manager':
-            stats.companyManagers++
-            break
-          case 'warehouse_manager':
-            stats.warehouseManagers++
-            break
-        }
-      })
-      
-      return stats
-    },
-    
-    // Filtered Users
-    filteredUsers() {
-      let filtered = [...this.allUsers]
-      
-      // Search filter
-      if (this.filters.search) {
-        const searchTerm = this.filters.search.toLowerCase()
-        filtered = filtered.filter(user => 
-          (user.name?.toLowerCase() || '').includes(searchTerm) ||
-          (user.email?.toLowerCase() || '').includes(searchTerm) ||
-          (user.role?.toLowerCase() || '').includes(searchTerm)
-        )
-      }
-      
-      // Role filter
-      if (this.filters.role) {
-        filtered = filtered.filter(user => user.role === this.filters.role)
-      }
-      
-      // Status filter
-      if (this.filters.status) {
-        const isActive = this.filters.status === 'active'
-        filtered = filtered.filter(user => 
-          (user.is_active !== false) === isActive
-        )
-      }
-      
-      // Warehouse filter
-      if (this.filters.warehouse) {
-        if (this.filters.warehouse === 'all') {
-          filtered = filtered.filter(user => 
-            user.allowed_warehouses?.includes('all')
-          )
-        } else {
-          filtered = filtered.filter(user => 
-            user.allowed_warehouses?.includes(this.filters.warehouse)
-          )
-        }
-      }
-      
-      // Date filter
-      if (this.filters.startDate) {
-        const startDate = new Date(this.filters.startDate)
-        filtered = filtered.filter(user => {
-          if (!user.created_at) return false
-          const userDate = user.created_at.toDate ? user.created_at.toDate() : new Date(user.created_at)
-          return userDate >= startDate
-        })
-      }
-      
-      if (this.filters.endDate) {
-        const endDate = new Date(this.filters.endDate)
-        endDate.setHours(23, 59, 59, 999)
-        filtered = filtered.filter(user => {
-          if (!user.created_at) return false
-          const userDate = user.created_at.toDate ? user.created_at.toDate() : new Date(user.created_at)
-          return userDate <= endDate
-        })
-      }
-      
-      return filtered.sort((a, b) => {
-        // Sort by creation date (newest first)
-        const dateA = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0)
-        const dateB = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0)
-        return dateB - dateA
-      })
-    },
-    
-    // Pagination
-    paginatedUsers() {
-      const start = (this.currentPage - 1) * this.itemsPerPage
-      const end = start + this.itemsPerPage
-      return this.filteredUsers.slice(start, end)
-    },
-    
-    totalPages() {
-      return Math.ceil(this.filteredUsers.length / this.itemsPerPage)
-    },
-    
-    visiblePages() {
-      const pages = []
-      const maxVisible = 5
-      
-      if (this.totalPages <= maxVisible) {
-        for (let i = 1; i <= this.totalPages; i++) {
-          pages.push(i)
-        }
-      } else {
-        let start = Math.max(1, this.currentPage - 2)
-        let end = Math.min(this.totalPages, start + maxVisible - 1)
-        
-        if (end - start + 1 < maxVisible) {
-          start = end - maxVisible + 1
-        }
-        
-        if (start > 1) {
-          pages.push(1)
-          if (start > 2) pages.push('...')
-        }
-        
-        for (let i = start; i <= end; i++) {
-          pages.push(i)
-        }
-        
-        if (end < this.totalPages) {
-          if (end < this.totalPages - 1) pages.push('...')
-          pages.push(this.totalPages)
-        }
-      }
-      
-      return pages
-    },
-    
-    // Selection
-    allSelected() {
-      return this.filteredUsers.length > 0 && 
-             this.selectedUsers.length === this.filteredUsers.length
-    },
-    
-    // Password Strength
-    passwordStrength() {
-      return this.calculatePasswordStrength(this.userForm.password)
-    },
-    
-    newPasswordStrength() {
-      return this.calculatePasswordStrength(this.newPassword)
+      ]
     },
     
     // Permission Categories
     permissionCategories() {
+      if (this.customPermissions) return this.customPermissions
+      
       return [
         {
           id: 'inventory',
           name: 'إدارة المخزون',
           permissions: [
-            { id: 'view_items', name: 'عرض الأصناف', description: 'عرض قائمة الأصناف', icon: 'fas fa-box' },
-            { id: 'add_items', name: 'إضافة أصناف', description: 'إضافة أصناف جديدة', icon: 'fas fa-plus-square' },
-            { id: 'edit_items', name: 'تعديل الأصناف', description: 'تعديل بيانات الأصناف', icon: 'fas fa-edit' },
-            { id: 'delete_items', name: 'حذف الأصناف', description: 'حذف الأصناف من النظام', icon: 'fas fa-trash-alt' },
-            { id: 'export_items', name: 'تصدير الأصناف', description: 'تصدير بيانات الأصناف', icon: 'fas fa-file-export' }
+            { 
+              id: 'view_items', 
+              name: 'عرض الأصناف', 
+              description: 'عرض قائمة الأصناف والتفاصيل',
+              icon: 'fas fa-box',
+              hint: 'يشمل البحث والتصفية'
+            },
+            { 
+              id: 'add_items', 
+              name: 'إضافة أصناف', 
+              description: 'إضافة أصناف جديدة للمخزون',
+              icon: 'fas fa-plus-square',
+              hint: 'إنشاء سجلات جديدة'
+            },
+            { 
+              id: 'edit_items', 
+              name: 'تعديل الأصناف', 
+              description: 'تعديل بيانات الأصناف الموجودة',
+              icon: 'fas fa-edit',
+              hint: 'تحديث الكميات والمعلومات'
+            },
+            { 
+              id: 'delete_items', 
+              name: 'حذف الأصناف', 
+              description: 'حذف الأصناف من النظام',
+              icon: 'fas fa-trash-alt',
+              hint: 'حذف نهائي للسجلات'
+            },
+            { 
+              id: 'export_items', 
+              name: 'تصدير الأصناف', 
+              description: 'تصدير بيانات الأصناف إلى ملفات',
+              icon: 'fas fa-file-export',
+              hint: 'CSV, Excel, PDF'
+            }
           ]
         },
         {
           id: 'transactions',
-          name: 'إدارة المعاملات',
+          name: 'المعاملات والحركات',
           permissions: [
-            { id: 'view_transactions', name: 'عرض الحركات', description: 'عرض سجل الحركات', icon: 'fas fa-exchange-alt' },
-            { id: 'create_transactions', name: 'إنشاء حركات', description: 'إنشاء حركات جديدة', icon: 'fas fa-plus-circle' },
-            { id: 'transfer_items', name: 'نقل الأصناف', description: 'نقل الأصناف بين المخازن', icon: 'fas fa-truck-moving' },
-            { id: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للعملاء', icon: 'fas fa-shipping-fast' },
-            { id: 'approve_transactions', name: 'اعتماد الحركات', description: 'اعتماد الحركات المعلقة', icon: 'fas fa-check-double' }
+            { 
+              id: 'view_transactions', 
+              name: 'عرض الحركات', 
+              description: 'عرض سجل الحركات والمعاملات',
+              icon: 'fas fa-exchange-alt',
+              hint: 'جميع أنواع المعاملات'
+            },
+            { 
+              id: 'create_transactions', 
+              name: 'إنشاء حركات', 
+              description: 'إنشاء حركات جديدة (إضافة، صرف، نقل)',
+              icon: 'fas fa-plus-circle',
+              hint: 'تسجيل المعاملات اليومية'
+            },
+            { 
+              id: 'transfer_items', 
+              name: 'نقل الأصناف', 
+              description: 'نقل الأصناف بين المخازن',
+              icon: 'fas fa-truck-moving',
+              hint: 'تحويل المخزون'
+            },
+            { 
+              id: 'dispatch_items', 
+              name: 'صرف الأصناف', 
+              description: 'صرف الأصناف للعملاء والموردين',
+              icon: 'fas fa-shipping-fast',
+              hint: 'طلبات الصرف'
+            },
+            { 
+              id: 'approve_transactions', 
+              name: 'اعتماد الحركات', 
+              description: 'اعتماد الحركات المعلقة',
+              icon: 'fas fa-check-double',
+              hint: 'المراجعة والاعتماد'
+            }
           ]
         },
         {
           id: 'reports',
           name: 'التقارير والإحصائيات',
           permissions: [
-            { id: 'view_reports', name: 'عرض التقارير', description: 'عرض التقارير والإحصائيات', icon: 'fas fa-chart-bar' },
-            { id: 'export_reports', name: 'تصدير التقارير', description: 'تصدير التقارير إلى ملفات', icon: 'fas fa-file-export' },
-            { id: 'view_dashboard', name: 'عرض لوحة التحكم', description: 'عرض إحصائيات النظام', icon: 'fas fa-tachometer-alt' },
-            { id: 'view_analytics', name: 'عرض التحليلات', description: 'عرض التحليلات المتقدمة', icon: 'fas fa-chart-line' }
+            { 
+              id: 'view_reports', 
+              name: 'عرض التقارير', 
+              description: 'عرض التقارير والإحصائيات',
+              icon: 'fas fa-chart-bar',
+              hint: 'تقارير مخصصة'
+            },
+            { 
+              id: 'export_reports', 
+              name: 'تصدير التقارير', 
+              description: 'تصدير التقارير إلى ملفات',
+              icon: 'fas fa-file-export',
+              hint: 'تصدير للتحليل'
+            },
+            { 
+              id: 'view_dashboard', 
+              name: 'عرض لوحة التحكم', 
+              description: 'عرض إحصائيات النظام الرئيسية',
+              icon: 'fas fa-tachometer-alt',
+              hint: 'نظرة عامة'
+            },
+            { 
+              id: 'view_analytics', 
+              name: 'عرض التحليلات', 
+              description: 'عرض التحليلات المتقدمة والرسوم البيانية',
+              icon: 'fas fa-chart-line',
+              hint: 'تحليلات متقدمة'
+            }
           ]
         },
         {
           id: 'administration',
           name: 'الإدارة النظامية',
           permissions: [
-            { id: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل وحذف المستخدمين', icon: 'fas fa-users-cog' },
-            { id: 'manage_warehouses', name: 'إدارة المخازن', description: 'إدارة المخازن والإعدادات', icon: 'fas fa-warehouse' },
-            { id: 'manage_settings', name: 'إدارة الإعدادات', description: 'تعديل إعدادات النظام', icon: 'fas fa-cogs' },
-            { id: 'view_audit_log', name: 'عرض سجل التدقيق', description: 'عرض سجل الأحداث والتدقيق', icon: 'fas fa-clipboard-list' }
+            { 
+              id: 'manage_users', 
+              name: 'إدارة المستخدمين', 
+              description: 'إضافة وتعديل وحذف المستخدمين',
+              icon: 'fas fa-users-cog',
+              hint: 'للمشرفين فقط'
+            },
+            { 
+              id: 'manage_warehouses', 
+              name: 'إدارة المخازن', 
+              description: 'إدارة المخازن والإعدادات',
+              icon: 'fas fa-warehouse',
+              hint: 'إعدادات المخازن'
+            },
+            { 
+              id: 'manage_settings', 
+              name: 'إدارة الإعدادات', 
+              description: 'تعديل إعدادات النظام العامة',
+              icon: 'fas fa-cogs',
+              hint: 'إعدادات النظام'
+            },
+            { 
+              id: 'view_audit_log', 
+              name: 'عرض سجل التدقيق', 
+              description: 'عرض سجل الأحداث والتدقيق',
+              icon: 'fas fa-clipboard-list',
+              hint: 'سجلات النظام'
+            }
           ]
         }
       ]
+    },
+    
+    // Total permissions count
+    totalPermissionsCount() {
+      return this.permissionCategories.reduce((total, category) => {
+        return total + category.permissions.length
+      }, 0)
+    },
+    
+    // Selected permissions count
+    selectedPermissionsCount() {
+      return this.userData.permissions.length
+    },
+    
+    // Password Strength
+    passwordStrength() {
+      const password = this.userData.password
+      
+      if (!password) {
+        return {
+          class: 'weak',
+          text: 'ضعيفة',
+          score: 0,
+          details: 'أدخل كلمة مرور'
+        }
+      }
+      
+      let score = 0
+      let details = []
+      
+      // Length check
+      if (password.length >= 8) score++
+      if (password.length >= 12) score++
+      
+      // Complexity checks
+      if (/[A-Z]/.test(password)) score++
+      if (/[a-z]/.test(password)) score++
+      if (/[0-9]/.test(password)) score++
+      if (/[^A-Za-z0-9]/.test(password)) score++
+      
+      // Determine strength
+      let strengthClass = 'weak'
+      let strengthText = 'ضعيفة'
+      
+      if (score >= 5) {
+        strengthClass = 'strong'
+        strengthText = 'قوية جداً'
+        details = ['ممتازة! كلمة مرور آمنة جداً']
+      } else if (score >= 4) {
+        strengthClass = 'strong'
+        strengthText = 'قوية'
+        details = ['جيدة، آمنة']
+      } else if (score >= 3) {
+        strengthClass = 'medium'
+        strengthText = 'متوسطة'
+        details = ['مقبولة، يمكن تحسينها']
+      } else {
+        strengthClass = 'weak'
+        strengthText = 'ضعيفة'
+        details = ['ضعيفة جداً، يجب تقويتها']
+      }
+      
+      // Add specific feedback
+      if (password.length < 8) {
+        details.push('يجب أن تكون 8 أحرف على الأقل')
+      }
+      if (!/[A-Z]/.test(password)) {
+        details.push('أضف حرف كبير واحد على الأقل')
+      }
+      if (!/[0-9]/.test(password)) {
+        details.push('أضف رقم واحد على الأقل')
+      }
+      if (!/[^A-Za-z0-9]/.test(password)) {
+        details.push('أضف رمزاً خاصاً (@, #, $...)')
+      }
+      
+      return {
+        class: strengthClass,
+        text: strengthText,
+        score: Math.min(score, 4),
+        details: details.join('. ')
+      }
+    }
+  },
+  
+  watch: {
+    // Watch for edit mode
+    editUser: {
+      immediate: true,
+      handler(user) {
+        if (user) {
+          this.editingUser = user
+          this.populateEditData(user)
+          if (this.autoOpen) {
+            this.openModal()
+          }
+        }
+      }
+    },
+    
+    // Auto-open modal
+    autoOpen: {
+      immediate: true,
+      handler(autoOpen) {
+        if (autoOpen) {
+          this.openModal()
+        }
+      }
+    },
+    
+    // Watch for all warehouses toggle
+    'userData.allWarehouses': function(newVal) {
+      if (newVal) {
+        this.userData.allowedWarehouses = []
+      }
+    },
+    
+    // Watch for password option change
+    passwordOption(newVal) {
+      if (newVal === 'auto') {
+        this.userData.password = ''
+        this.userData.confirmPassword = ''
+        this.clearError('password')
+        this.clearError('confirmPassword')
+      }
     }
   },
   
   methods: {
-    ...mapActions([
-      'loadAllUsers',
-      'createUser',
-      'updateUser',
-      'deleteUser',
-      'updateUserStatus',
-      'showNotification'
-    ]),
+    ...mapActions(['createUser', 'updateUser', 'showNotification']),
     
-    // Initialization
-    async init() {
-      try {
-        this.loading = true
-        this.error = null
-        
-        // Load theme preference
-        this.loadThemePreference()
-        
-        // Load data
-        await this.loadAllUsers()
-        
-        // Initialize date filters (last 30 days)
-        const endDate = new Date()
-        const startDate = new Date()
-        startDate.setDate(startDate.getDate() - 30)
-        
-        this.filters.endDate = endDate.toISOString().split('T')[0]
-        this.filters.startDate = startDate.toISOString().split('T')[0]
-        
-      } catch (error) {
-        console.error('Error initializing user management:', error)
-        this.error = 'فشل في تحميل بيانات المستخدمين. يرجى المحاولة مرة أخرى.'
-        this.showToast('حدث خطأ في تحميل البيانات', 'error')
-      } finally {
-        this.loading = false
+    // Modal Control
+    openModal() {
+      this.showModal = true
+      this.currentStep = 1
+      this.resetForm()
+      this.loadThemePreference()
+    },
+    
+    closeModal() {
+      if (!this.saving) {
+        this.showModal = false
+        this.resetForm()
+        this.$emit('closed')
       }
     },
     
@@ -1511,677 +1250,458 @@ export default {
       const savedTheme = localStorage.getItem('theme')
       this.isDarkMode = savedTheme === 'dark' || 
         (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-      this.applyTheme()
     },
     
-    toggleTheme() {
-      this.isDarkMode = !this.isDarkMode
-      localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light')
-      this.applyTheme()
-    },
-    
-    applyTheme() {
-      if (this.isDarkMode) {
-        document.documentElement.setAttribute('data-theme', 'dark')
-      } else {
-        document.documentElement.removeAttribute('data-theme')
-      }
-    },
-    
-    // Data Management
-    async refreshData() {
-      try {
-        this.refreshing = true
-        await this.loadAllUsers()
-        this.showToast('تم تحديث البيانات بنجاح', 'success')
-      } catch (error) {
-        console.error('Error refreshing data:', error)
-        this.showToast('فشل في تحديث البيانات', 'error')
-      } finally {
-        this.refreshing = false
-      }
-    },
-    
-    // User Display Helpers
-    getUserInitials(user) {
-      const name = user.name || user.email
-      return name
-        .split(' ')
-        .map(word => word[0])
-        .join('')
-        .toUpperCase()
-        .substring(0, 2)
-    },
-    
-    getAvatarStyle(user) {
-      const colors = [
-        '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
-        '#9C27B0', '#673AB7', '#3F51B5', '#00BCD4'
-      ]
-      const name = user.name || user.email
-      const hash = name.split('').reduce((acc, char) => {
-        return char.charCodeAt(0) + acc
-      }, 0)
-      const colorIndex = hash % colors.length
-      return {
-        backgroundColor: colors[colorIndex],
-        color: '#FFFFFF'
-      }
-    },
-    
-    getRoleName(role) {
-      const roles = {
-        'superadmin': 'مشرف عام',
-        'company_manager': 'مدير شركة',
-        'warehouse_manager': 'مدير مخزن'
-      }
-      return roles[role] || role
-    },
-    
-    getRoleIcon(role) {
-      const icons = {
-        'superadmin': 'fas fa-crown',
-        'company_manager': 'fas fa-user-tie',
-        'warehouse_manager': 'fas fa-warehouse'
-      }
-      return icons[role] || 'fas fa-user'
-    },
-    
-    getRoleDescription(role) {
-      const descriptions = {
-        'superadmin': 'صلاحيات كاملة على النظام بأكمله',
-        'company_manager': 'إدارة المستخدمين والمخازن والتقارير',
-        'warehouse_manager': 'إدارة المخازن والأصناف المحددة'
-      }
-      return descriptions[role] || 'دور غير محدد'
-    },
-    
-    getWarehouseName(warehouseId) {
-      const warehouse = this.warehouses.find(w => w.id === warehouseId)
-      return warehouse ? (warehouse.name_ar || warehouse.name) : warehouseId
-    },
-    
-    getUserWarehouseCount(user) {
-      if (!user.allowed_warehouses) return 0
-      if (user.allowed_warehouses.includes('all')) return 'جميع'
-      return user.allowed_warehouses.length
-    },
-    
-    getUserPermissionsCount(user) {
-      if (!user.permissions) return 0
-      if (user.permissions.includes('full_access')) return 'كاملة'
-      return user.permissions.length
-    },
-    
-    // Formatting
-    formatDate(date) {
-      if (!date) return 'غير محدد'
-      
-      try {
-        const dateObj = date.toDate ? date.toDate() : new Date(date)
-        return new Intl.DateTimeFormat('ar-SA', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }).format(dateObj)
-      } catch {
-        return 'غير محدد'
-      }
-    },
-    
-    formatDateDisplay(dateString) {
-      if (!dateString) return 'غير محدد'
-      const date = new Date(dateString)
-      return new Intl.DateTimeFormat('ar-SA').format(date)
-    },
-    
-    formatTimeAgo(date) {
-      if (!date) return 'غير معروف'
-      
-      try {
-        const now = new Date()
-        const past = date.toDate ? date.toDate() : new Date(date)
-        const diffMs = now - past
-        const diffSec = Math.floor(diffMs / 1000)
-        const diffMin = Math.floor(diffSec / 60)
-        const diffHour = Math.floor(diffMin / 60)
-        const diffDay = Math.floor(diffHour / 24)
-        
-        if (diffDay > 30) return this.formatDate(date)
-        if (diffDay > 0) return `قبل ${diffDay} يوم`
-        if (diffHour > 0) return `قبل ${diffHour} ساعة`
-        if (diffMin > 0) return `قبل ${diffMin} دقيقة`
-        return 'الآن'
-      } catch {
-        return 'غير معروف'
-      }
-    },
-    
-    // Search and Filters
-    debouncedSearch() {
-      clearTimeout(this.searchTimeout)
-      this.searchTimeout = setTimeout(() => {
-        this.applyFilters()
-      }, 300)
-    },
-    
-    applyFilters() {
-      this.currentPage = 1
-    },
-    
-    clearSearch() {
-      this.filters.search = ''
-      this.applyFilters()
-    },
-    
-    clearFilters() {
-      this.filters = {
-        search: '',
-        role: '',
-        status: '',
-        warehouse: '',
-        startDate: '',
-        endDate: ''
-      }
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 30)
-      this.filters.endDate = endDate.toISOString().split('T')[0]
-      this.filters.startDate = startDate.toISOString().split('T')[0]
-      this.applyFilters()
-    },
-    
-    // Selection Management
-    toggleUserSelection(userId) {
-      const index = this.selectedUsers.indexOf(userId)
-      if (index === -1) {
-        this.selectedUsers.push(userId)
-      } else {
-        this.selectedUsers.splice(index, 1)
-      }
-    },
-    
-    toggleAllSelection() {
-      if (this.allSelected) {
-        this.selectedUsers = []
-      } else {
-        this.selectedUsers = this.filteredUsers.map(user => user.id)
-      }
-    },
-    
-    clearSelection() {
-      this.selectedUsers = []
-    },
-    
-    // Dropdown Management
-    toggleDropdown(userId) {
-      this.activeDropdown = this.activeDropdown === userId ? null : userId
-    },
-    
-    // User Actions
-    editUser(user) {
-      this.editingUser = user
-      this.activeDropdown = null
-      
-      // Populate form
-      this.userForm = {
-        name: user.name || '',
-        email: user.email || '',
-        role: user.role || 'warehouse_manager',
-        password: '',
-        confirmPassword: '',
-        allWarehouses: user.allowed_warehouses?.includes('all') || false,
-        allowedWarehouses: user.allowed_warehouses?.filter(w => w !== 'all') || [],
-        permissions: user.permissions?.filter(p => p !== 'full_access') || [],
-        isActive: user.is_active !== false,
-        sendWelcomeEmail: false,
-        notes: user.notes || ''
-      }
-      
-      this.showCreateModal = true
-    },
-    
-    viewUserProfile(user) {
-      this.$router.push(`/profile/${user.id}`)
-    },
-    
-    async toggleUserStatus(user) {
-      try {
-        const newStatus = !user.is_active
-        const confirmMessage = newStatus 
-          ? `هل تريد تفعيل المستخدم "${user.name}"؟`
-          : `هل تريد تعطيل المستخدم "${user.name}"؟`
-        
-        if (!confirm(confirmMessage)) return
-        
-        await this.updateUserStatus({
-          userId: user.id,
-          isActive: newStatus
-        })
-        
-        this.showToast(
-          `تم ${newStatus ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`,
-          'success'
-        )
-        
-      } catch (error) {
-        console.error('Error toggling user status:', error)
-        this.showToast('فشل في تغيير حالة المستخدم', 'error')
-      }
-    },
-    
-    showDeleteModal(user = null) {
-      this.userToDelete = user
-      this.showDeleteModal = true
-      this.activeDropdown = null
-    },
-    
-    cancelDelete() {
-      this.userToDelete = null
-      this.showDeleteModal = false
-    },
-    
-    async confirmDelete() {
-      try {
-        this.deleting = true
-        
-        const usersToDelete = this.userToDelete 
-          ? [this.userToDelete] 
-          : this.allUsers.filter(user => this.selectedUsers.includes(user.id))
-        
-        // Confirm bulk delete
-        if (usersToDelete.length > 1) {
-          const confirmMessage = `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
-            usersToDelete.slice(0, 3).map(u => `• ${u.name} (${u.email})`).join('\n') +
-            (usersToDelete.length > 3 ? `\n• +${usersToDelete.length - 3} مستخدمين آخرين` : '')
-          
-          if (!confirm(confirmMessage)) {
-            this.cancelDelete()
-            return
-          }
-        }
-        
-        // Delete users
-        const deletePromises = usersToDelete.map(user => 
-          this.deleteUser(user.id).catch(error => {
-            console.error(`Error deleting user ${user.id}:`, error)
-            return { success: false, user, error }
-          })
-        )
-        
-        const results = await Promise.all(deletePromises)
-        
-        // Check results
-        const failedDeletions = results.filter(r => !r.success)
-        
-        if (failedDeletions.length > 0) {
-          const failedNames = failedDeletions.map(f => f.user.name).join(', ')
-          this.showToast(`فشل حذف بعض المستخدمين: ${failedNames}`, 'error')
-        } else {
-          const message = usersToDelete.length === 1 
-            ? `تم حذف المستخدم "${usersToDelete[0].name}" بنجاح`
-            : `تم حذف ${usersToDelete.length} مستخدمين بنجاح`
-          
-          this.showToast(message, 'success')
-        }
-        
-        // Clear selection
-        this.selectedUsers = this.selectedUsers.filter(id => 
-          !usersToDelete.some(user => user.id === id)
-        )
-        
-      } catch (error) {
-        console.error('Error confirming delete:', error)
-        this.showToast('حدث خطأ أثناء حذف المستخدمين', 'error')
-      } finally {
-        this.deleting = false
-        this.cancelDelete()
-      }
-    },
-    
-    // Bulk Actions
-    async bulkActivate() {
-      if (this.selectedUsers.length === 0) return
-      
-      try {
-        const confirmMessage = `هل تريد تفعيل ${this.selectedUsers.length} مستخدمين؟`
-        if (!confirm(confirmMessage)) return
-        
-        const activatePromises = this.selectedUsers.map(userId => 
-          this.updateUserStatus({ userId, isActive: true })
-        )
-        
-        await Promise.all(activatePromises)
-        
-        this.showToast(
-          `تم تفعيل ${this.selectedUsers.length} مستخدمين بنجاح`,
-          'success'
-        )
-        
-        this.clearSelection()
-        
-      } catch (error) {
-        console.error('Error bulk activating users:', error)
-        this.showToast('فشل في تفعيل المستخدمين', 'error')
-      }
-    },
-    
-    async bulkDeactivate() {
-      if (this.selectedUsers.length === 0) return
-      
-      try {
-        const confirmMessage = `هل تريد تعطيل ${this.selectedUsers.length} مستخدمين؟`
-        if (!confirm(confirmMessage)) return
-        
-        const deactivatePromises = this.selectedUsers.map(userId => 
-          this.updateUserStatus({ userId, isActive: false })
-        )
-        
-        await Promise.all(deactivatePromises)
-        
-        this.showToast(
-          `تم تعطيل ${this.selectedUsers.length} مستخدمين بنجاح`,
-          'success'
-        )
-        
-        this.clearSelection()
-        
-      } catch (error) {
-        console.error('Error bulk deactivating users:', error)
-        this.showToast('فشل في تعطيل المستخدمين', 'error')
-      }
-    },
-    
-    async bulkDelete() {
-      if (this.selectedUsers.length === 0) return
-      
-      const usersToDelete = this.allUsers.filter(user => 
-        this.selectedUsers.includes(user.id)
-      )
-      
-      this.userToDelete = null // Set to null for bulk delete
-      this.showDeleteModal = true
-    },
-    
-    // Reset Password
-    resetPassword(user) {
-      this.userToReset = user
-      this.resetMethod = 'auto'
-      this.newPassword = ''
-      this.confirmNewPassword = ''
-      this.showNewPassword = false
-      this.showConfirmNewPassword = false
-      this.sendResetNotification = true
-      this.passwordMatchError = ''
-      this.showResetPasswordModal = true
-      this.activeDropdown = null
-    },
-    
-    cancelResetPassword() {
-      this.userToReset = null
-      this.showResetPasswordModal = false
-    },
-    
-    async confirmResetPassword() {
-      try {
-        // Validate manual password
-        if (this.resetMethod === 'manual') {
-          if (!this.newPassword || !this.confirmNewPassword) {
-            this.passwordMatchError = 'يجب إدخال كلمة المرور وتأكيدها'
-            return
-          }
-          
-          if (this.newPassword !== this.confirmNewPassword) {
-            this.passwordMatchError = 'كلمات المرور غير متطابقة'
-            return
-          }
-          
-          if (this.newPasswordStrength.class === 'weak') {
-            this.passwordMatchError = 'كلمة المرور ضعيفة جداً'
-            return
-          }
-        }
-        
-        this.resetting = true
-        
-        // Generate password if auto
-        const password = this.resetMethod === 'auto' 
-          ? this.generateRandomPassword()
-          : this.newPassword
-        
-        // In a real app, you would call a backend endpoint to reset password
-        // For now, we'll simulate the process
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        // Show success message
-        let message = `تم إعادة تعيين كلمة مرور المستخدم "${this.userToReset.name}"`
-        
-        if (this.resetMethod === 'auto') {
-          message += `. كلمة المرور الجديدة: ${password}`
-          if (this.sendResetNotification) {
-            message += ' (تم إرسالها بالبريد)'
-          }
-        }
-        
-        this.showToast(message, 'success')
-        
-        // Close modal
-        this.cancelResetPassword()
-        
-      } catch (error) {
-        console.error('Error resetting password:', error)
-        this.showToast('فشل في إعادة تعيين كلمة المرور', 'error')
-      } finally {
-        this.resetting = false
-      }
-    },
-    
-    generateRandomPassword() {
-      const length = 12
-      const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
-      let password = ''
-      for (let i = 0; i < length; i++) {
-        password += charset.charAt(Math.floor(Math.random() * charset.length))
-      }
-      return password
-    },
-    
-    calculatePasswordStrength(password) {
-      if (!password) return { class: 'weak', percentage: 0, text: 'ضعيفة' }
-      
-      let strength = 0
-      if (password.length >= 8) strength += 25
-      if (/[A-Z]/.test(password)) strength += 25
-      if (/[0-9]/.test(password)) strength += 25
-      if (/[^A-Za-z0-9]/.test(password)) strength += 25
-      
-      if (strength >= 75) return { class: 'strong', percentage: 100, text: 'قوية' }
-      if (strength >= 50) return { class: 'medium', percentage: 66, text: 'متوسطة' }
-      return { class: 'weak', percentage: 33, text: 'ضعيفة' }
-    },
-    
-    // Impersonation
-    impersonateUser(user) {
-      if (user.id === this.currentUserId) {
-        this.showToast('لا يمكنك الدخول كمستخدم نفسك', 'warning')
-        return
-      }
-      
-      this.userToImpersonate = user
-      this.showImpersonateModal = true
-      this.activeDropdown = null
-    },
-    
-    cancelImpersonate() {
-      this.userToImpersonate = null
-      this.showImpersonateModal = false
-    },
-    
-    confirmImpersonate() {
-      // In a real app, you would call a backend endpoint to impersonate
-      // For now, we'll just show a success message
-      this.showToast(`تم الدخول كمستخدم ${this.userToImpersonate.name}`, 'success')
-      this.cancelImpersonate()
-    },
-    
-    // User Form
-    closeModal() {
-      this.showCreateModal = false
-      this.editingUser = null
-      this.resetForm()
-    },
-    
+    // Form Management
     resetForm() {
-      this.userForm = {
+      this.userData = {
         name: '',
         email: '',
         role: 'warehouse_manager',
-        password: '',
-        confirmPassword: '',
+        phone: '',
+        phoneCountryCode: '+966',
         allWarehouses: false,
         allowedWarehouses: [],
         permissions: [],
+        password: '',
+        confirmPassword: '',
         isActive: true,
         sendWelcomeEmail: true,
+        twoFactorEnabled: false,
         notes: ''
       }
+      
       this.formErrors = {}
+      this.passwordOption = 'auto'
       this.showPassword = false
       this.showConfirmPassword = false
+      this.currentStep = 1
+      this.editingUser = null
     },
     
-    validateForm() {
-      const errors = {}
+    populateEditData(user) {
+      this.userData = {
+        name: user.name || '',
+        email: user.email || '',
+        role: user.role || 'warehouse_manager',
+        phone: user.phone || '',
+        phoneCountryCode: user.phoneCountryCode || '+966',
+        allWarehouses: user.allowed_warehouses?.includes('all') || false,
+        allowedWarehouses: user.allowed_warehouses?.filter(w => w !== 'all') || [],
+        permissions: user.permissions?.filter(p => p !== 'full_access') || [],
+        password: '',
+        confirmPassword: '',
+        isActive: user.is_active !== false,
+        sendWelcomeEmail: false,
+        twoFactorEnabled: user.two_factor_enabled || false,
+        notes: user.notes || ''
+      }
+    },
+    
+    // Step Navigation
+    nextStep() {
+      if (this.currentStep < this.steps.length) {
+        this.currentStep++
+      }
+    },
+    
+    prevStep() {
+      if (this.currentStep > 1) {
+        this.currentStep--
+      }
+    },
+    
+    // Validation
+    validateStep1() {
+      this.clearErrors()
+      let isValid = true
       
-      if (!this.userForm.name?.trim()) {
-        errors.name = 'الاسم مطلوب'
+      // Validate name
+      if (!this.userData.name?.trim()) {
+        this.formErrors.name = 'الاسم الكامل مطلوب'
+        isValid = false
+      } else if (this.userData.name.trim().length < 2) {
+        this.formErrors.name = 'الاسم يجب أن يكون على الأقل حرفين'
+        isValid = false
       }
       
-      if (!this.userForm.email?.trim()) {
-        errors.email = 'البريد الإلكتروني مطلوب'
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userForm.email)) {
-        errors.email = 'البريد الإلكتروني غير صالح'
+      // Validate email
+      if (!this.userData.email?.trim()) {
+        this.formErrors.email = 'البريد الإلكتروني مطلوب'
+        isValid = false
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userData.email)) {
+        this.formErrors.email = 'البريد الإلكتروني غير صالح'
+        isValid = false
       }
       
-      if (!this.editingUser) {
-        if (!this.userForm.password) {
-          errors.password = 'كلمة المرور مطلوبة'
-        } else if (this.userForm.password.length < 8) {
-          errors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
+      // Validate role
+      if (!this.userData.role) {
+        this.formErrors.role = 'يجب اختيار دور للمستخدم'
+        isValid = false
+      }
+      
+      if (isValid) {
+        this.step1Loading = true
+        setTimeout(() => {
+          this.step1Loading = false
+          this.nextStep()
+        }, 500)
+      }
+    },
+    
+    validateStep2() {
+      this.step2Loading = true
+      
+      // Validate warehouses if not all
+      if (!this.userData.allWarehouses && this.userData.allowedWarehouses.length === 0) {
+        this.showNotification({
+          type: 'warning',
+          message: 'لم يتم اختيار أي مخزن. سيتم إنشاء المستخدم بدون صلاحيات للمخازن.'
+        })
+      }
+      
+      // Auto-add view permissions based on role
+      this.autoAddBasicPermissions()
+      
+      setTimeout(() => {
+        this.step2Loading = false
+        this.nextStep()
+      }, 500)
+    },
+    
+    validateStep3() {
+      this.clearErrors()
+      let isValid = true
+      
+      // Validate password if manual mode
+      if (this.passwordOption === 'manual') {
+        if (!this.userData.password) {
+          this.formErrors.password = 'كلمة المرور مطلوبة'
+          isValid = false
+        } else if (this.userData.password.length < 8) {
+          this.formErrors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
+          isValid = false
+        } else if (this.passwordStrength.class === 'weak') {
+          this.formErrors.password = 'كلمة المرور ضعيفة جداً'
+          isValid = false
         }
         
-        if (this.userForm.password !== this.userForm.confirmPassword) {
-          errors.confirmPassword = 'كلمات المرور غير متطابقة'
+        if (this.userData.password !== this.userData.confirmPassword) {
+          this.formErrors.confirmPassword = 'كلمات المرور غير متطابقة'
+          isValid = false
         }
       }
       
-      this.formErrors = errors
-      return Object.keys(errors).length === 0
-    },
-    
-    toggleAllWarehouses() {
-      if (this.userForm.allWarehouses) {
-        this.userForm.allowedWarehouses = []
+      if (isValid) {
+        this.saveUser()
       }
     },
     
-    selectAllWarehouses() {
+    validateField(field) {
+      switch (field) {
+        case 'name':
+          if (!this.userData.name?.trim()) {
+            this.formErrors.name = 'الاسم الكامل مطلوب'
+          } else if (this.userData.name.trim().length < 2) {
+            this.formErrors.name = 'الاسم يجب أن يكون على الأقل حرفين'
+          } else {
+            this.clearError('name')
+          }
+          break
+          
+        case 'email':
+          if (!this.userData.email?.trim()) {
+            this.formErrors.email = 'البريد الإلكتروني مطلوب'
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userData.email)) {
+            this.formErrors.email = 'البريد الإلكتروني غير صالح'
+          } else {
+            this.clearError('email')
+          }
+          break
+          
+        case 'password':
+          this.validatePassword()
+          break
+          
+        case 'confirmPassword':
+          if (this.userData.password !== this.userData.confirmPassword) {
+            this.formErrors.confirmPassword = 'كلمات المرور غير متطابقة'
+          } else {
+            this.clearError('confirmPassword')
+          }
+          break
+      }
+    },
+    
+    validatePassword() {
+      if (!this.userData.password) {
+        this.formErrors.password = 'كلمة المرور مطلوبة'
+      } else if (this.userData.password.length < 8) {
+        this.formErrors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
+      } else if (this.passwordStrength.class === 'weak') {
+        this.formErrors.password = 'كلمة المرور ضعيفة جداً'
+      } else {
+        this.clearError('password')
+      }
+    },
+    
+    clearErrors() {
+      this.formErrors = {}
+    },
+    
+    clearError(field) {
+      if (this.formErrors[field]) {
+        delete this.formErrors[field]
+      }
+    },
+    
+    // Role Selection
+    selectRole(roleId) {
+      this.userData.role = roleId
+      this.clearError('role')
+      
+      // Auto-set permissions based on role
+      this.autoSetPermissionsByRole()
+    },
+    
+    getRoleName(roleId) {
+      const role = this.availableRoles.find(r => r.id === roleId)
+      return role ? role.name : roleId
+    },
+    
+    // Warehouses Management
+    toggleAllWarehouses() {
+      if (this.userData.allWarehouses) {
+        this.userData.allWarehouses = false
+      } else {
+        // Select all warehouses
+        const allWarehouseIds = [
+          ...this.primaryWarehouses.map(w => w.id),
+          ...this.dispatchWarehouses.map(w => w.id)
+        ]
+        this.userData.allowedWarehouses = [...allWarehouseIds]
+      }
+    },
+    
+    toggleAllWarehousesAccess() {
+      if (this.userData.allWarehouses) {
+        this.userData.allowedWarehouses = []
+      }
+    },
+    
+    toggleCategory(categoryType) {
+      let warehouses = []
+      
+      if (categoryType === 'primary') {
+        warehouses = this.primaryWarehouses.map(w => w.id)
+      } else if (categoryType === 'dispatch') {
+        warehouses = this.dispatchWarehouses.map(w => w.id)
+      }
+      
+      // Check if all warehouses in category are selected
+      const allSelected = warehouses.every(id => 
+        this.userData.allowedWarehouses.includes(id)
+      )
+      
+      if (allSelected) {
+        // Deselect all
+        this.userData.allowedWarehouses = this.userData.allowedWarehouses.filter(
+          id => !warehouses.includes(id)
+        )
+      } else {
+        // Select all missing ones
+        warehouses.forEach(id => {
+          if (!this.userData.allowedWarehouses.includes(id)) {
+            this.userData.allowedWarehouses.push(id)
+          }
+        })
+      }
+    },
+    
+    updateWarehouseSelection() {
+      // If all warehouses are selected individually, toggle allWarehouses
       const allWarehouseIds = [
         ...this.primaryWarehouses.map(w => w.id),
         ...this.dispatchWarehouses.map(w => w.id)
       ]
-      this.userForm.allowedWarehouses = [...allWarehouseIds]
+      
+      const allSelected = allWarehouseIds.every(id => 
+        this.userData.allowedWarehouses.includes(id)
+      )
+      
+      if (allSelected && allWarehouseIds.length > 0) {
+        this.userData.allWarehouses = true
+        this.userData.allowedWarehouses = []
+      } else {
+        this.userData.allWarehouses = false
+      }
     },
     
+    // Permissions Management
     applyPermissionPreset(preset) {
-      const presets = {
-        view_only: [
-          'view_items',
-          'view_transactions',
-          'view_reports',
-          'view_dashboard'
-        ],
-        basic_management: [
-          'view_items',
-          'add_items',
-          'edit_items',
-          'view_transactions',
-          'create_transactions',
-          'transfer_items',
-          'dispatch_items',
-          'view_reports',
-          'view_dashboard'
-        ],
-        full_access: this.permissionCategories.flatMap(category => 
-          category.permissions.map(p => p.id)
-        )
+      let permissions = []
+      
+      switch (preset) {
+        case 'view_only':
+          permissions = [
+            'view_items',
+            'view_transactions',
+            'view_reports',
+            'view_dashboard'
+          ]
+          break
+          
+        case 'basic':
+          permissions = [
+            'view_items',
+            'add_items',
+            'edit_items',
+            'view_transactions',
+            'create_transactions',
+            'transfer_items',
+            'dispatch_items',
+            'view_reports',
+            'view_dashboard'
+          ]
+          break
+          
+        case 'full':
+          permissions = this.permissionCategories.flatMap(category => 
+            category.permissions.map(p => p.id)
+          )
+          break
       }
       
-      this.userForm.permissions = [...presets[preset] || []]
+      this.userData.permissions = [...permissions]
     },
     
     isCategorySelected(permissions) {
-      return permissions.every(p => this.userForm.permissions.includes(p.id))
+      return permissions.every(p => this.userData.permissions.includes(p.id))
     },
     
-    toggleCategory(permissions, event) {
+    toggleCategorySelection(permissions, event) {
       const checked = event.target.checked
       const permissionIds = permissions.map(p => p.id)
       
       if (checked) {
         // Add all permissions from category
         permissionIds.forEach(id => {
-          if (!this.userForm.permissions.includes(id)) {
-            this.userForm.permissions.push(id)
+          if (!this.userData.permissions.includes(id)) {
+            this.userData.permissions.push(id)
           }
         })
       } else {
         // Remove all permissions from category
-        this.userForm.permissions = this.userForm.permissions.filter(
+        this.userData.permissions = this.userData.permissions.filter(
           id => !permissionIds.includes(id)
         )
       }
     },
     
-    async saveUser() {
-      if (!this.validateForm()) return
+    autoSetPermissionsByRole() {
+      switch (this.userData.role) {
+        case 'warehouse_manager':
+          this.applyPermissionPreset('basic')
+          break
+          
+        case 'company_manager':
+          this.applyPermissionPreset('full')
+          break
+          
+        case 'superadmin':
+          this.applyPermissionPreset('full')
+          break
+      }
+    },
+    
+    autoAddBasicPermissions() {
+      // Always add view permissions if not present
+      const basicViewPermissions = [
+        'view_items',
+        'view_transactions',
+        'view_dashboard'
+      ]
       
+      basicViewPermissions.forEach(permission => {
+        if (!this.userData.permissions.includes(permission)) {
+          this.userData.permissions.push(permission)
+        }
+      })
+    },
+    
+    // Save User
+    async saveUser() {
       try {
         this.saving = true
+        this.loading = true
+        this.loadingMessage = this.editingUser ? 'جاري تحديث بيانات المستخدم...' : 'جاري إنشاء الحساب...'
         
         // Prepare user data
         const userData = {
-          name: this.userForm.name.trim(),
-          email: this.userForm.email.trim(),
-          role: this.userForm.role,
-          allowed_warehouses: this.userForm.allWarehouses 
+          name: this.userData.name.trim(),
+          email: this.userData.email.trim(),
+          role: this.userData.role,
+          phone: this.userData.phone ? `${this.userData.phoneCountryCode}${this.userData.phone}` : '',
+          allowed_warehouses: this.userData.allWarehouses 
             ? ['all'] 
-            : [...this.userForm.allowedWarehouses],
-          permissions: this.userForm.permissions,
-          is_active: this.userForm.isActive,
-          notes: this.userForm.notes.trim()
+            : [...this.userData.allowedWarehouses],
+          permissions: this.userData.permissions,
+          is_active: this.userData.isActive,
+          two_factor_enabled: this.userData.twoFactorEnabled,
+          notes: this.userData.notes.trim()
         }
+        
+        let result
         
         if (this.editingUser) {
           // Update existing user
-          await this.updateUser({
+          result = await this.updateUser({
             userId: this.editingUser.id,
             userData
           })
           
-          this.showToast(`تم تحديث المستخدم "${userData.name}" بنجاح`, 'success')
+          this.showNotification({
+            type: 'success',
+            message: `تم تحديث المستخدم "${userData.name}" بنجاح`
+          })
         } else {
+          // Handle password
+          let password = this.userData.password
+          
+          if (this.passwordOption === 'auto') {
+            password = generatePassword(12)
+            this.generatedPassword = password
+          }
+          
           // Create new user
-          await this.createUser({
+          result = await this.createUser({
             ...userData,
-            password: this.userForm.password
+            password,
+            sendWelcomeEmail: this.userData.sendWelcomeEmail
           })
           
-          this.showToast(`تم إنشاء المستخدم "${userData.name}" بنجاح`, 'success')
+          this.createdUser = {
+            name: userData.name,
+            email: userData.email,
+            role: userData.role
+          }
         }
         
-        // Close modal and reset form
-        this.closeModal()
+        // Show success
+        this.showSuccessModal = true
+        this.showModal = false
+        
+        // Call success callback
+        if (this.onSuccess) {
+          this.onSuccess(result)
+        }
+        
+        // Emit success event
+        this.$emit('success', {
+          user: result,
+          password: this.generatedPassword,
+          isEdit: !!this.editingUser
+        })
         
       } catch (error) {
         console.error('Error saving user:', error)
@@ -2193,190 +1713,87 @@ export default {
           errorMessage = 'البريد الإلكتروني غير صالح'
         } else if (error.code === 'auth/weak-password') {
           errorMessage = 'كلمة المرور ضعيفة جداً'
+        } else if (error.message) {
+          errorMessage = error.message
         }
         
-        this.showToast(errorMessage, 'error')
+        this.showErrorToast(errorMessage)
+        
       } finally {
         this.saving = false
+        this.loading = false
       }
     },
     
-    // Export
-    async exportUsers() {
-      try {
-        this.exporting = true
-        
-        // Prepare data for export
-        const exportData = this.filteredUsers.map(user => ({
-          'الاسم': user.name,
-          'البريد الإلكتروني': user.email,
-          'الدور': this.getRoleName(user.role),
-          'الحالة': user.is_active !== false ? 'نشط' : 'معطل',
-          'المخازن المسموحة': user.allowed_warehouses?.includes('all') 
-            ? 'جميع المخازن' 
-            : (user.allowed_warehouses?.map(id => this.getWarehouseName(id)).join(', ') || 'لا توجد'),
-          'الصلاحيات': user.permissions?.includes('full_access')
-            ? 'صلاحية كاملة'
-            : (user.permissions?.length || 0) + ' صلاحية',
-          'تاريخ الإنشاء': this.formatDate(user.created_at),
-          'آخر تحديث': user.updated_at ? this.formatDate(user.updated_at) : 'غير متاح',
-          'آخر دخول': user.last_login ? this.formatDate(user.last_login) : 'غير متاح',
-          'ملاحظات': user.notes || ''
-        }))
-        
-        // Convert to CSV
-        const headers = Object.keys(exportData[0])
-        const csvContent = [
-          headers.join(','),
-          ...exportData.map(row => 
-            headers.map(header => `"${row[header] || ''}"`).join(',')
-          )
-        ].join('\n')
-        
-        // Create download link
-        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-        const link = document.createElement('a')
-        const url = URL.createObjectURL(blob)
-        
-        link.setAttribute('href', url)
-        link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
-        link.style.visibility = 'hidden'
-        
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        this.showToast(`تم تصدير ${exportData.length} مستخدم`, 'success')
-        
-      } catch (error) {
-        console.error('Error exporting users:', error)
-        this.showToast('فشل في تصدير البيانات', 'error')
-      } finally {
-        this.exporting = false
+    // Success Modal Actions
+    createAnotherUser() {
+      this.showSuccessModal = false
+      this.resetForm()
+      this.openModal()
+    },
+    
+    viewUser() {
+      if (this.createdUser) {
+        this.$router.push(`/users/${this.createdUser.id}`)
+      }
+      this.closeSuccessModal()
+    },
+    
+    closeSuccessModal() {
+      this.showSuccessModal = false
+      this.createdUser = null
+      this.generatedPassword = ''
+      this.$emit('completed')
+    },
+    
+    copyPassword() {
+      if (this.generatedPassword) {
+        navigator.clipboard.writeText(this.generatedPassword)
+        this.showNotification({
+          type: 'success',
+          message: 'تم نسخ كلمة المرور إلى الحافظة'
+        })
       }
     },
     
-    async exportSelected() {
-      if (this.selectedUsers.length === 0) return
-      
-      // Temporarily change filters to only selected users
-      const originalFilters = { ...this.filters }
-      this.filters = {
-        ...this.filters,
-        search: '',
-        role: '',
-        status: '',
-        warehouse: ''
-      }
-      
-      // Force re-computation
-      await this.$nextTick()
-      
-      // Export
-      await this.exportUsers()
-      
-      // Restore filters
-      this.filters = originalFilters
-    },
-    
-    // Pagination
-    prevPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--
-      }
-    },
-    
-    nextPage() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++
-      }
-    },
-    
-    goToPage(page) {
-      if (page !== '...') {
-        this.currentPage = page
-      }
-    },
-    
-    // Toast Notifications
-    showToast(message, type = 'success') {
-      this.toast = {
-        show: true,
-        type,
-        message,
-        icon: type === 'success' ? 'fas fa-check-circle' : 
-              type === 'error' ? 'fas fa-exclamation-circle' : 
-              type === 'warning' ? 'fas fa-exclamation-triangle' :
-              'fas fa-info-circle'
-      }
+    // Error Handling
+    showErrorToast(message) {
+      this.errorMessage = message
+      this.showError = true
       
       setTimeout(() => {
-        this.hideToast()
+        this.hideError()
       }, 5000)
     },
     
-    hideToast() {
-      this.toast.show = false
+    hideError() {
+      this.showError = false
+      this.errorMessage = ''
     }
-  },
-  
-  watch: {
-    filters: {
-      handler() {
-        this.currentPage = 1
-      },
-      deep: true
-    },
-    
-    allUsers() {
-      // Update stats when users change
-    }
-  },
-  
-  created() {
-    this.init()
   },
   
   mounted() {
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', (event) => {
-      if (!event.target.closest('.dropdown')) {
-        this.activeDropdown = null
-      }
-    })
+    // Load theme preference
+    this.loadThemePreference()
     
     // Listen for theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (!localStorage.getItem('theme')) {
         this.isDarkMode = e.matches
-        this.applyTheme()
       }
     })
-  },
-  
-  beforeRouteLeave(to, from, next) {
-    // Clear any active modals
-    this.closeModal()
-    this.cancelDelete()
-    this.cancelResetPassword()
-    this.cancelImpersonate()
-    next()
   }
 }
 </script>
 
 <style scoped>
-/* Base Layout */
-.user-management {
-  min-height: 100vh;
-  background: var(--bg-primary, #f5f5f5);
-  color: var(--text-primary, #333);
-  transition: all 0.3s ease;
+/* Base Styles */
+.add-user-module {
   font-family: 'Tajawal', 'Segoe UI', sans-serif;
   direction: rtl;
 }
 
-.user-management.dark-mode {
+.add-user-module.dark-mode {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2d2d2d;
   --bg-card: #2d2d2d;
@@ -2391,1155 +1808,35 @@ export default {
   --error-color: #f44336;
   --info-color: #2196F3;
   --primary-color: #2196F3;
-  --secondary-color: #FF9800;
+  --secondary-color: #6c757d;
 }
 
-/* Loading Overlay */
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.spinner-container {
-  text-align: center;
-  color: white;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-.loading-text {
-  font-size: 1.125rem;
-  font-weight: 500;
-}
-
-/* Error State */
-.error-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.error-card {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 3rem;
-  text-align: center;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 4px 20px var(--shadow-color);
-}
-
-.error-icon {
-  font-size: 4rem;
-  color: var(--error-color);
-  margin-bottom: 1.5rem;
-}
-
-.error-card h2 {
-  margin: 0 0 1rem;
-  color: var(--text-primary);
-}
-
-.error-message {
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-
-.error-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-/* Main Content */
-.main-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-/* Header Section */
-.header-section {
-  margin-bottom: 2rem;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-}
-
-.header-info {
-  flex: 1;
-  min-width: 300px;
-}
-
-.page-title {
-  font-size: 2rem;
-  margin: 0 0 0.5rem;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  margin: 0;
-  font-size: 1.125rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.theme-toggle {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  transition: all 0.3s;
-}
-
-.theme-toggle:hover {
-  background: var(--primary-color);
-  color: white;
-  transform: rotate(15deg);
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  box-shadow: 0 2px 8px var(--shadow-color);
-  transition: transform 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.75rem;
-  color: white;
-}
-
-.total-users { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.active-users { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); }
-.inactive-users { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); }
-.superadmins { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); }
-
-.stat-content h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.stat-number {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-/* Filters Section */
-.filters-section {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px var(--shadow-color);
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-group label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-group input,
-.filter-group select {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  transition: all 0.3s;
-}
-
-.filter-group input:focus,
-.filter-group select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-}
-
-/* Search Input */
-.search-input {
-  position: relative;
-}
-
-.search-input input {
-  width: 100%;
-  padding-left: 2.5rem;
-}
-
-.search-input::before {
-  content: '\f002';
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 900;
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-secondary);
-}
-
-.clear-search {
-  position: absolute;
-  left: 2.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.25rem;
-}
-
-/* Date Range */
-.date-range .date-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.date-inputs input {
-  flex: 1;
-  min-width: 120px;
-}
-
-.date-separator {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-/* Quick Actions */
-.quick-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.bulk-actions-dropdown {
-  position: absolute;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.5rem;
-  margin-top: 0.5rem;
-  box-shadow: 0 4px 12px var(--shadow-color);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 200px;
-}
-
-.bulk-action-btn {
-  background: none;
-  border: none;
-  padding: 0.75rem 1rem;
-  text-align: right;
-  color: var(--text-primary);
-  cursor: pointer;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: background-color 0.2s;
-}
-
-.bulk-action-btn:hover:not(:disabled) {
-  background: var(--bg-input);
-}
-
-.bulk-action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.bulk-action-btn.danger {
-  color: var(--error-color);
-}
-
-.bulk-action-btn.info {
-  color: var(--info-color);
-}
-
-/* Table Section */
-.table-section {
-  background: var(--bg-card);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px var(--shadow-color);
-}
-
-.table-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.table-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.table-info h3 {
-  margin: 0;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.table-count {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: normal;
-}
-
-.selection-info {
-  background: rgba(33, 150, 243, 0.1);
-  color: var(--primary-color);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.clear-selection {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-size: 0.875rem;
-  text-decoration: underline;
-  padding: 0.25rem;
-}
-
-.table-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.select-all-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.view-options {
-  display: flex;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.view-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.view-btn.active {
-  background: var(--primary-color);
-  color: white;
-}
-
-.view-btn:hover:not(.active) {
-  background: var(--bg-card);
-}
-
-/* Users Grid View */
-.users-grid {
-  padding: 1.5rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.user-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-
-.user-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 12px var(--shadow-color);
-}
-
-.user-card.selected {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.user-card.inactive {
-  opacity: 0.7;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.dark .user-card.inactive {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* Card Header */
-.card-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.user-avatar-section {
-  position: relative;
-}
-
-.user-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: white;
-}
-
-.user-status {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--bg-card);
-  border-radius: 50%;
-}
-
-.user-status.online {
-  background: var(--success-color);
-}
-
-.user-status.offline {
-  background: var(--error-color);
-}
-
-.user-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.select-user-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem;
-}
-
-.dropdown {
-  position: relative;
-}
-
-.dropdown-toggle {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem;
-}
-
-.dropdown-menu {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.5rem;
-  min-width: 160px;
-  box-shadow: 0 4px 12px var(--shadow-color);
-  z-index: 100;
-}
-
-.dropdown-item {
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  padding: 0.75rem 1rem;
-  text-align: right;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-}
-
-.dropdown-item:hover {
-  background: var(--bg-input);
-}
-
-.dropdown-item.danger {
-  color: var(--error-color);
-}
-
-/* Card Body */
-.card-body {
-  padding: 1.5rem;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.user-name {
-  margin: 0;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.user-email {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.user-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.user-role {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
+/* Trigger Button */
+.add-user-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.user-role.superadmin { background: rgba(255, 152, 0, 0.1); color: #ff9800; }
-.user-role.company_manager { background: rgba(33, 150, 243, 0.1); color: #2196f3; }
-.user-role.warehouse_manager { background: rgba(76, 175, 80, 0.1); color: #4caf50; }
-
-.user-date {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.user-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.warehouses-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.warehouses-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.warehouses-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.warehouse-tag {
-  background: var(--bg-input);
-  color: var(--text-primary);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-}
-
-.warehouse-tag.all {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-}
-
-.warehouse-tag.more {
-  background: var(--primary-color);
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
   color: white;
-}
-
-/* Card Footer */
-.card-footer {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-}
-
-/* Users Table View */
-.users-table-container {
-  overflow-x: auto;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.users-table th {
-  padding: 1rem;
-  text-align: right;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-input);
-  border-bottom: 1px solid var(--border-color);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.users-table td {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.users-table tbody tr:hover {
-  background: var(--bg-input);
-}
-
-.users-table tbody tr.selected {
-  background: rgba(33, 150, 243, 0.05);
-}
-
-.users-table tbody tr.inactive {
-  opacity: 0.7;
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.dark .users-table tbody tr.inactive {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* Table Cells */
-.select-column {
-  width: 40px;
-}
-
-.select-cell {
-  text-align: center;
-}
-
-.select-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.user-column {
-  min-width: 250px;
-}
-
-.user-info-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.user-avatar-sm {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: white;
-  flex-shrink: 0;
-}
-
-.user-details {
-  flex: 1;
-}
-
-.user-name-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.user-name {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary);
-}
-
-.current-user-badge {
-  background: rgba(33, 150, 243, 0.1);
-  color: var(--primary-color);
-  padding: 0.125rem 0.5rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.user-email {
-  margin: 0 0 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.user-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.last-login {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.role-column {
-  min-width: 150px;
-}
-
-.role-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.permissions-count {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.warehouses-column {
-  min-width: 200px;
-}
-
-.warehouses-list-table {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.all-warehouses {
-  color: var(--success-color);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.warehouses-count {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.warehouses-preview-table {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.warehouse-tag-sm {
-  background: var(--bg-input);
-  color: var(--text-primary);
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-}
-
-.warehouse-more {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.no-warehouses {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.status-column {
-  min-width: 120px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.status-indicator.active {
-  color: var(--success-color);
-}
-
-.status-indicator:not(.active) {
-  color: var(--error-color);
-}
-
-.status-toggle-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.status-toggle-btn.success {
-  color: var(--success-color);
-  border-color: var(--success-color);
-}
-
-.status-toggle-btn.danger {
-  color: var(--error-color);
-  border-color: var(--error-color);
-}
-
-.date-column {
-  min-width: 150px;
-}
-
-.date-display {
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.time-ago {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.actions-column {
-  min-width: 200px;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 36px;
-  height: 36px;
+  border: none;
   border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.3s;
+  box-shadow: 0 4px 6px rgba(33, 150, 243, 0.2);
 }
 
-.action-btn:hover {
+.add-user-btn:hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
 }
 
-.action-btn.edit:hover {
-  background: var(--info-color);
-  color: white;
+.add-user-btn:active {
+  transform: translateY(0);
 }
 
-.action-btn.view:hover {
-  background: var(--success-color);
-  color: white;
-}
-
-.action-btn.impersonate:hover:not(:disabled) {
-  background: var(--warning-color);
-  color: white;
-}
-
-.action-btn.impersonate:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.action-btn.reset:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
-.action-btn.delete:hover {
-  background: var(--error-color);
-  color: white;
-}
-
-/* Empty State */
-.empty-state {
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-state-icon {
-  font-size: 4rem;
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem;
-  color: var(--text-primary);
-}
-
-.empty-state p {
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-}
-
-/* Pagination */
-.pagination-section {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.pagination-info {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.page-size-select {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.5rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-}
-
-.pagination-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: var(--primary-color);
-  color: white;
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.page-numbers {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.page-number {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.page-number:hover:not(.disabled) {
-  background: var(--primary-color);
-  color: white;
-}
-
-.page-number.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.page-number.disabled {
-  background: none;
-  border: none;
-  cursor: default;
-}
-
-/* Modals */
+/* Modal Overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -3553,87 +1850,185 @@ export default {
 }
 
 .modal-container {
-  max-width: 800px;
+  max-width: 1000px;
   width: 100%;
   max-height: 90vh;
   overflow: hidden;
 }
 
 .modal-content {
-  background: var(--bg-card);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-color);
+  background: var(--bg-card, #fff);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px var(--shadow-color, rgba(0, 0, 0, 0.2));
   animation: slideUp 0.3s ease;
+  overflow: hidden;
 }
 
+/* Modal Header */
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.modal-header h2 {
+.header-content h2 {
   margin: 0;
-  color: var(--text-primary);
+  font-size: 1.75rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
+.modal-subtitle {
+  margin: 0.5rem 0 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
 .modal-close {
-  background: none;
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  color: var(--text-secondary);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.25rem;
-  padding: 0.25rem;
+  transition: all 0.2s;
 }
 
-.modal-header.danger {
-  background: rgba(244, 67, 54, 0.1);
-  border-bottom-color: var(--error-color);
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
 }
 
-.modal-header.warning {
-  background: rgba(255, 152, 0, 0.1);
-  border-bottom-color: var(--warning-color);
+/* Progress Steps */
+.progress-steps {
+  padding: 1.5rem 2rem;
+  background: var(--bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
-.modal-body {
-  padding: 1.5rem;
-  max-height: calc(90vh - 120px);
+.steps-container {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  flex: 1;
+  z-index: 1;
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-input, #e9ecef);
+  color: var(--text-secondary, #6c757d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.step-item.active .step-number {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.2);
+}
+
+.step-item.completed .step-number {
+  background: var(--success-color);
+  color: white;
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-info h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-primary, #333);
+}
+
+.step-info p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+}
+
+.step-item.active .step-info h4 {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.step-connector {
+  position: absolute;
+  top: 18px;
+  left: -50%;
+  right: 50%;
+  height: 2px;
+  background: var(--border-color, #e0e0e0);
+  z-index: 0;
+}
+
+.step-item.completed .step-connector {
+  background: var(--success-color);
+}
+
+/* Step Content */
+.step-content {
+  padding: 2rem;
+  max-height: calc(90vh - 200px);
   overflow-y: auto;
 }
 
-/* User Form */
-.user-form {
+.step-form {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
+/* Form Sections */
 .form-section {
-  background: var(--bg-input);
+  background: var(--bg-input, #f8f9fa);
   border-radius: 12px;
   padding: 1.5rem;
+  border: 1px solid var(--border-color, #e0e0e0);
 }
 
 .form-section h3 {
   margin: 0 0 1.5rem;
-  color: var(--text-primary);
+  color: var(--text-primary, #333);
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-size: 1.25rem;
 }
 
+/* Form Grid */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
+/* Form Groups */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -3643,7 +2038,7 @@ export default {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-primary, #333);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -3652,12 +2047,12 @@ export default {
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color, #ddd);
   border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 0.875rem;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #333);
+  font-size: 0.95rem;
   transition: all 0.2s;
 }
 
@@ -3669,111 +2064,193 @@ export default {
   box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
 }
 
-.form-group input.error,
-.form-group select.error {
+.form-group.error input,
+.form-group.error select {
   border-color: var(--error-color);
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
 }
 
-.error-message {
-  color: var(--error-color);
+/* Form Hints */
+.form-hint {
   font-size: 0.75rem;
-}
-
-.password-input {
-  position: relative;
-}
-
-.password-input input {
-  width: 100%;
-  padding-left: 2.5rem;
-}
-
-.password-toggle {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.25rem;
-}
-
-.password-strength {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-}
-
-.strength-bar {
-  height: 4px;
-  background: var(--border-color);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 0.25rem;
-}
-
-.strength-fill {
-  height: 100%;
-  transition: width 0.3s;
-}
-
-.password-strength.weak .strength-fill {
-  background: var(--error-color);
-  width: 33%;
-}
-
-.password-strength.medium .strength-fill {
-  background: var(--warning-color);
-  width: 66%;
-}
-
-.password-strength.strong .strength-fill {
-  background: var(--success-color);
-  width: 100%;
-}
-
-.role-description {
-  background: rgba(33, 150, 243, 0.1);
-  color: var(--primary-color);
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
+  color: var(--text-secondary, #666);
+  margin-top: 0.25rem;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.warehouse-permissions,
-.permissions-selection,
-.additional-settings {
+/* Error Messages */
+.error-message {
+  font-size: 0.75rem;
+  color: var(--error-color);
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Role Selector */
+.role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-card, #fff);
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.role-option:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.role-option.selected {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.role-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.role-option.superadmin .role-icon {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.role-option.company_manager .role-icon {
+  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+}
+
+.role-info {
+  flex: 1;
+}
+
+.role-info h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary, #333);
+}
+
+.role-info p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+}
+
+.role-check {
+  color: var(--primary-color);
+  font-size: 1.25rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.role-option.selected .role-check {
+  opacity: 1;
+}
+
+/* Phone Input */
+.phone-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.country-code {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.phone-input input {
+  flex: 1;
+}
+
+/* Step 2 Specific Styles */
+.form-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 992px) {
+  .form-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.section-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Warehouse Section */
+.warehouse-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.warehouse-permissions {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-.permission-option,
-.notification-option {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.permission-option.all-warehouses {
+  background: var(--bg-card, #fff);
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid var(--border-color, #ddd);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   cursor: pointer;
 }
 
 .checkbox-custom {
   width: 20px;
   height: 20px;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-color, #ddd);
   border-radius: 4px;
   position: relative;
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 
 .checkbox-label input {
@@ -3798,28 +2275,21 @@ export default {
 }
 
 .checkbox-content h4 {
-  margin: 0 0 0.25rem;
-  color: var(--text-primary);
-  font-size: 0.875rem;
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary, #333);
 }
 
 .checkbox-content p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
 }
 
-.selection-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.selection-header h4 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1rem;
+/* Specific Warehouses */
+.specific-warehouses {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .warehouse-categories {
@@ -3828,84 +2298,154 @@ export default {
   gap: 1.5rem;
 }
 
-.category-section h5 {
-  margin: 0 0 1rem;
-  color: var(--text-primary);
+.category-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-header h4 {
+  margin: 0;
+  color: var(--text-primary, #333);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.checkbox-grid {
+.warehouse-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.75rem;
 }
 
-.checkbox-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+.warehouse-option {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #ddd);
   border-radius: 8px;
+  padding: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.checkbox-item:hover {
+.warehouse-option:hover {
   border-color: var(--primary-color);
   transform: translateY(-2px);
 }
 
-.checkbox-item input {
+.warehouse-option.selected {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.warehouse-option input {
   display: none;
 }
 
-.warehouse-label {
+.warehouse-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.warehouse-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-input, #f8f9fa);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.warehouse-details {
   flex: 1;
+}
+
+.warehouse-details h5 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary, #333);
+}
+
+.warehouse-details p {
+  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+}
+
+.warehouse-status {
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.warehouse-status.active {
+  color: var(--success-color);
+}
+
+.warehouse-status:not(.active) {
+  color: var(--error-color);
+}
+
+.no-warehouses-message {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid var(--warning-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  color: var(--warning-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.no-warehouses-message i {
+  font-size: 1.5rem;
+}
+
+/* Permissions Section */
+.permissions-section {
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.warehouse-name {
-  font-weight: 600;
-  color: var(--text-primary);
+.permission-presets {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.permission-presets span {
   font-size: 0.875rem;
-}
-
-.warehouse-code {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.permissions-presets {
-  background: var(--bg-card);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.permissions-presets h4 {
-  margin: 0 0 1rem;
-  color: var(--text-primary);
-  font-size: 1rem;
+  color: var(--text-secondary, #666);
 }
 
 .preset-buttons {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .preset-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #ddd);
+  color: var(--text-secondary, #666);
   padding: 0.5rem 1rem;
   border-radius: 20px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -3918,6 +2458,40 @@ export default {
   border-color: var(--primary-color);
 }
 
+.permissions-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.permissions-summary {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid var(--primary-color);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.permissions-summary i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.permissions-summary h4 {
+  margin: 0;
+  color: var(--text-primary, #333);
+}
+
+.permissions-summary p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary, #666);
+  font-size: 0.85rem;
+}
+
 .permission-categories {
   display: flex;
   flex-direction: column;
@@ -3925,9 +2499,10 @@ export default {
 }
 
 .permission-category {
-  background: var(--bg-card);
-  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  border-radius: 10px;
   padding: 1rem;
+  border: 1px solid var(--border-color, #ddd);
 }
 
 .category-header {
@@ -3937,10 +2512,9 @@ export default {
   margin-bottom: 1rem;
 }
 
-.category-header h5 {
+.category-header h4 {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 0.875rem;
+  color: var(--text-primary, #333);
 }
 
 .category-toggle {
@@ -3948,8 +2522,8 @@ export default {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
 }
 
 .category-toggle input {
@@ -3958,72 +2532,330 @@ export default {
   cursor: pointer;
 }
 
-.permission-checkboxes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+.permission-list {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.permission-checkbox {
+.permission-item {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-input, #f8f9fa);
+  border: 1px solid var(--border-color, #ddd);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.permission-checkbox:hover {
+.permission-item:hover {
   border-color: var(--primary-color);
+  transform: translateX(-4px);
 }
 
-.permission-checkbox input {
+.permission-item.selected {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.permission-item input {
   display: none;
 }
 
-.permission-label {
+.permission-info {
   flex: 1;
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1rem;
 }
 
-.permission-label i {
+.permission-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
   color: var(--primary-color);
-  font-size: 1rem;
-  margin-top: 0.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
 }
 
-.permission-name {
-  display: block;
+.permission-details {
+  flex: 1;
+}
+
+.permission-details h5 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-primary, #333);
+}
+
+.permission-details p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+}
+
+.permission-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-card, #fff);
+  border-radius: 6px;
+  max-width: 200px;
+}
+
+/* Step 3 Specific Styles */
+.password-section,
+.settings-section {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color, #ddd);
+}
+
+.section-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.875rem;
+  margin-right: 0.5rem;
+}
+
+.section-badge.weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--error-color);
+}
+
+.section-badge.medium {
+  background: rgba(255, 152, 0, 0.1);
+  color: var(--warning-color);
+}
+
+.section-badge.strong {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+}
+
+.password-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.password-option {
+  background: var(--bg-input, #f8f9fa);
+  border-radius: 10px;
+  padding: 1rem;
+  border: 2px solid var(--border-color, #ddd);
+  transition: all 0.2s;
+}
+
+.password-option:hover {
+  border-color: var(--primary-color);
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+}
+
+.radio-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  transition: all 0.2s;
+}
+
+.radio-label input {
+  display: none;
+}
+
+.radio-label input:checked + .radio-custom {
+  border-color: var(--primary-color);
+}
+
+.radio-label input:checked + .radio-custom::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.option-content {
+  flex: 1;
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.25rem;
 }
 
-.permission-desc {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.4;
+.option-header h5 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary, #333);
 }
 
-.setting-group {
-  margin-bottom: 1rem;
+.option-recommended {
+  background: var(--success-color);
+  color: white;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.option-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+}
+
+.manual-password-fields {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #ddd);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  width: 100%;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.password-strength-indicator {
+  margin-top: 0.5rem;
+}
+
+.strength-bars {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border-color, #ddd);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+.strength-bar.filled.weak {
+  background: var(--error-color);
+}
+
+.strength-bar.filled.medium {
+  background: var(--warning-color);
+}
+
+.strength-bar.filled.strong {
+  background: var(--success-color);
+}
+
+.strength-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+}
+
+.password-requirements {
+  background: var(--bg-input, #f8f9fa);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.password-requirements h5 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-primary, #333);
+}
+
+.password-requirements ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.password-requirements li {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s;
+}
+
+.password-requirements li.met {
+  color: var(--success-color);
+}
+
+.password-requirements li i.fa-check-circle {
+  color: var(--success-color);
+}
+
+/* Settings Options */
+.settings-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.setting-option {
+  background: var(--bg-input, #f8f9fa);
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid var(--border-color, #ddd);
 }
 
 .toggle-label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background: var(--bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
   cursor: pointer;
 }
 
@@ -4038,16 +2870,16 @@ export default {
   color: var(--primary-color);
 }
 
-.toggle-info h4 {
-  margin: 0 0 0.25rem;
-  color: var(--text-primary);
-  font-size: 0.875rem;
+.toggle-info h5 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary, #333);
 }
 
 .toggle-info p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
 }
 
 .toggle-switch {
@@ -4095,236 +2927,300 @@ export default {
   transform: translateX(26px);
 }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+/* Summary Preview */
+.summary-preview {
+  background: var(--bg-input, #f8f9fa);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 2px solid var(--primary-color);
+  margin-top: 1.5rem;
 }
 
-/* Delete Modal */
-.delete-warning {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.delete-warning i {
-  font-size: 4rem;
-  color: var(--error-color);
-  margin-bottom: 1rem;
-}
-
-.delete-warning h3 {
+.summary-preview h4 {
   margin: 0 0 1rem;
-  color: var(--text-primary);
-}
-
-.delete-warning p {
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-}
-
-.bulk-delete-warning {
-  background: rgba(255, 152, 0, 0.1);
-  color: var(--warning-color);
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.warning-list {
-  background: var(--bg-input);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: right;
-}
-
-.warning-list p {
-  margin: 0.5rem 0;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  color: var(--text-primary, #333);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.delete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-/* Reset Password Modal */
-.reset-info {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.reset-info i {
-  font-size: 3rem;
-  color: var(--primary-color);
-  margin-bottom: 1rem;
-}
-
-.reset-info h3 {
-  margin: 0 0 0.5rem;
-  color: var(--text-primary);
-}
-
-.reset-info p {
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.reset-options {
-  margin-bottom: 2rem;
-}
-
-.option-group {
+.summary-content {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-card, #fff);
+  border-radius: 8px;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+.summary-value {
+  color: var(--text-primary, #333);
+  font-size: 0.9rem;
+}
+
+.summary-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.summary-badge.warehouse_manager {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.summary-badge.company_manager {
+  background: rgba(156, 39, 176, 0.1);
+  color: #9c27b0;
+}
+
+.summary-badge.superadmin {
+  background: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+}
+
+.summary-badge.active {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.summary-badge.inactive {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+/* Step Actions */
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color, #ddd);
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-success {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  border: none;
+  font-size: 0.95rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--bg-input, #f8f9fa);
+  color: var(--text-secondary, #666);
+  border: 1px solid var(--border-color, #ddd);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--border-color, #e0e0e0);
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success-color) 0%, #388E3C 100%);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+/* Success Modal */
+.success-modal .modal-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.success-icon {
+  font-size: 4rem;
+  color: var(--success-color);
   margin-bottom: 1.5rem;
 }
 
-.option-label {
+.success-modal h2 {
+  margin: 0 0 1.5rem;
+  color: var(--text-primary, #333);
+}
+
+.success-details {
+  background: var(--bg-input, #f8f9fa);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: right;
+}
+
+.detail-item {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  margin-bottom: 1rem;
 }
 
-.option-label:hover {
-  border-color: var(--primary-color);
+.detail-item:last-child {
+  margin-bottom: 0;
 }
 
-.option-label input {
-  display: none;
-}
-
-.radio-custom {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  position: relative;
-  flex-shrink: 0;
+.detail-item i {
+  font-size: 1.5rem;
+  color: var(--primary-color);
   margin-top: 0.25rem;
 }
 
-.option-label input:checked + .radio-custom {
-  border-color: var(--primary-color);
-}
-
-.option-label input:checked + .radio-custom::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: var(--primary-color);
-  border-radius: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.option-content h4 {
-  margin: 0 0 0.25rem;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-}
-
-.option-content p {
+.detail-item h4 {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #666);
 }
 
-.manual-password {
-  background: var(--bg-input);
+.detail-item p {
+  margin: 0.25rem 0 0;
+  color: var(--text-primary, #333);
+}
+
+.password-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.password-display code {
+  flex: 1;
+  background: var(--bg-card, #fff);
+  padding: 0.75rem;
   border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1rem;
-}
-
-.reset-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-}
-
-/* Impersonate Modal */
-.impersonate-warning {
+  border: 1px solid var(--border-color, #ddd);
+  font-family: monospace;
+  font-size: 1rem;
   text-align: center;
-  margin-bottom: 2rem;
 }
 
-.impersonate-warning i {
-  font-size: 4rem;
-  color: var(--warning-color);
-  margin-bottom: 1rem;
-}
-
-.impersonate-warning h3 {
-  margin: 0 0 1rem;
-  color: var(--text-primary);
-}
-
-.impersonate-warning p {
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-}
-
-.impersonate-actions {
+.copy-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
-/* Toast */
-.toast-container {
+.password-warning {
+  color: var(--warning-color);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.success-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-content .spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+.loading-content p {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* Error Toast */
+.error-toast {
   position: fixed;
   bottom: 2rem;
   left: 2rem;
   right: 2rem;
   max-width: 400px;
   margin: 0 auto;
-  background: var(--bg-card);
+  background: var(--bg-card, #fff);
   border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-color);
+  box-shadow: 0 4px 20px var(--shadow-color, rgba(0, 0, 0, 0.2));
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   animation: slideUp 0.3s ease;
   z-index: 2000;
-}
-
-.toast-container.success {
-  border-right: 4px solid var(--success-color);
-}
-
-.toast-container.error {
   border-right: 4px solid var(--error-color);
-}
-
-.toast-container.warning {
-  border-right: 4px solid var(--warning-color);
-}
-
-.toast-container.info {
-  border-right: 4px solid var(--info-color);
 }
 
 .toast-content {
@@ -4336,31 +3232,28 @@ export default {
 
 .toast-content i {
   font-size: 1.5rem;
+  color: var(--error-color);
 }
 
-.toast-container.success .toast-content i { color: var(--success-color); }
-.toast-container.error .toast-content i { color: var(--error-color); }
-.toast-container.warning .toast-content i { color: var(--warning-color); }
-.toast-container.info .toast-content i { color: var(--info-color); }
+.toast-content h4 {
+  margin: 0;
+  color: var(--text-primary, #333);
+  font-size: 0.95rem;
+}
 
 .toast-content p {
-  margin: 0;
-  font-weight: 600;
-  color: var(--text-primary);
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary, #666);
+  font-size: 0.85rem;
 }
 
 .toast-close {
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #666);
   cursor: pointer;
   font-size: 1.25rem;
   padding: 0.25rem;
-  transition: color 0.3s;
-}
-
-.toast-close:hover {
-  color: var(--error-color);
 }
 
 /* Animations */
@@ -4385,180 +3278,91 @@ export default {
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
-  .users-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
-@media (max-width: 992px) {
-  .header-content {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .header-actions {
-    justify-content: flex-start;
-  }
-  
-  .filters-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
-  .main-content {
-    padding: 1rem;
+  .modal-container {
+    margin: 0.5rem;
   }
   
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .users-grid {
-    grid-template-columns: 1fr;
-    padding: 1rem;
-  }
-  
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .quick-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .table-header {
+  .modal-header {
+    padding: 1rem 1.5rem;
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
   }
   
-  .table-actions {
-    justify-content: space-between;
+  .modal-close {
+    align-self: flex-end;
   }
   
-  .users-table {
-    min-width: 800px;
-  }
-  
-  .pagination-section {
+  .steps-container {
     flex-direction: column;
-    align-items: stretch;
     gap: 1rem;
   }
   
-  .pagination-controls {
-    justify-content: center;
+  .step-item {
+    width: 100%;
+  }
+  
+  .step-connector {
+    display: none;
+  }
+  
+  .step-content {
+    padding: 1rem;
   }
   
   .form-grid {
     grid-template-columns: 1fr;
   }
   
-  .checkbox-grid,
-  .permission-checkboxes {
+  .form-sections-grid {
     grid-template-columns: 1fr;
   }
   
-  .modal-container {
-    margin: 1rem;
+  .warehouse-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .step-actions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .step-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .success-actions {
+    flex-direction: column;
   }
 }
 
-@media (max-width: 576px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .role-option {
+    flex-direction: column;
+    text-align: center;
   }
   
-  .header-actions {
+  .role-info {
+    text-align: center;
+  }
+  
+  .phone-input {
+    flex-direction: column;
+  }
+  
+  .country-code {
+    width: 100%;
+  }
+  
+  .permission-presets {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .header-actions button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .theme-toggle {
-    align-self: flex-end;
-  }
-  
-  .user-actions {
+  .preset-buttons {
     flex-direction: column;
-    align-items: flex-end;
-  }
-  
-  .card-footer {
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .form-actions,
-  .delete-actions,
-  .reset-actions,
-  .impersonate-actions {
-    flex-direction: column;
-  }
-  
-  .form-actions button,
-  .delete-actions button,
-  .reset-actions button,
-  .impersonate-actions button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-/* Print Styles */
-@media print {
-  .user-management {
-    background: white !important;
-    color: black !important;
-  }
-  
-  .no-print {
-    display: none !important;
-  }
-  
-  .header-actions,
-  .theme-toggle,
-  .quick-actions,
-  .table-actions,
-  .dropdown,
-  .card-footer,
-  .action-buttons,
-  .pagination-section {
-    display: none !important;
-  }
-  
-  .stats-grid,
-  .users-grid {
-    break-inside: avoid;
-  }
-  
-  .user-card {
-    border: 1px solid #ddd !important;
-    box-shadow: none !important;
-    break-inside: avoid;
-    margin-bottom: 1rem;
-  }
-  
-  .users-table {
-    width: 100%;
-    border: 1px solid #ddd;
-  }
-  
-  .users-table th,
-  .users-table td {
-    border: 1px solid #ddd;
-    padding: 0.5rem;
   }
 }
 </style>
