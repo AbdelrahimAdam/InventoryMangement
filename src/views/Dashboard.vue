@@ -55,7 +55,7 @@
               
               <button
                 @click="refreshDashboard"
-                :disabled="loading || statsLoading"
+                :disabled="loading || statsLoading || loadMoreLoading"
                 class="px-5 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <svg v-if="loading || statsLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -586,6 +586,24 @@
               <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
+
+            <!-- Load More Button -->
+            <div v-if="hasMoreItems && !loading" class="mt-6 text-center">
+              <button
+                @click="loadMoreItems"
+                :disabled="loadMoreLoading"
+                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+              >
+                <svg v-if="loadMoreLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span v-else>⬇️ تحميل المزيد (200 صنف)</span>
+              </button>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                تم تحميل {{ totalLoadedItems }} من أصل {{ totalItemsCount }} صنف
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -998,6 +1016,7 @@ export default {
     const loading = ref(true);
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
+    const loadMoreLoading = ref(false);
     const selectedWarehouse = ref('all');
     const currentTime = ref('');
     const currentDate = ref('');
@@ -1060,6 +1079,11 @@ export default {
       }
     });
     
+    // Pagination getters
+    const hasMoreItems = computed(() => store.getters.hasMore);
+    const totalLoadedItems = computed(() => store.getters.totalLoaded || 0);
+    const isFetchingMore = computed(() => store.getters.isFetchingMore || false);
+    
     const canModifyItems = computed(() => {
       try {
         const role = userRole.value;
@@ -1083,6 +1107,9 @@ export default {
       }
     });
 
+    // Get total items count from store action
+    const totalItemsCount = ref(0);
+    
     // Today's transactions
     const todayTransactions = computed(() => {
       const now = new Date();
@@ -1449,6 +1476,13 @@ export default {
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
+        // Get REAL total count from store action
+        if (warehouseId === 'all') {
+          totalItemsCount.value = await store.dispatch('getTotalItemCount', 'all');
+        } else {
+          totalItemsCount.value = await store.dispatch('getTotalItemCount', warehouseId);
+        }
+        
         // Load stats for the selected warehouse
         const selectedStats = await loadWarehouseStats(warehouseId);
         dashboardStats.value = selectedStats;
@@ -1463,6 +1497,9 @@ export default {
         }
         
         console.log('✅ Dashboard stats loaded:', dashboardStats.value);
+        console.log(`📦 Total items in system: ${totalItemsCount.value}`);
+        console.log(`📦 Total loaded items: ${totalLoadedItems.value}`);
+        
         lastUpdated.value = new Date();
         
       } catch (error) {
@@ -1529,23 +1566,64 @@ export default {
       }
     };
 
+    // Load more items (200 per click)
+    const loadMoreItems = async () => {
+      if (loadMoreLoading.value || isFetchingMore.value) return;
+      
+      loadMoreLoading.value = true;
+      try {
+        console.log('📥 Loading 200 more items...');
+        
+        // Use the store's loadMoreInventory action with batch loading
+        // We'll load 4 batches of 50 items each to get 200 items total
+        let totalLoaded = 0;
+        const batchSize = 4; // 4 batches of 50 = 200 items
+        
+        for (let i = 0; i < batchSize; i++) {
+          if (!hasMoreItems.value) break;
+          
+          const newItems = await store.dispatch('loadMoreInventory');
+          totalLoaded += newItems.length;
+          
+          console.log(`📥 Batch ${i + 1} loaded: ${newItems.length} items`);
+          
+          // Small delay between batches to prevent overwhelming the system
+          if (i < batchSize - 1 && hasMoreItems.value) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+        
+        console.log(`✅ Total loaded in this batch: ${totalLoaded} items`);
+        console.log(`📦 Total loaded items now: ${totalLoadedItems.value}`);
+        
+        // Refresh dashboard stats after loading more items
+        await loadDashboardStats(selectedWarehouse.value);
+        
+      } catch (error) {
+        console.error('❌ Error loading more items:', error);
+      } finally {
+        loadMoreLoading.value = false;
+      }
+    };
+
     const refreshDashboard = async () => {
       loading.value = true;
       try {
-        // Refresh ALL inventory data without any limit
-        await store.dispatch('loadAllInventory', { 
-          forceRefresh: true,
-          limit: null // This ensures no limit is applied
-        });
+        // Reset pagination and load all fresh data
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
         
-        // Refresh ALL transactions
-        await store.dispatch('getRecentTransactions', { limit: null });
+        // Refresh transactions
+        await store.dispatch('getRecentTransactions');
+        
+        // Get total item count
+        totalItemsCount.value = await store.dispatch('getTotalItemCount', selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
         
         // Refresh dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
         
         console.log('🔄 Dashboard refreshed successfully');
-        console.log(`📦 Total items loaded: ${inventoryItems.value.length}`);
+        console.log(`📦 Total items in system: ${totalItemsCount.value}`);
+        console.log(`📦 Total items loaded: ${totalLoadedItems.value}`);
         console.log(`📊 Total transactions loaded: ${recentStoreTransactions.value.length}`);
         
       } catch (error) {
@@ -1559,10 +1637,17 @@ export default {
       loading.value = true;
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
+        
+        // Get total items count for the selected warehouse
+        totalItemsCount.value = await store.dispatch('getTotalItemCount', selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
+        
+        // Load dashboard stats
+        await loadDashboardStats(selectedWarehouse.value);
+        
         console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
         console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
+        console.log(`📦 Total items in warehouse: ${totalItemsCount.value}`);
         
-        await loadDashboardStats(selectedWarehouse.value);
       } catch (error) {
         console.error('Error changing warehouse:', error);
       } finally {
@@ -1572,21 +1657,20 @@ export default {
 
     const loadDashboardData = async () => {
       loading.value = true;
-      console.log('🚀 Loading ALL dashboard data...');
+      console.log('🚀 Loading dashboard data...');
       
       try {
-        // Load ALL inventory items without limit
-        console.log('📦 Loading ALL inventory items...');
-        const inventoryPromise = store.dispatch('loadAllInventory', { 
-          forceRefresh: true,
-          limit: null // Ensure no limit
-        });
+        // Load initial inventory (50 items)
+        console.log('📦 Loading initial inventory (50 items)...');
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
         
-        // Load ALL recent transactions
-        console.log('📊 Loading ALL recent transactions...');
-        const recentTransactionsPromise = store.dispatch('getRecentTransactions', { 
-          limit: null // Ensure no limit
-        });
+        // Get total item count
+        console.log('📊 Getting total item count...');
+        totalItemsCount.value = await store.dispatch('getTotalItemCount', 'all');
+        
+        // Load recent transactions
+        console.log('📊 Loading recent transactions...');
+        await store.dispatch('getRecentTransactions');
         
         // Load warehouses if needed
         if (!warehouses.value || warehouses.value.length === 0) {
@@ -1596,21 +1680,12 @@ export default {
         
         // Load dashboard stats
         console.log('📈 Loading dashboard stats...');
-        const statsPromise = loadDashboardStats(selectedWarehouse.value);
-        
-        // Wait for all promises with a longer timeout for large datasets
-        const timeoutPromise = new Promise(resolve => {
-          setTimeout(() => {
-            console.log('⏰ Timeout reached, continuing with loaded data...');
-            resolve();
-          }, 15000); // 15 seconds timeout for large datasets
-        });
-        
-        await Promise.race([Promise.all([inventoryPromise, recentTransactionsPromise, statsPromise]), timeoutPromise]);
+        await loadDashboardStats(selectedWarehouse.value);
         
         // Log success information
         console.log('✅ Dashboard data loaded successfully!');
-        console.log(`📦 Total inventory items: ${inventoryItems.value.length}`);
+        console.log(`📦 Total items in system: ${totalItemsCount.value}`);
+        console.log(`📦 Total items loaded: ${totalLoadedItems.value}`);
         console.log(`📊 Total transactions: ${recentStoreTransactions.value.length}`);
         console.log(`🏢 Total warehouses: ${warehouses.value.length}`);
         
@@ -1669,16 +1744,22 @@ export default {
     watch(inventoryItems, async () => {
       if (!loading.value && !statsLoading.value) {
         console.log('🔄 Inventory changed, updating stats...');
-        console.log(`📦 New total items: ${inventoryItems.value.length}`);
+        console.log(`📦 New total items loaded: ${inventoryItems.value.length}`);
         await loadDashboardStats(selectedWarehouse.value);
       }
     }, { deep: true });
+
+    // Watch for pagination changes
+    watch(totalLoadedItems, (newCount) => {
+      console.log(`📦 Total loaded items updated: ${newCount}`);
+    });
 
     return {
       // State
       loading,
       statsLoading,
       warehouseStatsLoading,
+      loadMoreLoading,
       selectedWarehouse,
       currentTime,
       currentDate,
@@ -1714,6 +1795,10 @@ export default {
       outOfStockItems,
       stockHealthPercentage,
       stockHealthColor,
+      hasMoreItems,
+      totalLoadedItems,
+      totalItemsCount,
+      isFetchingMore,
       
       // Helper methods
       formatEnglishNumber,
@@ -1737,7 +1822,8 @@ export default {
       
       // Actions
       refreshDashboard,
-      handleWarehouseChange
+      handleWarehouseChange,
+      loadMoreItems
     };
   }
 };
