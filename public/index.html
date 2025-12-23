@@ -3,10 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="نظام متكامل لإدارة مخازن زجاج العطور - البران للعطور" />
 
     <!-- Favicon -->
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="إدارة المخازن" />
+
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="msapplication-TileImage" content="/img/icons/mstile-150x150.png" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
 
     <!-- Arabic font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -14,16 +27,22 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
 
-    <title>Perfume Inventory</title>
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: dark)" />
 
     <!-- PWA manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#3b82f6" />
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+
+    <title>نظام إدارة المخازن - البران للعطور</title>
 
     <style>
-      /* Loading styles */
+      /* Loading styles - Critical CSS inlined */
       #app-loading {
         position: fixed;
         inset: 0;
@@ -34,7 +53,8 @@
         justify-content: center;
         color: white;
         z-index: 9999;
-        font-family: "Tajawal", sans-serif;
+        font-family: "Tajawal", system-ui, -apple-system, sans-serif;
+        transition: opacity 0.5s ease;
       }
 
       .loading-spinner {
@@ -53,15 +73,21 @@
         }
       }
 
+      /* Critical body styles */
       body {
         margin: 0;
         padding: 0;
-        font-family: "Tajawal", sans-serif;
+        overflow-x: hidden;
         background: #f5f5f5;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
 
+      /* Hide loading screen when Vue loads */
       body.vue-loaded #app-loading {
-        display: none;
+        opacity: 0;
+        pointer-events: none;
       }
 
       /* Install button */
@@ -71,13 +97,29 @@
         bottom: 20px;
         right: 20px;
         padding: 12px 20px;
-        background-color: #3b82f6;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         color: white;
         border: none;
         border-radius: 8px;
         font-size: 16px;
         cursor: pointer;
         z-index: 10000;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        font-family: "Tajawal", sans-serif;
+        transition: all 0.3s ease;
+      }
+
+      #install-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+      }
+
+      /* Print styles */
+      @media print {
+        #app-loading,
+        #install-btn {
+          display: none !important;
+        }
       }
     </style>
   </head>
@@ -86,87 +128,251 @@
     <!-- Loading screen -->
     <div id="app-loading">
       <div class="loading-spinner"></div>
-      <h2>جاري تحميل النظام...</h2>
-      <p>نظام إدارة المخازن</p>
+      <h2 style="margin-bottom: 10px; font-weight: 700;">جاري تحميل النظام...</h2>
+      <p style="opacity: 0.8; margin-top: 0;">نظام إدارة المخازن - البران للعطور</p>
     </div>
 
     <!-- Vue app root -->
     <div id="app"></div>
 
-    <!-- Install button -->
-    <button id="install-btn">تثبيت التطبيق</button>
+    <!-- PWA Install button -->
+    <button id="install-btn" aria-label="تثبيت التطبيق">📱 تثبيت التطبيق</button>
 
-    <!-- Auto-hide loader when Vue mounts -->
+    <!-- Service Worker Management -->
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const appDiv = document.getElementById("app");
+      // Clear old service workers before registering new one
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          try {
+            // Clean up any existing registrations first
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+              await registration.unregister();
+              console.log('🧹 Unregistered old service worker:', registration.scope);
+            }
 
-        const checkInterval = setInterval(function () {
-          if (appDiv && appDiv.children.length > 0) {
-            console.log("✅ Vue mounted successfully");
-            document.body.classList.add("vue-loaded");
-            clearInterval(checkInterval);
+            // Check if we're in production
+            const isProduction = window.location.hostname !== 'localhost' && 
+                                 window.location.hostname !== '127.0.0.1';
+
+            if (isProduction) {
+              // Try to register the service worker with retry logic
+              const registerSW = async (retries = 3) => {
+                try {
+                  // First try the main service worker
+                  const registration = await navigator.serviceWorker.register('/service-worker.js', {
+                    scope: '/',
+                    updateViaCache: 'none'
+                  });
+
+                  console.log('✅ Service Worker registered successfully:', registration.scope);
+
+                  // Listen for updates
+                  registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                      newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          console.log('🔄 New content is available; please refresh.');
+                          
+                          // Show update notification
+                          if (window.confirm('توجد نسخة جديدة من التطبيق. هل تريد التحديث الآن؟')) {
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            window.location.reload();
+                          }
+                        }
+                      });
+                    }
+                  });
+
+                  return registration;
+                } catch (error) {
+                  console.warn(`❌ Service Worker registration attempt ${4 - retries} failed:`, error);
+                  
+                  if (retries > 0) {
+                    // Wait 2 seconds before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return registerSW(retries - 1);
+                  }
+                  throw error;
+                }
+              };
+
+              // Start registration
+              await registerSW();
+            } else {
+              console.log('🔧 Development mode: Service Worker registration skipped');
+            }
+          } catch (error) {
+            console.error('❌ Service Worker registration failed after all attempts:', error);
           }
-        }, 100);
+        });
+      }
 
-        setTimeout(function () {
-          clearInterval(checkInterval);
-          if (!document.body.classList.contains("vue-loaded")) {
-            console.error("❌ Vue did not mount in time");
-            const loadingEl = document.getElementById("app-loading");
+      // Auto-hide loader when Vue mounts
+      (function() {
+        const appDiv = document.getElementById('app');
+        const maxWaitTime = 15000; // 15 seconds max wait
+        let vueMounted = false;
+        let checkInterval;
+
+        const checkVueMount = function() {
+          if (appDiv && appDiv.children.length > 0 && !vueMounted) {
+            console.log('✅ Vue mounted successfully');
+            vueMounted = true;
+            document.body.classList.add('vue-loaded');
+            clearInterval(checkInterval);
+            
+            // Force hide after animation
+            setTimeout(() => {
+              const loadingEl = document.getElementById('app-loading');
+              if (loadingEl) {
+                loadingEl.style.display = 'none';
+              }
+            }, 500);
+          }
+        };
+
+        // Start checking immediately
+        checkInterval = setInterval(checkVueMount, 100);
+
+        // Initial check
+        setTimeout(checkVueMount, 100);
+
+        // Timeout fallback
+        setTimeout(function() {
+          if (!vueMounted) {
+            clearInterval(checkInterval);
+            console.error('❌ Vue did not mount in time');
+            const loadingEl = document.getElementById('app-loading');
             if (loadingEl) {
               loadingEl.innerHTML = `
-                <div style="padding: 20px; text-align: center;">
-                  <h2>⚠️ خطأ في التحميل</h2>
-                  <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
+                <div style="padding: 20px; text-align: center; max-width: 90%;">
+                  <h2 style="color: #fff; margin-bottom: 15px;">⚠️ خطأ في التحميل</h2>
+                  <p style="color: rgba(255,255,255,0.9); margin-bottom: 20px;">
+                    يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.
+                  </p>
                   <button onclick="window.location.reload()" 
-                    style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
-                    إعادة التحميل
+                    style="padding: 10px 20px; background: white; color: #667eea; 
+                           border: none; border-radius: 5px; margin: 10px;
+                           font-family: 'Tajawal', sans-serif; font-weight: 500;
+                           cursor: pointer;">
+                    🔄 إعادة التحميل
+                  </button>
+                  <button onclick="if(localStorage.clear())location.reload()" 
+                    style="padding: 10px 20px; background: rgba(255,255,255,0.1); 
+                           color: white; border: 1px solid rgba(255,255,255,0.3); 
+                           border-radius: 5px; margin: 10px;
+                           font-family: 'Tajawal', sans-serif; font-weight: 500;
+                           cursor: pointer;">
+                    🧹 مسح التخزين
                   </button>
                 </div>
               `;
             }
           }
-        }, 10000);
-      });
-    </script>
-
-    <!-- REGISTER SERVICE WORKER -->
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/service-worker.js")
-            .then(reg => console.log("Service Worker registered:", reg))
-            .catch(err => console.error("Service Worker registration failed:", err));
-        });
-      }
+        }, maxWaitTime);
+      })();
     </script>
 
     <!-- PWA INSTALL PROMPT -->
     <script>
-      let deferredPrompt;
-      const installBtn = document.getElementById("install-btn");
+      (function() {
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+        let promptShown = false;
 
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault(); // Prevent Chrome mini-infobar
-        deferredPrompt = e;
-        installBtn.style.display = "inline-block"; // Show install button
-      });
-
-      installBtn.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt(); // Show the install popup
-          const choice = await deferredPrompt.userChoice;
-          if (choice.outcome === "accepted") {
-            console.log("User accepted the install prompt");
-          } else {
-            console.log("User dismissed the install prompt");
+        // Handle install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt = e;
+          
+          // Only show button if not already installed
+          if (!window.matchMedia('(display-mode: standalone)').matches) {
+            // Wait a bit before showing to avoid interrupting initial load
+            setTimeout(() => {
+              if (!promptShown && deferredPrompt) {
+                installBtn.style.display = 'inline-block';
+                promptShown = true;
+              }
+            }, 3000);
           }
+        });
+
+        // Install button click handler
+        installBtn.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            installBtn.disabled = true;
+            installBtn.innerHTML = 'جاري التثبيت...';
+            
+            try {
+              deferredPrompt.prompt();
+              const choice = await deferredPrompt.userChoice;
+              
+              if (choice.outcome === 'accepted') {
+                console.log('✅ User accepted the install prompt');
+                installBtn.style.display = 'none';
+              } else {
+                console.log('❌ User dismissed the install prompt');
+                installBtn.innerHTML = '📱 تثبيت التطبيق';
+                installBtn.disabled = false;
+                // Hide button for this session
+                setTimeout(() => {
+                  installBtn.style.display = 'none';
+                }, 3000);
+              }
+              deferredPrompt = null;
+            } catch (error) {
+              console.error('❌ Install prompt error:', error);
+              installBtn.innerHTML = '📱 تثبيت التطبيق';
+              installBtn.disabled = false;
+            }
+          }
+        });
+
+        // Hide install button if app is already installed
+        window.addEventListener('appinstalled', () => {
+          console.log('🎉 App installed successfully');
+          installBtn.style.display = 'none';
           deferredPrompt = null;
-          installBtn.style.display = "none"; // Hide button after click
+        });
+
+        // Check if already installed on load
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+          installBtn.style.display = 'none';
+          console.log('📱 App running in standalone mode');
         }
-      });
+      })();
+    </script>
+
+    <!-- Performance Monitoring -->
+    <script>
+      // Performance monitoring
+      if (typeof window !== 'undefined') {
+        // Report Web Vitals
+        const reportWebVitals = (metric) => {
+          console.log('📊 Performance:', {
+            name: metric.name,
+            value: Math.round(metric.value),
+            rating: metric.rating,
+            delta: metric.delta
+          });
+        };
+
+        // Load performance monitoring after app loads
+        setTimeout(() => {
+          if (window.performance && window.performance.getEntriesByType) {
+            const navTiming = window.performance.getEntriesByType('navigation')[0];
+            if (navTiming) {
+              console.log('⚡ Page Load Performance:', {
+                'DOM Ready': Math.round(navTiming.domContentLoadedEventEnd - navTiming.domContentLoadedEventStart),
+                'Page Load': Math.round(navTiming.loadEventEnd - navTiming.loadEventStart),
+                'TTFB': Math.round(navTiming.responseStart - navTiming.requestStart)
+              });
+            }
+          }
+        }, 1000);
+      }
     </script>
   </body>
 </html>
