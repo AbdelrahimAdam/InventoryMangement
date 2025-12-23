@@ -9,8 +9,8 @@ module.exports = defineConfig({
   
   // PWA Configuration
   pwa: {
-    name: 'نظام إدارة المخازن - منوفيا للعطور',
-    short_name: 'إدارة المخازن',
+    name: 'نظام إدارة المخازن - البران للعطور',
+    short_name: 'المخزون',
     themeColor: '#3b82f6',
     backgroundColor: '#ffffff',
     msTileColor: '#3b82f6',
