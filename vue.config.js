@@ -7,7 +7,7 @@ module.exports = defineConfig({
   transpileDependencies: true,
   productionSourceMap: false,
   
-  // PWA Configuration - UPDATED for src/serviceworker
+  // PWA Configuration
   pwa: {
     name: 'نظام إدارة المخازن - منوفيا للعطور',
     short_name: 'إدارة المخازن',
@@ -17,28 +17,13 @@ module.exports = defineConfig({
     appleMobileWebAppCapable: 'yes',
     appleMobileWebAppStatusBarStyle: 'black-translucent',
     
-    // IMPORTANT: Use InjectManifest mode for custom service worker in src/
-    workboxPluginMode: 'InjectManifest',
+    // Workbox configuration
+    workboxPluginMode: 'GenerateSW',
     workboxOptions: {
-      // Point to your service worker in src folder
-      swSrc: 'src/serviceworker',
-      swDest: 'service-worker.js',
-      exclude: [
-        /\.map$/,
-        /manifest\.json$/,
-        /_redirects/,
-        /_headers/
-      ],
-      
-      // Additional Workbox options
       skipWaiting: true,
       clientsClaim: true,
       cleanupOutdatedCaches: true,
-      
-      // Navigation fallback for SPA
-      navigateFallback: '/index.html',
-      navigateFallbackAllowlist: [/^(?!\/__).*/],
-      
+      exclude: [/\.map$/, /manifest\.json$/],
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -54,7 +39,7 @@ module.exports = defineConfig({
             cacheName: 'google-fonts-webfonts',
             expiration: {
               maxEntries: 20,
-              maxAgeSeconds: 60 * 60 * 24 * 365
+              maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
             }
           }
         },
@@ -65,35 +50,11 @@ module.exports = defineConfig({
             cacheName: 'images',
             expiration: {
               maxEntries: 100,
-              maxAgeSeconds: 60 * 60 * 24 * 30
+              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
             }
           }
         }
       ]
-    },
-    
-    // Manifest options
-    manifestOptions: {
-      name: 'نظام إدارة المخازن - منوفيا للعطور',
-      short_name: 'إدارة المخازن',
-      start_url: '/',
-      display: 'standalone',
-      theme_color: '#3b82f6',
-      background_color: '#ffffff',
-      icons: [
-        {
-          src: '/img/icons/android-chrome-192x192.png',
-          sizes: '192x192',
-          type: 'image/png'
-        },
-        {
-          src: '/img/icons/android-chrome-512x512.png',
-          sizes: '512x512',
-          type: 'image/png'
-        }
-      ],
-      lang: 'ar',
-      dir: 'rtl'
     },
     
     // Icon paths
@@ -112,7 +73,7 @@ module.exports = defineConfig({
     sourceMap: false,
     loaderOptions: {
       css: {
-        url: false
+        url: false // Disable url() handling in CSS
       }
     }
   },
@@ -154,13 +115,15 @@ module.exports = defineConfig({
   
   // Chain webpack for additional configuration
   chainWebpack: config => {
+    // Remove prefetch and preload plugins
     config.plugins.delete('prefetch');
     config.plugins.delete('preload');
     
+    // Optimize HTML
     config.plugin('html').tap(args => {
       args[0] = {
         ...args[0],
-        title: 'نظام إدارة المخازن - البران للعطور',
+        title: 'نظام إدارة المخازن -البران للعطور',
         meta: {
           viewport: 'width=device-width,initial-scale=1.0',
           description: 'نظام متكامل لإدارة مخازن زجاج العطور - البران للعطور',
@@ -177,6 +140,7 @@ module.exports = defineConfig({
       return args;
     });
     
+    // Handle images
     config.module
       .rule('images')
       .use('url-loader')
@@ -186,6 +150,7 @@ module.exports = defineConfig({
         name: 'img/[name].[hash:8].[ext]'
       }));
       
+    // Handle fonts
     config.module
       .rule('fonts')
       .use('url-loader')
