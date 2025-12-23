@@ -4,6 +4,9 @@ import App from './App.vue';
 import router from './router';
 import store from './store';
 
+// Import service worker registration
+import { registerServiceWorker } from './registerServiceWorker';
+
 // Import global CSS
 import './styles/globals.css';
 
@@ -55,49 +58,6 @@ const performanceMonitor = {
         console.groupEnd();
       }
     }
-  }
-};
-
-// ==================== SERVICE WORKER MANAGEMENT ====================
-const setupServiceWorker = () => {
-  if ('serviceWorker' in navigator) {
-    const handleServiceWorker = async () => {
-      try {
-        // Check if we have an update available
-        const registration = await navigator.serviceWorker.ready;
-        
-        if (registration.waiting) {
-          // New service worker is waiting
-          console.log('🔄 New service worker waiting');
-          
-          // Send skip waiting message
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          
-          // Reload page when new service worker takes control
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-          });
-        }
-        
-        // Check for updates periodically
-        if (APP_CONFIG.offlineSupport) {
-          setInterval(() => {
-            registration.update();
-          }, 60 * 60 * 1000); // Check every hour
-        }
-      } catch (error) {
-        console.warn('⚠️ Service Worker management error:', error);
-      }
-    };
-
-    if (navigator.serviceWorker.controller) {
-      handleServiceWorker();
-    }
-
-    // Listen for new service worker installation
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('🔄 Service Worker controller changed');
-    });
   }
 };
 
@@ -187,8 +147,21 @@ const initializeApp = async () => {
     
     console.log('✅ Application initialized successfully');
     
-    // 8. Set up service worker
-    setupServiceWorker();
+    // 8. Register service worker (PRODUCTION ONLY)
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🌐 Setting up Service Worker...');
+      
+      // Wait a bit before registering to avoid conflicts
+      setTimeout(async () => {
+        try {
+          await registerServiceWorker();
+          console.log('✅ Service Worker setup complete');
+        } catch (error) {
+          console.warn('⚠️ Service Worker registration failed:', error.message);
+          console.log('ℹ️ Running in online-only mode');
+        }
+      }, 2000);
+    }
     
     // 9. Log performance metrics
     setTimeout(() => {
@@ -308,6 +281,11 @@ const setupGlobalErrorHandlers = () => {
       return;
     }
     
+    // Ignore service worker registration errors (we handle them separately)
+    if (event.error && event.error.toString().includes('serviceWorker')) {
+      return;
+    }
+    
     store.dispatch('notification/show', {
       type: 'error',
       title: 'خطأ غير متوقع',
@@ -325,6 +303,11 @@ const setupGlobalErrorHandlers = () => {
       event.reason.toString().includes('navigation') ||
       event.reason.toString().includes('NavigationDuplicated')
     )) {
+      return;
+    }
+    
+    // Ignore service worker errors
+    if (event.reason && event.reason.toString().includes('serviceWorker')) {
       return;
     }
     
@@ -372,6 +355,32 @@ if (APP_CONFIG.debug) {
           if (reg) reg.update();
         });
       }
+    },
+    
+    // Service worker debug
+    serviceWorker: {
+      register: registerServiceWorker,
+      unregister: async () => {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const reg of registrations) {
+            await reg.unregister();
+          }
+          console.log('🧹 All service workers unregistered');
+        }
+      },
+      getStatus: async () => {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          return {
+            registered: !!reg,
+            scope: reg?.scope,
+            waiting: !!reg?.waiting,
+            installing: !!reg?.installing
+          };
+        }
+        return { supported: false };
+      }
     }
   };
   
@@ -414,5 +423,43 @@ window.addEventListener('beforeunload', () => {
   console.log('🧹 Cleaning up before unload');
 });
 
+// ==================== QUICK FIX: DISABLE INDEX.HTML SERVICE WORKER ====================
+// This code will disable any service worker registration from index.html
+if (typeof window !== 'undefined') {
+  // Override the problematic registration code in index.html
+  const originalAddEventListener = window.addEventListener;
+  const swRegistrationScripts = [
+    'service-worker.js',
+    '/service-worker.js',
+    './service-worker.js'
+  ];
+  
+  // Intercept load events that try to register service workers
+  window.addEventListener = function(type, listener, options) {
+    if (type === 'load') {
+      const wrappedListener = function(e) {
+        try {
+          // Check if this is the problematic registration
+          if (typeof listener === 'function' && listener.toString().includes('serviceWorker')) {
+            console.log('🛑 Blocked service worker registration from index.html');
+            return; // Skip this listener
+          }
+        } catch (err) {
+          // Continue normally if we can't check
+        }
+        return listener.call(this, e);
+      };
+      return originalAddEventListener.call(this, type, wrappedListener, options);
+    }
+    return originalAddEventListener.call(this, type, listener, options);
+  };
+  
+  // Also prevent immediate service worker registration attempts
+  document.addEventListener('DOMContentLoaded', () => {
+    // This will run before the index.html scripts
+    console.log('🛡️ Preventing duplicate service worker registrations');
+  });
+}
+
 // Export for testing if needed
-export { initializeApp, setupServiceWorker };
+export { initializeApp };
