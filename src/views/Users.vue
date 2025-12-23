@@ -1,872 +1,4564 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-    <!-- Animated Background Elements -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 dark:bg-yellow-900 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-      <div class="absolute top-1/2 left-1/3 w-80 h-80 bg-pink-300 dark:bg-pink-900 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+  <div class="user-management" :class="{ 'dark-mode': isDarkMode }">
+    <!-- Loading Overlay -->
+    <div v-if="loading && !error" class="loading-overlay">
+      <div class="spinner-container">
+        <div class="spinner"></div>
+        <p class="loading-text">جاري تحميل بيانات المستخدمين...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="error" class="error-container">
+      <div class="error-card">
+        <div class="error-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h2>حدث خطأ</h2>
+        <p class="error-message">{{ error }}</p>
+        <div class="error-actions">
+          <button @click="loadUsers" class="btn-primary">
+            <i class="fas fa-redo"></i> إعادة المحاولة
+          </button>
+          <button @click="$router.push('/dashboard')" class="btn-secondary">
+            <i class="fas fa-home"></i> العودة للرئيسية
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Main Content -->
-    <div class="relative z-10">
+    <div v-if="!loading && !error" class="main-content">
       <!-- Header -->
-      <header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-lg border-b border-gray-200/50 dark:border-gray-700/50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center h-16">
-            <!-- Navigation -->
-            <div class="flex items-center space-x-4 space-x-reverse">
-              <router-link to="/" class="group flex items-center space-x-3 space-x-reverse hover:opacity-80 transition-all duration-300">
-                <div class="relative">
-                  <div class="h-10 w-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <span class="text-white font-bold text-sm">م</span>
+      <div class="header-section">
+        <div class="header-content">
+          <div class="header-info">
+            <h1 class="page-title">
+              <i class="fas fa-users-cog"></i> إدارة المستخدمين
+            </h1>
+            <p class="page-subtitle">
+              إدارة مستخدمي النظام، الصلاحيات، والمخازن
+            </p>
+          </div>
+          <div class="header-actions">
+            <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? 'الوضع الفاتح' : 'الوضع الداكن'">
+              <i :class="themeIcon"></i>
+            </button>
+            <button @click="exportUsers" class="btn-info" :disabled="exporting">
+              <i class="fas" :class="exporting ? 'fa-spinner fa-spin' : 'fa-file-export'"></i>
+              {{ exporting ? 'جاري التصدير...' : 'تصدير' }}
+            </button>
+            <button @click="showCreateModal = true" class="btn-success">
+              <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon total-users">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+              <h3>إجمالي المستخدمين</h3>
+              <p class="stat-number">{{ stats.totalUsers }}</p>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon active-users">
+              <i class="fas fa-user-check"></i>
+            </div>
+            <div class="stat-content">
+              <h3>المستخدمين النشطين</h3>
+              <p class="stat-number">{{ stats.activeUsers }}</p>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon inactive-users">
+              <i class="fas fa-user-times"></i>
+            </div>
+            <div class="stat-content">
+              <h3>المستخدمين المعطلين</h3>
+              <p class="stat-number">{{ stats.inactiveUsers }}</p>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon superadmins">
+              <i class="fas fa-crown"></i>
+            </div>
+            <div class="stat-content">
+              <h3>المشرفين العامين</h3>
+              <p class="stat-number">{{ stats.superadmins }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters and Search -->
+      <div class="filters-section">
+        <div class="filters-grid">
+          <!-- Search -->
+          <div class="filter-group">
+            <label for="search">
+              <i class="fas fa-search"></i> بحث
+            </label>
+            <div class="search-input">
+              <input
+                type="text"
+                id="search"
+                v-model="filters.search"
+                placeholder="ابحث بالاسم، البريد، أو الدور..."
+                @input="debouncedSearch"
+              >
+              <button v-if="filters.search" @click="clearSearch" class="clear-search">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Role Filter -->
+          <div class="filter-group">
+            <label for="roleFilter">
+              <i class="fas fa-user-tag"></i> الدور
+            </label>
+            <select id="roleFilter" v-model="filters.role" @change="applyFilters">
+              <option value="">جميع الأدوار</option>
+              <option value="superadmin">مشرف عام</option>
+              <option value="company_manager">مدير شركة</option>
+              <option value="warehouse_manager">مدير مخزن</option>
+            </select>
+          </div>
+
+          <!-- Status Filter -->
+          <div class="filter-group">
+            <label for="statusFilter">
+              <i class="fas fa-toggle-on"></i> الحالة
+            </label>
+            <select id="statusFilter" v-model="filters.status" @change="applyFilters">
+              <option value="">جميع الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+            </select>
+          </div>
+
+          <!-- Warehouse Filter -->
+          <div class="filter-group">
+            <label for="warehouseFilter">
+              <i class="fas fa-warehouse"></i> المخزن
+            </label>
+            <select id="warehouseFilter" v-model="filters.warehouse" @change="applyFilters">
+              <option value="">جميع المخازن</option>
+              <option value="all">جميع المخازن</option>
+              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                {{ warehouse.name_ar || warehouse.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Date Range -->
+          <div class="filter-group date-range">
+            <label>
+              <i class="fas fa-calendar-alt"></i> الفترة الزمنية
+            </label>
+            <div class="date-inputs">
+              <input
+                type="date"
+                v-model="filters.startDate"
+                :max="filters.endDate"
+                @change="applyFilters"
+                :title="'من ' + formatDateDisplay(filters.startDate)"
+              >
+              <span class="date-separator">إلى</span>
+              <input
+                type="date"
+                v-model="filters.endDate"
+                :min="filters.startDate"
+                :max="today"
+                @change="applyFilters"
+                :title="'إلى ' + formatDateDisplay(filters.endDate)"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <button @click="showBulkActions = !showBulkActions" class="btn-secondary">
+            <i class="fas fa-bars"></i> إجراءات جماعية
+          </button>
+          
+          <div v-if="showBulkActions" class="bulk-actions-dropdown">
+            <button @click="bulkActivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
+              <i class="fas fa-check-circle"></i> تفعيل المحددين
+            </button>
+            <button @click="bulkDeactivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
+              <i class="fas fa-times-circle"></i> تعطيل المحددين
+            </button>
+            <button @click="bulkDelete" :disabled="selectedUsers.length === 0" class="bulk-action-btn danger">
+              <i class="fas fa-trash-alt"></i> حذف المحددين
+            </button>
+            <button @click="exportSelected" :disabled="selectedUsers.length === 0" class="bulk-action-btn info">
+              <i class="fas fa-file-export"></i> تصدير المحددين
+            </button>
+          </div>
+
+          <button @click="refreshData" :disabled="refreshing" class="btn-info">
+            <i class="fas" :class="refreshing ? 'fa-spinner fa-spin' : 'fa-redo'"></i>
+            {{ refreshing ? 'جاري التحديث...' : 'تحديث' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Users Table -->
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-info">
+            <h3>
+              <i class="fas fa-list"></i> قائمة المستخدمين
+              <span class="table-count">({{ filteredUsers.length }} مستخدم)</span>
+            </h3>
+            <div class="selection-info" v-if="selectedUsers.length > 0">
+              <i class="fas fa-check-circle"></i>
+              تم تحديد {{ selectedUsers.length }} مستخدم
+              <button @click="clearSelection" class="clear-selection">
+                إلغاء التحديد
+              </button>
+            </div>
+          </div>
+          <div class="table-actions">
+            <button @click="toggleAllSelection" class="select-all-btn">
+              <i class="fas" :class="allSelected ? 'fa-check-square' : 'fa-square'"></i>
+              {{ allSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+            </button>
+            <div class="view-options">
+              <button @click="viewMode = 'grid'" :class="{ 'active': viewMode === 'grid' }" class="view-btn">
+                <i class="fas fa-th-large"></i>
+              </button>
+              <button @click="viewMode = 'list'" :class="{ 'active': viewMode === 'list' }" class="view-btn">
+                <i class="fas fa-list"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid View -->
+        <div v-if="viewMode === 'grid' && filteredUsers.length > 0" class="users-grid">
+          <div
+            v-for="user in paginatedUsers"
+            :key="user.id"
+            class="user-card"
+            :class="{ 
+              'selected': selectedUsers.includes(user.id),
+              'inactive': !user.is_active
+            }"
+          >
+            <!-- Card Header -->
+            <div class="card-header">
+              <div class="user-avatar-section">
+                <div class="user-avatar" :style="getAvatarStyle(user)">
+                  {{ getUserInitials(user) }}
+                </div>
+                <div class="user-status" :class="{ 'online': user.is_active, 'offline': !user.is_active }">
+                  <i class="fas fa-circle"></i>
+                </div>
+              </div>
+              <div class="user-actions">
+                <button @click.stop="toggleUserSelection(user.id)" class="select-user-btn">
+                  <i class="fas" :class="selectedUsers.includes(user.id) ? 'fa-check-square' : 'fa-square'"></i>
+                </button>
+                <div class="dropdown">
+                  <button @click.stop="toggleDropdown(user.id)" class="dropdown-toggle">
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
+                  <div v-if="activeDropdown === user.id" class="dropdown-menu">
+                    <button @click="editUser(user)" class="dropdown-item">
+                      <i class="fas fa-edit"></i> تعديل
+                    </button>
+                    <button @click="viewUserProfile(user)" class="dropdown-item">
+                      <i class="fas fa-eye"></i> عرض التفاصيل
+                    </button>
+                    <button 
+                      @click="toggleUserStatus(user)" 
+                      :class="{ 'danger': user.is_active }" 
+                      class="dropdown-item"
+                    >
+                      <i :class="user.is_active ? 'fas fa-user-times' : 'fas fa-user-check'"></i>
+                      {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
+                    </button>
+                    <button @click="showDeleteModal(user)" class="dropdown-item danger">
+                      <i class="fas fa-trash-alt"></i> حذف
+                    </button>
                   </div>
-                  <div class="absolute -inset-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl blur opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                 </div>
-                <div>
-                  <h1 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300">
-                    إدارة المستخدمين
-                  </h1>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">نظام إدارة المخزون المتكامل</p>
-                </div>
-              </router-link>
+              </div>
             </div>
 
-            <!-- User Info and Actions -->
-            <div class="flex items-center space-x-3 space-x-reverse">
-              <!-- User Stats -->
-              <div class="hidden md:flex items-center space-x-2 space-x-reverse px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                <span class="text-xs text-gray-600 dark:text-gray-300">
-                  <span class="font-bold text-purple-600 dark:text-purple-400">{{ userStats.total }}</span> مستخدم
-                </span>
-                <div class="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
-                <span class="text-xs text-gray-600 dark:text-gray-300">
-                  <span class="font-bold text-green-600 dark:text-green-400">{{ userStats.active }}</span> نشط
-                </span>
-              </div>
+            <!-- Card Body -->
+            <div class="card-body">
+              <div class="user-info">
+                <h4 class="user-name">{{ user.name }}</h4>
+                <p class="user-email">{{ user.email }}</p>
+                
+                <div class="user-meta">
+                  <span class="user-role" :class="user.role">
+                    <i :class="getRoleIcon(user.role)"></i>
+                    {{ getRoleName(user.role) }}
+                  </span>
+                  <span class="user-date">
+                    <i class="fas fa-calendar"></i>
+                    {{ formatDate(user.created_at) }}
+                  </span>
+                </div>
 
-              <!-- Add User Button -->
-              <button 
-                @click="openAddUserModal"
-                class="group relative inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                :disabled="loading"
-              >
-                <div class="absolute -inset-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl blur opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-                <svg class="w-4 h-4 ml-2 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                <span class="relative z-10">مستخدم جديد</span>
+                <div class="user-stats">
+                  <div class="stat-item">
+                    <i class="fas fa-warehouse"></i>
+                    <span>{{ getUserWarehouseCount(user) }} مخزن</span>
+                  </div>
+                  <div class="stat-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>{{ getUserPermissionsCount(user) }} صلاحية</span>
+                  </div>
+                </div>
+
+                <div v-if="user.allowed_warehouses" class="warehouses-preview">
+                  <div class="warehouses-label">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>المخازن المسموحة:</span>
+                  </div>
+                  <div class="warehouses-list">
+                    <span v-if="user.allowed_warehouses.includes('all')" class="warehouse-tag all">
+                      جميع المخازن
+                    </span>
+                    <template v-else>
+                      <span 
+                        v-for="warehouseId in user.allowed_warehouses.slice(0, 2)" 
+                        :key="warehouseId" 
+                        class="warehouse-tag"
+                      >
+                        {{ getWarehouseName(warehouseId) }}
+                      </span>
+                      <span 
+                        v-if="user.allowed_warehouses.length > 2" 
+                        class="warehouse-tag more"
+                      >
+                        +{{ user.allowed_warehouses.length - 2 }} أخرى
+                      </span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="card-footer">
+              <button @click="impersonateUser(user)" class="btn-secondary btn-sm" :disabled="user.id === currentUserId">
+                <i class="fas fa-user-secret"></i> الدخول كمستخدم
               </button>
-              
-              <!-- Dashboard Button -->
-              <router-link 
-                to="/" 
-                class="group inline-flex items-center px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 border border-gray-200 dark:border-gray-600"
-              >
-                <svg class="w-4 h-4 ml-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-                <span class="group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300">الرئيسية</span>
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إجمالي المستخدمين</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ userStats.total }}</p>
-              </div>
-              <div class="h-12 w-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="flex items-center text-sm text-green-600 dark:text-green-400">
-                <svg class="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"/>
-                </svg>
-                <span>+{{ userStats.thisMonth }} هذا الشهر</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">المستخدمين النشطين</p>
-                <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{{ userStats.active }}</p>
-              </div>
-              <div class="h-12 w-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ Math.round((userStats.active / userStats.total) * 100) || 0 }}% من إجمالي المستخدمين
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">مديري المخازن</p>
-                <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{{ userStats.warehouseManagers }}</p>
-              </div>
-              <div class="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                </svg>
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ Math.round((userStats.warehouseManagers / userStats.total) * 100) || 0 }}% من إجمالي المستخدمين
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">المستخدمين المعطلين</p>
-                <p class="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">{{ userStats.inactive }}</p>
-              </div>
-              <div class="h-12 w-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-                <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                </svg>
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ Math.round((userStats.inactive / userStats.total) * 100) || 0 }}% من إجمالي المستخدمين
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Search and Filter Bar -->
-        <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg mb-6 border border-gray-200/50 dark:border-gray-700/50">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 class="text-xl font-bold text-gray-900 dark:text-white">قائمة المستخدمين</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">إدارة جميع حسابات المستخدمين في النظام</p>
-            </div>
-
-            <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <!-- Search Input -->
-              <div class="relative flex-grow">
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  v-model="searchTerm"
-                  @input="handleSearch"
-                  placeholder="ابحث عن مستخدم بالاسم أو البريد..."
-                  class="w-full pr-10 pl-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                  :disabled="loading"
-                />
-              </div>
-
-              <!-- Role Filter -->
-              <select
-                v-model="roleFilter"
-                @change="loadUsers"
-                class="px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                :disabled="loading"
-              >
-                <option value="">جميع الأدوار</option>
-                <option value="superadmin">المشرف العام</option>
-                <option value="warehouse_manager">مدير المخازن</option>
-                <option value="company_manager">مدير الشركة</option>
-              </select>
-
-              <!-- Status Filter -->
-              <select
-                v-model="statusFilter"
-                @change="loadUsers"
-                class="px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                :disabled="loading"
-              >
-                <option value="">جميع الحالات</option>
-                <option value="active">نشط فقط</option>
-                <option value="inactive">معطل فقط</option>
-              </select>
-
-              <!-- Refresh Button -->
-              <button
-                @click="loadUsers"
-                :disabled="loading"
-                class="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <svg class="w-5 h-5" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                تحديث
+              <button @click="resetPassword(user)" class="btn-info btn-sm">
+                <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading && users.length === 0" class="text-center py-12">
-          <div class="inline-flex flex-col items-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
-            <p class="text-gray-600 dark:text-gray-400">جاري تحميل بيانات المستخدمين...</p>
-          </div>
-        </div>
+        <!-- Table View -->
+        <div v-else-if="viewMode === 'list' && filteredUsers.length > 0" class="users-table-container">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th class="select-column">
+                  <input 
+                    type="checkbox" 
+                    :checked="allSelected" 
+                    @change="toggleAllSelection"
+                    class="select-checkbox"
+                  >
+                </th>
+                <th class="user-column">المستخدم</th>
+                <th class="role-column">الدور</th>
+                <th class="warehouses-column">المخازن</th>
+                <th class="status-column">الحالة</th>
+                <th class="date-column">تاريخ الإنشاء</th>
+                <th class="actions-column">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="user in paginatedUsers" 
+                :key="user.id"
+                :class="{ 
+                  'selected': selectedUsers.includes(user.id),
+                  'inactive': !user.is_active
+                }"
+              >
+                <!-- Select Checkbox -->
+                <td class="select-cell">
+                  <input 
+                    type="checkbox" 
+                    :checked="selectedUsers.includes(user.id)" 
+                    @change="toggleUserSelection(user.id)"
+                    class="select-checkbox"
+                  >
+                </td>
 
-        <!-- Users Table -->
-        <div v-else class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead class="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    المستخدم
-                  </th>
-                  <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    الدور
-                  </th>
-                  <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    الحالة
-                  </th>
-                  <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    تاريخ الإنشاء
-                  </th>
-                  <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    الإجراءات
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
-                  <td class="px-6 py-4">
-                    <div class="flex items-center">
-                      <div class="h-10 w-10 rounded-xl bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center ml-3">
-                        <span class="text-sm font-bold text-purple-600 dark:text-purple-400">
-                          {{ getUserInitials(user.name) }}
+                <!-- User Info -->
+                <td class="user-cell">
+                  <div class="user-info-row">
+                    <div class="user-avatar-sm" :style="getAvatarStyle(user)">
+                      {{ getUserInitials(user) }}
+                    </div>
+                    <div class="user-details">
+                      <div class="user-name-row">
+                        <h5 class="user-name">{{ user.name }}</h5>
+                        <span v-if="user.id === currentUserId" class="current-user-badge">
+                          <i class="fas fa-user"></i> أنت
                         </span>
                       </div>
-                      <div class="text-right">
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ user.name }}</div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</div>
-                        <div v-if="user.phone" class="text-xs text-gray-400 dark:text-gray-500">{{ user.phone }}</div>
+                      <p class="user-email">{{ user.email }}</p>
+                      <div class="user-meta-row">
+                        <span class="last-login" v-if="user.last_login">
+                          <i class="fas fa-sign-in-alt"></i>
+                          آخر دخول: {{ formatTimeAgo(user.last_login) }}
+                        </span>
                       </div>
                     </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span :class="getRoleBadgeClass(user.role)">
-                      {{ getRoleName(user.role) }}
-                    </span>
-                    <div v-if="user.role === 'warehouse_manager' && user.allowed_warehouses" class="mt-1">
-                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                  </div>
+                </td>
+
+                <!-- Role -->
+                <td class="role-cell">
+                  <span class="role-badge" :class="user.role">
+                    <i :class="getRoleIcon(user.role)"></i>
+                    {{ getRoleName(user.role) }}
+                  </span>
+                  <div class="permissions-count" v-if="user.permissions">
+                    <i class="fas fa-shield-alt"></i>
+                    {{ user.permissions.length }} صلاحية
+                  </div>
+                </td>
+
+                <!-- Warehouses -->
+                <td class="warehouses-cell">
+                  <div v-if="user.allowed_warehouses" class="warehouses-list-table">
+                    <div v-if="user.allowed_warehouses.includes('all')" class="all-warehouses">
+                      <i class="fas fa-check-circle"></i>
+                      جميع المخازن
+                    </div>
+                    <template v-else>
+                      <div class="warehouses-count">
+                        <i class="fas fa-warehouse"></i>
                         {{ user.allowed_warehouses.length }} مخزن
                       </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center">
-                      <span :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-medium', 
-                                   user.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
-                                                   'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400']">
-                        <span class="w-2 h-2 rounded-full mr-1" :class="user.is_active ? 'bg-green-500' : 'bg-red-500'"></span>
-                        {{ user.is_active ? 'نشط' : 'غير نشط' }}
-                      </span>
-                    </div>
-                    <div v-if="user.last_login" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      آخر دخول: {{ formatDate(user.last_login) }}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {{ formatDate(user.created_at) }}
-                  </td>
-                  <td class="px-6 py-4 text-sm font-medium">
-                    <div class="flex items-center justify-end space-x-2 space-x-reverse">
-                      <button
-                        @click="editUser(user)"
-                        class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition-colors duration-200 p-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
-                        title="تعديل"
-                      >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                      </button>
-                      
-                      <button
-                        @click="toggleUserStatus(user)"
-                        :title="user.is_active ? 'تعطيل المستخدم' : 'تفعيل المستخدم'"
-                        :class="['p-1 rounded-lg transition-colors duration-200', 
-                                user.is_active ? 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' :
-                                                'text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20']"
-                      >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path v-if="user.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                      </button>
-                      
-                      <button
-                        v-if="user.role !== 'superadmin'"
-                        @click="deleteUser(user)"
-                        class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors duration-200 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                        title="حذف"
-                      >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                      <div class="warehouses-preview-table">
+                        <span 
+                          v-for="warehouseId in user.allowed_warehouses.slice(0, 3)" 
+                          :key="warehouseId"
+                          class="warehouse-tag-sm"
+                        >
+                          {{ getWarehouseName(warehouseId) }}
+                        </span>
+                        <span 
+                          v-if="user.allowed_warehouses.length > 3" 
+                          class="warehouse-more"
+                        >
+                          +{{ user.allowed_warehouses.length - 3 }}
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                  <div v-else class="no-warehouses">
+                    <i class="fas fa-exclamation-circle"></i>
+                    لا توجد مخازن
+                  </div>
+                </td>
 
-          <!-- Empty State -->
-          <div v-if="!loading && filteredUsers.length === 0" class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد نتائج</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ searchTerm ? 'لم يتم العثور على مستخدمين يطابقون بحثك.' : 'لا توجد مستخدمين في النظام حتى الآن.' }}
-            </p>
-            <div class="mt-6">
-              <button
-                type="button"
-                @click="openAddUserModal"
-                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-900"
+                <!-- Status -->
+                <td class="status-cell">
+                  <div class="status-indicator" :class="{ 'active': user.is_active }">
+                    <i class="fas fa-circle"></i>
+                    <span>{{ user.is_active ? 'نشط' : 'معطل' }}</span>
+                  </div>
+                  <button 
+                    @click="toggleUserStatus(user)" 
+                    class="status-toggle-btn btn-sm"
+                    :class="{ 'danger': user.is_active, 'success': !user.is_active }"
+                  >
+                    <i :class="user.is_active ? 'fas fa-toggle-off' : 'fas fa-toggle-on'"></i>
+                    {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
+                  </button>
+                </td>
+
+                <!-- Date -->
+                <td class="date-cell">
+                  <div class="date-display">
+                    <i class="fas fa-calendar"></i>
+                    {{ formatDate(user.created_at) }}
+                  </div>
+                  <div class="time-ago" v-if="user.created_at">
+                    {{ formatTimeAgo(user.created_at) }}
+                  </div>
+                </td>
+
+                <!-- Actions -->
+                <td class="actions-cell">
+                  <div class="action-buttons">
+                    <button @click="editUser(user)" class="action-btn edit" title="تعديل">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button @click="viewUserProfile(user)" class="action-btn view" title="عرض التفاصيل">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button 
+                      @click="impersonateUser(user)" 
+                      class="action-btn impersonate" 
+                      title="الدخول كمستخدم"
+                      :disabled="user.id === currentUserId"
+                    >
+                      <i class="fas fa-user-secret"></i>
+                    </button>
+                    <button @click="resetPassword(user)" class="action-btn reset" title="إعادة تعيين كلمة المرور">
+                      <i class="fas fa-key"></i>
+                    </button>
+                    <button @click="showDeleteModal(user)" class="action-btn delete" title="حذف">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="empty-state">
+          <div class="empty-state-icon">
+            <i class="fas fa-users-slash"></i>
+          </div>
+          <h3>لا توجد نتائج</h3>
+          <p>لا توجد مستخدمين تطابق معايير البحث</p>
+          <button @click="clearFilters" class="btn-primary">
+            <i class="fas fa-times"></i> مسح الفلاتر
+          </button>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="filteredUsers.length > 0" class="pagination-section">
+          <div class="pagination-info">
+            عرض {{ (currentPage - 1) * itemsPerPage + 1 }} إلى {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} من {{ filteredUsers.length }} مستخدم
+          </div>
+          
+          <div class="pagination-controls">
+            <select v-model="itemsPerPage" @change="itemsPerPage = parseInt($event.target.value)" class="page-size-select">
+              <option value="10">10 لكل صفحة</option>
+              <option value="25">25 لكل صفحة</option>
+              <option value="50">50 لكل صفحة</option>
+              <option value="100">100 لكل صفحة</option>
+            </select>
+
+            <button 
+              @click="prevPage" 
+              :disabled="currentPage === 1" 
+              class="pagination-btn prev"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+            
+            <div class="page-numbers">
+              <button 
+                v-for="page in visiblePages" 
+                :key="page"
+                @click="goToPage(page)"
+                :class="{ 'active': currentPage === page, 'disabled': page === '...' }"
+                class="page-number"
               >
-                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                إضافة مستخدم جديد
+                {{ page }}
+              </button>
+            </div>
+            
+            <button 
+              @click="nextPage" 
+              :disabled="currentPage === totalPages" 
+              class="pagination-btn next"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Create/Edit User Modal -->
+    <div v-if="showCreateModal || editingUser" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>
+              <i class="fas" :class="editingUser ? 'fa-user-edit' : 'fa-user-plus'"></i>
+              {{ editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد' }}
+            </h2>
+            <button @click="closeModal" class="modal-close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <form @submit.prevent="saveUser" class="user-form">
+              <!-- Basic Information -->
+              <div class="form-section">
+                <h3>
+                  <i class="fas fa-user-circle"></i> المعلومات الأساسية
+                </h3>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="userName">
+                      <i class="fas fa-user"></i> الاسم الكامل *
+                    </label>
+                    <input
+                      type="text"
+                      id="userName"
+                      v-model="userForm.name"
+                      placeholder="أدخل الاسم الكامل"
+                      required
+                      :class="{ 'error': formErrors.name }"
+                    >
+                    <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="userEmail">
+                      <i class="fas fa-envelope"></i> البريد الإلكتروني *
+                    </label>
+                    <input
+                      type="email"
+                      id="userEmail"
+                      v-model="userForm.email"
+                      placeholder="example@company.com"
+                      required
+                      :class="{ 'error': formErrors.email }"
+                    >
+                    <span v-if="formErrors.email" class="error-message">{{ formErrors.email }}</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="userRole">
+                      <i class="fas fa-user-tag"></i> الدور *
+                    </label>
+                    <select id="userRole" v-model="userForm.role" required>
+                      <option value="warehouse_manager">مدير مخزن</option>
+                      <option value="company_manager">مدير شركة</option>
+                      <option value="superadmin">مشرف عام</option>
+                    </select>
+                    <div class="role-description">
+                      <i class="fas fa-info-circle"></i>
+                      {{ getRoleDescription(userForm.role) }}
+                    </div>
+                  </div>
+
+                  <div class="form-group" v-if="!editingUser">
+                    <label for="userPassword">
+                      <i class="fas fa-key"></i> كلمة المرور *
+                    </label>
+                    <div class="password-input">
+                      <input
+                        :type="showPassword ? 'text' : 'password'"
+                        id="userPassword"
+                        v-model="userForm.password"
+                        placeholder="كلمة المرور (8 أحرف على الأقل)"
+                        required
+                        :minlength="8"
+                        :class="{ 'error': formErrors.password }"
+                      >
+                      <button
+                        type="button"
+                        @click="showPassword = !showPassword"
+                        class="password-toggle"
+                      >
+                        <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
+                    </div>
+                    <span v-if="formErrors.password" class="error-message">{{ formErrors.password }}</span>
+                    <div class="password-strength" :class="passwordStrength.class">
+                      <div class="strength-bar">
+                        <div class="strength-fill" :style="{ width: passwordStrength.percentage + '%' }"></div>
+                      </div>
+                      <span>{{ passwordStrength.text }}</span>
+                    </div>
+                  </div>
+
+                  <div class="form-group" v-if="!editingUser">
+                    <label for="confirmPassword">
+                      <i class="fas fa-key"></i> تأكيد كلمة المرور *
+                    </label>
+                    <div class="password-input">
+                      <input
+                        :type="showConfirmPassword ? 'text' : 'password'"
+                        id="confirmPassword"
+                        v-model="userForm.confirmPassword"
+                        placeholder="أعد إدخال كلمة المرور"
+                        required
+                        :class="{ 'error': formErrors.confirmPassword }"
+                      >
+                      <button
+                        type="button"
+                        @click="showConfirmPassword = !showConfirmPassword"
+                        class="password-toggle"
+                      >
+                        <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
+                    </div>
+                    <span v-if="formErrors.confirmPassword" class="error-message">{{ formErrors.confirmPassword }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Warehouse Permissions -->
+              <div class="form-section">
+                <h3>
+                  <i class="fas fa-warehouse"></i> صلاحيات المخازن
+                </h3>
+                <div class="warehouse-permissions">
+                  <div class="permission-option">
+                    <label class="checkbox-label">
+                      <input
+                        type="checkbox"
+                        v-model="userForm.allWarehouses"
+                        @change="toggleAllWarehouses"
+                      >
+                      <span class="checkbox-custom"></span>
+                      الوصول إلى جميع المخازن
+                    </label>
+                  </div>
+
+                  <div v-if="!userForm.allWarehouses" class="warehouse-selection">
+                    <div class="selection-header">
+                      <h4>اختر المخازن المصرح بها:</h4>
+                      <button type="button" @click="selectAllWarehouses" class="select-all-btn">
+                        <i class="fas fa-check-square"></i> تحديد الكل
+                      </button>
+                    </div>
+                    
+                    <div class="warehouse-categories">
+                      <!-- Primary Warehouses -->
+                      <div class="category-section">
+                        <h5><i class="fas fa-building"></i> المخازن الرئيسية</h5>
+                        <div class="checkbox-grid">
+                          <label
+                            v-for="warehouse in primaryWarehouses"
+                            :key="warehouse.id"
+                            class="checkbox-item"
+                          >
+                            <input
+                              type="checkbox"
+                              :value="warehouse.id"
+                              v-model="userForm.allowedWarehouses"
+                            >
+                            <span class="checkbox-custom"></span>
+                            <div class="warehouse-label">
+                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
+                              <span class="warehouse-code">{{ warehouse.code }}</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      <!-- Dispatch Warehouses -->
+                      <div class="category-section">
+                        <h5><i class="fas fa-shipping-fast"></i> مخازن التوزيع</h5>
+                        <div class="checkbox-grid">
+                          <label
+                            v-for="warehouse in dispatchWarehouses"
+                            :key="warehouse.id"
+                            class="checkbox-item"
+                          >
+                            <input
+                              type="checkbox"
+                              :value="warehouse.id"
+                              v-model="userForm.allowedWarehouses"
+                            >
+                            <span class="checkbox-custom"></span>
+                            <div class="warehouse-label">
+                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
+                              <span class="warehouse-code">{{ warehouse.code }}</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Permissions -->
+              <div class="form-section">
+                <h3>
+                  <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
+                </h3>
+                <div class="permissions-selection">
+                  <div class="permissions-presets">
+                    <h4>إعدادات سريعة:</h4>
+                    <div class="preset-buttons">
+                      <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
+                        <i class="fas fa-eye"></i> عرض فقط
+                      </button>
+                      <button type="button" @click="applyPermissionPreset('basic_management')" class="preset-btn">
+                        <i class="fas fa-user-cog"></i> إدارة أساسية
+                      </button>
+                      <button type="button" @click="applyPermissionPreset('full_access')" class="preset-btn">
+                        <i class="fas fa-crown"></i> صلاحية كاملة
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="permission-categories">
+                    <div
+                      v-for="category in permissionCategories"
+                      :key="category.id"
+                      class="permission-category"
+                    >
+                      <div class="category-header">
+                        <h5>{{ category.name }}</h5>
+                        <label class="category-toggle">
+                          <input
+                            type="checkbox"
+                            :checked="isCategorySelected(category.permissions)"
+                            @change="toggleCategory(category.permissions, $event)"
+                          >
+                          <span>تحديد/إلغاء الكل</span>
+                        </label>
+                      </div>
+                      
+                      <div class="permission-checkboxes">
+                        <label
+                          v-for="perm in category.permissions"
+                          :key="perm.id"
+                          class="permission-checkbox"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="perm.id"
+                            v-model="userForm.permissions"
+                          >
+                          <span class="checkbox-custom"></span>
+                          <div class="permission-label">
+                            <i :class="perm.icon"></i>
+                            <div>
+                              <span class="permission-name">{{ perm.name }}</span>
+                              <span class="permission-desc">{{ perm.description }}</span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional Settings -->
+              <div class="form-section">
+                <h3>
+                  <i class="fas fa-cogs"></i> إعدادات إضافية
+                </h3>
+                <div class="additional-settings">
+                  <div class="setting-group">
+                    <label class="toggle-label">
+                      <div class="toggle-info">
+                        <i class="fas fa-toggle-on"></i>
+                        <div>
+                          <h4>تفعيل الحساب</h4>
+                          <p>المستخدم يمكنه تسجيل الدخول فوراً</p>
+                        </div>
+                      </div>
+                      <label class="toggle-switch">
+                        <input type="checkbox" v-model="userForm.isActive">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </label>
+                  </div>
+
+                  <div class="setting-group">
+                    <label class="toggle-label">
+                      <div class="toggle-info">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                          <h4>إرسال بريد الترحيب</h4>
+                          <p>إرسال بريد ترحيبي للمستخدم الجديد</p>
+                        </div>
+                      </div>
+                      <label class="toggle-switch">
+                        <input type="checkbox" v-model="userForm.sendWelcomeEmail">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </label>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="userNotes">
+                      <i class="fas fa-sticky-note"></i> ملاحظات
+                    </label>
+                    <textarea
+                      id="userNotes"
+                      v-model="userForm.notes"
+                      placeholder="ملاحظات إضافية حول المستخدم..."
+                      rows="3"
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Form Actions -->
+              <div class="form-actions">
+                <button type="button" @click="closeModal" class="btn-secondary">
+                  <i class="fas fa-times"></i> إلغاء
+                </button>
+                <button type="submit" class="btn-primary" :disabled="saving">
+                  <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                  {{ saving ? 'جاري الحفظ...' : 'حفظ' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+      <div class="modal-container delete-modal">
+        <div class="modal-content">
+          <div class="modal-header danger">
+            <h2><i class="fas fa-exclamation-triangle"></i> تأكيد الحذف</h2>
+          </div>
+          
+          <div class="modal-body">
+            <div class="delete-warning">
+              <i class="fas fa-trash-alt"></i>
+              <h3>هل أنت متأكد من حذف المستخدم؟</h3>
+              <p v-if="userToDelete">
+                هذا الإجراء سيحذف المستخدم <strong>{{ userToDelete.name }}</strong> (<strong>{{ userToDelete.email }}</strong>) نهائياً.
+              </p>
+              <p v-if="selectedUsers.length > 1" class="bulk-delete-warning">
+                <i class="fas fa-exclamation-circle"></i>
+                سيتم حذف <strong>{{ selectedUsers.length }}</strong> مستخدمين.
+              </p>
+              <div class="warning-list">
+                <p><i class="fas fa-exclamation-circle"></i> لا يمكن التراجع عن هذا الإجراء</p>
+                <p><i class="fas fa-history"></i> سيتم حفظ سجل الحذف في السجلات</p>
+                <p><i class="fas fa-ban"></i> المستخدم لن يتمكن من تسجيل الدخول</p>
+              </div>
+            </div>
+
+            <div class="delete-actions">
+              <button @click="cancelDelete" class="btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+              </button>
+              <button @click="confirmDelete" class="btn-danger" :disabled="deleting">
+                <i class="fas" :class="deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
+                {{ deleting ? 'جاري الحذف...' : 'حذف' }}
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Pagination -->
-          <div v-if="filteredUsers.length > 0" class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-gray-700 dark:text-gray-300">
-                عرض <span class="font-bold">{{ filteredUsers.length }}</span> من <span class="font-bold">{{ users.length }}</span> مستخدم
+    <!-- Reset Password Modal -->
+    <div v-if="showResetPasswordModal" class="modal-overlay" @click.self="cancelResetPassword">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2><i class="fas fa-key"></i> إعادة تعيين كلمة المرور</h2>
+            <button @click="cancelResetPassword" class="modal-close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="reset-info">
+              <i class="fas fa-user-shield"></i>
+              <h3>إعادة تعيين كلمة المرور للمستخدم</h3>
+              <p v-if="userToReset">
+                ستقوم بإعادة تعيين كلمة مرور المستخدم <strong>{{ userToReset.name }}</strong> (<strong>{{ userToReset.email }}</strong>)
+              </p>
+            </div>
+
+            <div class="reset-options">
+              <div class="option-group">
+                <label class="option-label">
+                  <input
+                    type="radio"
+                    v-model="resetMethod"
+                    value="auto"
+                    checked
+                  >
+                  <span class="radio-custom"></span>
+                  <div class="option-content">
+                    <h4>توليد تلقائي</h4>
+                    <p>توليد كلمة مرور قوية عشوائية وإرسالها بالبريد</p>
+                  </div>
+                </label>
+
+                <label class="option-label">
+                  <input
+                    type="radio"
+                    v-model="resetMethod"
+                    value="manual"
+                  >
+                  <span class="radio-custom"></span>
+                  <div class="option-content">
+                    <h4>تعيين يدوي</h4>
+                    <p>تعيين كلمة مرور محددة</p>
+                  </div>
+                </label>
               </div>
-              <div class="flex items-center space-x-2 space-x-reverse">
-                <button
-                  @click="prevPage"
-                  :disabled="currentPage === 1"
-                  class="px-3 py-1 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                  :class="currentPage === 1 ? 'text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
-                >
-                  السابق
-                </button>
-                <span class="text-sm text-gray-700 dark:text-gray-300">
-                  صفحة {{ currentPage }} من {{ totalPages }}
-                </span>
-                <button
-                  @click="nextPage"
-                  :disabled="currentPage === totalPages"
-                  class="px-3 py-1 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                  :class="currentPage === totalPages ? 'text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
-                >
-                  التالي
-                </button>
+
+              <div v-if="resetMethod === 'manual'" class="manual-password">
+                <div class="form-group">
+                  <label for="newPassword">
+                    <i class="fas fa-key"></i> كلمة المرور الجديدة
+                  </label>
+                  <div class="password-input">
+                    <input
+                      :type="showNewPassword ? 'text' : 'password'"
+                      id="newPassword"
+                      v-model="newPassword"
+                      placeholder="أدخل كلمة المرور الجديدة"
+                      required
+                      minlength="8"
+                    >
+                    <button
+                      type="button"
+                      @click="showNewPassword = !showNewPassword"
+                      class="password-toggle"
+                    >
+                      <i :class="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                    </button>
+                  </div>
+                  <div class="password-strength" :class="newPasswordStrength.class">
+                    <div class="strength-bar">
+                      <div class="strength-fill" :style="{ width: newPasswordStrength.percentage + '%' }"></div>
+                    </div>
+                    <span>{{ newPasswordStrength.text }}</span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="confirmNewPassword">
+                    <i class="fas fa-key"></i> تأكيد كلمة المرور
+                  </label>
+                  <div class="password-input">
+                    <input
+                      :type="showConfirmNewPassword ? 'text' : 'password'"
+                      id="confirmNewPassword"
+                      v-model="confirmNewPassword"
+                      placeholder="أعد إدخال كلمة المرور الجديدة"
+                      required
+                    >
+                    <button
+                      type="button"
+                      @click="showConfirmNewPassword = !showConfirmNewPassword"
+                      class="password-toggle"
+                    >
+                      <i :class="showConfirmNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                    </button>
+                  </div>
+                  <span v-if="passwordMatchError" class="error-message">{{ passwordMatchError }}</span>
+                </div>
               </div>
+
+              <div class="notification-option">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="sendResetNotification">
+                  <span class="checkbox-custom"></span>
+                  <div class="checkbox-content">
+                    <h4>إرسال إشعار للمستخدم</h4>
+                    <p>إرسال بريد إلكتروني للمستخدم يحتوي على كلمة المرور الجديدة</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="reset-actions">
+              <button @click="cancelResetPassword" class="btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+              </button>
+              <button @click="confirmResetPassword" class="btn-primary" :disabled="resetting">
+                <i class="fas" :class="resetting ? 'fa-spinner fa-spin' : 'fa-key'"></i>
+                {{ resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين' }}
+              </button>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
 
-    <!-- Add/Edit User Modal -->
-    <AddUserModal 
-      v-if="showUserModal"
-      :isOpen="showUserModal"
-      :user="selectedUser"
-      @close="closeUserModal"
-      @save="handleUserSave"
-    />
+    <!-- Impersonate Confirmation Modal -->
+    <div v-if="showImpersonateModal" class="modal-overlay" @click.self="cancelImpersonate">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header warning">
+            <h2><i class="fas fa-user-secret"></i> الدخول كمستخدم</h2>
+          </div>
+          
+          <div class="modal-body">
+            <div class="impersonate-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <h3>هل تريد الدخول كمستخدم آخر؟</h3>
+              <p v-if="userToImpersonate">
+                ستقوم بتسجيل الدخول كمستخدم <strong>{{ userToImpersonate.name }}</strong> (<strong>{{ userToImpersonate.email }}</strong>)
+              </p>
+              <div class="warning-list">
+                <p><i class="fas fa-shield-alt"></i> ستفقد صلاحياتك كمدير مؤقتاً</p>
+                <p><i class="fas fa-history"></i> سيتم تسجيل هذا الإجراء في السجلات</p>
+                <p><i class="fas fa-sign-out-alt"></i> يمكنك الرجوع لحسابك في أي وقت</p>
+              </div>
+            </div>
+
+            <div class="impersonate-actions">
+              <button @click="cancelImpersonate" class="btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+              </button>
+              <button @click="confirmImpersonate" class="btn-warning">
+                <i class="fas fa-user-secret"></i> متابعة والدخول
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div v-if="toast.show" class="toast-container" :class="toast.type">
+      <div class="toast-content">
+        <i :class="toast.icon"></i>
+        <p>{{ toast.message }}</p>
+      </div>
+      <button @click="hideToast" class="toast-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
-import { useRouter } from 'vue-router';
-import { debounce } from 'lodash';
-import AddUserModal from '@/components/users/AddUserModal.vue';
+import { mapState, mapGetters, mapActions } from 'vuex'
+import { createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
+import { auth } from '@/firebase/config'
 
 export default {
-  name: 'UserManagementPage',
-  components: {
-    AddUserModal
+  name: 'UserManagement',
+  
+  data() {
+    return {
+      loading: true,
+      error: null,
+      refreshing: false,
+      exporting: false,
+      saving: false,
+      deleting: false,
+      resetting: false,
+      
+      // View Mode
+      viewMode: 'grid',
+      isDarkMode: false,
+      
+      // Filters
+      filters: {
+        search: '',
+        role: '',
+        status: '',
+        warehouse: '',
+        startDate: '',
+        endDate: ''
+      },
+      
+      // Selected Users
+      selectedUsers: [],
+      showBulkActions: false,
+      activeDropdown: null,
+      
+      // Pagination
+      currentPage: 1,
+      itemsPerPage: 25,
+      
+      // Modals
+      showCreateModal: false,
+      editingUser: null,
+      showDeleteModal: false,
+      userToDelete: null,
+      showResetPasswordModal: false,
+      userToReset: null,
+      showImpersonateModal: false,
+      userToImpersonate: null,
+      
+      // User Form
+      userForm: {
+        name: '',
+        email: '',
+        role: 'warehouse_manager',
+        password: '',
+        confirmPassword: '',
+        allWarehouses: false,
+        allowedWarehouses: [],
+        permissions: [],
+        isActive: true,
+        sendWelcomeEmail: true,
+        notes: ''
+      },
+      formErrors: {},
+      showPassword: false,
+      showConfirmPassword: false,
+      
+      // Reset Password
+      resetMethod: 'auto',
+      newPassword: '',
+      confirmNewPassword: '',
+      showNewPassword: false,
+      showConfirmNewPassword: false,
+      sendResetNotification: true,
+      passwordMatchError: '',
+      
+      // Toast
+      toast: {
+        show: false,
+        type: 'success',
+        message: '',
+        icon: 'fas fa-check-circle'
+      },
+      
+      // Debounce search
+      searchTimeout: null
+    }
   },
-  setup() {
-    const store = useStore();
-    const router = useRouter();
+  
+  computed: {
+    ...mapState(['allUsers', 'warehouses', 'user']),
+    ...mapGetters(['primaryWarehouses', 'dispatchWarehouses']),
     
-    const loading = ref(true);
-    const users = ref([]);
-    const searchTerm = ref('');
-    const roleFilter = ref('');
-    const statusFilter = ref('');
-    const currentPage = ref(1);
-    const itemsPerPage = ref(10);
-    const totalPages = ref(1);
-    const showUserModal = ref(false);
-    const selectedUser = ref(null);
+    // Current User ID
+    currentUserId() {
+      return this.user?.uid
+    },
     
-    // User statistics
-    const userStats = ref({
-      total: 0,
-      active: 0,
-      inactive: 0,
-      warehouseManagers: 0,
-      companyManagers: 0,
-      thisMonth: 0
-    });
-
-    // Check if user has permission to manage users
-    const canManageUsers = computed(() => {
-      return store.getters.canManageUsers;
-    });
-
-    // Load users from store
-    const loadUsers = async () => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية لإدارة المستخدمين'
-        });
-        router.push('/');
-        return;
-      }
-
-      loading.value = true;
-      try {
-        const result = await store.dispatch('loadAllUsers');
-        if (result) {
-          users.value = result;
-          calculateUserStats();
-        }
-      } catch (error) {
-        console.error('Error loading users:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحميل المستخدمين'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // Calculate user statistics
-    const calculateUserStats = () => {
+    // Theme
+    themeIcon() {
+      return this.isDarkMode ? 'fas fa-sun' : 'fas fa-moon'
+    },
+    
+    // Today's date for date picker max
+    today() {
+      return new Date().toISOString().split('T')[0]
+    },
+    
+    // User Statistics
+    stats() {
       const stats = {
-        total: users.value.length,
-        active: 0,
-        inactive: 0,
-        warehouseManagers: 0,
+        totalUsers: this.allUsers.length,
+        activeUsers: 0,
+        inactiveUsers: 0,
+        superadmins: 0,
         companyManagers: 0,
-        thisMonth: 0
-      };
-
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-
-      users.value.forEach(user => {
+        warehouseManagers: 0
+      }
+      
+      this.allUsers.forEach(user => {
         if (user.is_active !== false) {
-          stats.active++;
+          stats.activeUsers++
         } else {
-          stats.inactive++;
+          stats.inactiveUsers++
         }
-
-        if (user.role === 'warehouse_manager') {
-          stats.warehouseManagers++;
-        } else if (user.role === 'company_manager') {
-          stats.companyManagers++;
+        
+        switch (user.role) {
+          case 'superadmin':
+            stats.superadmins++
+            break
+          case 'company_manager':
+            stats.companyManagers++
+            break
+          case 'warehouse_manager':
+            stats.warehouseManagers++
+            break
         }
-
-        // Count users created this month
-        if (user.created_at) {
-          const createdDate = new Date(user.created_at);
-          if (createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
-            stats.thisMonth++;
-          }
-        }
-      });
-
-      userStats.value = stats;
-    };
-
-    // Filter users based on search and filters
-    const filteredUsers = computed(() => {
-      let filtered = [...users.value];
-
-      // Apply role filter
-      if (roleFilter.value) {
-        filtered = filtered.filter(user => user.role === roleFilter.value);
-      }
-
-      // Apply status filter
-      if (statusFilter.value === 'active') {
-        filtered = filtered.filter(user => user.is_active !== false);
-      } else if (statusFilter.value === 'inactive') {
-        filtered = filtered.filter(user => user.is_active === false);
-      }
-
-      // Apply search filter
-      if (searchTerm.value.trim()) {
-        const term = searchTerm.value.toLowerCase().trim();
+      })
+      
+      return stats
+    },
+    
+    // Filtered Users
+    filteredUsers() {
+      let filtered = [...this.allUsers]
+      
+      // Search filter
+      if (this.filters.search) {
+        const searchTerm = this.filters.search.toLowerCase()
         filtered = filtered.filter(user => 
-          (user.name || '').toLowerCase().includes(term) ||
-          (user.email || '').toLowerCase().includes(term) ||
-          (user.phone || '').toLowerCase().includes(term)
-        );
+          (user.name?.toLowerCase() || '').includes(searchTerm) ||
+          (user.email?.toLowerCase() || '').includes(searchTerm) ||
+          (user.role?.toLowerCase() || '').includes(searchTerm)
+        )
       }
-
-      // Apply pagination
-      const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-      const endIndex = startIndex + itemsPerPage.value;
-      totalPages.value = Math.ceil(filtered.length / itemsPerPage.value);
-
-      return filtered.slice(startIndex, endIndex);
-    });
-
-    // Helper functions
-    const getUserInitials = (name) => {
-      if (!name) return '??';
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-    };
-
-    const getRoleName = (role) => {
-      const roles = {
-        superadmin: 'المشرف العام',
-        warehouse_manager: 'مدير المخازن',
-        company_manager: 'مدير الشركة'
-      };
-      return roles[role] || role;
-    };
-
-    const getRoleBadgeClass = (role) => {
-      const classes = {
-        superadmin: 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-        warehouse_manager: 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        company_manager: 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      };
-      return classes[role] || 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    };
-
-    const formatDate = (dateString) => {
-      if (!dateString) return 'غير محدد';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    };
-
-    // User actions
-    const openAddUserModal = () => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية لإضافة مستخدمين'
-        });
-        return;
+      
+      // Role filter
+      if (this.filters.role) {
+        filtered = filtered.filter(user => user.role === this.filters.role)
       }
-      selectedUser.value = null;
-      showUserModal.value = true;
-    };
-
-    const editUser = (user) => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية لتعديل المستخدمين'
-        });
-        return;
+      
+      // Status filter
+      if (this.filters.status) {
+        const isActive = this.filters.status === 'active'
+        filtered = filtered.filter(user => 
+          (user.is_active !== false) === isActive
+        )
       }
-      selectedUser.value = { ...user };
-      showUserModal.value = true;
-    };
-
-    const closeUserModal = () => {
-      showUserModal.value = false;
-      selectedUser.value = null;
-    };
-
-    const handleUserSave = async () => {
-      await loadUsers();
-      closeUserModal();
-    };
-
-    const toggleUserStatus = async (user) => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية لتغيير حالة المستخدمين'
-        });
-        return;
+      
+      // Warehouse filter
+      if (this.filters.warehouse) {
+        if (this.filters.warehouse === 'all') {
+          filtered = filtered.filter(user => 
+            user.allowed_warehouses?.includes('all')
+          )
+        } else {
+          filtered = filtered.filter(user => 
+            user.allowed_warehouses?.includes(this.filters.warehouse)
+          )
+        }
       }
-
-      if (user.role === 'superadmin' && user.id === store.state.user?.uid) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'لا يمكن تعطيل حساب المشرف العام الحالي'
-        });
-        return;
+      
+      // Date filter
+      if (this.filters.startDate) {
+        const startDate = new Date(this.filters.startDate)
+        filtered = filtered.filter(user => {
+          if (!user.created_at) return false
+          const userDate = user.created_at.toDate ? user.created_at.toDate() : new Date(user.created_at)
+          return userDate >= startDate
+        })
       }
-
-      const newStatus = !user.is_active;
-      const confirmMessage = newStatus 
-        ? `هل أنت متأكد من تفعيل المستخدم "${user.name}"؟`
-        : `هل أنت متأكد من تعطيل المستخدم "${user.name}"؟`;
-
-      if (!confirm(confirmMessage)) {
-        return;
+      
+      if (this.filters.endDate) {
+        const endDate = new Date(this.filters.endDate)
+        endDate.setHours(23, 59, 59, 999)
+        filtered = filtered.filter(user => {
+          if (!user.created_at) return false
+          const userDate = user.created_at.toDate ? user.created_at.toDate() : new Date(user.created_at)
+          return userDate <= endDate
+        })
       }
-
+      
+      return filtered.sort((a, b) => {
+        // Sort by creation date (newest first)
+        const dateA = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0)
+        const dateB = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0)
+        return dateB - dateA
+      })
+    },
+    
+    // Pagination
+    paginatedUsers() {
+      const start = (this.currentPage - 1) * this.itemsPerPage
+      const end = start + this.itemsPerPage
+      return this.filteredUsers.slice(start, end)
+    },
+    
+    totalPages() {
+      return Math.ceil(this.filteredUsers.length / this.itemsPerPage)
+    },
+    
+    visiblePages() {
+      const pages = []
+      const maxVisible = 5
+      
+      if (this.totalPages <= maxVisible) {
+        for (let i = 1; i <= this.totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        let start = Math.max(1, this.currentPage - 2)
+        let end = Math.min(this.totalPages, start + maxVisible - 1)
+        
+        if (end - start + 1 < maxVisible) {
+          start = end - maxVisible + 1
+        }
+        
+        if (start > 1) {
+          pages.push(1)
+          if (start > 2) pages.push('...')
+        }
+        
+        for (let i = start; i <= end; i++) {
+          pages.push(i)
+        }
+        
+        if (end < this.totalPages) {
+          if (end < this.totalPages - 1) pages.push('...')
+          pages.push(this.totalPages)
+        }
+      }
+      
+      return pages
+    },
+    
+    // Selection
+    allSelected() {
+      return this.filteredUsers.length > 0 && 
+             this.selectedUsers.length === this.filteredUsers.length
+    },
+    
+    // Password Strength
+    passwordStrength() {
+      return this.calculatePasswordStrength(this.userForm.password)
+    },
+    
+    newPasswordStrength() {
+      return this.calculatePasswordStrength(this.newPassword)
+    },
+    
+    // Permission Categories
+    permissionCategories() {
+      return [
+        {
+          id: 'inventory',
+          name: 'إدارة المخزون',
+          permissions: [
+            { id: 'view_items', name: 'عرض الأصناف', description: 'عرض قائمة الأصناف', icon: 'fas fa-box' },
+            { id: 'add_items', name: 'إضافة أصناف', description: 'إضافة أصناف جديدة', icon: 'fas fa-plus-square' },
+            { id: 'edit_items', name: 'تعديل الأصناف', description: 'تعديل بيانات الأصناف', icon: 'fas fa-edit' },
+            { id: 'delete_items', name: 'حذف الأصناف', description: 'حذف الأصناف من النظام', icon: 'fas fa-trash-alt' },
+            { id: 'export_items', name: 'تصدير الأصناف', description: 'تصدير بيانات الأصناف', icon: 'fas fa-file-export' }
+          ]
+        },
+        {
+          id: 'transactions',
+          name: 'إدارة المعاملات',
+          permissions: [
+            { id: 'view_transactions', name: 'عرض الحركات', description: 'عرض سجل الحركات', icon: 'fas fa-exchange-alt' },
+            { id: 'create_transactions', name: 'إنشاء حركات', description: 'إنشاء حركات جديدة', icon: 'fas fa-plus-circle' },
+            { id: 'transfer_items', name: 'نقل الأصناف', description: 'نقل الأصناف بين المخازن', icon: 'fas fa-truck-moving' },
+            { id: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للعملاء', icon: 'fas fa-shipping-fast' },
+            { id: 'approve_transactions', name: 'اعتماد الحركات', description: 'اعتماد الحركات المعلقة', icon: 'fas fa-check-double' }
+          ]
+        },
+        {
+          id: 'reports',
+          name: 'التقارير والإحصائيات',
+          permissions: [
+            { id: 'view_reports', name: 'عرض التقارير', description: 'عرض التقارير والإحصائيات', icon: 'fas fa-chart-bar' },
+            { id: 'export_reports', name: 'تصدير التقارير', description: 'تصدير التقارير إلى ملفات', icon: 'fas fa-file-export' },
+            { id: 'view_dashboard', name: 'عرض لوحة التحكم', description: 'عرض إحصائيات النظام', icon: 'fas fa-tachometer-alt' },
+            { id: 'view_analytics', name: 'عرض التحليلات', description: 'عرض التحليلات المتقدمة', icon: 'fas fa-chart-line' }
+          ]
+        },
+        {
+          id: 'administration',
+          name: 'الإدارة النظامية',
+          permissions: [
+            { id: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل وحذف المستخدمين', icon: 'fas fa-users-cog' },
+            { id: 'manage_warehouses', name: 'إدارة المخازن', description: 'إدارة المخازن والإعدادات', icon: 'fas fa-warehouse' },
+            { id: 'manage_settings', name: 'إدارة الإعدادات', description: 'تعديل إعدادات النظام', icon: 'fas fa-cogs' },
+            { id: 'view_audit_log', name: 'عرض سجل التدقيق', description: 'عرض سجل الأحداث والتدقيق', icon: 'fas fa-clipboard-list' }
+          ]
+        }
+      ]
+    }
+  },
+  
+  methods: {
+    ...mapActions([
+      'loadAllUsers',
+      'createUser',
+      'updateUser',
+      'deleteUser',
+      'updateUserStatus',
+      'showNotification'
+    ]),
+    
+    // Initialization
+    async init() {
       try {
-        const result = await store.dispatch('updateUserStatus', {
+        this.loading = true
+        this.error = null
+        
+        // Load theme preference
+        this.loadThemePreference()
+        
+        // Load data
+        await this.loadAllUsers()
+        
+        // Initialize date filters (last 30 days)
+        const endDate = new Date()
+        const startDate = new Date()
+        startDate.setDate(startDate.getDate() - 30)
+        
+        this.filters.endDate = endDate.toISOString().split('T')[0]
+        this.filters.startDate = startDate.toISOString().split('T')[0]
+        
+      } catch (error) {
+        console.error('Error initializing user management:', error)
+        this.error = 'فشل في تحميل بيانات المستخدمين. يرجى المحاولة مرة أخرى.'
+        this.showToast('حدث خطأ في تحميل البيانات', 'error')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // Theme Management
+    loadThemePreference() {
+      const savedTheme = localStorage.getItem('theme')
+      this.isDarkMode = savedTheme === 'dark' || 
+        (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      this.applyTheme()
+    },
+    
+    toggleTheme() {
+      this.isDarkMode = !this.isDarkMode
+      localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light')
+      this.applyTheme()
+    },
+    
+    applyTheme() {
+      if (this.isDarkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+      }
+    },
+    
+    // Data Management
+    async refreshData() {
+      try {
+        this.refreshing = true
+        await this.loadAllUsers()
+        this.showToast('تم تحديث البيانات بنجاح', 'success')
+      } catch (error) {
+        console.error('Error refreshing data:', error)
+        this.showToast('فشل في تحديث البيانات', 'error')
+      } finally {
+        this.refreshing = false
+      }
+    },
+    
+    // User Display Helpers
+    getUserInitials(user) {
+      const name = user.name || user.email
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2)
+    },
+    
+    getAvatarStyle(user) {
+      const colors = [
+        '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
+        '#9C27B0', '#673AB7', '#3F51B5', '#00BCD4'
+      ]
+      const name = user.name || user.email
+      const hash = name.split('').reduce((acc, char) => {
+        return char.charCodeAt(0) + acc
+      }, 0)
+      const colorIndex = hash % colors.length
+      return {
+        backgroundColor: colors[colorIndex],
+        color: '#FFFFFF'
+      }
+    },
+    
+    getRoleName(role) {
+      const roles = {
+        'superadmin': 'مشرف عام',
+        'company_manager': 'مدير شركة',
+        'warehouse_manager': 'مدير مخزن'
+      }
+      return roles[role] || role
+    },
+    
+    getRoleIcon(role) {
+      const icons = {
+        'superadmin': 'fas fa-crown',
+        'company_manager': 'fas fa-user-tie',
+        'warehouse_manager': 'fas fa-warehouse'
+      }
+      return icons[role] || 'fas fa-user'
+    },
+    
+    getRoleDescription(role) {
+      const descriptions = {
+        'superadmin': 'صلاحيات كاملة على النظام بأكمله',
+        'company_manager': 'إدارة المستخدمين والمخازن والتقارير',
+        'warehouse_manager': 'إدارة المخازن والأصناف المحددة'
+      }
+      return descriptions[role] || 'دور غير محدد'
+    },
+    
+    getWarehouseName(warehouseId) {
+      const warehouse = this.warehouses.find(w => w.id === warehouseId)
+      return warehouse ? (warehouse.name_ar || warehouse.name) : warehouseId
+    },
+    
+    getUserWarehouseCount(user) {
+      if (!user.allowed_warehouses) return 0
+      if (user.allowed_warehouses.includes('all')) return 'جميع'
+      return user.allowed_warehouses.length
+    },
+    
+    getUserPermissionsCount(user) {
+      if (!user.permissions) return 0
+      if (user.permissions.includes('full_access')) return 'كاملة'
+      return user.permissions.length
+    },
+    
+    // Formatting
+    formatDate(date) {
+      if (!date) return 'غير محدد'
+      
+      try {
+        const dateObj = date.toDate ? date.toDate() : new Date(date)
+        return new Intl.DateTimeFormat('ar-SA', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }).format(dateObj)
+      } catch {
+        return 'غير محدد'
+      }
+    },
+    
+    formatDateDisplay(dateString) {
+      if (!dateString) return 'غير محدد'
+      const date = new Date(dateString)
+      return new Intl.DateTimeFormat('ar-SA').format(date)
+    },
+    
+    formatTimeAgo(date) {
+      if (!date) return 'غير معروف'
+      
+      try {
+        const now = new Date()
+        const past = date.toDate ? date.toDate() : new Date(date)
+        const diffMs = now - past
+        const diffSec = Math.floor(diffMs / 1000)
+        const diffMin = Math.floor(diffSec / 60)
+        const diffHour = Math.floor(diffMin / 60)
+        const diffDay = Math.floor(diffHour / 24)
+        
+        if (diffDay > 30) return this.formatDate(date)
+        if (diffDay > 0) return `قبل ${diffDay} يوم`
+        if (diffHour > 0) return `قبل ${diffHour} ساعة`
+        if (diffMin > 0) return `قبل ${diffMin} دقيقة`
+        return 'الآن'
+      } catch {
+        return 'غير معروف'
+      }
+    },
+    
+    // Search and Filters
+    debouncedSearch() {
+      clearTimeout(this.searchTimeout)
+      this.searchTimeout = setTimeout(() => {
+        this.applyFilters()
+      }, 300)
+    },
+    
+    applyFilters() {
+      this.currentPage = 1
+    },
+    
+    clearSearch() {
+      this.filters.search = ''
+      this.applyFilters()
+    },
+    
+    clearFilters() {
+      this.filters = {
+        search: '',
+        role: '',
+        status: '',
+        warehouse: '',
+        startDate: '',
+        endDate: ''
+      }
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - 30)
+      this.filters.endDate = endDate.toISOString().split('T')[0]
+      this.filters.startDate = startDate.toISOString().split('T')[0]
+      this.applyFilters()
+    },
+    
+    // Selection Management
+    toggleUserSelection(userId) {
+      const index = this.selectedUsers.indexOf(userId)
+      if (index === -1) {
+        this.selectedUsers.push(userId)
+      } else {
+        this.selectedUsers.splice(index, 1)
+      }
+    },
+    
+    toggleAllSelection() {
+      if (this.allSelected) {
+        this.selectedUsers = []
+      } else {
+        this.selectedUsers = this.filteredUsers.map(user => user.id)
+      }
+    },
+    
+    clearSelection() {
+      this.selectedUsers = []
+    },
+    
+    // Dropdown Management
+    toggleDropdown(userId) {
+      this.activeDropdown = this.activeDropdown === userId ? null : userId
+    },
+    
+    // User Actions
+    editUser(user) {
+      this.editingUser = user
+      this.activeDropdown = null
+      
+      // Populate form
+      this.userForm = {
+        name: user.name || '',
+        email: user.email || '',
+        role: user.role || 'warehouse_manager',
+        password: '',
+        confirmPassword: '',
+        allWarehouses: user.allowed_warehouses?.includes('all') || false,
+        allowedWarehouses: user.allowed_warehouses?.filter(w => w !== 'all') || [],
+        permissions: user.permissions?.filter(p => p !== 'full_access') || [],
+        isActive: user.is_active !== false,
+        sendWelcomeEmail: false,
+        notes: user.notes || ''
+      }
+      
+      this.showCreateModal = true
+    },
+    
+    viewUserProfile(user) {
+      this.$router.push(`/profile/${user.id}`)
+    },
+    
+    async toggleUserStatus(user) {
+      try {
+        const newStatus = !user.is_active
+        const confirmMessage = newStatus 
+          ? `هل تريد تفعيل المستخدم "${user.name}"؟`
+          : `هل تريد تعطيل المستخدم "${user.name}"؟`
+        
+        if (!confirm(confirmMessage)) return
+        
+        await this.updateUserStatus({
           userId: user.id,
           isActive: newStatus
-        });
-
-        if (result.success) {
-          await loadUsers();
-        }
-      } catch (error) {
-        console.error('Error toggling user status:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تغيير حالة المستخدم'
-        });
-      }
-    };
-
-    const deleteUser = async (user) => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية لحذف المستخدمين'
-        });
-        return;
-      }
-
-      if (user.role === 'superadmin') {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'لا يمكن حذف مشرف عام'
-        });
-        return;
-      }
-
-      if (user.id === store.state.user?.uid) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'لا يمكن حذف حسابك الشخصي'
-        });
-        return;
-      }
-
-      if (!confirm(`هل أنت متأكد من حذف المستخدم "${user.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
-        return;
-      }
-
-      try {
-        const result = await store.dispatch('deleteUser', user.id);
+        })
         
-        if (result.success) {
-          await loadUsers();
-        }
+        this.showToast(
+          `تم ${newStatus ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`,
+          'success'
+        )
+        
       } catch (error) {
-        console.error('Error deleting user:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف المستخدم'
-        });
+        console.error('Error toggling user status:', error)
+        this.showToast('فشل في تغيير حالة المستخدم', 'error')
       }
-    };
-
+    },
+    
+    showDeleteModal(user = null) {
+      this.userToDelete = user
+      this.showDeleteModal = true
+      this.activeDropdown = null
+    },
+    
+    cancelDelete() {
+      this.userToDelete = null
+      this.showDeleteModal = false
+    },
+    
+    async confirmDelete() {
+      try {
+        this.deleting = true
+        
+        const usersToDelete = this.userToDelete 
+          ? [this.userToDelete] 
+          : this.allUsers.filter(user => this.selectedUsers.includes(user.id))
+        
+        // Confirm bulk delete
+        if (usersToDelete.length > 1) {
+          const confirmMessage = `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
+            usersToDelete.slice(0, 3).map(u => `• ${u.name} (${u.email})`).join('\n') +
+            (usersToDelete.length > 3 ? `\n• +${usersToDelete.length - 3} مستخدمين آخرين` : '')
+          
+          if (!confirm(confirmMessage)) {
+            this.cancelDelete()
+            return
+          }
+        }
+        
+        // Delete users
+        const deletePromises = usersToDelete.map(user => 
+          this.deleteUser(user.id).catch(error => {
+            console.error(`Error deleting user ${user.id}:`, error)
+            return { success: false, user, error }
+          })
+        )
+        
+        const results = await Promise.all(deletePromises)
+        
+        // Check results
+        const failedDeletions = results.filter(r => !r.success)
+        
+        if (failedDeletions.length > 0) {
+          const failedNames = failedDeletions.map(f => f.user.name).join(', ')
+          this.showToast(`فشل حذف بعض المستخدمين: ${failedNames}`, 'error')
+        } else {
+          const message = usersToDelete.length === 1 
+            ? `تم حذف المستخدم "${usersToDelete[0].name}" بنجاح`
+            : `تم حذف ${usersToDelete.length} مستخدمين بنجاح`
+          
+          this.showToast(message, 'success')
+        }
+        
+        // Clear selection
+        this.selectedUsers = this.selectedUsers.filter(id => 
+          !usersToDelete.some(user => user.id === id)
+        )
+        
+      } catch (error) {
+        console.error('Error confirming delete:', error)
+        this.showToast('حدث خطأ أثناء حذف المستخدمين', 'error')
+      } finally {
+        this.deleting = false
+        this.cancelDelete()
+      }
+    },
+    
+    // Bulk Actions
+    async bulkActivate() {
+      if (this.selectedUsers.length === 0) return
+      
+      try {
+        const confirmMessage = `هل تريد تفعيل ${this.selectedUsers.length} مستخدمين؟`
+        if (!confirm(confirmMessage)) return
+        
+        const activatePromises = this.selectedUsers.map(userId => 
+          this.updateUserStatus({ userId, isActive: true })
+        )
+        
+        await Promise.all(activatePromises)
+        
+        this.showToast(
+          `تم تفعيل ${this.selectedUsers.length} مستخدمين بنجاح`,
+          'success'
+        )
+        
+        this.clearSelection()
+        
+      } catch (error) {
+        console.error('Error bulk activating users:', error)
+        this.showToast('فشل في تفعيل المستخدمين', 'error')
+      }
+    },
+    
+    async bulkDeactivate() {
+      if (this.selectedUsers.length === 0) return
+      
+      try {
+        const confirmMessage = `هل تريد تعطيل ${this.selectedUsers.length} مستخدمين؟`
+        if (!confirm(confirmMessage)) return
+        
+        const deactivatePromises = this.selectedUsers.map(userId => 
+          this.updateUserStatus({ userId, isActive: false })
+        )
+        
+        await Promise.all(deactivatePromises)
+        
+        this.showToast(
+          `تم تعطيل ${this.selectedUsers.length} مستخدمين بنجاح`,
+          'success'
+        )
+        
+        this.clearSelection()
+        
+      } catch (error) {
+        console.error('Error bulk deactivating users:', error)
+        this.showToast('فشل في تعطيل المستخدمين', 'error')
+      }
+    },
+    
+    async bulkDelete() {
+      if (this.selectedUsers.length === 0) return
+      
+      const usersToDelete = this.allUsers.filter(user => 
+        this.selectedUsers.includes(user.id)
+      )
+      
+      this.userToDelete = null // Set to null for bulk delete
+      this.showDeleteModal = true
+    },
+    
+    // Reset Password
+    resetPassword(user) {
+      this.userToReset = user
+      this.resetMethod = 'auto'
+      this.newPassword = ''
+      this.confirmNewPassword = ''
+      this.showNewPassword = false
+      this.showConfirmNewPassword = false
+      this.sendResetNotification = true
+      this.passwordMatchError = ''
+      this.showResetPasswordModal = true
+      this.activeDropdown = null
+    },
+    
+    cancelResetPassword() {
+      this.userToReset = null
+      this.showResetPasswordModal = false
+    },
+    
+    async confirmResetPassword() {
+      try {
+        // Validate manual password
+        if (this.resetMethod === 'manual') {
+          if (!this.newPassword || !this.confirmNewPassword) {
+            this.passwordMatchError = 'يجب إدخال كلمة المرور وتأكيدها'
+            return
+          }
+          
+          if (this.newPassword !== this.confirmNewPassword) {
+            this.passwordMatchError = 'كلمات المرور غير متطابقة'
+            return
+          }
+          
+          if (this.newPasswordStrength.class === 'weak') {
+            this.passwordMatchError = 'كلمة المرور ضعيفة جداً'
+            return
+          }
+        }
+        
+        this.resetting = true
+        
+        // Generate password if auto
+        const password = this.resetMethod === 'auto' 
+          ? this.generateRandomPassword()
+          : this.newPassword
+        
+        // In a real app, you would call a backend endpoint to reset password
+        // For now, we'll simulate the process
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // Show success message
+        let message = `تم إعادة تعيين كلمة مرور المستخدم "${this.userToReset.name}"`
+        
+        if (this.resetMethod === 'auto') {
+          message += `. كلمة المرور الجديدة: ${password}`
+          if (this.sendResetNotification) {
+            message += ' (تم إرسالها بالبريد)'
+          }
+        }
+        
+        this.showToast(message, 'success')
+        
+        // Close modal
+        this.cancelResetPassword()
+        
+      } catch (error) {
+        console.error('Error resetting password:', error)
+        this.showToast('فشل في إعادة تعيين كلمة المرور', 'error')
+      } finally {
+        this.resetting = false
+      }
+    },
+    
+    generateRandomPassword() {
+      const length = 12
+      const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+      let password = ''
+      for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length))
+      }
+      return password
+    },
+    
+    calculatePasswordStrength(password) {
+      if (!password) return { class: 'weak', percentage: 0, text: 'ضعيفة' }
+      
+      let strength = 0
+      if (password.length >= 8) strength += 25
+      if (/[A-Z]/.test(password)) strength += 25
+      if (/[0-9]/.test(password)) strength += 25
+      if (/[^A-Za-z0-9]/.test(password)) strength += 25
+      
+      if (strength >= 75) return { class: 'strong', percentage: 100, text: 'قوية' }
+      if (strength >= 50) return { class: 'medium', percentage: 66, text: 'متوسطة' }
+      return { class: 'weak', percentage: 33, text: 'ضعيفة' }
+    },
+    
+    // Impersonation
+    impersonateUser(user) {
+      if (user.id === this.currentUserId) {
+        this.showToast('لا يمكنك الدخول كمستخدم نفسك', 'warning')
+        return
+      }
+      
+      this.userToImpersonate = user
+      this.showImpersonateModal = true
+      this.activeDropdown = null
+    },
+    
+    cancelImpersonate() {
+      this.userToImpersonate = null
+      this.showImpersonateModal = false
+    },
+    
+    confirmImpersonate() {
+      // In a real app, you would call a backend endpoint to impersonate
+      // For now, we'll just show a success message
+      this.showToast(`تم الدخول كمستخدم ${this.userToImpersonate.name}`, 'success')
+      this.cancelImpersonate()
+    },
+    
+    // User Form
+    closeModal() {
+      this.showCreateModal = false
+      this.editingUser = null
+      this.resetForm()
+    },
+    
+    resetForm() {
+      this.userForm = {
+        name: '',
+        email: '',
+        role: 'warehouse_manager',
+        password: '',
+        confirmPassword: '',
+        allWarehouses: false,
+        allowedWarehouses: [],
+        permissions: [],
+        isActive: true,
+        sendWelcomeEmail: true,
+        notes: ''
+      }
+      this.formErrors = {}
+      this.showPassword = false
+      this.showConfirmPassword = false
+    },
+    
+    validateForm() {
+      const errors = {}
+      
+      if (!this.userForm.name?.trim()) {
+        errors.name = 'الاسم مطلوب'
+      }
+      
+      if (!this.userForm.email?.trim()) {
+        errors.email = 'البريد الإلكتروني مطلوب'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userForm.email)) {
+        errors.email = 'البريد الإلكتروني غير صالح'
+      }
+      
+      if (!this.editingUser) {
+        if (!this.userForm.password) {
+          errors.password = 'كلمة المرور مطلوبة'
+        } else if (this.userForm.password.length < 8) {
+          errors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
+        }
+        
+        if (this.userForm.password !== this.userForm.confirmPassword) {
+          errors.confirmPassword = 'كلمات المرور غير متطابقة'
+        }
+      }
+      
+      this.formErrors = errors
+      return Object.keys(errors).length === 0
+    },
+    
+    toggleAllWarehouses() {
+      if (this.userForm.allWarehouses) {
+        this.userForm.allowedWarehouses = []
+      }
+    },
+    
+    selectAllWarehouses() {
+      const allWarehouseIds = [
+        ...this.primaryWarehouses.map(w => w.id),
+        ...this.dispatchWarehouses.map(w => w.id)
+      ]
+      this.userForm.allowedWarehouses = [...allWarehouseIds]
+    },
+    
+    applyPermissionPreset(preset) {
+      const presets = {
+        view_only: [
+          'view_items',
+          'view_transactions',
+          'view_reports',
+          'view_dashboard'
+        ],
+        basic_management: [
+          'view_items',
+          'add_items',
+          'edit_items',
+          'view_transactions',
+          'create_transactions',
+          'transfer_items',
+          'dispatch_items',
+          'view_reports',
+          'view_dashboard'
+        ],
+        full_access: this.permissionCategories.flatMap(category => 
+          category.permissions.map(p => p.id)
+        )
+      }
+      
+      this.userForm.permissions = [...presets[preset] || []]
+    },
+    
+    isCategorySelected(permissions) {
+      return permissions.every(p => this.userForm.permissions.includes(p.id))
+    },
+    
+    toggleCategory(permissions, event) {
+      const checked = event.target.checked
+      const permissionIds = permissions.map(p => p.id)
+      
+      if (checked) {
+        // Add all permissions from category
+        permissionIds.forEach(id => {
+          if (!this.userForm.permissions.includes(id)) {
+            this.userForm.permissions.push(id)
+          }
+        })
+      } else {
+        // Remove all permissions from category
+        this.userForm.permissions = this.userForm.permissions.filter(
+          id => !permissionIds.includes(id)
+        )
+      }
+    },
+    
+    async saveUser() {
+      if (!this.validateForm()) return
+      
+      try {
+        this.saving = true
+        
+        // Prepare user data
+        const userData = {
+          name: this.userForm.name.trim(),
+          email: this.userForm.email.trim(),
+          role: this.userForm.role,
+          allowed_warehouses: this.userForm.allWarehouses 
+            ? ['all'] 
+            : [...this.userForm.allowedWarehouses],
+          permissions: this.userForm.permissions,
+          is_active: this.userForm.isActive,
+          notes: this.userForm.notes.trim()
+        }
+        
+        if (this.editingUser) {
+          // Update existing user
+          await this.updateUser({
+            userId: this.editingUser.id,
+            userData
+          })
+          
+          this.showToast(`تم تحديث المستخدم "${userData.name}" بنجاح`, 'success')
+        } else {
+          // Create new user
+          await this.createUser({
+            ...userData,
+            password: this.userForm.password
+          })
+          
+          this.showToast(`تم إنشاء المستخدم "${userData.name}" بنجاح`, 'success')
+        }
+        
+        // Close modal and reset form
+        this.closeModal()
+        
+      } catch (error) {
+        console.error('Error saving user:', error)
+        
+        let errorMessage = 'حدث خطأ أثناء حفظ المستخدم'
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = 'البريد الإلكتروني مستخدم بالفعل'
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'البريد الإلكتروني غير صالح'
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = 'كلمة المرور ضعيفة جداً'
+        }
+        
+        this.showToast(errorMessage, 'error')
+      } finally {
+        this.saving = false
+      }
+    },
+    
+    // Export
+    async exportUsers() {
+      try {
+        this.exporting = true
+        
+        // Prepare data for export
+        const exportData = this.filteredUsers.map(user => ({
+          'الاسم': user.name,
+          'البريد الإلكتروني': user.email,
+          'الدور': this.getRoleName(user.role),
+          'الحالة': user.is_active !== false ? 'نشط' : 'معطل',
+          'المخازن المسموحة': user.allowed_warehouses?.includes('all') 
+            ? 'جميع المخازن' 
+            : (user.allowed_warehouses?.map(id => this.getWarehouseName(id)).join(', ') || 'لا توجد'),
+          'الصلاحيات': user.permissions?.includes('full_access')
+            ? 'صلاحية كاملة'
+            : (user.permissions?.length || 0) + ' صلاحية',
+          'تاريخ الإنشاء': this.formatDate(user.created_at),
+          'آخر تحديث': user.updated_at ? this.formatDate(user.updated_at) : 'غير متاح',
+          'آخر دخول': user.last_login ? this.formatDate(user.last_login) : 'غير متاح',
+          'ملاحظات': user.notes || ''
+        }))
+        
+        // Convert to CSV
+        const headers = Object.keys(exportData[0])
+        const csvContent = [
+          headers.join(','),
+          ...exportData.map(row => 
+            headers.map(header => `"${row[header] || ''}"`).join(',')
+          )
+        ].join('\n')
+        
+        // Create download link
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        
+        link.setAttribute('href', url)
+        link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        this.showToast(`تم تصدير ${exportData.length} مستخدم`, 'success')
+        
+      } catch (error) {
+        console.error('Error exporting users:', error)
+        this.showToast('فشل في تصدير البيانات', 'error')
+      } finally {
+        this.exporting = false
+      }
+    },
+    
+    async exportSelected() {
+      if (this.selectedUsers.length === 0) return
+      
+      // Temporarily change filters to only selected users
+      const originalFilters = { ...this.filters }
+      this.filters = {
+        ...this.filters,
+        search: '',
+        role: '',
+        status: '',
+        warehouse: ''
+      }
+      
+      // Force re-computation
+      await this.$nextTick()
+      
+      // Export
+      await this.exportUsers()
+      
+      // Restore filters
+      this.filters = originalFilters
+    },
+    
     // Pagination
-    const nextPage = () => {
-      if (currentPage.value < totalPages.value) {
-        currentPage.value++;
+    prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--
       }
-    };
-
-    const prevPage = () => {
-      if (currentPage.value > 1) {
-        currentPage.value--;
+    },
+    
+    nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++
       }
-    };
-
-    // Search with debounce
-    const handleSearch = debounce(() => {
-      currentPage.value = 1;
-    }, 300);
-
-    // Initialize
-    onMounted(async () => {
-      if (!canManageUsers.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية للوصول إلى هذه الصفحة'
-        });
-        router.push('/');
-        return;
+    },
+    
+    goToPage(page) {
+      if (page !== '...') {
+        this.currentPage = page
       }
-
-      await loadUsers();
-    });
-
-    return {
-      // State
-      loading,
-      users,
-      searchTerm,
-      roleFilter,
-      statusFilter,
-      currentPage,
-      totalPages,
-      showUserModal,
-      selectedUser,
-      userStats,
+    },
+    
+    // Toast Notifications
+    showToast(message, type = 'success') {
+      this.toast = {
+        show: true,
+        type,
+        message,
+        icon: type === 'success' ? 'fas fa-check-circle' : 
+              type === 'error' ? 'fas fa-exclamation-circle' : 
+              type === 'warning' ? 'fas fa-exclamation-triangle' :
+              'fas fa-info-circle'
+      }
       
-      // Computed
-      filteredUsers,
-      canManageUsers,
-      
-      // Methods
-      loadUsers,
-      getUserInitials,
-      getRoleName,
-      getRoleBadgeClass,
-      formatDate,
-      openAddUserModal,
-      editUser,
-      closeUserModal,
-      handleUserSave,
-      toggleUserStatus,
-      deleteUser,
-      nextPage,
-      prevPage,
-      handleSearch
-    };
+      setTimeout(() => {
+        this.hideToast()
+      }, 5000)
+    },
+    
+    hideToast() {
+      this.toast.show = false
+    }
+  },
+  
+  watch: {
+    filters: {
+      handler() {
+        this.currentPage = 1
+      },
+      deep: true
+    },
+    
+    allUsers() {
+      // Update stats when users change
+    }
+  },
+  
+  created() {
+    this.init()
+  },
+  
+  mounted() {
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.dropdown')) {
+        this.activeDropdown = null
+      }
+    })
+    
+    // Listen for theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('theme')) {
+        this.isDarkMode = e.matches
+        this.applyTheme()
+      }
+    })
+  },
+  
+  beforeRouteLeave(to, from, next) {
+    // Clear any active modals
+    this.closeModal()
+    this.cancelDelete()
+    this.cancelResetPassword()
+    this.cancelImpersonate()
+    next()
   }
-};
+}
 </script>
 
 <style scoped>
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Smooth transitions */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Fix for RTL */
-.rtl {
+/* Base Layout */
+.user-management {
+  min-height: 100vh;
+  background: var(--bg-primary, #f5f5f5);
+  color: var(--text-primary, #333);
+  transition: all 0.3s ease;
+  font-family: 'Tajawal', 'Segoe UI', sans-serif;
   direction: rtl;
 }
 
-/* Loading spinner animation */
-.animate-spin {
+.user-management.dark-mode {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-card: #2d2d2d;
+  --bg-input: #3d3d3d;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted: #888888;
+  --border-color: #404040;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --error-color: #f44336;
+  --info-color: #2196F3;
+  --primary-color: #2196F3;
+  --secondary-color: #FF9800;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner-container {
+  text-align: center;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.loading-text {
+  font-size: 1.125rem;
+  font-weight: 500;
 }
 
-/* Hover effects */
-.hover-lift {
-  transition: transform 0.2s ease;
+/* Error State */
+.error-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
 }
 
-.hover-lift:hover {
+.error-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.error-icon {
+  font-size: 4rem;
+  color: var(--error-color);
+  margin-bottom: 1.5rem;
+}
+
+.error-card h2 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+}
+
+.error-message {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Main Content */
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Header Section */
+.header-section {
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.header-info {
+  flex: 1;
+  min-width: 300px;
+}
+
+.page-title {
+  font-size: 2rem;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.theme-toggle {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.3s;
+}
+
+.theme-toggle:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: rotate(15deg);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  transition: transform 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: white;
+}
+
+.total-users { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.active-users { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); }
+.inactive-users { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); }
+.superadmins { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); }
+
+.stat-content h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-number {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Filters Section */
+.filters-section {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+/* Search Input */
+.search-input {
+  position: relative;
+}
+
+.search-input input {
+  width: 100%;
+  padding-left: 2.5rem;
+}
+
+.search-input::before {
+  content: '\f002';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.clear-search {
+  position: absolute;
+  left: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+/* Date Range */
+.date-range .date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-inputs input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.date-separator {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.bulk-actions-dropdown {
+  position: absolute;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 200px;
+}
+
+.bulk-action-btn {
+  background: none;
+  border: none;
+  padding: 0.75rem 1rem;
+  text-align: right;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: background-color 0.2s;
+}
+
+.bulk-action-btn:hover:not(:disabled) {
+  background: var(--bg-input);
+}
+
+.bulk-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulk-action-btn.danger {
+  color: var(--error-color);
+}
+
+.bulk-action-btn.info {
+  color: var(--info-color);
+}
+
+/* Table Section */
+.table-section {
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.table-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.table-info h3 {
+  margin: 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-count {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: normal;
+}
+
+.selection-info {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--primary-color);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clear-selection {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  padding: 0.25rem;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.select-all-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.view-options {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-btn.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.view-btn:hover:not(.active) {
+  background: var(--bg-card);
+}
+
+/* Users Grid View */
+.users-grid {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.user-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.user-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.user-card.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.user-card.inactive {
+  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .user-card.inactive {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Card Header */
+.card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.user-avatar-section {
+  position: relative;
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.user-status {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--bg-card);
+  border-radius: 50%;
+}
+
+.user-status.online {
+  background: var(--success-color);
+}
+
+.user-status.offline {
+  background: var(--error-color);
+}
+
+.user-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.select-user-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+}
+
+.dropdown-menu {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 160px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  z-index: 100;
+}
+
+.dropdown-item {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  text-align: right;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-input);
+}
+
+.dropdown-item.danger {
+  color: var(--error-color);
+}
+
+/* Card Body */
+.card-body {
+  padding: 1.5rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.user-email {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.user-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.user-role {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-role.superadmin { background: rgba(255, 152, 0, 0.1); color: #ff9800; }
+.user-role.company_manager { background: rgba(33, 150, 243, 0.1); color: #2196f3; }
+.user-role.warehouse_manager { background: rgba(76, 175, 80, 0.1); color: #4caf50; }
+
+.user-date {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.warehouses-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.warehouses-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.warehouses-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.warehouse-tag {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+.warehouse-tag.all {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.warehouse-tag.more {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Card Footer */
+.card-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Users Table View */
+.users-table-container {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th {
+  padding: 1rem;
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.users-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.users-table tbody tr:hover {
+  background: var(--bg-input);
+}
+
+.users-table tbody tr.selected {
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.users-table tbody tr.inactive {
+  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.dark .users-table tbody tr.inactive {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Table Cells */
+.select-column {
+  width: 40px;
+}
+
+.select-cell {
+  text-align: center;
+}
+
+.select-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.user-column {
+  min-width: 250px;
+}
+
+.user-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.user-avatar-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.current-user-badge {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--primary-color);
+  padding: 0.125rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.user-email {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.user-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.last-login {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.role-column {
+  min-width: 150px;
+}
+
+.role-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.permissions-count {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.warehouses-column {
+  min-width: 200px;
+}
+
+.warehouses-list-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.all-warehouses {
+  color: var(--success-color);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.warehouses-count {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.warehouses-preview-table {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.warehouse-tag-sm {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.warehouse-more {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.no-warehouses {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-column {
+  min-width: 120px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-indicator.active {
+  color: var(--success-color);
+}
+
+.status-indicator:not(.active) {
+  color: var(--error-color);
+}
+
+.status-toggle-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.status-toggle-btn.success {
+  color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.status-toggle-btn.danger {
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.date-column {
+  min-width: 150px;
+}
+
+.date-display {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.time-ago {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.actions-column {
+  min-width: 200px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
   transform: translateY(-2px);
 }
 
-/* Glass effect */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.action-btn.edit:hover {
+  background: var(--info-color);
+  color: white;
 }
 
-.dark .glass {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.action-btn.view:hover {
+  background: var(--success-color);
+  color: white;
+}
+
+.action-btn.impersonate:hover:not(:disabled) {
+  background: var(--warning-color);
+  color: white;
+}
+
+.action-btn.impersonate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.reset:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.action-btn.delete:hover {
+  background: var(--error-color);
+  color: white;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+/* Pagination */
+.pagination-section {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-size-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.pagination-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.page-number {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.page-number:hover:not(.disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.page-number.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.page-number.disabled {
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-container {
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow-color);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+}
+
+.modal-header.danger {
+  background: rgba(244, 67, 54, 0.1);
+  border-bottom-color: var(--error-color);
+}
+
+.modal-header.warning {
+  background: rgba(255, 152, 0, 0.1);
+  border-bottom-color: var(--warning-color);
+}
+
+.modal-body {
+  padding: 1.5rem;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+/* User Form */
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.form-section {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.form-section h3 {
+  margin: 0 0 1.5rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-group input.error,
+.form-group select.error {
+  border-color: var(--error-color);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.75rem;
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  width: 100%;
+  padding-left: 2.5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.password-strength {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.strength-bar {
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.password-strength.weak .strength-fill {
+  background: var(--error-color);
+  width: 33%;
+}
+
+.password-strength.medium .strength-fill {
+  background: var(--warning-color);
+  width: 66%;
+}
+
+.password-strength.strong .strength-fill {
+  background: var(--success-color);
+  width: 100%;
+}
+
+.role-description {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--primary-color);
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.warehouse-permissions,
+.permissions-selection,
+.additional-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.permission-option,
+.notification-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.checkbox-label input {
+  display: none;
+}
+
+.checkbox-label input:checked + .checkbox-custom {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkbox-label input:checked + .checkbox-custom::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-content h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.checkbox-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.selection-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.warehouse-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.category-section h5 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkbox-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.checkbox-item input {
+  display: none;
+}
+
+.warehouse-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.warehouse-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.warehouse-code {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.permissions-presets {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.permissions-presets h4 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.permission-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.permission-category {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.category-header h5 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.category-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.category-toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.permission-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.permission-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.permission-checkbox:hover {
+  border-color: var(--primary-color);
+}
+
+.permission-checkbox input {
+  display: none;
+}
+
+.permission-label {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.permission-label i {
+  color: var(--primary-color);
+  font-size: 1rem;
+  margin-top: 0.125rem;
+}
+
+.permission-name {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.permission-desc {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.setting-group {
+  margin-bottom: 1rem;
+}
+
+.toggle-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.toggle-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toggle-info i {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+.toggle-info h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.toggle-info p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--success-color);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Delete Modal */
+.delete-warning {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.delete-warning i {
+  font-size: 4rem;
+  color: var(--error-color);
+  margin-bottom: 1rem;
+}
+
+.delete-warning h3 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+}
+
+.delete-warning p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.bulk-delete-warning {
+  background: rgba(255, 152, 0, 0.1);
+  color: var(--warning-color);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.warning-list {
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: right;
+}
+
+.warning-list p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Reset Password Modal */
+.reset-info {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.reset-info i {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.reset-info h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.reset-info p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.reset-options {
+  margin-bottom: 2rem;
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.option-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-label:hover {
+  border-color: var(--primary-color);
+}
+
+.option-label input {
+  display: none;
+}
+
+.radio-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.option-label input:checked + .radio-custom {
+  border-color: var(--primary-color);
+}
+
+.option-label input:checked + .radio-custom::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.option-content h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.option-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.manual-password {
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.reset-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Impersonate Modal */
+.impersonate-warning {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.impersonate-warning i {
+  font-size: 4rem;
+  color: var(--warning-color);
+  margin-bottom: 1rem;
+}
+
+.impersonate-warning h3 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+}
+
+.impersonate-warning p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.impersonate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  right: 2rem;
+  max-width: 400px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow-color);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slideUp 0.3s ease;
+  z-index: 2000;
+}
+
+.toast-container.success {
+  border-right: 4px solid var(--success-color);
+}
+
+.toast-container.error {
+  border-right: 4px solid var(--error-color);
+}
+
+.toast-container.warning {
+  border-right: 4px solid var(--warning-color);
+}
+
+.toast-container.info {
+  border-right: 4px solid var(--info-color);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.toast-content i {
+  font-size: 1.5rem;
+}
+
+.toast-container.success .toast-content i { color: var(--success-color); }
+.toast-container.error .toast-content i { color: var(--error-color); }
+.toast-container.warning .toast-content i { color: var(--warning-color); }
+.toast-container.info .toast-content i { color: var(--info-color); }
+
+.toast-content p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  transition: color 0.3s;
+}
+
+.toast-close:hover {
+  color: var(--error-color);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .users-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-actions {
+    justify-content: flex-start;
+  }
+  
+  .filters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .users-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .table-actions {
+    justify-content: space-between;
+  }
+  
+  .users-table {
+    min-width: 800px;
+  }
+  
+  .pagination-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .pagination-controls {
+    justify-content: center;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .checkbox-grid,
+  .permission-checkboxes {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-container {
+    margin: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .theme-toggle {
+    align-self: flex-end;
+  }
+  
+  .user-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  
+  .card-footer {
+    flex-direction: column;
+  }
+  
+  .action-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .form-actions,
+  .delete-actions,
+  .reset-actions,
+  .impersonate-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions button,
+  .delete-actions button,
+  .reset-actions button,
+  .impersonate-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .user-management {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  .header-actions,
+  .theme-toggle,
+  .quick-actions,
+  .table-actions,
+  .dropdown,
+  .card-footer,
+  .action-buttons,
+  .pagination-section {
+    display: none !important;
+  }
+  
+  .stats-grid,
+  .users-grid {
+    break-inside: avoid;
+  }
+  
+  .user-card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  
+  .users-table {
+    width: 100%;
+    border: 1px solid #ddd;
+  }
+  
+  .users-table th,
+  .users-table td {
+    border: 1px solid #ddd;
+    padding: 0.5rem;
+  }
 }
 </style>
