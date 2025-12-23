@@ -7,9 +7,9 @@ module.exports = defineConfig({
   transpileDependencies: true,
   productionSourceMap: false,
   
-  // PWA Configuration - FIXED: Proper object structure
+  // PWA Configuration - UPDATED for src/serviceworker
   pwa: {
-    name: 'نظام إدارة المخازن - البران للعطور',
+    name: 'نظام إدارة المخازن - منوفيا للعطور',
     short_name: 'إدارة المخازن',
     themeColor: '#3b82f6',
     backgroundColor: '#ffffff',
@@ -17,13 +17,28 @@ module.exports = defineConfig({
     appleMobileWebAppCapable: 'yes',
     appleMobileWebAppStatusBarStyle: 'black-translucent',
     
-    // Workbox configuration
-    workboxPluginMode: 'GenerateSW',
+    // IMPORTANT: Use InjectManifest mode for custom service worker in src/
+    workboxPluginMode: 'InjectManifest',
     workboxOptions: {
+      // Point to your service worker in src folder
+      swSrc: 'src/serviceworker',
+      swDest: 'service-worker.js',
+      exclude: [
+        /\.map$/,
+        /manifest\.json$/,
+        /_redirects/,
+        /_headers/
+      ],
+      
+      // Additional Workbox options
       skipWaiting: true,
       clientsClaim: true,
       cleanupOutdatedCaches: true,
-      exclude: [/\.map$/, /manifest\.json$/],
+      
+      // Navigation fallback for SPA
+      navigateFallback: '/index.html',
+      navigateFallbackAllowlist: [/^(?!\/__).*/],
+      
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -57,6 +72,30 @@ module.exports = defineConfig({
       ]
     },
     
+    // Manifest options
+    manifestOptions: {
+      name: 'نظام إدارة المخازن - منوفيا للعطور',
+      short_name: 'إدارة المخازن',
+      start_url: '/',
+      display: 'standalone',
+      theme_color: '#3b82f6',
+      background_color: '#ffffff',
+      icons: [
+        {
+          src: '/img/icons/android-chrome-192x192.png',
+          sizes: '192x192',
+          type: 'image/png'
+        },
+        {
+          src: '/img/icons/android-chrome-512x512.png',
+          sizes: '512x512',
+          type: 'image/png'
+        }
+      ],
+      lang: 'ar',
+      dir: 'rtl'
+    },
+    
     // Icon paths
     iconPaths: {
       favicon32: 'img/icons/favicon-32x32.png',
@@ -73,7 +112,7 @@ module.exports = defineConfig({
     sourceMap: false,
     loaderOptions: {
       css: {
-        url: false // Disable url() handling in CSS
+        url: false
       }
     }
   },
@@ -115,11 +154,9 @@ module.exports = defineConfig({
   
   // Chain webpack for additional configuration
   chainWebpack: config => {
-    // Remove prefetch and preload plugins
     config.plugins.delete('prefetch');
     config.plugins.delete('preload');
     
-    // Optimize HTML
     config.plugin('html').tap(args => {
       args[0] = {
         ...args[0],
@@ -140,7 +177,6 @@ module.exports = defineConfig({
       return args;
     });
     
-    // Handle images
     config.module
       .rule('images')
       .use('url-loader')
@@ -150,7 +186,6 @@ module.exports = defineConfig({
         name: 'img/[name].[hash:8].[ext]'
       }));
       
-    // Handle fonts
     config.module
       .rule('fonts')
       .use('url-loader')
