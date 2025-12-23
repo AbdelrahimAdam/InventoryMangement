@@ -198,7 +198,7 @@
             <button @click="bulkDeactivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
               <i class="fas fa-times-circle"></i> تعطيل المحددين
             </button>
-            <button @click="bulkDelete" :disabled="selectedUsers.length === 0" class="bulk-action-btn danger">
+            <button @click="openDeleteModal" :disabled="selectedUsers.length === 0" class="bulk-action-btn danger">
               <i class="fas fa-trash-alt"></i> حذف المحددين
             </button>
             <button @click="exportSelected" :disabled="selectedUsers.length === 0" class="bulk-action-btn info">
@@ -289,7 +289,7 @@
                       <i :class="user.is_active ? 'fas fa-user-times' : 'fas fa-user-check'"></i>
                       {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
                     </button>
-                    <button @click="showDeleteModal(user)" class="dropdown-item danger">
+                    <button @click="openDeleteModal(user)" class="dropdown-item danger">
                       <i class="fas fa-trash-alt"></i> حذف
                     </button>
                   </div>
@@ -524,7 +524,7 @@
                     <button @click="resetPassword(user)" class="action-btn reset" title="إعادة تعيين كلمة المرور">
                       <i class="fas fa-key"></i>
                     </button>
-                    <button @click="showDeleteModal(user)" class="action-btn delete" title="حذف">
+                    <button @click="openDeleteModal(user)" class="action-btn delete" title="حذف">
                       <i class="fas fa-trash-alt"></i>
                     </button>
                   </div>
@@ -928,8 +928,8 @@
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+    <!-- Delete Confirmation Modal - FIXED -->
+    <div v-if="deleteModalVisible" class="modal-overlay" @click.self="cancelDelete">
       <div class="modal-container delete-modal">
         <div class="modal-content">
           <div class="modal-header danger">
@@ -943,7 +943,7 @@
               <p v-if="userToDelete">
                 هذا الإجراء سيحذف المستخدم <strong>{{ userToDelete.name }}</strong> (<strong>{{ userToDelete.email }}</strong>) نهائياً.
               </p>
-              <p v-if="selectedUsers.length > 1" class="bulk-delete-warning">
+              <p v-if="selectedUsers.length > 1 && !userToDelete" class="bulk-delete-warning">
                 <i class="fas fa-exclamation-circle"></i>
                 سيتم حذف <strong>{{ selectedUsers.length }}</strong> مستخدمين.
               </p>
@@ -1185,10 +1185,10 @@ export default {
       currentPage: 1,
       itemsPerPage: 25,
       
-      // Modals - ALL INITIALIZED TO FALSE
+      // Modals - FIXED: Changed showDeleteModal to deleteModalVisible to avoid conflict
       showCreateModal: false,
       editingUser: null,
-      showDeleteModal: false,
+      deleteModalVisible: false, // Changed from showDeleteModal
       userToDelete: null,
       showResetPasswordModal: false,
       userToReset: null,
@@ -1768,20 +1768,34 @@ export default {
       }
     },
     
-    showDeleteModal(user = null) {
-      // CRITICAL FIX: Check if user is provided or users are selected
-      if (!user && this.selectedUsers.length === 0) {
+    // FIXED: Renamed from showDeleteModal to openDeleteModal
+    openDeleteModal(user = null) {
+      // Validate before showing modal
+      const hasUserToDelete = user !== null
+      const hasSelectedUsers = this.selectedUsers.length > 0
+      
+      if (!hasUserToDelete && !hasSelectedUsers) {
+        console.warn('Delete modal: No user or selection provided')
         return
       }
       
+      // If bulk delete but no users in selection
+      if (!hasUserToDelete && hasSelectedUsers) {
+        const selectedUserObjects = this.allUsers.filter(u => this.selectedUsers.includes(u.id))
+        if (selectedUserObjects.length === 0) {
+          console.warn('Delete modal: Selected users not found')
+          return
+        }
+      }
+      
       this.userToDelete = user
-      this.showDeleteModal = true
+      this.deleteModalVisible = true
       this.activeDropdown = null
     },
     
     cancelDelete() {
       this.userToDelete = null
-      this.showDeleteModal = false
+      this.deleteModalVisible = false
     },
     
     async confirmDelete() {
@@ -1792,7 +1806,7 @@ export default {
           ? [this.userToDelete] 
           : this.allUsers.filter(user => this.selectedUsers.includes(user.id))
         
-        // Confirm bulk delete
+        // Confirm delete
         if (usersToDelete.length > 1) {
           const confirmMessage = `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
             usersToDelete.slice(0, 3).map(u => `• ${u.name} (${u.email})`).join('\n') +
@@ -1903,7 +1917,7 @@ export default {
       )
       
       this.userToDelete = null // Set to null for bulk delete
-      this.showDeleteModal = true
+      this.openDeleteModal() // Call the renamed method
     },
     
     // Reset Password
@@ -2320,38 +2334,16 @@ export default {
     
     hideToast() {
       this.toast.show = false
-    }
-  },
-  
-  watch: {
-    filters: {
-      handler() {
-        this.currentPage = 1
-      },
-      deep: true
     },
     
-    allUsers() {
-      // Update stats when users change
-    },
-    
-    // Add watcher to prevent accidental modal opening
-    showDeleteModal(newVal) {
-      if (newVal && !this.userToDelete && this.selectedUsers.length === 0) {
-        // Prevent modal from opening without a user to delete
-        this.showDeleteModal = false
-      }
+    // Load users for error retry
+    async loadUsers() {
+      await this.init()
     }
   },
   
   created() {
-    // Ensure all modals are closed on initialization
-    this.showDeleteModal = false
-    this.showCreateModal = false
-    this.showResetPasswordModal = false
-    this.showImpersonateModal = false
-    
-    // Then initialize
+    // Initialize
     this.init()
   },
   
