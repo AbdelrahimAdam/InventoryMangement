@@ -813,49 +813,7 @@
                       <button type="button" @click="applyPermissionPreset('full_access')" class="preset-btn">
                         <i class="fas fa-crown"></i> صلاحية كاملة
                       </button>
-                    </div>
-                  </div>
-
-                  <div class="permission-categories">
-                    <div
-                      v-for="category in permissionCategories"
-                      :key="category.id"
-                      class="permission-category"
-                    >
-                      <div class="category-header">
-                        <h5>{{ category.name }}</h5>
-                        <label class="category-toggle">
-                          <input
-                            type="checkbox"
-                            :checked="isCategorySelected(category.permissions)"
-                            @change="toggleCategory(category.permissions, $event)"
-                          >
-                          <span>تحديد/إلغاء الكل</span>
-                        </label>
-                      </div>
-                      
-                      <div class="permission-checkboxes">
-                        <label
-                          v-for="perm in category.permissions"
-                          :key="perm.id"
-                          class="permission-checkbox"
-                        >
-                          <input
-                            type="checkbox"
-                            :value="perm.id"
-                            v-model="userForm.permissions"
-                          >
-                          <span class="checkbox-custom"></span>
-                          <div class="permission-label">
-                            <i :class="perm.icon"></i>
-                            <div>
-                              <span class="permission-name">{{ perm.name }}</span>
-                              <span class="permission-desc">{{ perm.description }}</span>
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1148,8 +1106,6 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
-import { createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
-import { auth } from '@/firebase/config'
 
 export default {
   name: 'UserManagement',
@@ -1187,7 +1143,7 @@ export default {
       currentPage: 1,
       itemsPerPage: 25,
       
-      // Modals
+      // Modals - ALL INITIALIZED TO FALSE
       showCreateModal: false,
       editingUser: null,
       showDeleteModal: false,
@@ -1771,6 +1727,11 @@ export default {
     },
     
     showDeleteModal(user = null) {
+      // CRITICAL FIX: Check if user is provided or users are selected
+      if (!user && this.selectedUsers.length === 0) {
+        return
+      }
+      
       this.userToDelete = user
       this.showDeleteModal = true
       this.activeDropdown = null
@@ -2330,10 +2291,25 @@ export default {
     
     allUsers() {
       // Update stats when users change
+    },
+    
+    // Add watcher to prevent accidental modal opening
+    showDeleteModal(newVal) {
+      if (newVal && !this.userToDelete && this.selectedUsers.length === 0) {
+        // Prevent modal from opening without a user to delete
+        this.showDeleteModal = false
+      }
     }
   },
   
   created() {
+    // Ensure all modals are closed on initialization
+    this.showDeleteModal = false
+    this.showCreateModal = false
+    this.showResetPasswordModal = false
+    this.showImpersonateModal = false
+    
+    // Then initialize
     this.init()
   },
   
