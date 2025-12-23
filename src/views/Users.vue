@@ -813,7 +813,49 @@
                       <button type="button" @click="applyPermissionPreset('full_access')" class="preset-btn">
                         <i class="fas fa-crown"></i> صلاحية كاملة
                       </button>
-                    </button>
+                    </div>
+                  </div>
+
+                  <div class="permission-categories">
+                    <div
+                      v-for="category in permissionCategories"
+                      :key="category.id"
+                      class="permission-category"
+                    >
+                      <div class="category-header">
+                        <h5>{{ category.name }}</h5>
+                        <label class="category-toggle">
+                          <input
+                            type="checkbox"
+                            :checked="isCategorySelected(category.permissions)"
+                            @change="toggleCategory(category.permissions, $event)"
+                          >
+                          <span>تحديد/إلغاء الكل</span>
+                        </label>
+                      </div>
+                      
+                      <div class="permission-checkboxes">
+                        <label
+                          v-for="perm in category.permissions"
+                          :key="perm.id"
+                          class="permission-checkbox"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="perm.id"
+                            v-model="userForm.permissions"
+                          >
+                          <span class="checkbox-custom"></span>
+                          <div class="permission-label">
+                            <i :class="perm.icon"></i>
+                            <div>
+                              <span class="permission-name">{{ perm.name }}</span>
+                              <span class="permission-desc">{{ perm.description }}</span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
