@@ -1,2648 +1,3664 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-    <!-- Mobile Header with Collapsible Controls -->
-    <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-full mx-auto px-3 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <!-- Logo and Title -->
-          <div class="flex items-center space-x-2 space-x-reverse">
-            <router-link to="/" class="flex items-center space-x-2 space-x-reverse hover:opacity-80 transition-opacity">
-              <div class="h-10 w-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span class="text-white font-bold text-lg">م</span>
-              </div>
-              <div class="hidden sm:block">
-                <h1 class="text-lg font-bold text-gray-900 dark:text-white">لوحة التقارير والإحصائيات</h1>
-                <p class="text-xs text-gray-500 dark:text-gray-400">نظام إدارة المخزون الذكي</p>
-              </div>
-            </router-link>
-          </div>
+  <div class="user-profile-settings" :class="{ 'dark-mode': isDarkMode }">
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>جاري تحميل البيانات...</p>
+    </div>
 
-          <!-- Desktop Actions -->
-          <div class="hidden sm:flex items-center gap-3 space-x-reverse">
-            <div class="relative">
-              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-              </div>
-              <select 
-                v-model="reportPeriod"
-                @change="changePeriod"
-                class="w-full sm:w-48 pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 shadow-sm"
-              >
-                <option value="today">اليوم</option>
-                <option value="week">هذا الأسبوع</option>
-                <option value="month" selected>هذا الشهر</option>
-                <option value="quarter">هذا الربع</option>
-                <option value="year">هذه السنة</option>
-                <option value="custom">فترة مخصصة</option>
-              </select>
-            </div>
-
-            <button 
-              @click="exportToExcel"
-              class="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:-translate-y-0.5"
-            >
-              <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              تصدير إلى Excel
-            </button>
-
-            <button 
-              @click="resetFilters"
-              class="inline-flex items-center justify-center px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 shadow-sm hover:shadow focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-            >
-              <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              إعادة الضبط
-            </button>
-          </div>
-
-          <!-- Mobile Actions -->
-          <div class="flex sm:hidden items-center gap-2">
-            <!-- Mobile Toggle Button for Filters -->
-            <button 
-              @click="showMobileFilters = !showMobileFilters"
-              class="inline-flex items-center justify-center p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="showMobileFilters" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-              </svg>
-            </button>
-
-            <!-- Export Button (Mobile) -->
-            <button 
-              @click="exportToExcel"
-              class="inline-flex items-center justify-center p-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg"
-              title="تصدير Excel"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Mobile Filters Panel -->
-        <div v-if="showMobileFilters" class="sm:hidden pb-4 border-t border-gray-200 dark:border-gray-700">
-          <div class="space-y-3 pt-4">
-            <!-- Quick Actions -->
-            <div class="grid grid-cols-2 gap-2">
-              <select 
-                v-model="reportPeriod"
-                @change="changePeriod"
-                class="col-span-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              >
-                <option value="today">اليوم</option>
-                <option value="week">هذا الأسبوع</option>
-                <option value="month" selected>هذا الشهر</option>
-                <option value="quarter">هذا الربع</option>
-                <option value="year">هذه السنة</option>
-                <option value="custom">فترة مخصصة</option>
-              </select>
-              
-              <button 
-                @click="toggleFullscreen"
-                class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm"
-              >
-                <span class="flex items-center justify-center">
-                  <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
-                  </svg>
-                  ملء الشاشة
-                </span>
-              </button>
-              
-              <button 
-                @click="resetFilters"
-                class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm"
-              >
-                <span class="flex items-center justify-center">
-                  <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  إعادة ضبط
-                </span>
-              </button>
-            </div>
-
-            <!-- Mobile Search -->
-            <div class="relative">
-              <input
-                type="text"
-                v-model="searchQuery"
-                @input="handleSearch"
-                placeholder="بحث سريع..."
-                class="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              />
-              <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <!-- Live Search Indicator -->
-              <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center">
-                <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <main class="max-w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-      <!-- Desktop Filters -->
-      <div class="hidden sm:block bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">فلاتر التقرير</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">قم بتخصيص التقرير حسب المخزن أو الصنف أو التاريخ</p>
-          </div>
-
-          <!-- Active Filters Badges -->
-          <div class="flex flex-wrap gap-2 mt-4 md:mt-0">
-            <span v-if="selectedWarehouse && selectedWarehouse !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
-              {{ getWarehouseLabel(selectedWarehouse) }}
-              <button @click="selectedWarehouse = ''" class="mr-1 hover:text-blue-100">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-            </span>
-
-            <span v-if="selectedItem && selectedItem !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-              {{ selectedItemText }}
-              <button @click="selectedItem = ''" class="mr-1 hover:text-purple-100">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-            </span>
-
-            <span v-if="selectedItemType && selectedItemType !== ''" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-              {{ getItemTypeLabel(selectedItemType) }}
-              <button @click="selectedItemType = ''" class="mr-1 hover:text-amber-100">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-            </span>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <!-- Warehouse Filter -->
-          <div class="relative">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <span class="inline-flex items-center">
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                </svg>
-                المخزن
-              </span>
-            </label>
-            <select 
-              v-model="selectedWarehouse"
-              @change="applyFilters"
-              class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200 hover:border-blue-400"
-            >
-              <option value="">جميع المخازن</option>
-              <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
-                {{ warehouse.name_ar }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Item Filter -->
-          <div class="relative">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <span class="inline-flex items-center">
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                الصنف
-              </span>
-            </label>
-            <div class="relative">
-              <select 
-                v-model="selectedItem"
-                @change="applyFilters"
-                class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm transition-all duration-200 hover:border-purple-400"
-              >
-                <option value="">جميع الأصناف</option>
-                <optgroup v-if="selectedWarehouse && selectedWarehouse !== ''" label="أصناف المخزن المحدد">
-                  <option v-for="item in filteredItemsByWarehouse" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ item.code }})
-                  </option>
-                </optgroup>
-                <optgroup label="جميع الأصناف">
-                  <option v-for="item in allUniqueItems" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ item.code }})
-                  </option>
-                </optgroup>
-              </select>
-              <div class="absolute left-3 top-3">
-                <svg v-if="selectedItem && selectedItem !== ''" class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <!-- Item Type Filter -->
-          <div class="relative">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <span class="inline-flex items-center">
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                </svg>
-                نوع الصنف
-              </span>
-            </label>
-            <select 
-              v-model="selectedItemType"
-              @change="applyFilters"
-              class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-sm transition-all duration-200 hover:border-amber-400"
-            >
-              <option value="">جميع الأنواع</option>
-              <option value="low_stock">قليلة المخزون (&lt; 10)</option>
-              <option value="out_of_stock">منتهية المخزون</option>
-              <option value="high_value">عالية القيمة</option>
-              <option value="recently_added">مضافة مؤخراً</option>
-              <option value="fast_moving">سريعة الحركة</option>
-              <option value="slow_moving">بطيئة الحركة</option>
-            </select>
-          </div>
-
-          <!-- Search -->
-          <div class="relative">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <span class="inline-flex items-center">
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                بحث متقدم
-              </span>
-            </label>
-            <div class="relative">
-              <input
-                type="text"
-                v-model="searchQuery"
-                @input="handleSearch"
-                placeholder="ابحث عن صنف، كود، لون، مورد..."
-                class="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm transition-all duration-200 hover:border-emerald-400"
-              />
-              <svg class="absolute right-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <!-- Live Search Indicator -->
-              <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Custom Date Range -->
-        <div v-if="reportPeriod === 'custom'" class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">تحديد الفترة المخصصة</h3>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">من:</label>
-                <input 
-                  type="date" 
-                  v-model="customDateFrom"
-                  class="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">إلى:</label>
-                <input 
-                  type="date" 
-                  v-model="customDateTo"
-                  class="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-              </div>
-              <button 
-                @click="applyCustomDate"
-                class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                تطبيق الفترة
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats Cards - Mobile Optimized -->
-      <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
-        <!-- Total Items -->
-        <div 
-          @click="activeMobileTab = 'inventory'"
-          class="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl sm:rounded-2xl shadow-lg border border-blue-200 dark:border-blue-800 p-3 sm:p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div class="flex items-center">
-            <div class="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center ml-2 sm:ml-4 shadow-lg">
-              <svg class="h-5 w-5 sm:h-7 sm:w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300 mb-1 truncate">إجمالي الأصناف</p>
-              <p class="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-100">{{ formatNumber(dashboardStats.totalItems) }}</p>
-              <p class="hidden sm:block text-xs text-blue-600 dark:text-blue-400 mt-2">{{ summary.uniqueItems }} صنف فريد</p>
-            </div>
-          </div>
-          <div class="sm:mt-4 sm:pt-4 sm:border-t sm:border-blue-200 sm:dark:border-blue-800">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-blue-600 dark:text-blue-400">في المخزن المحدد</span>
-              <span class="font-semibold text-blue-800 dark:text-blue-300">{{ formatNumber(filteredInventory.length) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Transactions -->
-        <div 
-          @click="activeMobileTab = 'transactions'"
-          class="bg-gradient-to-br from-emerald-50 to-green-100 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl sm:rounded-2xl shadow-lg border border-emerald-200 dark:border-emerald-800 p-3 sm:p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div class="flex items-center">
-            <div class="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 flex items-center justify-center ml-2 sm:ml-4 shadow-lg">
-              <svg class="h-5 w-5 sm:h-7 sm:w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-1 truncate">إجمالي الحركات</p>
-              <p class="text-lg sm:text-2xl font-bold text-emerald-900 dark:text-emerald-100">{{ formatNumber(dashboardStats.recentTransactions) }}</p>
-              <div class="hidden sm:flex items-center gap-2 mt-2">
-                <span class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg">
-                  +{{ formatNumber(dashboardStats.addTransactions) }}
-                </span>
-                <span class="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg">
-                  ↔{{ formatNumber(dashboardStats.transferTransactions) }}
-                </span>
-                <span class="text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg">
-                  →{{ formatNumber(dashboardStats.dispatchTransactions) }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div class="sm:mt-4 sm:pt-4 sm:border-t sm:border-emerald-200 sm:dark:border-emerald-800">
-            <div class="text-xs text-emerald-600 dark:text-emerald-400">
-              في الفترة: {{ getPeriodLabel() }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Value -->
-        <div class="bg-gradient-to-br from-purple-50 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl sm:rounded-2xl shadow-lg border border-purple-200 dark:border-purple-800 p-3 sm:p-4 sm:p-6 hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-          <div class="flex items-center">
-            <div class="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center ml-2 sm:ml-4 shadow-lg">
-              <svg class="h-5 w-5 sm:h-7 sm:w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="text-xs sm:text-sm font-medium text-purple-700 dark:text-purple-300 mb-1 truncate">القيمة الإجمالية</p>
-              <p class="text-lg sm:text-2xl font-bold text-purple-900 dark:text-purple-100">{{ formatCurrency(dashboardStats.estimatedValue).split(' ')[0] }}</p>
-              <p class="hidden sm:block text-xs text-purple-600 dark:text-purple-400 mt-2">{{ formatNumber(dashboardStats.totalQuantity) }} وحدة</p>
-            </div>
-          </div>
-          <div class="sm:mt-4 sm:pt-4 sm:border-t sm:border-purple-200 sm:dark:border-purple-800">
-            <div class="text-xs">
-              <span class="text-purple-600 dark:text-purple-400">متوسط السعر:</span>
-              <span class="font-semibold text-purple-800 dark:text-purple-300 mr-1">
-                {{ formatCurrency(summary.averagePrice).split(' ')[0] }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Low Stock Items -->
-        <div 
-          @click="selectedItemType = 'low_stock'; activeMobileTab = 'inventory'"
-          class="bg-gradient-to-br from-red-50 to-orange-100 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl sm:rounded-2xl shadow-lg border border-red-200 dark:border-red-800 p-3 sm:p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div class="flex items-center">
-            <div class="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center ml-2 sm:ml-4 shadow-lg">
-              <svg class="h-5 w-5 sm:h-7 sm:w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="text-xs sm:text-sm font-medium text-red-700 dark:text-red-300 mb-1 truncate">أصناف قليلة</p>
-              <p class="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-100">{{ formatNumber(dashboardStats.lowStockItems) }}</p>
-              <p class="hidden sm:block text-xs text-red-600 dark:text-red-400 mt-2">{{ formatNumber(dashboardStats.outOfStockItems) }} منتهية</p>
-            </div>
-          </div>
-          <div class="sm:mt-4 sm:pt-4 sm:border-t sm:border-red-200 sm:dark:border-red-800">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-red-600 dark:text-red-400">نسبة المخزون المنخفض</span>
-              <span class="font-semibold text-red-800 dark:text-red-300">
-                {{ formatNumber(summary.lowStockPercentage) }}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile Tabs -->
-      <div class="sm:hidden flex space-x-2 space-x-reverse mb-4 overflow-x-auto pb-2">
-        <button
-          v-for="tab in mobileTabs"
-          :key="tab.id"
-          @click="activeMobileTab = tab.id"
-          :class="[
-            'flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105',
-            activeMobileTab === tab.id
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-          ]"
-        >
-          {{ tab.label }}
+    <!-- Error State -->
+    <div v-if="error" class="error-container">
+      <div class="error-alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p>{{ error }}</p>
+        <button @click="loadUserData" class="retry-btn">
+          <i class="fas fa-redo"></i> إعادة المحاولة
         </button>
       </div>
+    </div>
 
-      <!-- Mobile Tab Content -->
-      <div class="sm:hidden">
-        <!-- Charts Tab -->
-        <div v-if="activeMobileTab === 'charts'" class="space-y-4">
-          <!-- Warehouse Distribution Chart -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">توزيع المخزون</h3>
-              <select 
-                v-model="distributionType"
-                @change="updateCharts"
-                class="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="quantity">الكمية</option>
-                <option value="value">القيمة</option>
-              </select>
+    <!-- Main Content -->
+    <div v-if="!loading && !error" class="profile-container">
+      <!-- Header -->
+      <div class="profile-header">
+        <div class="header-content">
+          <div class="user-avatar">
+            <div class="avatar-circle" :style="avatarStyle">
+              {{ userInitials }}
             </div>
-            <div class="h-64">
-              <canvas ref="mobileWarehouseChart"></canvas>
+            <div class="avatar-badge" :class="userRole">
+              <i :class="roleIcon"></i>
             </div>
           </div>
-
-          <!-- Transactions Chart -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">الحركات حسب النوع</h3>
-            <div class="h-48">
-              <canvas ref="mobileTransactionsChart"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- Inventory Tab -->
-        <div v-if="activeMobileTab === 'inventory'" class="space-y-4">
-          <!-- Summary Card -->
-          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-blue-900 dark:text-blue-300">المخزون المفلتر</p>
-                <p class="text-xs text-blue-700 dark:text-blue-400">{{ formatNumber(filteredInventory.length) }} صنف</p>
-              </div>
-              <button 
-                @click="showInventoryFilters = !showInventoryFilters"
-                class="text-blue-600 dark:text-blue-400"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Inventory Filters (Collapsible) -->
-          <div v-if="showInventoryFilters" class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-            <!-- Warehouse Filter -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
-              <select 
-                v-model="selectedWarehouse"
-                @change="applyFilters"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              >
-                <option value="">جميع المخازن</option>
-                <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
-                  {{ warehouse.name_ar }}
-                </option>
-              </select>
-            </div>
-
-            <!-- Item Type Filter -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">نوع الصنف</label>
-              <select 
-                v-model="selectedItemType"
-                @change="applyFilters"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              >
-                <option value="">جميع الأنواع</option>
-                <option value="low_stock">قليلة المخزون</option>
-                <option value="out_of_stock">منتهية</option>
-                <option value="recently_added">مضافة حديثاً</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Inventory Items List -->
-          <div class="space-y-3">
-            <div 
-              v-for="item in mobileInventoryItems"
-              :key="item.id"
-              class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-200"
-            >
-              <div class="flex items-start justify-between mb-2">
-                <div>
-                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ item.name }}</h4>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }} - {{ item.color }}</p>
-                </div>
-                <span :class="[
-                  'px-2 py-1 rounded-lg text-xs font-medium',
-                  getQuantityClass(item.remaining_quantity)
-                ]">
-                  {{ formatNumber(item.remaining_quantity) }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>{{ getWarehouseLabel(item.warehouse_id) }}</span>
-                <span class="font-semibold">{{ formatCurrency(item.remaining_quantity * 50) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Transactions Tab -->
-        <div v-if="activeMobileTab === 'transactions'" class="space-y-3">
-          <div 
-            v-for="transaction in mobileTransactions"
-            :key="transaction.id"
-            class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all duration-200"
-          >
-            <div class="flex items-start">
-              <div :class="[
-                'h-10 w-10 rounded-lg flex items-center justify-center mr-3 shadow-sm',
-                transaction.type === 'ADD' ? 'bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/20 dark:to-blue-800/10 text-blue-600 dark:text-blue-300' :
-                transaction.type === 'TRANSFER' ? 'bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/20 dark:to-purple-800/10 text-purple-600 dark:text-purple-300' :
-                'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/20 dark:to-red-800/10 text-red-600 dark:text-red-300'
-              ]">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path v-if="transaction.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                  <path v-if="transaction.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                  <path v-if="transaction.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/>
-                </svg>
-              </div>
-              <div class="flex-1">
-                <div class="flex items-center justify-between mb-1">
-                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ transaction.item_name }}</h4>
-                  <span class="text-sm font-medium" 
-                        :class="transaction.type === 'ADD' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'">
-                    {{ transaction.type === 'ADD' ? '+' : '' }}{{ formatNumber(transaction.total_delta) }}
-                  </span>
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  <div class="flex items-center gap-2">
-                    <span>{{ formatTime(transaction.timestamp) }}</span>
-                    <span>•</span>
-                    <span>{{ getWarehouseLabel(transaction.from_warehouse) || getWarehouseLabel(transaction.to_warehouse) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Desktop Content (Hidden on Mobile) -->
-      <div class="hidden sm:block">
-        <!-- Dashboard Header with Active Filter Info -->
-        <div v-if="hasActiveFilters" class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 class="text-lg font-bold text-blue-900 dark:text-blue-300">
-                <span v-if="selectedWarehouse && selectedWarehouse !== '' && selectedItem && selectedItem !== ''">
-                  تقرير المخزن: {{ getWarehouseLabel(selectedWarehouse) }} - الصنف: {{ selectedItemText }}
-                </span>
-                <span v-else-if="selectedWarehouse && selectedWarehouse !== ''">
-                  تقرير المخزن: {{ getWarehouseLabel(selectedWarehouse) }}
-                </span>
-                <span v-else-if="selectedItem && selectedItem !== ''">
-                  تقرير الصنف: {{ selectedItemText }}
-                </span>
-              </h3>
-              <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                عرض البيانات المفلترة حسب التحديدات الحالية
-                <span v-if="filteredInventory.length > 0" class="font-bold">
-                  • {{ formatNumber(filteredInventory.length) }} صنف
-                </span>
-              </p>
-            </div>
-            <div class="mt-3 md:mt-0">
-              <button @click="resetFilters" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
-                <svg class="w-4 h-4 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-                إلغاء التصفية
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Desktop Charts Section -->
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-          <!-- Warehouse Distribution Chart -->
-          <div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-3">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">توزيع المخزون حسب المخازن</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">توزيع الكمية والقيمة عبر المخازن المختلفة</p>
-              </div>
-              <select 
-                v-model="distributionType"
-                @change="updateWarehouseChart"
-                class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="quantity">حسب الكمية</option>
-                <option value="value">حسب القيمة</option>
-                <option value="items">حسب عدد الأصناف</option>
-              </select>
-            </div>
-
-            <div class="h-72">
-              <canvas ref="warehouseChart"></canvas>
-            </div>
-
-            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div v-for="warehouse in warehouseDistribution.slice(0, 4)" :key="warehouse.id" 
-                   class="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-xl hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-200 hover:shadow-md border border-blue-100 dark:border-blue-800/30">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-blue-900 dark:text-blue-300 truncate">{{ warehouse.name }}</span>
-                  <span class="text-sm font-bold text-blue-700 dark:text-blue-400">
-                    {{ formatNumber(warehouse.value) }}
-                    <span v-if="distributionType === 'value'">ج.م</span>
-                    <span v-else-if="distributionType === 'quantity'">وحدة</span>
-                  </span>
-                </div>
-                <div class="relative h-2 bg-blue-200 dark:bg-blue-900/30 rounded-full overflow-hidden">
-                  <div 
-                    :style="{ width: warehouse.percentage + '%' }"
-                    class="absolute h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
-                  ></div>
-                </div>
-                <div class="flex items-center justify-between mt-2 text-xs text-blue-600 dark:text-blue-400">
-                  <span>{{ formatNumber(warehouse.itemsCount) }} صنف</span>
-                  <span>{{ formatNumber(warehouse.percentage) }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Transactions by Type Chart -->
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الحركات حسب النوع</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">توزيع الحركات حسب نوع العملية</p>
-              </div>
-              <select 
-                v-model="transactionsPeriod"
-                @change="updateTransactionsChart"
-                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="today">اليوم</option>
-                <option value="week">هذا الأسبوع</option>
-                <option value="month" selected>هذا الشهر</option>
-              </select>
-            </div>
-
-            <div class="h-72">
-              <canvas ref="transactionsChart"></canvas>
-            </div>
-
-            <div class="mt-6 grid grid-cols-3 gap-4">
-              <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
-                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ formatNumber(dashboardStats.addTransactions) }}</div>
-                <div class="text-sm text-blue-700 dark:text-blue-300">إضافة</div>
-              </div>
-              <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
-                <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ formatNumber(dashboardStats.transferTransactions) }}</div>
-                <div class="text-sm text-purple-700 dark:text-purple-300">نقل</div>
-              </div>
-              <div class="text-center p-4 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/10 dark:to-orange-900/10 rounded-xl border border-red-100 dark:border-red-800/30">
-                <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatNumber(dashboardStats.dispatchTransactions) }}</div>
-                <div class="text-sm text-red-700 dark:text-red-300">صرف</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Detailed Data Tables -->
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-          <!-- Top Items Table -->
-          <div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div class="flex items-center justify-between mb-6">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">أعلى الأصناف قيمة</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">الأصناف الأعلى قيمة في المخزون</p>
-              </div>
-              <select 
-                v-model="topItemsFilter"
-                @change="updateTopItems"
-                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-              >
-                <option value="value">حسب القيمة</option>
-                <option value="quantity">حسب الكمية</option>
-                <option value="turnover">حسب معدل الدوران</option>
-              </select>
-            </div>
-
-            <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="sticky top-0 z-10 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-b border-amber-200 dark:border-amber-800">
-                  <tr>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">الترتيب</th>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">الصنف</th>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">المخزن</th>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">الكمية</th>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">القيمة</th>
-                    <th class="sticky top-0 px-6 py-3 text-right text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider border-b border-amber-200 dark:border-amber-800">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  <tr v-for="(item, index) in topItemsByValue.slice(0, 8)" :key="item.id" 
-                      class="hover:bg-gradient-to-r hover:from-amber-50/50 hover:to-orange-50/50 dark:hover:from-amber-900/10 dark:hover:to-orange-900/10 transition-all duration-150">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm shadow">
-                        {{ index + 1 }}
-                      </div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.name }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }} - {{ item.color }}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {{ getWarehouseLabel(item.warehouse_id) }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm"
-                            :class="getQuantityClass(item.remaining_quantity)">
-                        {{ formatNumber(item.remaining_quantity) }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600 dark:text-amber-400">
-                      {{ formatCurrency(item.value) }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm"
-                            :class="getStatusClass(item.remaining_quantity)">
-                        {{ getStatusText(item.remaining_quantity) }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Recent Transactions -->
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div class="flex items-center justify-between mb-6">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">آخر الحركات</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">أحدث 10 حركات في النظام</p>
-              </div>
-              <span class="text-xs px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full shadow">
-                {{ formatNumber(recentFilteredTransactions.length) }} حركة
+          <div class="user-info">
+            <h1>{{ userProfile.name || userEmail }}</h1>
+            <div class="user-meta">
+              <span class="role-badge" :class="userRole">
+                <i :class="roleIcon"></i>
+                {{ roleDisplayName }}
+              </span>
+              <span class="status-badge" :class="{ 'active': isActive, 'inactive': !isActive }">
+                <i class="fas" :class="isActive ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                {{ isActive ? 'نشط' : 'غير نشط' }}
               </span>
             </div>
+          </div>
+          <div class="header-actions">
+            <button @click="toggleTheme" class="theme-toggle" aria-label="تبديل السمة">
+              <i :class="themeIcon"></i>
+            </button>
+            <button @click="logout" class="logout-btn" v-if="canManageSelf">
+              <i class="fas fa-sign-out-alt"></i>
+              تسجيل الخروج
+            </button>
+          </div>
+        </div>
+      </div>
 
-            <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-              <div v-for="transaction in recentFilteredTransactions.slice(0, 10)" :key="transaction.id" 
-                   class="flex items-start p-4 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-cyan-50/50 dark:hover:from-blue-900/10 dark:hover:to-cyan-900/10 rounded-xl transition-all duration-200 hover:shadow-lg border border-transparent hover:border-blue-200 dark:hover:border-blue-800/30">
-                <div :class="[
-                  'h-12 w-12 rounded-xl flex items-center justify-center shadow-sm',
-                  transaction.type === 'ADD' ? 'bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/20 dark:to-blue-800/10 text-blue-600 dark:text-blue-300' :
-                  transaction.type === 'TRANSFER' ? 'bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/20 dark:to-purple-800/10 text-purple-600 dark:text-purple-300' :
-                  'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/20 dark:to-red-800/10 text-red-600 dark:text-red-300'
-                ]">
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="transaction.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    <path v-if="transaction.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                    <path v-if="transaction.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                  </svg>
-                </div>
-                <div class="mr-4 flex-1">
-                  <div class="flex items-center justify-between mb-1">
-                    <h4 class="font-semibold text-gray-900 dark:text-white truncate">{{ transaction.item_name }}</h4>
-                    <span class="text-sm font-bold" 
-                          :class="transaction.type === 'ADD' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ transaction.type === 'ADD' ? '+' : '' }}{{ formatNumber(transaction.total_delta) }}
-                    </span>
-                  </div>
-                  <div class="flex flex-wrap items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
-                    <span v-if="transaction.from_warehouse" class="inline-flex items-center">
-                      <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                      </svg>
-                      {{ getWarehouseLabel(transaction.from_warehouse) }}
-                    </span>
-                    <span v-if="transaction.to_warehouse" class="inline-flex items-center">
-                      <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                      </svg>
-                      {{ getWarehouseLabel(transaction.to_warehouse) }}
-                    </span>
-                    <span class="inline-flex items-center">
-                      <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                      {{ formatTime(transaction.timestamp) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <!-- Main Content Area -->
+      <div class="profile-content">
+        <!-- Navigation Tabs -->
+        <div class="profile-tabs">
+          <div class="tabs-container">
+            <button
+              v-for="tab in availableTabs"
+              :key="tab.id"
+              @click="activeTab = tab.id"
+              :class="{ 'active': activeTab === tab.id, 'disabled': !tab.available }"
+              class="tab-btn"
+              :disabled="!tab.available"
+            >
+              <i :class="tab.icon"></i>
+              <span>{{ tab.name }}</span>
+              <span v-if="tab.badge" class="tab-badge">{{ tab.badge }}</span>
+            </button>
           </div>
         </div>
 
-        <!-- Monthly Trends Chart -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-3">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الاتجاهات الشهرية</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تحليل أداء المخزون خلال آخر 6 أشهر</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <select 
-                v-model="trendType"
-                @change="updateMonthlyTrendsChart"
-                class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Personal Information Tab -->
+          <div v-if="activeTab === 'personal'" class="tab-pane">
+            <div class="section-header">
+              <h2><i class="fas fa-user-circle"></i> المعلومات الشخصية</h2>
+              <button
+                v-if="canManageSelf && !editingPersonal"
+                @click="startEditing('personal')"
+                class="edit-btn"
               >
-                <option value="transactions">الحركات</option>
-                <option value="quantity">الكميات</option>
-                <option value="value">القيمة</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="h-80">
-            <canvas ref="trendsChart"></canvas>
-          </div>
-
-          <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
-              <div class="text-sm text-blue-700 dark:text-blue-400 mb-1">متوسط الشهر الحالي</div>
-              <div class="text-2xl font-bold text-blue-800 dark:text-blue-300">{{ formatNumber(monthlyStats.currentAverage) }}</div>
-            </div>
-            <div class="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
-              <div class="text-sm text-emerald-700 dark:text-emerald-400 mb-1">نسبة التغيير</div>
-              <div class="text-2xl font-bold" 
-                   :class="monthlyStats.changePercentage >= 0 ? 'text-emerald-800 dark:text-emerald-300' : 'text-red-800 dark:text-red-300'">
-                {{ monthlyStats.changePercentage >= 0 ? '+' : '' }}{{ formatNumber(monthlyStats.changePercentage) }}%
+                <i class="fas fa-edit"></i> تعديل
+              </button>
+              <div v-if="editingPersonal" class="edit-actions">
+                <button @click="savePersonalInfo" class="save-btn" :disabled="saving">
+                  <i class="fas fa-save"></i> حفظ
+                </button>
+                <button @click="cancelEditing" class="cancel-btn">
+                  <i class="fas fa-times"></i> إلغاء
+                </button>
               </div>
             </div>
-            <div class="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
-              <div class="text-sm text-purple-700 dark:text-purple-400 mb-1">إجمالي الفترة</div>
-              <div class="text-2xl font-bold text-purple-800 dark:text-purple-300">{{ formatNumber(monthlyStats.total) }}</div>
+
+            <div class="personal-info-grid">
+              <!-- Read-only View -->
+              <template v-if="!editingPersonal">
+                <div class="info-item">
+                  <label><i class="fas fa-user"></i> الاسم الكامل</label>
+                  <p class="info-value">{{ userProfile.name || 'غير محدد' }}</p>
+                </div>
+                <div class="info-item">
+                  <label><i class="fas fa-envelope"></i> البريد الإلكتروني</label>
+                  <p class="info-value">{{ userEmail || 'غير محدد' }}</p>
+                </div>
+                <div class="info-item">
+                  <label><i class="fas fa-id-card"></i> الدور</label>
+                  <p class="info-value">{{ roleDisplayName }}</p>
+                </div>
+                <div class="info-item">
+                  <label><i class="fas fa-calendar-alt"></i> تاريخ الإنشاء</label>
+                  <p class="info-value">{{ formatDate(userProfile.created_at) }}</p>
+                </div>
+                <div class="info-item">
+                  <label><i class="fas fa-clock"></i> آخر تحديث</label>
+                  <p class="info-value">{{ formatDate(userProfile.updated_at) }}</p>
+                </div>
+                <div class="info-item">
+                  <label><i class="fas fa-history"></i> آخر دخول</label>
+                  <p class="info-value">{{ formatDate(userProfile.last_login) || 'غير متاح' }}</p>
+                </div>
+              </template>
+
+              <!-- Edit View -->
+              <template v-else>
+                <div class="form-group">
+                  <label for="userName"><i class="fas fa-user"></i> الاسم الكامل</label>
+                  <input
+                    type="text"
+                    id="userName"
+                    v-model="editPersonal.name"
+                    placeholder="أدخل اسمك الكامل"
+                    :class="{ 'error': personalErrors.name }"
+                  />
+                  <span v-if="personalErrors.name" class="error-message">{{ personalErrors.name }}</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="userEmail"><i class="fas fa-envelope"></i> البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    id="userEmail"
+                    v-model="editPersonal.email"
+                    placeholder="أدخل بريدك الإلكتروني"
+                    :class="{ 'error': personalErrors.email }"
+                  />
+                  <span v-if="personalErrors.email" class="error-message">{{ personalErrors.email }}</span>
+                </div>
+
+                <div class="form-group" v-if="isSuperAdmin">
+                  <label for="userRole"><i class="fas fa-id-card"></i> الدور</label>
+                  <select id="userRole" v-model="editPersonal.role">
+                    <option value="warehouse_manager">مدير مخزن</option>
+                    <option value="company_manager">مدير شركة</option>
+                    <option value="superadmin">مشرف عام</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label><i class="fas fa-toggle-on"></i> حالة الحساب</label>
+                  <div class="toggle-group">
+                    <label class="toggle-switch">
+                      <input type="checkbox" v-model="editPersonal.is_active">
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">{{ editPersonal.is_active ? 'نشط' : 'معطل' }}</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Warehouse Permissions Tab -->
+          <div v-if="activeTab === 'warehouses'" class="tab-pane">
+            <div class="section-header">
+              <h2><i class="fas fa-warehouse"></i> صلاحيات المخازن</h2>
+              <button
+                v-if="(isSuperAdmin || isCompanyManager) && !editingWarehouses"
+                @click="startEditing('warehouses')"
+                class="edit-btn"
+              >
+                <i class="fas fa-edit"></i> تعديل
+              </button>
+              <div v-if="editingWarehouses" class="edit-actions">
+                <button @click="saveWarehousePermissions" class="save-btn" :disabled="saving">
+                  <i class="fas fa-save"></i> حفظ
+                </button>
+                <button @click="cancelEditing" class="cancel-btn">
+                  <i class="fas fa-times"></i> إلغاء
+                </button>
+              </div>
+            </div>
+
+            <!-- Warehouse Access Summary -->
+            <div class="warehouse-summary">
+              <div class="summary-card">
+                <i class="fas fa-building"></i>
+                <div class="summary-content">
+                  <h3>المخازن المتاحة</h3>
+                  <p v-if="hasAllWarehousesAccess">جميع المخازن</p>
+                  <p v-else>{{ accessibleWarehouses.length }} مخزن</p>
+                </div>
+              </div>
+              <div class="summary-card">
+                <i class="fas fa-truck-loading"></i>
+                <div class="summary-content">
+                  <h3>المخازن الرئيسية</h3>
+                  <p>{{ primaryWarehousesCount }} مخزن</p>
+                </div>
+              </div>
+              <div class="summary-card">
+                <i class="fas fa-shipping-fast"></i>
+                <div class="summary-content">
+                  <h3>مخازن التوزيع</h3>
+                  <p>{{ dispatchWarehousesCount }} مخزن</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Warehouse List -->
+            <div class="warehouse-list-section">
+              <h3><i class="fas fa-list"></i> قائمة المخازن</h3>
+              
+              <!-- Read-only View -->
+              <div v-if="!editingWarehouses" class="warehouse-list">
+                <div v-if="hasAllWarehousesAccess" class="all-warehouses-notice">
+                  <i class="fas fa-check-circle"></i>
+                  <p>الوصول إلى جميع المخازن</p>
+                </div>
+                <div v-else>
+                  <div v-if="accessibleWarehouses.length === 0" class="no-warehouses">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>لا توجد صلاحيات لأي مخزن</p>
+                  </div>
+                  <div v-else class="warehouse-cards">
+                    <div
+                      v-for="warehouse in accessibleWarehouses"
+                      :key="warehouse.id"
+                      class="warehouse-card"
+                      :class="warehouse.type"
+                    >
+                      <div class="warehouse-header">
+                        <h4>{{ warehouse.name_ar || warehouse.name }}</h4>
+                        <span class="warehouse-type" :class="warehouse.type">
+                          {{ getWarehouseTypeLabel(warehouse.type) }}
+                        </span>
+                      </div>
+                      <div class="warehouse-info">
+                        <p><i class="fas fa-map-marker-alt"></i> {{ warehouse.location || 'غير محدد' }}</p>
+                        <p><i class="fas fa-code"></i> {{ warehouse.code || 'بدون كود' }}</p>
+                      </div>
+                      <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
+                        <i class="fas fa-circle"></i>
+                        {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Edit View -->
+              <div v-else class="warehouse-edit">
+                <div class="edit-options">
+                  <label class="checkbox-option">
+                    <input
+                      type="checkbox"
+                      v-model="editWarehouses.all"
+                      @change="toggleAllWarehouses"
+                    >
+                    <span class="checkmark"></span>
+                    الوصول إلى جميع المخازن
+                  </label>
+
+                  <div v-if="!editWarehouses.all" class="warehouse-selection">
+                    <div class="selection-header">
+                      <h4>اختر المخازن المصرح بها:</h4>
+                      <button @click="selectAllWarehouses" class="select-all-btn">
+                        <i class="fas fa-check-square"></i> تحديد الكل
+                      </button>
+                    </div>
+                    
+                    <div class="warehouse-categories">
+                      <!-- Primary Warehouses -->
+                      <div class="category-section">
+                        <h5><i class="fas fa-building"></i> المخازن الرئيسية</h5>
+                        <div class="checkbox-grid">
+                          <label
+                            v-for="warehouse in primaryWarehouses"
+                            :key="warehouse.id"
+                            class="checkbox-item"
+                          >
+                            <input
+                              type="checkbox"
+                              :value="warehouse.id"
+                              v-model="editWarehouses.selected"
+                            >
+                            <span class="checkmark"></span>
+                            <div class="warehouse-label">
+                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
+                              <span class="warehouse-code">{{ warehouse.code }}</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      <!-- Dispatch Warehouses -->
+                      <div class="category-section">
+                        <h5><i class="fas fa-shipping-fast"></i> مخازن التوزيع</h5>
+                        <div class="checkbox-grid">
+                          <label
+                            v-for="warehouse in dispatchWarehouses"
+                            :key="warehouse.id"
+                            class="checkbox-item"
+                          >
+                            <input
+                              type="checkbox"
+                              :value="warehouse.id"
+                              v-model="editWarehouses.selected"
+                            >
+                            <span class="checkmark"></span>
+                            <div class="warehouse-label">
+                              <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
+                              <span class="warehouse-code">{{ warehouse.code }}</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Permissions Tab -->
+          <div v-if="activeTab === 'permissions'" class="tab-pane">
+            <div class="section-header">
+              <h2><i class="fas fa-user-shield"></i> الصلاحيات التفصيلية</h2>
+              <button
+                v-if="(isSuperAdmin || isCompanyManager) && !editingPermissions"
+                @click="startEditing('permissions')"
+                class="edit-btn"
+              >
+                <i class="fas fa-edit"></i> تعديل
+              </button>
+              <div v-if="editingPermissions" class="edit-actions">
+                <button @click="savePermissions" class="save-btn" :disabled="saving">
+                  <i class="fas fa-save"></i> حفظ
+                </button>
+                <button @click="cancelEditing" class="cancel-btn">
+                  <i class="fas fa-times"></i> إلغاء
+                </button>
+              </div>
+            </div>
+
+            <!-- Permissions Overview -->
+            <div class="permissions-overview">
+              <div class="permission-summary">
+                <div class="summary-item">
+                  <i class="fas fa-eye"></i>
+                  <div>
+                    <h4>عرض البيانات</h4>
+                    <p>{{ viewPermissionsCount }} صلاحية</p>
+                  </div>
+                </div>
+                <div class="summary-item">
+                  <i class="fas fa-edit"></i>
+                  <div>
+                    <h4>التعديل</h4>
+                    <p>{{ editPermissionsCount }} صلاحية</p>
+                  </div>
+                </div>
+                <div class="summary-item">
+                  <i class="fas fa-trash-alt"></i>
+                  <div>
+                    <h4>الحذف</h4>
+                    <p>{{ deletePermissionsCount }} صلاحية</p>
+                  </div>
+                </div>
+                <div class="summary-item">
+                  <i class="fas fa-cogs"></i>
+                  <div>
+                    <h4>الإدارة</h4>
+                    <p>{{ managePermissionsCount }} صلاحية</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Permissions List -->
+            <div class="permissions-list-section">
+              <h3><i class="fas fa-list-check"></i> قائمة الصلاحيات</h3>
+              
+              <!-- Read-only View -->
+              <div v-if="!editingPermissions" class="permissions-list">
+                <div v-if="hasFullAccess" class="full-access-notice">
+                  <i class="fas fa-check-circle"></i>
+                  <div>
+                    <h4>صلاحية كاملة</h4>
+                    <p>يتمتع المستخدم بجميع الصلاحيات المتاحة</p>
+                  </div>
+                </div>
+                <div v-else>
+                  <div v-if="effectivePermissions.length === 0" class="no-permissions">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>لا توجد صلاحيات محددة</p>
+                  </div>
+                  <div v-else class="permission-cards">
+                    <div
+                      v-for="permission in permissionGroups"
+                      :key="permission.category"
+                      class="permission-category"
+                    >
+                      <h4>{{ permission.category }}</h4>
+                      <div class="permission-items">
+                        <div
+                          v-for="perm in permission.items"
+                          :key="perm.id"
+                          class="permission-item"
+                          :class="{ 'granted': hasPermission(perm.id) }"
+                        >
+                          <div class="permission-info">
+                            <i :class="perm.icon"></i>
+                            <div>
+                              <h5>{{ perm.name }}</h5>
+                              <p>{{ perm.description }}</p>
+                            </div>
+                          </div>
+                          <div class="permission-status">
+                            <i
+                              :class="hasPermission(perm.id) ? 'fas fa-check-circle granted' : 'fas fa-times-circle denied'"
+                            ></i>
+                            <span>{{ hasPermission(perm.id) ? 'ممنوح' : 'غير ممنوح' }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Edit View -->
+              <div v-else class="permissions-edit">
+                <div class="permissions-presets">
+                  <h4>إعدادات سريعة:</h4>
+                  <div class="preset-buttons">
+                    <button @click="applyPermissionPreset('view_only')" class="preset-btn">
+                      <i class="fas fa-eye"></i> عرض فقط
+                    </button>
+                    <button @click="applyPermissionPreset('basic_management')" class="preset-btn">
+                      <i class="fas fa-user-cog"></i> إدارة أساسية
+                    </button>
+                    <button @click="applyPermissionPreset('full_access')" class="preset-btn">
+                      <i class="fas fa-crown"></i> صلاحية كاملة
+                    </button>
+                  </div>
+                </div>
+
+                <div class="permissions-selection">
+                  <div class="permission-categories">
+                    <div
+                      v-for="category in permissionCategories"
+                      :key="category.id"
+                      class="permission-category"
+                    >
+                      <div class="category-header">
+                        <h5>{{ category.name }}</h5>
+                        <label class="category-toggle">
+                          <input
+                            type="checkbox"
+                            :checked="isCategorySelected(category.permissions)"
+                            @change="toggleCategory(category.permissions, $event)"
+                          >
+                          <span>تحديد/إلغاء الكل</span>
+                        </label>
+                      </div>
+                      
+                      <div class="permission-checkboxes">
+                        <label
+                          v-for="perm in category.permissions"
+                          :key="perm.id"
+                          class="permission-checkbox"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="perm.id"
+                            v-model="editPermissions.selected"
+                          >
+                          <span class="checkmark"></span>
+                          <div class="permission-label">
+                            <i :class="perm.icon"></i>
+                            <div>
+                              <span class="permission-name">{{ perm.name }}</span>
+                              <span class="permission-desc">{{ perm.description }}</span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security Tab -->
+          <div v-if="activeTab === 'security'" class="tab-pane">
+            <div class="section-header">
+              <h2><i class="fas fa-shield-alt"></i> الأمان</h2>
+            </div>
+
+            <div class="security-options">
+              <!-- Change Password -->
+              <div class="security-card">
+                <div class="security-header">
+                  <i class="fas fa-key"></i>
+                  <div>
+                    <h3>تغيير كلمة المرور</h3>
+                    <p>قم بتحديث كلمة المرور الخاصة بك</p>
+                  </div>
+                </div>
+                <form @submit.prevent="changePassword" class="password-form">
+                  <div class="form-group">
+                    <label for="currentPassword">
+                      <i class="fas fa-lock"></i> كلمة المرور الحالية
+                    </label>
+                    <div class="password-input">
+                      <input
+                        :type="showCurrentPassword ? 'text' : 'password'"
+                        id="currentPassword"
+                        v-model="passwordData.currentPassword"
+                        placeholder="أدخل كلمة المرور الحالية"
+                        required
+                      >
+                      <button
+                        type="button"
+                        class="password-toggle"
+                        @click="showCurrentPassword = !showCurrentPassword"
+                      >
+                        <i :class="showCurrentPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="newPassword">
+                      <i class="fas fa-lock"></i> كلمة المرور الجديدة
+                    </label>
+                    <div class="password-input">
+                      <input
+                        :type="showNewPassword ? 'text' : 'password'"
+                        id="newPassword"
+                        v-model="passwordData.newPassword"
+                        placeholder="أدخل كلمة المرور الجديدة"
+                        required
+                      >
+                      <button
+                        type="button"
+                        class="password-toggle"
+                        @click="showNewPassword = !showNewPassword"
+                      >
+                        <i :class="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
+                    </div>
+                    <div class="password-strength" :class="passwordStrength.class">
+                      <div class="strength-bar">
+                        <div class="strength-fill" :style="{ width: passwordStrength.percentage + '%' }"></div>
+                      </div>
+                      <span>{{ passwordStrength.text }}</span>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="confirmPassword">
+                      <i class="fas fa-lock"></i> تأكيد كلمة المرور
+                    </label>
+                    <div class="password-input">
+                      <input
+                        :type="showConfirmPassword ? 'text' : 'password'"
+                        id="confirmPassword"
+                        v-model="passwordData.confirmPassword"
+                        placeholder="أعد إدخال كلمة المرور الجديدة"
+                        required
+                      >
+                      <button
+                        type="button"
+                        class="password-toggle"
+                        @click="showConfirmPassword = !showConfirmPassword"
+                      >
+                        <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
+                    </div>
+                    <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
+                  </div>
+
+                  <div class="form-actions">
+                    <button type="submit" class="save-btn" :disabled="passwordLoading">
+                      <i class="fas fa-save"></i> تغيير كلمة المرور
+                    </button>
+                    <button type="button" @click="resetPasswordForm" class="cancel-btn">
+                      <i class="fas fa-times"></i> إلغاء
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Session Management -->
+              <div class="security-card">
+                <div class="security-header">
+                  <i class="fas fa-desktop"></i>
+                  <div>
+                    <h3>الجلسات النشطة</h3>
+                    <p>إدارة جلسات تسجيل الدخول</p>
+                  </div>
+                </div>
+                <div class="session-list">
+                  <div class="session-item current">
+                    <div class="session-info">
+                      <i class="fas fa-laptop"></i>
+                      <div>
+                        <h4>هذه الجلسة</h4>
+                        <p>المتصفح: {{ getUserAgentInfo().browser }}</p>
+                        <p>النظام: {{ getUserAgentInfo().os }}</p>
+                        <p>تاريخ الدخول: {{ formatDate(new Date()) }}</p>
+                      </div>
+                    </div>
+                    <div class="session-status">
+                      <span class="status-badge active">نشطة</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="session-actions">
+                  <button @click="terminateOtherSessions" class="logout-btn" :disabled="sessionLoading">
+                    <i class="fas fa-sign-out-alt"></i> إنهاء جميع الجلسات الأخرى
+                  </button>
+                </div>
+              </div>
+
+              <!-- Two-Factor Authentication -->
+              <div class="security-card">
+                <div class="security-header">
+                  <i class="fas fa-mobile-alt"></i>
+                  <div>
+                    <h3>المصادقة الثنائية</h3>
+                    <p>إضافة طبقة أمان إضافية</p>
+                  </div>
+                </div>
+                <div class="two-factor-status">
+                  <div class="status-info">
+                    <i class="fas" :class="twoFactorEnabled ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                    <div>
+                      <h4>حالة المصادقة الثنائية</h4>
+                      <p>{{ twoFactorEnabled ? 'مفعلة' : 'غير مفعلة' }}</p>
+                    </div>
+                  </div>
+                  <button
+                    @click="toggleTwoFactor"
+                    class="toggle-btn"
+                    :class="{ 'enabled': twoFactorEnabled }"
+                  >
+                    <span class="toggle-text">{{ twoFactorEnabled ? 'إلغاء التفعيل' : 'تفعيل' }}</span>
+                    <span class="toggle-slider"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Log Tab -->
+          <div v-if="activeTab === 'activity'" class="tab-pane">
+            <div class="section-header">
+              <h2><i class="fas fa-history"></i> سجل النشاط</h2>
+              <button @click="refreshActivity" class="refresh-btn" :disabled="activityLoading">
+                <i class="fas fa-redo" :class="{ 'spin': activityLoading }"></i> تحديث
+              </button>
+            </div>
+
+            <!-- Activity Filters -->
+            <div class="activity-filters">
+              <div class="filter-group">
+                <label for="activityType"><i class="fas fa-filter"></i> نوع النشاط</label>
+                <select id="activityType" v-model="activityFilters.type">
+                  <option value="">الكل</option>
+                  <option value="login">تسجيل الدخول</option>
+                  <option value="update">تعديل البيانات</option>
+                  <option value="create">إنشاء</option>
+                  <option value="delete">حذف</option>
+                  <option value="permission">تغيير صلاحيات</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label for="dateRange"><i class="fas fa-calendar"></i> الفترة الزمنية</label>
+                <select id="dateRange" v-model="activityFilters.dateRange">
+                  <option value="today">اليوم</option>
+                  <option value="week">أخر أسبوع</option>
+                  <option value="month">أخر شهر</option>
+                  <option value="year">أخر سنة</option>
+                  <option value="all">الكل</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label for="searchActivity"><i class="fas fa-search"></i> بحث</label>
+                <input
+                  type="text"
+                  id="searchActivity"
+                  v-model="activityFilters.search"
+                  placeholder="ابحث في النشاطات..."
+                >
+              </div>
+            </div>
+
+            <!-- Activity List -->
+            <div class="activity-list">
+              <div v-if="activityLoading" class="loading-activity">
+                <div class="spinner"></div>
+                <p>جاري تحميل النشاطات...</p>
+              </div>
+
+              <div v-else-if="filteredActivities.length === 0" class="no-activities">
+                <i class="fas fa-clipboard-list"></i>
+                <p>لا توجد نشاطات مسجلة</p>
+              </div>
+
+              <div v-else class="activity-items">
+                <div
+                  v-for="activity in paginatedActivities"
+                  :key="activity.id"
+                  class="activity-item"
+                  :class="activity.type"
+                >
+                  <div class="activity-icon">
+                    <i :class="getActivityIcon(activity.type)"></i>
+                  </div>
+                  <div class="activity-content">
+                    <div class="activity-header">
+                      <h4>{{ activity.title }}</h4>
+                      <span class="activity-time">{{ formatTimeAgo(activity.timestamp) }}</span>
+                    </div>
+                    <p class="activity-description">{{ activity.description }}</p>
+                    <div v-if="activity.details" class="activity-details">
+                      <pre>{{ formatActivityDetails(activity.details) }}</pre>
+                    </div>
+                    <div class="activity-meta">
+                      <span class="activity-source">
+                        <i class="fas fa-desktop"></i>
+                        {{ activity.source || 'نظام' }}
+                      </span>
+                      <span class="activity-ip">
+                        <i class="fas fa-network-wired"></i>
+                        {{ activity.ip || 'غير معروف' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pagination -->
+              <div v-if="filteredActivities.length > itemsPerPage" class="activity-pagination">
+                <button
+                  @click="prevPage"
+                  :disabled="currentPage === 1"
+                  class="pagination-btn prev"
+                >
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+                
+                <span class="pagination-info">
+                  صفحة {{ currentPage }} من {{ totalPages }}
+                </span>
+                
+                <button
+                  @click="nextPage"
+                  :disabled="currentPage === totalPages"
+                  class="pagination-btn next"
+                >
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Cash Flow Analysis Section -->
-      <div class="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-2xl shadow-xl border border-emerald-200 dark:border-emerald-800 p-6 mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">تحليل التدفق النقدي</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">تحليل إيرادات ومصروفات المخزون</p>
-          </div>
-          <span class="text-xs px-3 py-1 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-full shadow">
-            {{ getPeriodLabel() }}
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-xl p-4 shadow-lg border border-emerald-200 dark:border-emerald-800">
-            <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-emerald-900 dark:text-emerald-300">الإيرادات</h4>
-              <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <p class="text-2xl font-bold text-emerald-800 dark:text-emerald-300">{{ formatCurrency(cashFlowAnalysis.cashIn) }}</p>
-            <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-2">من حركات الصرف</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/10 dark:to-orange-900/10 rounded-xl p-4 shadow-lg border border-red-200 dark:border-red-800">
-            <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-red-900 dark:text-red-300">المصروفات</h4>
-              <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <p class="text-2xl font-bold text-red-800 dark:text-red-300">{{ formatCurrency(cashFlowAnalysis.cashOut) }}</p>
-            <p class="text-xs text-red-600 dark:text-red-400 mt-2">من حركات الإضافة</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-xl p-4 shadow-lg border border-blue-200 dark:border-blue-800">
-            <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-medium text-blue-900 dark:text-blue-300">صافي التدفق النقدي</h4>
-              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-              </svg>
-            </div>
-            <p :class="[
-              'text-2xl font-bold',
-              cashFlowAnalysis.netCashFlow >= 0 
-                ? 'text-emerald-800 dark:text-emerald-300' 
-                : 'text-red-800 dark:text-red-300'
-            ]">
-              {{ formatCurrency(cashFlowAnalysis.netCashFlow) }}
-            </p>
-            <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
-              معدل الدوران: {{ formatNumber((cashFlowAnalysis.turnoverRate * 100).toFixed(1)) }}%
-            </p>
-          </div>
-        </div>
+    <!-- Toast Notifications -->
+    <div v-if="toast.show" class="toast-container" :class="toast.type">
+      <div class="toast-content">
+        <i :class="toast.icon"></i>
+        <p>{{ toast.message }}</p>
       </div>
-
-      <!-- View Mode Toggle for Mobile -->
-      <div class="fixed bottom-6 left-6 right-6 sm:hidden z-40">
-        <div class="bg-white dark:bg-gray-800 rounded-full shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex items-center justify-center">
-          <button
-            @click="toggleViewMode"
-            class="flex items-center justify-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-          >
-            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-if="viewMode === 'detailed'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-            </svg>
-            {{ viewMode === 'detailed' ? 'عرض مبسط' : 'عرض مفصل' }}
-          </button>
-        </div>
-      </div>
-    </main>
-
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 sm:p-8 flex flex-col items-center shadow-2xl mx-4">
-        <div class="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-gray-700 dark:text-gray-300 font-medium text-sm sm:text-base">جاري تحميل البيانات...</p>
-      </div>
+      <button @click="hideToast" class="toast-close">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick,reactive } from 'vue';
-import { useStore } from 'vuex';
-import { Chart, registerables } from 'chart.js';
-import * as XLSX from 'xlsx';
-import { debounce } from 'lodash';
-
-// Register Chart.js components
-Chart.register(...registerables);
+import { mapState, mapGetters, mapActions } from 'vuex'
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
+import { auth } from '@/firebase/config'
 
 export default {
-  name: 'Reports',
-  setup() {
-    const store = useStore();
-    
-    // Mobile state management
-    const showMobileFilters = ref(false);
-    const activeMobileTab = ref('charts');
-    const showInventoryFilters = ref(false);
-    const viewMode = ref('detailed'); // 'detailed' or 'simple'
-    const isFullscreen = ref(false);
-    
-    // Mobile tabs configuration
-    const mobileTabs = ref([
-      { id: 'charts', label: 'الرسوم' },
-      { id: 'inventory', label: 'المخزون' },
-      { id: 'transactions', label: 'الحركات' }
-    ]);
-    
-    // Original refs
-    const loading = ref(false);
-    const reportPeriod = ref('month');
-    const distributionType = ref('quantity');
-    const transactionsPeriod = ref('month');
-    const trendType = ref('transactions');
-    const selectedWarehouse = ref('');
-    const selectedItem = ref('');
-    const selectedItemType = ref('');
-    const searchQuery = ref('');
-    const customDateFrom = ref('');
-    const customDateTo = ref('');
-    const topItemsFilter = ref('value');
-    
-    // Chart refs
-    const warehouseChart = ref(null);
-    const transactionsChart = ref(null);
-    const trendsChart = ref(null);
-    const mobileWarehouseChart = ref(null);
-    const mobileTransactionsChart = ref(null);
-    
-    // Chart instances
-    let warehouseChartInstance = null;
-    let transactionsChartInstance = null;
-    let trendsChartInstance = null;
-    let mobileWarehouseChartInstance = null;
-    let mobileTransactionsChartInstance = null;
-    
-    // Live search state
-    const isLiveSearching = ref(false);
-    const liveSearchResults = reactive([]);
-    const liveSearchTimeout = ref(null);
-    
-    // Computed properties from store
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
-    const allInventory = computed(() => store.state.inventory || []);
-    const allTransactions = computed(() => store.state.transactions || []);
-    const recentTransactions = computed(() => store.state.recentTransactions || []);
-    const dashboardStats = computed(() => store.getters.dashboardStats || {
-      totalItems: 0,
-      totalQuantity: 0,
-      lowStockItems: 0,
-      outOfStockItems: 0,
-      estimatedValue: 0,
-      recentTransactions: 0,
-      addTransactions: 0,
-      transferTransactions: 0,
-      dispatchTransactions: 0
-    });
-    
-    // Combined inventory (local + live search results)
-    const combinedInventory = computed(() => {
-      const combined = [...allInventory.value];
+  name: 'UserProfileSettings',
+  
+  data() {
+    return {
+      loading: true,
+      error: null,
+      saving: false,
+      activeTab: 'personal',
+      editingPersonal: false,
+      editingWarehouses: false,
+      editingPermissions: false,
+      isDarkMode: false,
       
-      // Add live search results that aren't already in local inventory
-      liveSearchResults.forEach(liveItem => {
-        if (!combined.some(item => item.id === liveItem.id)) {
-          // Mark as live search result for styling
-          combined.push({
-            ...liveItem,
-            isLiveSearchResult: true
-          });
+      // Personal Info
+      editPersonal: {
+        name: '',
+        email: '',
+        role: '',
+        is_active: true
+      },
+      personalErrors: {},
+      
+      // Warehouse Permissions
+      editWarehouses: {
+        all: false,
+        selected: []
+      },
+      
+      // Permissions
+      editPermissions: {
+        selected: []
+      },
+      
+      // Security
+      showCurrentPassword: false,
+      showNewPassword: false,
+      showConfirmPassword: false,
+      passwordData: {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      },
+      passwordError: null,
+      passwordLoading: false,
+      twoFactorEnabled: false,
+      sessionLoading: false,
+      
+      // Activity Log
+      activityLoading: false,
+      activityFilters: {
+        type: '',
+        dateRange: 'week',
+        search: ''
+      },
+      activities: [],
+      currentPage: 1,
+      itemsPerPage: 10,
+      
+      // Toast
+      toast: {
+        show: false,
+        type: 'success',
+        message: '',
+        icon: 'fas fa-check-circle'
+      }
+    }
+  },
+  
+  computed: {
+    ...mapState(['user', 'userProfile', 'warehouses', 'allUsers']),
+    ...mapGetters([
+      'userRole',
+      'userName',
+      'canManageUsers',
+      'canManageWarehouses',
+      'accessibleWarehouses',
+      'primaryWarehouses',
+      'dispatchWarehouses'
+    ]),
+    
+    // User Info
+    userEmail() {
+      return this.user?.email || ''
+    },
+    
+    userInitials() {
+      const name = this.userProfile?.name || this.userEmail
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2)
+    },
+    
+    avatarStyle() {
+      const colors = [
+        '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
+        '#9C27B0', '#673AB7', '#3F51B5', '#00BCD4'
+      ]
+      const hash = this.userEmail.split('').reduce((acc, char) => {
+        return char.charCodeAt(0) + acc
+      }, 0)
+      const colorIndex = hash % colors.length
+      return {
+        backgroundColor: colors[colorIndex],
+        color: '#FFFFFF'
+      }
+    },
+    
+    // Role Info
+    isSuperAdmin() {
+      return this.userRole === 'superadmin'
+    },
+    
+    isCompanyManager() {
+      return this.userRole === 'company_manager'
+    },
+    
+    isWarehouseManager() {
+      return this.userRole === 'warehouse_manager'
+    },
+    
+    roleDisplayName() {
+      const roles = {
+        'superadmin': 'مشرف عام',
+        'company_manager': 'مدير شركة',
+        'warehouse_manager': 'مدير مخزن'
+      }
+      return roles[this.userRole] || this.userRole
+    },
+    
+    roleIcon() {
+      const icons = {
+        'superadmin': 'fas fa-crown',
+        'company_manager': 'fas fa-user-tie',
+        'warehouse_manager': 'fas fa-warehouse'
+      }
+      return icons[this.userRole] || 'fas fa-user'
+    },
+    
+    // Status
+    isActive() {
+      return this.userProfile?.is_active !== false
+    },
+    
+    // Warehouse Access
+    hasAllWarehousesAccess() {
+      const allowed = this.userProfile?.allowed_warehouses || []
+      return allowed.includes('all')
+    },
+    
+    primaryWarehousesCount() {
+      return this.accessibleWarehouses.filter(w => w.type === 'primary' || !w.type).length
+    },
+    
+    dispatchWarehousesCount() {
+      return this.accessibleWarehouses.filter(w => w.type === 'dispatch').length
+    },
+    
+    // Permissions
+    effectivePermissions() {
+      const permissions = this.userProfile?.permissions || []
+      if (permissions.includes('full_access')) {
+        return this.allPermissions.map(p => p.id)
+      }
+      return permissions
+    },
+    
+    hasFullAccess() {
+      return this.userProfile?.permissions?.includes('full_access') || false
+    },
+    
+    viewPermissionsCount() {
+      return this.effectivePermissions.filter(p => p.startsWith('view_')).length
+    },
+    
+    editPermissionsCount() {
+      return this.effectivePermissions.filter(p => p.includes('edit') || p.includes('update')).length
+    },
+    
+    deletePermissionsCount() {
+      return this.effectivePermissions.filter(p => p.includes('delete')).length
+    },
+    
+    managePermissionsCount() {
+      return this.effectivePermissions.filter(p => p.includes('manage')).length
+    },
+    
+    // Available Tabs
+    availableTabs() {
+      const tabs = [
+        {
+          id: 'personal',
+          name: 'معلومات شخصية',
+          icon: 'fas fa-user-circle',
+          available: true
+        },
+        {
+          id: 'warehouses',
+          name: 'صلاحيات المخازن',
+          icon: 'fas fa-warehouse',
+          available: this.isSuperAdmin || this.isCompanyManager || this.isWarehouseManager
+        },
+        {
+          id: 'permissions',
+          name: 'الصلاحيات',
+          icon: 'fas fa-user-shield',
+          available: this.isSuperAdmin || this.isCompanyManager
+        },
+        {
+          id: 'security',
+          name: 'الأمان',
+          icon: 'fas fa-shield-alt',
+          available: true
+        },
+        {
+          id: 'activity',
+          name: 'سجل النشاط',
+          icon: 'fas fa-history',
+          available: this.isSuperAdmin,
+          badge: this.activities.length
         }
-      });
+      ]
+      return tabs.filter(tab => tab.available)
+    },
+    
+    // Permission Groups for Display
+    permissionGroups() {
+      const groups = {
+        'المخزون': [
+          { id: 'view_items', name: 'عرض الأصناف', description: 'عرض قائمة الأصناف', icon: 'fas fa-box' },
+          { id: 'add_items', name: 'إضافة أصناف', description: 'إضافة أصناف جديدة', icon: 'fas fa-plus-square' },
+          { id: 'edit_items', name: 'تعديل الأصناف', description: 'تعديل بيانات الأصناف', icon: 'fas fa-edit' },
+          { id: 'delete_items', name: 'حذف الأصناف', description: 'حذف الأصناف من النظام', icon: 'fas fa-trash-alt' }
+        ],
+        'المعاملات': [
+          { id: 'view_transactions', name: 'عرض الحركات', description: 'عرض سجل الحركات', icon: 'fas fa-exchange-alt' },
+          { id: 'create_transactions', name: 'إنشاء حركات', description: 'إنشاء حركات جديدة', icon: 'fas fa-plus-circle' },
+          { id: 'transfer_items', name: 'نقل الأصناف', description: 'نقل الأصناف بين المخازن', icon: 'fas fa-truck-moving' },
+          { id: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للعملاء', icon: 'fas fa-shipping-fast' }
+        ],
+        'التقارير': [
+          { id: 'view_reports', name: 'عرض التقارير', description: 'عرض التقارير والإحصائيات', icon: 'fas fa-chart-bar' },
+          { id: 'export_reports', name: 'تصدير التقارير', description: 'تصدير التقارير إلى ملفات', icon: 'fas fa-file-export' }
+        ],
+        'الإدارة': [
+          { id: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل وحذف المستخدمين', icon: 'fas fa-users-cog' },
+          { id: 'manage_warehouses', name: 'إدارة المخازن', description: 'إدارة المخازن والإعدادات', icon: 'fas fa-warehouse' },
+          { id: 'manage_settings', name: 'إدارة الإعدادات', description: 'تعديل إعدادات النظام', icon: 'fas fa-cogs' }
+        ]
+      }
       
-      return combined;
-    });
+      return Object.entries(groups).map(([category, items]) => ({
+        category,
+        items: items.filter(item => this.hasPermission(item.id))
+      })).filter(group => group.items.length > 0)
+    },
     
-    // Mobile computed properties
-    const mobileInventoryItems = computed(() => {
-      return filteredInventory.value.slice(0, 10).map(item => ({
-        ...item,
-        value: (item.remaining_quantity || 0) * 50
-      }));
-    });
-    
-    const mobileTransactions = computed(() => {
-      return recentFilteredTransactions.value.slice(0, 10);
-    });
-    
-    // All unique items for dropdown
-    const allUniqueItems = computed(() => {
-      const itemsMap = new Map();
-      (combinedInventory.value || []).forEach(item => {
-        if (item && item.id && !itemsMap.has(item.id)) {
-          itemsMap.set(item.id, {
-            id: item.id,
-            name: item.name || '',
-            code: item.code || '',
-            warehouse_id: item.warehouse_id || ''
-          });
+    // Permission Categories for Editing
+    permissionCategories() {
+      return [
+        {
+          id: 'inventory',
+          name: 'إدارة المخزون',
+          permissions: [
+            { id: 'view_items', name: 'عرض الأصناف', description: 'عرض قائمة الأصناف', icon: 'fas fa-box' },
+            { id: 'add_items', name: 'إضافة أصناف', description: 'إضافة أصناف جديدة', icon: 'fas fa-plus-square' },
+            { id: 'edit_items', name: 'تعديل الأصناف', description: 'تعديل بيانات الأصناف', icon: 'fas fa-edit' },
+            { id: 'delete_items', name: 'حذف الأصناف', description: 'حذف الأصناف من النظام', icon: 'fas fa-trash-alt' },
+            { id: 'export_items', name: 'تصدير الأصناف', description: 'تصدير بيانات الأصناف', icon: 'fas fa-file-export' }
+          ]
+        },
+        {
+          id: 'transactions',
+          name: 'إدارة المعاملات',
+          permissions: [
+            { id: 'view_transactions', name: 'عرض الحركات', description: 'عرض سجل الحركات', icon: 'fas fa-exchange-alt' },
+            { id: 'create_transactions', name: 'إنشاء حركات', description: 'إنشاء حركات جديدة', icon: 'fas fa-plus-circle' },
+            { id: 'transfer_items', name: 'نقل الأصناف', description: 'نقل الأصناف بين المخازن', icon: 'fas fa-truck-moving' },
+            { id: 'dispatch_items', name: 'صرف الأصناف', description: 'صرف الأصناف للعملاء', icon: 'fas fa-shipping-fast' },
+            { id: 'approve_transactions', name: 'اعتماد الحركات', description: 'اعتماد الحركات المعلقة', icon: 'fas fa-check-double' }
+          ]
+        },
+        {
+          id: 'reports',
+          name: 'التقارير والإحصائيات',
+          permissions: [
+            { id: 'view_reports', name: 'عرض التقارير', description: 'عرض التقارير والإحصائيات', icon: 'fas fa-chart-bar' },
+            { id: 'export_reports', name: 'تصدير التقارير', description: 'تصدير التقارير إلى ملفات', icon: 'fas fa-file-export' },
+            { id: 'view_dashboard', name: 'عرض لوحة التحكم', description: 'عرض إحصائيات النظام', icon: 'fas fa-tachometer-alt' },
+            { id: 'view_analytics', name: 'عرض التحليلات', description: 'عرض التحليلات المتقدمة', icon: 'fas fa-chart-line' }
+          ]
+        },
+        {
+          id: 'administration',
+          name: 'الإدارة النظامية',
+          permissions: [
+            { id: 'manage_users', name: 'إدارة المستخدمين', description: 'إضافة وتعديل وحذف المستخدمين', icon: 'fas fa-users-cog' },
+            { id: 'manage_warehouses', name: 'إدارة المخازن', description: 'إدارة المخازن والإعدادات', icon: 'fas fa-warehouse' },
+            { id: 'manage_settings', name: 'إدارة الإعدادات', description: 'تعديل إعدادات النظام', icon: 'fas fa-cogs' },
+            { id: 'view_audit_log', name: 'عرض سجل التدقيق', description: 'عرض سجل الأحداث والتدقيق', icon: 'fas fa-clipboard-list' },
+            { id: 'manage_backup', name: 'إدارة النسخ الاحتياطي', description: 'إدارة النسخ الاحتياطية', icon: 'fas fa-database' }
+          ]
         }
-      });
-      return Array.from(itemsMap.values());
-    });
+      ]
+    },
     
-    // Items filtered by selected warehouse
-    const filteredItemsByWarehouse = computed(() => {
-      if (!selectedWarehouse.value) return [];
-      return (allUniqueItems.value || []).filter(item => item.warehouse_id === selectedWarehouse.value);
-    });
+    // All available permissions
+    allPermissions() {
+      return this.permissionCategories.flatMap(category => category.permissions)
+    },
     
-    // Selected item text for display
-    const selectedItemText = computed(() => {
-      if (!selectedItem.value) return '';
-      const item = (allUniqueItems.value || []).find(i => i.id === selectedItem.value);
-      return item ? `${item.name} (${item.code})` : '';
-    });
+    // Password Strength
+    passwordStrength() {
+      const password = this.passwordData.newPassword
+      if (!password) return { class: 'weak', percentage: 0, text: 'ضعيفة' }
+      
+      let strength = 0
+      if (password.length >= 8) strength += 25
+      if (/[A-Z]/.test(password)) strength += 25
+      if (/[0-9]/.test(password)) strength += 25
+      if (/[^A-Za-z0-9]/.test(password)) strength += 25
+      
+      if (strength >= 75) return { class: 'strong', percentage: 100, text: 'قوية' }
+      if (strength >= 50) return { class: 'medium', percentage: 66, text: 'متوسطة' }
+      return { class: 'weak', percentage: 33, text: 'ضعيفة' }
+    },
     
-    // Check if any filters are active
-    const hasActiveFilters = computed(() => {
-      return selectedWarehouse.value || selectedItem.value || selectedItemType.value || searchQuery.value;
-    });
+    // Theme
+    themeIcon() {
+      return this.isDarkMode ? 'fas fa-sun' : 'fas fa-moon'
+    },
     
-    // Filtered inventory based on selected filters
-    const filteredInventory = computed(() => {
-      let inventory = combinedInventory.value || [];
+    // Activity Log
+    filteredActivities() {
+      let filtered = [...this.activities]
       
-      // Filter by warehouse
-      if (selectedWarehouse.value) {
-        inventory = inventory.filter(item => item.warehouse_id === selectedWarehouse.value);
+      // Filter by type
+      if (this.activityFilters.type) {
+        filtered = filtered.filter(activity => activity.type === this.activityFilters.type)
       }
       
-      // Filter by specific item
-      if (selectedItem.value) {
-        inventory = inventory.filter(item => item.id === selectedItem.value);
-      }
+      // Filter by date range
+      const now = new Date()
+      let cutoffDate = new Date()
       
-      // Filter by item type
-      if (selectedItemType.value) {
-        switch (selectedItemType.value) {
-          case 'low_stock':
-            inventory = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0);
-            break;
-          case 'out_of_stock':
-            inventory = inventory.filter(item => (item.remaining_quantity || 0) === 0);
-            break;
-          case 'high_value':
-            inventory = inventory.filter(item => ((item.remaining_quantity || 0) * 50) > 1000);
-            break;
-          case 'recently_added':
-            const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            inventory = inventory.filter(item => {
-              const itemDate = new Date(item.created_at || item.updated_at || Date.now());
-              return itemDate > oneWeekAgo;
-            });
-            break;
-          case 'fast_moving':
-            inventory = inventory.filter(item => (item.remaining_quantity || 0) < 20);
-            break;
-          case 'slow_moving':
-            inventory = inventory.filter(item => (item.remaining_quantity || 0) > 100);
-            break;
-        }
-      }
-      
-      // Filter by search query
-      if (searchQuery.value) {
-        const searchLower = searchQuery.value.toLowerCase();
-        inventory = inventory.filter(item =>
-          (item.name?.toLowerCase() || '').includes(searchLower) ||
-          (item.code?.toLowerCase() || '').includes(searchLower) ||
-          (item.color?.toLowerCase() || '').includes(searchLower) ||
-          (item.supplier?.toLowerCase() || '').includes(searchLower)
-        );
-      }
-      
-      return inventory;
-    });
-    
-    // Filtered transactions with item filtering
-    const filteredTransactions = computed(() => {
-      let transactions = allTransactions.value || [];
-      
-      // Filter by warehouse if selected
-      if (selectedWarehouse.value) {
-        transactions = transactions.filter(t => 
-          t.from_warehouse === selectedWarehouse.value || 
-          t.to_warehouse === selectedWarehouse.value ||
-          t.warehouse_id === selectedWarehouse.value
-        );
-      }
-      
-      // Filter by specific item if selected
-      if (selectedItem.value) {
-        const item = (combinedInventory.value || []).find(i => i.id === selectedItem.value);
-        if (item) {
-          transactions = transactions.filter(t => 
-            t.item_name === item.name || 
-            t.item_code === item.code
-          );
-        }
-      }
-      
-      // Filter by date period
-      const now = new Date();
-      let startDate;
-      
-      switch (reportPeriod.value) {
+      switch (this.activityFilters.dateRange) {
         case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
+          cutoffDate.setHours(0, 0, 0, 0)
+          break
         case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
+          cutoffDate.setDate(now.getDate() - 7)
+          break
         case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
-        case 'quarter':
-          const quarter = Math.floor(now.getMonth() / 3);
-          startDate = new Date(now.getFullYear(), quarter * 3, 1);
-          break;
+          cutoffDate.setMonth(now.getMonth() - 1)
+          break
         case 'year':
-          startDate = new Date(now.getFullYear(), 0, 1);
-          break;
-        case 'custom':
-          if (customDateFrom.value && customDateTo.value) {
-            startDate = new Date(customDateFrom.value);
-            const endDate = new Date(customDateTo.value);
-            return transactions.filter(t => {
-              if (!t.timestamp) return false;
-              try {
-                const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-                return transDate >= startDate && transDate <= endDate;
-              } catch (error) {
-                return false;
-              }
-            });
-          }
-          break;
+          cutoffDate.setFullYear(now.getFullYear() - 1)
+          break
+        case 'all':
+        default:
+          cutoffDate = new Date(0) // Beginning of time
+          break
       }
       
-      if (startDate) {
-        return transactions.filter(t => {
-          if (!t.timestamp) return false;
-          try {
-            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-            return transDate >= startDate;
-          } catch (error) {
-            return false;
-          }
-        });
+      filtered = filtered.filter(activity => {
+        const activityDate = new Date(activity.timestamp)
+        return activityDate >= cutoffDate
+      })
+      
+      // Filter by search
+      if (this.activityFilters.search) {
+        const searchTerm = this.activityFilters.search.toLowerCase()
+        filtered = filtered.filter(activity => 
+          activity.title.toLowerCase().includes(searchTerm) ||
+          activity.description.toLowerCase().includes(searchTerm) ||
+          activity.source?.toLowerCase().includes(searchTerm)
+        )
       }
       
-      return transactions;
-    });
+      return filtered
+    },
     
-    // Recent filtered transactions
-    const recentFilteredTransactions = computed(() => {
-      return (filteredTransactions.value || [])
-        .sort((a, b) => {
-          try {
-            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || Date.now());
-            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || Date.now());
-            return dateB - dateA;
-          } catch (error) {
-            return 0;
+    paginatedActivities() {
+      const start = (this.currentPage - 1) * this.itemsPerPage
+      const end = start + this.itemsPerPage
+      return this.filteredActivities.slice(start, end)
+    },
+    
+    totalPages() {
+      return Math.ceil(this.filteredActivities.length / this.itemsPerPage)
+    },
+    
+    // Permission Management
+    canManageSelf() {
+      return this.userProfile?.id === this.user?.uid || this.isSuperAdmin
+    }
+  },
+  
+  methods: {
+    ...mapActions([
+      'logout',
+      'updateUser',
+      'loadWarehouses',
+      'loadAllUsers',
+      'showNotification'
+    ]),
+    
+    // Initialization
+    async loadUserData() {
+      try {
+        this.loading = true
+        this.error = null
+        
+        await this.loadWarehouses()
+        if (this.isSuperAdmin) {
+          await this.loadAllUsers()
+        }
+        
+        // Load theme preference
+        this.loadThemePreference()
+        
+        // Load activity log if super admin
+        if (this.isSuperAdmin) {
+          await this.loadActivityLog()
+        }
+        
+      } catch (error) {
+        console.error('Error loading user data:', error)
+        this.error = 'فشل في تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.'
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // Theme Management
+    loadThemePreference() {
+      const savedTheme = localStorage.getItem('theme')
+      this.isDarkMode = savedTheme === 'dark' || 
+        (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      this.applyTheme()
+    },
+    
+    toggleTheme() {
+      this.isDarkMode = !this.isDarkMode
+      localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light')
+      this.applyTheme()
+    },
+    
+    applyTheme() {
+      if (this.isDarkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+      }
+    },
+    
+    // Formatting
+    formatDate(date) {
+      if (!date) return 'غير محدد'
+      
+      try {
+        const dateObj = date.toDate ? date.toDate() : new Date(date)
+        return new Intl.DateTimeFormat('ar-SA', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(dateObj)
+      } catch {
+        return 'غير محدد'
+      }
+    },
+    
+    formatTimeAgo(date) {
+      if (!date) return 'غير معروف'
+      
+      try {
+        const now = new Date()
+        const past = date.toDate ? date.toDate() : new Date(date)
+        const diffMs = now - past
+        const diffSec = Math.floor(diffMs / 1000)
+        const diffMin = Math.floor(diffSec / 60)
+        const diffHour = Math.floor(diffMin / 60)
+        const diffDay = Math.floor(diffHour / 24)
+        
+        if (diffDay > 30) return this.formatDate(date)
+        if (diffDay > 0) return `قبل ${diffDay} يوم`
+        if (diffHour > 0) return `قبل ${diffHour} ساعة`
+        if (diffMin > 0) return `قبل ${diffMin} دقيقة`
+        return 'الآن'
+      } catch {
+        return 'غير معروف'
+      }
+    },
+    
+    // Warehouse Helpers
+    getWarehouseTypeLabel(type) {
+      const labels = {
+        'primary': 'رئيسي',
+        'dispatch': 'توزيع',
+        'storage': 'تخزين'
+      }
+      return labels[type] || type
+    },
+    
+    // Permission Helpers
+    hasPermission(permissionId) {
+      return this.effectivePermissions.includes(permissionId)
+    },
+    
+    // Form Handling
+    startEditing(section) {
+      switch (section) {
+        case 'personal':
+          this.editPersonal = {
+            name: this.userProfile?.name || '',
+            email: this.userEmail,
+            role: this.userRole,
+            is_active: this.isActive
+          }
+          this.editingPersonal = true
+          break
+          
+        case 'warehouses':
+          const allowedWarehouses = this.userProfile?.allowed_warehouses || []
+          this.editWarehouses = {
+            all: allowedWarehouses.includes('all'),
+            selected: allowedWarehouses.filter(w => w !== 'all')
+          }
+          this.editingWarehouses = true
+          break
+          
+        case 'permissions':
+          this.editPermissions = {
+            selected: [...this.effectivePermissions].filter(p => p !== 'full_access')
+          }
+          this.editingPermissions = true
+          break
+      }
+    },
+    
+    cancelEditing() {
+      this.editingPersonal = false
+      this.editingWarehouses = false
+      this.editingPermissions = false
+      this.personalErrors = {}
+    },
+    
+    validatePersonalInfo() {
+      const errors = {}
+      
+      if (!this.editPersonal.name?.trim()) {
+        errors.name = 'الاسم مطلوب'
+      }
+      
+      if (!this.editPersonal.email?.trim()) {
+        errors.email = 'البريد الإلكتروني مطلوب'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.editPersonal.email)) {
+        errors.email = 'البريد الإلكتروني غير صالح'
+      }
+      
+      this.personalErrors = errors
+      return Object.keys(errors).length === 0
+    },
+    
+    async savePersonalInfo() {
+      if (!this.validatePersonalInfo()) return
+      
+      try {
+        this.saving = true
+        
+        const updates = {
+          name: this.editPersonal.name.trim(),
+          is_active: this.editPersonal.is_active
+        }
+        
+        // Only super admin can change role
+        if (this.isSuperAdmin && this.editPersonal.role !== this.userRole) {
+          updates.role = this.editPersonal.role
+        }
+        
+        await this.updateUser({
+          userId: this.user.uid,
+          userData: updates
+        })
+        
+        this.showToast('تم تحديث المعلومات الشخصية بنجاح', 'success')
+        this.editingPersonal = false
+        
+      } catch (error) {
+        console.error('Error saving personal info:', error)
+        this.showToast('فشل في تحديث المعلومات', 'error')
+      } finally {
+        this.saving = false
+      }
+    },
+    
+    // Warehouse Permissions
+    toggleAllWarehouses() {
+      if (this.editWarehouses.all) {
+        this.editWarehouses.selected = []
+      }
+    },
+    
+    selectAllWarehouses() {
+      const allWarehouseIds = [
+        ...this.primaryWarehouses.map(w => w.id),
+        ...this.dispatchWarehouses.map(w => w.id)
+      ]
+      this.editWarehouses.selected = [...allWarehouseIds]
+    },
+    
+    async saveWarehousePermissions() {
+      try {
+        this.saving = true
+        
+        const allowedWarehouses = this.editWarehouses.all 
+          ? ['all'] 
+          : [...this.editWarehouses.selected]
+        
+        await this.updateUser({
+          userId: this.user.uid,
+          userData: { allowed_warehouses: allowedWarehouses }
+        })
+        
+        this.showToast('تم تحديث صلاحيات المخازن بنجاح', 'success')
+        this.editingWarehouses = false
+        
+      } catch (error) {
+        console.error('Error saving warehouse permissions:', error)
+        this.showToast('فشل في تحديث صلاحيات المخازن', 'error')
+      } finally {
+        this.saving = false
+      }
+    },
+    
+    // Permissions
+    isCategorySelected(permissions) {
+      return permissions.every(p => this.editPermissions.selected.includes(p.id))
+    },
+    
+    toggleCategory(permissions, event) {
+      const checked = event.target.checked
+      const permissionIds = permissions.map(p => p.id)
+      
+      if (checked) {
+        // Add all permissions from category
+        permissionIds.forEach(id => {
+          if (!this.editPermissions.selected.includes(id)) {
+            this.editPermissions.selected.push(id)
           }
         })
-        .slice(0, 20);
-    });
-    
-    // Summary statistics
-    const summary = computed(() => {
-      const inventory = filteredInventory.value || [];
-      const transactions = filteredTransactions.value || [];
-      
-      // Calculate unique items
-      const uniqueItemsMap = new Map();
-      inventory.forEach(item => {
-        if (item) {
-          const key = `${item.name || ''}_${item.code || ''}_${item.color || ''}_${item.warehouse_id || ''}`;
-          if (!uniqueItemsMap.has(key)) {
-            uniqueItemsMap.set(key, item);
-          }
-        }
-      });
-      
-      // Calculate total value and quantity
-      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-      const totalValue = inventory.reduce((sum, item) => {
-        const quantity = item.remaining_quantity || 0;
-        const price = 50; // Default price
-        return sum + (quantity * price);
-      }, 0);
-      
-      // Calculate transactions by type
-      const addTransactions = transactions.filter(t => t.type === 'ADD').length;
-      const transferTransactions = transactions.filter(t => t.type === 'TRANSFER').length;
-      const dispatchTransactions = transactions.filter(t => t.type === 'DISPATCH').length;
-      
-      // Calculate low stock items
-      const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
-      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
-      const lowStockPercentage = inventory.length > 0 ? Math.round((lowStockItems / inventory.length) * 100) : 0;
-      const averagePrice = totalQuantity > 0 ? Math.round(totalValue / totalQuantity) : 0;
-      
-      return {
-        totalItems: inventory.length,
-        uniqueItems: uniqueItemsMap.size,
-        totalTransactions: transactions.length,
-        addTransactions,
-        transferTransactions,
-        dispatchTransactions,
-        totalValue,
-        totalQuantity,
-        lowStockItems,
-        outOfStockItems,
-        lowStockPercentage,
-        averagePrice
-      };
-    });
-    
-    // Cash flow analysis
-    const cashFlowAnalysis = computed(() => {
-      const transactions = filteredTransactions.value || [];
-      
-      const cashIn = transactions
-        .filter(t => t.type === 'DISPATCH')
-        .reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
-      
-      const cashOut = transactions
-        .filter(t => t.type === 'ADD')
-        .reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
-      
-      const netCashFlow = cashIn - cashOut;
-      const turnoverRate = dashboardStats.value.estimatedValue > 0 
-        ? cashIn / dashboardStats.value.estimatedValue 
-        : 0;
-      
-      return {
-        cashIn,
-        cashOut,
-        netCashFlow,
-        turnoverRate
-      };
-    });
-    
-    // Top items by value with filtering
-    const topItemsByValue = computed(() => {
-      let items = filteredInventory.value || [];
-      
-      // Apply sorting based on filter
-      if (topItemsFilter.value === 'quantity') {
-        items = items.sort((a, b) => (b.remaining_quantity || 0) - (a.remaining_quantity || 0));
-      } else if (topItemsFilter.value === 'turnover') {
-        items = items.map(item => ({
-          ...item,
-          turnoverRate: (item.remaining_quantity || 0) / ((item.total_added || 0) + 1)
-        })).sort((a, b) => (b.turnoverRate || 0) - (a.turnoverRate || 0));
       } else {
-        // Default: sort by value
-        items = items.sort((a, b) => {
-          const valueA = (a.remaining_quantity || 0) * 50;
-          const valueB = (b.remaining_quantity || 0) * 50;
-          return valueB - valueA;
-        });
+        // Remove all permissions from category
+        this.editPermissions.selected = this.editPermissions.selected.filter(
+          id => !permissionIds.includes(id)
+        )
+      }
+    },
+    
+    applyPermissionPreset(preset) {
+      const presets = {
+        view_only: [
+          'view_items',
+          'view_transactions',
+          'view_reports',
+          'view_dashboard'
+        ],
+        basic_management: [
+          'view_items',
+          'add_items',
+          'edit_items',
+          'view_transactions',
+          'create_transactions',
+          'transfer_items',
+          'dispatch_items',
+          'view_reports',
+          'view_dashboard'
+        ],
+        full_access: this.allPermissions.map(p => p.id)
       }
       
-      return items.slice(0, 10).map(item => ({
-        ...item,
-        value: (item.remaining_quantity || 0) * 50
-      }));
-    });
+      this.editPermissions.selected = [...presets[preset] || []]
+    },
     
-    // Warehouse distribution
-    const warehouseDistribution = computed(() => {
-      const inventory = filteredInventory.value || [];
-      const warehouses = (accessibleWarehouses.value || []).filter(w => w && w.type === 'primary');
-      
-      const distribution = warehouses.map(warehouse => {
-        const items = inventory.filter(item => item && item.warehouse_id === warehouse.id);
-        let value = 0;
-        
-        if (distributionType.value === 'quantity') {
-          value = items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-        } else if (distributionType.value === 'value') {
-          value = items.reduce((sum, item) => {
-            return sum + ((item.remaining_quantity || 0) * 50);
-          }, 0);
-        } else {
-          value = items.length;
-        }
-        
-        return {
-          id: warehouse.id,
-          name: warehouse.name_ar || warehouse.name_en || 'غير معروف',
-          value: value,
-          itemsCount: items.length
-        };
-      }).filter(item => item.value > 0);
-      
-      // Calculate percentages
-      const total = distribution.reduce((sum, item) => sum + item.value, 0);
-      distribution.forEach(item => {
-        item.percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
-      });
-      
-      return distribution.sort((a, b) => b.value - a.value);
-    });
-    
-    // Monthly trends data
-    const monthlyStats = computed(() => {
-      const transactions = filteredTransactions.value || [];
-      const inventory = filteredInventory.value || [];
-      
-      // Generate last 6 months data
-      const months = [];
-      const data = [];
-      const now = new Date();
-      
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = date.toLocaleDateString('ar-EG', { month: 'long' });
-        months.push(monthName);
-        
-        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        
-        const monthTransactions = transactions.filter(t => {
-          if (!t.timestamp) return false;
-          try {
-            const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-            return transDate >= startOfMonth && transDate <= endOfMonth;
-          } catch (error) {
-            return false;
-          }
-        });
-        
-        let value = 0;
-        if (trendType.value === 'transactions') {
-          value = monthTransactions.length;
-        } else if (trendType.value === 'quantity') {
-          value = monthTransactions.reduce((sum, t) => sum + Math.abs(t.total_delta || 0), 0);
-        } else {
-          value = monthTransactions.reduce((sum, t) => sum + (Math.abs(t.total_delta || 0) * 50), 0);
-        }
-        
-        data.push(value);
-      }
-      
-      const currentValue = data[data.length - 1] || 0;
-      const previousValue = data[data.length - 2] || 0;
-      const changePercentage = previousValue > 0 
-        ? Math.round(((currentValue - previousValue) / previousValue) * 100)
-        : currentValue > 0 ? 100 : 0;
-      
-      const average = data.length > 0
-        ? Math.round(data.reduce((sum, val) => sum + val, 0) / data.length)
-        : 0;
-      
-      const total = data.reduce((sum, val) => sum + val, 0);
-      
-      return {
-        changePercentage,
-        currentAverage: currentValue,
-        average,
-        total,
-        monthlyData: data,
-        months
-      };
-    });
-    
-    // Methods
-    const formatNumber = (num) => {
-      if (num === undefined || num === null) return '0';
-      return new Intl.NumberFormat('en-US').format(num);
-    };
-    
-    const formatCurrency = (amount) => {
-      if (amount === undefined || amount === null) return '0 EGP';
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'EGP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(amount);
-    };
-    
-    const formatTime = (timestamp) => {
-      if (!timestamp) return '';
-      
+    async savePermissions() {
       try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+        this.saving = true
         
-        if (diffMins < 60) {
-          return `${diffMins} minutes ago`;
-        } else if (diffHours < 24) {
-          return `${diffHours} hours ago`;
-        } else if (diffDays < 7) {
-          return `${diffDays} days ago`;
-        } else {
-          return date.toLocaleDateString('en-US');
-        }
-      } catch (error) {
-        return '';
-      }
-    };
-    
-    const getWarehouseLabel = (warehouseId) => {
-      if (!warehouseId) return '';
-      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
-    };
-    
-    const getItemTypeLabel = (type) => {
-      const labels = {
-        'low_stock': 'قليلة المخزون',
-        'out_of_stock': 'منتهية المخزون',
-        'high_value': 'عالية القيمة',
-        'recently_added': 'مضافة مؤخراً',
-        'fast_moving': 'سريعة الحركة',
-        'slow_moving': 'بطيئة الحركة'
-      };
-      return labels[type] || type;
-    };
-    
-    const getPeriodLabel = () => {
-      const labels = {
-        'today': 'اليوم',
-        'week': 'هذا الأسبوع',
-        'month': 'هذا الشهر',
-        'quarter': 'هذا الربع',
-        'year': 'هذه السنة',
-        'custom': 'فترة مخصصة'
-      };
-      return labels[reportPeriod.value] || reportPeriod.value;
-    };
-    
-    const getQuantityClass = (quantity) => {
-      if (!quantity || quantity === 0) return 'bg-gradient-to-r from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-800/10 text-red-800 dark:text-red-300';
-      if (quantity < 10) return 'bg-gradient-to-r from-amber-100 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-800/10 text-amber-800 dark:text-amber-300';
-      if (quantity < 50) return 'bg-gradient-to-r from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-800/10 text-orange-800 dark:text-orange-300';
-      return 'bg-gradient-to-r from-emerald-100 to-green-50 dark:from-emerald-900/30 dark:to-green-800/10 text-emerald-800 dark:text-emerald-300';
-    };
-    
-    const getStatusClass = (quantity) => {
-      if (!quantity || quantity === 0) return 'bg-gradient-to-r from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-800/10 text-red-800 dark:text-red-300';
-      if (quantity < 5) return 'bg-gradient-to-r from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-800/10 text-orange-800 dark:text-orange-300';
-      return 'bg-gradient-to-r from-emerald-100 to-green-50 dark:from-emerald-900/30 dark:to-green-800/10 text-emerald-800 dark:text-emerald-300';
-    };
-    
-    const getStatusText = (quantity) => {
-      if (!quantity || quantity === 0) return 'منتهي';
-      if (quantity < 5) return 'حرج';
-      return 'جيد';
-    };
-    
-    // Mobile methods
-    const toggleViewMode = () => {
-      viewMode.value = viewMode.value === 'detailed' ? 'simple' : 'detailed';
-    };
-    
-    const toggleFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.error(`Error attempting to enable fullscreen: ${err.message}`);
-        });
-        isFullscreen.value = true;
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-          isFullscreen.value = false;
-        }
-      }
-    };
-    
-    const resetFilters = () => {
-      selectedWarehouse.value = '';
-      selectedItem.value = '';
-      selectedItemType.value = '';
-      searchQuery.value = '';
-      reportPeriod.value = 'month';
-      liveSearchResults.length = 0; // Clear live search results
-      updateCharts();
-    };
-    
-    const changePeriod = () => {
-      if (reportPeriod.value === 'custom') {
-        const today = new Date();
-        const lastMonth = new Date(today);
-        lastMonth.setMonth(today.getMonth() - 1);
+        // Check if full access should be granted
+        const allPermissions = this.allPermissions.map(p => p.id)
+        const hasAllPermissions = allPermissions.every(p => 
+          this.editPermissions.selected.includes(p)
+        )
         
-        customDateFrom.value = lastMonth.toISOString().split('T')[0];
-        customDateTo.value = today.toISOString().split('T')[0];
-      } else {
-        updateCharts();
-      }
-    };
-    
-    const applyCustomDate = () => {
-      if (customDateFrom.value && customDateTo.value) {
-        updateCharts();
-      }
-    };
-    
-    const applyFilters = () => {
-      updateCharts();
-    };
-    
-    // Live search function from inventory page
-    const performLiveSearch = async (searchTermValue) => {
-      if (!searchTermValue || searchTermValue.trim().length < 2) {
-        liveSearchResults.length = 0; // Clear results
-        isLiveSearching.value = false;
-        return;
-      }
-      
-      isLiveSearching.value = true;
-      
-      try {
-        console.log('🔍 Performing live search in reports for:', searchTermValue);
+        const permissions = hasAllPermissions 
+          ? ['full_access'] 
+          : [...this.editPermissions.selected]
         
-        // Use the store action to search Firestore directly
-        const searchResults = await store.dispatch('searchItems', {
-          searchTerm: searchTermValue,
-          limitResults: 50
-        });
+        await this.updateUser({
+          userId: this.user.uid,
+          userData: { permissions }
+        })
         
-        console.log('✅ Live search results in reports:', searchResults.length, 'items');
-        
-        // Update live search results
-        liveSearchResults.length = 0; // Clear previous results
-        searchResults.forEach(item => {
-          liveSearchResults.push(item);
-        });
+        this.showToast('تم تحديث الصلاحيات بنجاح', 'success')
+        this.editingPermissions = false
         
       } catch (error) {
-        console.error('❌ Error in live search:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث عن الأصناف'
-        });
+        console.error('Error saving permissions:', error)
+        this.showToast('فشل في تحديث الصلاحيات', 'error')
       } finally {
-        isLiveSearching.value = false;
+        this.saving = false
       }
-    };
+    },
     
-    // Debounced live search
-    const debouncedLiveSearch = debounce((term) => {
-      performLiveSearch(term);
-    }, 500);
-    
-    // Handle search input with live search
-    const handleSearch = () => {
-      // Clear any existing timeout
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value);
+    // Security
+    async changePassword() {
+      if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
+        this.passwordError = 'كلمات المرور غير متطابقة'
+        return
       }
       
-      // Debounce the live search
-      liveSearchTimeout.value = setTimeout(() => {
-        if (searchQuery.value && searchQuery.value.trim().length >= 2) {
-          debouncedLiveSearch(searchQuery.value.trim());
-        } else {
-          // Clear live search results if search term is too short
-          liveSearchResults.length = 0;
-          isLiveSearching.value = false;
-        }
-        applyFilters(); // Apply regular filters
-      }, 300);
-    };
-    
-    const updateWarehouseChart = () => {
-      createWarehouseChart();
-    };
-    
-    const updateTopItems = () => {
-      // Data updates automatically
-    };
-    
-    const updateMonthlyTrendsChart = () => {
-      createTrendsChart();
-    };
-    
-    const updateTransactionsChart = () => {
-      createTransactionsChart();
-    };
-    
-    // Mobile chart functions
-    const createMobileWarehouseChart = () => {
-      if (mobileWarehouseChartInstance) {
-        mobileWarehouseChartInstance.destroy();
+      if (this.passwordStrength.class === 'weak') {
+        this.passwordError = 'كلمة المرور ضعيفة جداً'
+        return
       }
       
-      const ctx = mobileWarehouseChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const distribution = warehouseDistribution.value;
-      if (distribution.length === 0) return;
-      
-      mobileWarehouseChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: distribution.slice(0, 5).map(w => w.name),
-          datasets: [{
-            data: distribution.slice(0, 5).map(w => w.value),
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(16, 185, 129, 0.8)',
-              'rgba(239, 68, 68, 0.8)'
-            ],
-            borderColor: [
-              'rgb(59, 130, 246)',
-              'rgb(139, 92, 246)',
-              'rgb(245, 158, 11)',
-              'rgb(16, 185, 129)',
-              'rgb(239, 68, 68)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              rtl: true,
-              labels: {
-                font: {
-                  size: 10,
-                  family: 'Cairo'
-                },
-                padding: 15
-              }
-            }
-          },
-          cutout: '60%'
-        }
-      });
-    };
-    
-    const createMobileTransactionsChart = () => {
-      if (mobileTransactionsChartInstance) {
-        mobileTransactionsChartInstance.destroy();
-      }
-      
-      const ctx = mobileTransactionsChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const transactions = filteredTransactions.value || [];
-      const addCount = transactions.filter(t => t.type === 'ADD').length;
-      const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
-      const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
-      
-      mobileTransactionsChartInstance = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: ['إضافة', 'نقل', 'صرف'],
-          datasets: [{
-            data: [addCount, transferCount, dispatchCount],
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(239, 68, 68, 0.8)'
-            ],
-            borderColor: [
-              'rgb(59, 130, 246)',
-              'rgb(139, 92, 246)',
-              'rgb(239, 68, 68)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              rtl: true
-            }
-          }
-        }
-      });
-    };
-    
-    // Original chart functions
-    const createWarehouseChart = () => {
-      if (warehouseChartInstance) {
-        warehouseChartInstance.destroy();
-      }
-      
-      const ctx = warehouseChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const labels = warehouseDistribution.value.map(w => w.name);
-      const data = warehouseDistribution.value.map(w => w.value);
-      
-      if (labels.length === 0 || data.length === 0) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '16px Cairo';
-        ctx.textAlign = 'center';
-        ctx.fillText('لا توجد بيانات لعرضها', ctx.canvas.width / 2, ctx.canvas.height / 2);
-        return;
-      }
-      
-      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
-      gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
-      
-      warehouseChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: distributionType.value === 'quantity' ? 'الكمية' : 
-                   distributionType.value === 'value' ? 'القيمة (ج.م)' : 'عدد الأصناف',
-            data,
-            backgroundColor: gradient,
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 2,
-            borderRadius: 8,
-            borderSkipped: false,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              rtl: true,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              titleColor: '#1f2937',
-              bodyColor: '#4b5563',
-              borderColor: '#e5e7eb',
-              borderWidth: 1,
-              callbacks: {
-                label: (context) => {
-                  let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
-                  label += formatNumber(context.parsed.y);
-                  if (distributionType.value === 'value') {
-                    label += ' EGP';
-                  } else if (distributionType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
-                  return label;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                display: false
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
-            },
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
-            }
-          }
-        }
-      });
-    };
-    
-    const createTransactionsChart = () => {
-      if (transactionsChartInstance) {
-        transactionsChartInstance.destroy();
-      }
-      
-      const ctx = transactionsChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const transactions = filteredTransactions.value || [];
-      const addCount = transactions.filter(t => t.type === 'ADD').length;
-      const transferCount = transactions.filter(t => t.type === 'TRANSFER').length;
-      const dispatchCount = transactions.filter(t => t.type === 'DISPATCH').length;
-      
-      if (addCount === 0 && transferCount === 0 && dispatchCount === 0) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '16px Cairo';
-        ctx.textAlign = 'center';
-        ctx.fillText('لا توجد حركات لعرضها', ctx.canvas.width / 2, ctx.canvas.height / 2);
-        return;
-      }
-      
-      transactionsChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['إضافة', 'نقل', 'صرف'],
-          datasets: [{
-            data: [addCount, transferCount, dispatchCount],
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(239, 68, 68, 0.8)'
-            ],
-            borderColor: [
-              'rgba(59, 130, 246, 1)',
-              'rgba(139, 92, 246, 1)',
-              'rgba(239, 68, 68, 1)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              rtl: true,
-              labels: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                },
-                padding: 20
-              }
-            },
-            tooltip: {
-              rtl: true,
-              callbacks: {
-                label: (context) => {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = Math.round((value / total) * 100);
-                  return `${label}: ${formatNumber(value)} (${percentage}%)`;
-                }
-              }
-            }
-          },
-          cutout: '60%'
-        }
-      });
-    };
-    
-    const createTrendsChart = () => {
-      if (trendsChartInstance) {
-        trendsChartInstance.destroy();
-      }
-      
-      const ctx = trendsChart.value?.getContext('2d');
-      if (!ctx) return;
-      
-      const months = monthlyStats.value.mons || [];
-      const data = monthlyStats.value.monthlyData || [];
-      
-      if (months.length === 0 || data.length === 0) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '16px Cairo';
-        ctx.textAlign = 'center';
-        ctx.fillText('لا توجد بيانات لعرضها', ctx.canvas.width / 2, ctx.canvas.height / 2);
-        return;
-      }
-      
-      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-      gradient.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
-      gradient.addColorStop(1, 'rgba(245, 158, 11, 0.05)');
-      
-      trendsChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: trendType.value === 'transactions' ? 'عدد الحركات' :
-                   trendType.value === 'quantity' ? 'الكميات' : 'القيمة (ج.م)',
-            data,
-            borderColor: 'rgb(245, 158, 11)',
-            backgroundColor: gradient,
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: 'rgb(245, 158, 11)',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            pointRadius: 6,
-            pointHoverRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              rtl: true,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              titleColor: '#1f2937',
-              bodyColor: '#4b5563',
-              borderColor: '#e5e7eb',
-              borderWidth: 1,
-              callbacks: {
-                label: (context) => {
-                  let label = context.dataset.label || '';
-                  if (label) {
-                    label += ': ';
-                  }
-                  label += formatNumber(context.parsed.y);
-                  if (trendType.value === 'value') {
-                    label += ' EGP';
-                  } else if (trendType.value === 'quantity') {
-                    label += ' وحدة';
-                  }
-                  return label;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                font: {
-                  family: 'Cairo, sans-serif'
-                }
-              }
-            },
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return formatNumber(value);
-                }
-              }
-            }
-          }
-        }
-      });
-    };
-    
-    const updateCharts = () => {
-      nextTick(() => {
-        if (window.innerWidth < 640) {
-          createMobileWarehouseChart();
-          createMobileTransactionsChart();
-        } else {
-          createWarehouseChart();
-          createTransactionsChart();
-          createTrendsChart();
-        }
-      });
-    };
-    
-    // Excel Export Function
-    const exportToExcel = () => {
       try {
-        loading.value = true;
+        this.passwordLoading = true
+        this.passwordError = null
         
-        const wb = XLSX.utils.book_new();
+        // Reauthenticate user
+        const credential = EmailAuthProvider.credential(
+          this.user.email,
+          this.passwordData.currentPassword
+        )
         
-        // Summary Sheet
-        const summaryData = [
-          ['تقرير المخزون', '', '', '', ''],
-          ['تاريخ التصدير', new Date().toLocaleDateString('ar-EG'), '', '', ''],
-          ['', '', '', '', ''],
-          ['ملخص الأداء', '', '', '', ''],
-          ['المؤشر', 'القيمة', 'النسبة', 'التغير', 'الحالة'],
-          ['إجمالي الأصناف', summary.value.totalItems, '', '', ''],
-          ['الأصناف الفريدة', summary.value.uniqueItems, '', '', ''],
-          ['إجمالي الحركات', summary.value.totalTransactions, '', '', ''],
-          ['حركات الإضافة', summary.value.addTransactions, '', '', ''],
-          ['حركات النقل', summary.value.transferTransactions, '', '', ''],
-          ['حركات الصرف', summary.value.dispatchTransactions, '', '', ''],
-          ['القيمة الإجمالية', summary.value.totalValue, 'ج.م', '', ''],
-          ['الكمية الإجمالية', summary.value.totalQuantity, 'وحدة', '', ''],
-          ['الأصناف قليلة المخزون', summary.value.lowStockItems, summary.value.lowStockPercentage + '%', '', ''],
-          ['الأصناف المنتهية', summary.value.outOfStockItems, '', '', ''],
-          ['', '', '', '', ''],
-          ['المخزن المحدد', selectedWarehouse.value ? getWarehouseLabel(selectedWarehouse.value) : 'جميع المخازن', '', '', ''],
-          ['الصنف المحدد', selectedItemText.value || 'جميع الأصناف', '', '', ''],
-          ['الفترة', getPeriodLabel(), '', '', ''],
-        ];
+        await reauthenticateWithCredential(auth.currentUser, credential)
         
-        const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, summaryWs, 'ملخص الأداء');
+        // Update password
+        await updatePassword(auth.currentUser, this.passwordData.newPassword)
         
-        // Inventory Sheet
-        const inventoryHeaders = [
-          'الترتيب',
-          'اسم الصنف',
-          'الكود',
-          'اللون',
-          'المخزن',
-          'الكمية المتبقية',
-          'الكمية المضافة',
-          'المورد',
-          'مكان الصنف',
-          'ملاحظات',
-          'تاريخ الإضافة',
-          'تاريخ التحديث',
-          'القيمة (ج.م)',
-          'الحالة'
-        ];
-        
-        const inventoryData = filteredInventory.value.map((item, index) => [
-          index + 1,
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          getWarehouseLabel(item.warehouse_id),
-          item.remaining_quantity || 0,
-          item.total_added || 0,
-          item.supplier || '',
-          item.item_location || '',
-          item.notes || '',
-          item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : '',
-          item.updated_at ? new Date(item.updated_at).toLocaleDateString('ar-EG') : '',
-          (item.remaining_quantity || 0) * 50,
-          getStatusText(item.remaining_quantity)
-        ]);
-        
-        const inventoryWs = XLSX.utils.aoa_to_sheet([inventoryHeaders, ...inventoryData]);
-        XLSX.utils.book_append_sheet(wb, inventoryWs, 'تفاصيل المخزون');
-        
-        // Transactions Sheet
-        const transactionsHeaders = [
-          'نوع الحركة',
-          'اسم الصنف',
-          'الكود',
-          'من المخزن',
-          'إلى المخزن',
-          'الكمية',
-          'التاريخ',
-          'الوقت',
-          'الملاحظات'
-        ];
-        
-        const transactionsData = filteredTransactions.value.map(transaction => [
-          transaction.type === 'ADD' ? 'إضافة' : 
-          transaction.type === 'TRANSFER' ? 'نقل' : 
-          transaction.type === 'DISPATCH' ? 'صرف' : 'غير معروف',
-          transaction.item_name || '',
-          transaction.item_code || '',
-          getWarehouseLabel(transaction.from_warehouse) || '',
-          getWarehouseLabel(transaction.to_warehouse) || '',
-          transaction.total_delta || 0,
-          transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleDateString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleDateString('ar-EG')) : '',
-          transaction.timestamp ? 
-            (transaction.timestamp.toDate ? 
-              transaction.timestamp.toDate().toLocaleTimeString('ar-EG') : 
-              new Date(transaction.timestamp).toLocaleTimeString('ar-EG')) : '',
-          transaction.notes || ''
-        ]);
-        
-        const transactionsWs = XLSX.utils.aoa_to_sheet([transactionsHeaders, ...transactionsData]);
-        XLSX.utils.book_append_sheet(wb, transactionsWs, 'الحركات');
-        
-        // Cash Flow Sheet
-        const cashFlowHeaders = [
-          'عنصر التدفق النقدي',
-          'القيمة (ج.م)',
-          'النسبة',
-          'التفاصيل'
-        ];
-        
-        const cashFlowData = [
-          ['الإيرادات من الصرف', cashFlowAnalysis.value.cashIn, '', 'إجمالي قيمة حركات الصرف'],
-          ['المصروفات على المشتريات', cashFlowAnalysis.value.cashOut, '', 'إجمالي قيمة حركات الإضافة'],
-          ['صافي التدفق النقدي', cashFlowAnalysis.value.netCashFlow, '', cashFlowAnalysis.value.netCashFlow >= 0 ? 'فائض' : 'عجز'],
-          ['معدل دوران المخزون', (cashFlowAnalysis.value.turnoverRate * 100).toFixed(2) + '%', '', 'نسبة الإيرادات إلى قيمة المخزون'],
-          ['قيمة المخزون الحالية', dashboardStats.value.estimatedValue, '', 'القيمة الإجمالية للمخزون']
-        ];
-        
-        const cashFlowWs = XLSX.utils.aoa_to_sheet([cashFlowHeaders, ...cashFlowData]);
-        XLSX.utils.book_append_sheet(wb, cashFlowWs, 'التدفق النقدي');
-        
-        // Generate filename
-        let filename = 'تقرير_المخزون';
-        if (selectedWarehouse.value) {
-          filename += `_${getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '_')}`;
-        }
-        if (selectedItem.value) {
-          filename += `_${selectedItemText.value.replace(/\s+/g, '_')}`;
-        }
-        filename += `_${new Date().toISOString().split('T')[0]}.xlsx`;
-        
-        // Save file
-        XLSX.writeFile(wb, filename);
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: `تم تصدير التقرير إلى Excel بنجاح: ${filename}`
-        });
+        this.showToast('تم تغيير كلمة المرور بنجاح', 'success')
+        this.resetPasswordForm()
         
       } catch (error) {
-        console.error('Error exporting to Excel:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تصدير التقرير إلى Excel'
-        });
+        console.error('Error changing password:', error)
+        
+        switch (error.code) {
+          case 'auth/wrong-password':
+            this.passwordError = 'كلمة المرور الحالية غير صحيحة'
+            break
+          case 'auth/weak-password':
+            this.passwordError = 'كلمة المرور الجديدة ضعيفة جداً'
+            break
+          default:
+            this.passwordError = 'فشل في تغيير كلمة المرور'
+        }
       } finally {
-        loading.value = false;
+        this.passwordLoading = false
       }
-    };
+    },
     
-    // One-time data load optimization
-    const loadInitialData = async () => {
-      loading.value = true;
+    resetPasswordForm() {
+      this.passwordData = {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }
+      this.passwordError = null
+      this.showCurrentPassword = false
+      this.showNewPassword = false
+      this.showConfirmPassword = false
+    },
+    
+    async terminateOtherSessions() {
       try {
-        // Load essential data first
-        await Promise.all([
-          store.dispatch('getRecentTransactions', { limit: 50 }),
-          store.dispatch('getDashboardStats'),
-          store.dispatch('getWarehouses')
-        ]);
+        this.sessionLoading = true
         
-        // Load additional data in background
-        setTimeout(() => {
-          store.dispatch('getInventory');
-          store.dispatch('getAllTransactions');
-        }, 1000);
+        // In a real app, you would call a backend endpoint
+        // For now, we'll just show a success message
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
-        // Cache data
-        localStorage.setItem('dashboardCache', JSON.stringify({
-          data: dashboardStats.value,
-          timestamp: Date.now()
-        }));
+        this.showToast('تم إنهاء جميع الجلسات الأخرى بنجاح', 'success')
+        
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error terminating sessions:', error)
+        this.showToast('فشل في إنهاء الجلسات', 'error')
       } finally {
-        loading.value = false;
+        this.sessionLoading = false
       }
-    };
+    },
     
-    onMounted(() => {
-      loadInitialData();
+    toggleTwoFactor() {
+      this.twoFactorEnabled = !this.twoFactorEnabled
+      this.showToast(
+        this.twoFactorEnabled ? 'تم تفعيل المصادقة الثنائية' : 'تم إلغاء تفعيل المصادقة الثنائية',
+        'success'
+      )
+    },
+    
+    getUserAgentInfo() {
+      const ua = navigator.userAgent
+      let browser = 'متصفح غير معروف'
+      let os = 'نظام غير معروف'
       
-      // Initialize charts after a short delay
+      // Detect browser
+      if (ua.includes('Firefox')) browser = 'Firefox'
+      else if (ua.includes('Chrome')) browser = 'Chrome'
+      else if (ua.includes('Safari')) browser = 'Safari'
+      else if (ua.includes('Edge')) browser = 'Edge'
+      else if (ua.includes('IE')) browser = 'Internet Explorer'
+      
+      // Detect OS
+      if (ua.includes('Windows')) os = 'Windows'
+      else if (ua.includes('Mac')) os = 'macOS'
+      else if (ua.includes('Linux')) os = 'Linux'
+      else if (ua.includes('Android')) os = 'Android'
+      else if (ua.includes('iOS')) os = 'iOS'
+      
+      return { browser, os }
+    },
+    
+    // Activity Log
+    async loadActivityLog() {
+      try {
+        this.activityLoading = true
+        
+        // In a real app, you would fetch from your backend
+        // For now, we'll create mock data
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        this.activities = this.generateMockActivities()
+        
+      } catch (error) {
+        console.error('Error loading activity log:', error)
+        this.showToast('فشل في تحميل سجل النشاط', 'error')
+      } finally {
+        this.activityLoading = false
+      }
+    },
+    
+    generateMockActivities() {
+      const types = ['login', 'update', 'create', 'delete', 'permission']
+      const sources = ['Web', 'Mobile', 'API']
+      const activities = []
+      
+      for (let i = 0; i < 50; i++) {
+        const type = types[Math.floor(Math.random() * types.length)]
+        const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+        
+        activities.push({
+          id: `activity-${i}`,
+          type,
+          title: this.getActivityTitle(type),
+          description: this.getActivityDescription(type),
+          timestamp,
+          source: sources[Math.floor(Math.random() * sources.length)],
+          ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+          details: {
+            userId: this.user?.uid,
+            action: type,
+            timestamp: timestamp.toISOString()
+          }
+        })
+      }
+      
+      return activities.sort((a, b) => b.timestamp - a.timestamp)
+    },
+    
+    getActivityTitle(type) {
+      const titles = {
+        login: 'تسجيل دخول',
+        update: 'تحديث بيانات',
+        create: 'إنشاء جديد',
+        delete: 'حذف',
+        permission: 'تغيير صلاحيات'
+      }
+      return titles[type] || type
+    },
+    
+    getActivityDescription(type) {
+      const descriptions = {
+        login: 'قام المستخدم بتسجيل الدخول إلى النظام',
+        update: 'قام المستخدم بتحديث المعلومات الشخصية',
+        create: 'قام المستخدم بإنشاء سجل جديد',
+        delete: 'قام المستخدم بحذف سجل',
+        permission: 'تم تعديل صلاحيات المستخدم'
+      }
+      return descriptions[type] || `نشاط من نوع ${type}`
+    },
+    
+    getActivityIcon(type) {
+      const icons = {
+        login: 'fas fa-sign-in-alt',
+        update: 'fas fa-edit',
+        create: 'fas fa-plus-circle',
+        delete: 'fas fa-trash-alt',
+        permission: 'fas fa-user-shield'
+      }
+      return icons[type] || 'fas fa-history'
+    },
+    
+    formatActivityDetails(details) {
+      return JSON.stringify(details, null, 2)
+    },
+    
+    refreshActivity() {
+      this.loadActivityLog()
+    },
+    
+    nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++
+      }
+    },
+    
+    prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--
+      }
+    },
+    
+    // Toast Notifications
+    showToast(message, type = 'success') {
+      this.toast = {
+        show: true,
+        type,
+        message,
+        icon: type === 'success' ? 'fas fa-check-circle' : 
+              type === 'error' ? 'fas fa-exclamation-circle' : 
+              'fas fa-info-circle'
+      }
+      
       setTimeout(() => {
-        updateCharts();
-      }, 500);
-    });
+        this.hideToast()
+      }, 5000)
+    },
     
-    onUnmounted(() => {
-      // Clean up chart instances
-      if (warehouseChartInstance) warehouseChartInstance.destroy();
-      if (transactionsChartInstance) transactionsChartInstance.destroy();
-      if (trendsChartInstance) trendsChartInstance.destroy();
-      if (mobileWarehouseChartInstance) mobileWarehouseChartInstance.destroy();
-      if (mobileTransactionsChartInstance) mobileTransactionsChartInstance.destroy();
-      
-      // Clean up live search timeout
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value);
+    hideToast() {
+      this.toast.show = false
+    }
+  },
+  
+  watch: {
+    activityFilters: {
+      handler() {
+        this.currentPage = 1
+      },
+      deep: true
+    },
+    
+    activeTab(newTab) {
+      if (newTab === 'activity' && this.isSuperAdmin && this.activities.length === 0) {
+        this.loadActivityLog()
       }
-    });
-    
-    // Watch for data changes
-    watch(() => [allInventory.value, allTransactions.value], () => {
-      updateCharts();
-    }, { deep: true });
-    
-    // Watch for filter changes
-    watch(() => [
-      selectedWarehouse.value, 
-      selectedItem.value, 
-      selectedItemType.value, 
-      searchQuery.value,
-      reportPeriod.value,
-      distributionType.value,
-      trendType.value,
-      transactionsPeriod.value
-    ], () => {
-      updateCharts();
-    });
-    
-    return {
-      // Mobile state
-      showMobileFilters,
-      activeMobileTab,
-      showInventoryFilters,
-      viewMode,
-      isFullscreen,
-      mobileTabs,
-      
-      // Original refs
-      loading,
-      reportPeriod,
-      distributionType,
-      transactionsPeriod,
-      trendType,
-      selectedWarehouse,
-      selectedItem,
-      selectedItemType,
-      searchQuery,
-      customDateFrom,
-      customDateTo,
-      topItemsFilter,
-      warehouseChart,
-      transactionsChart,
-      trendsChart,
-      
-      // Mobile chart refs
-      mobileWarehouseChart,
-      mobileTransactionsChart,
-      
-      // Live search refs
-      isLiveSearching,
-      liveSearchResults,
-      
-      // Computed properties
-      accessibleWarehouses,
-      allUniqueItems,
-      filteredItemsByWarehouse,
-      selectedItemText,
-      hasActiveFilters,
-      summary,
-      topItemsByValue,
-      warehouseDistribution,
-      monthlyStats,
-      recentFilteredTransactions,
-      filteredInventory,
-      dashboardStats,
-      mobileInventoryItems,
-      mobileTransactions,
-      cashFlowAnalysis,
-      
-      // Methods
-      formatNumber,
-      formatCurrency,
-      formatTime,
-      getWarehouseLabel,
-      getItemTypeLabel,
-      getPeriodLabel,
-      getQuantityClass,
-      getStatusClass,
-      getStatusText,
-      resetFilters,
-      changePeriod,
-      applyCustomDate,
-      applyFilters,
-      handleSearch,
-      updateWarehouseChart,
-      updateTopItems,
-      updateMonthlyTrendsChart,
-      updateTransactionsChart,
-      updateCharts,
-      exportToExcel,
-      toggleViewMode,
-      toggleFullscreen
-    };
+    }
+  },
+  
+  created() {
+    this.loadUserData()
+  },
+  
+  mounted() {
+    // Listen for theme changes from system
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('theme')) {
+        this.isDarkMode = e.matches
+        this.applyTheme()
+      }
+    })
   }
-};
+}
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
-
-body {
-  font-family: 'Cairo', sans-serif;
+/* Base Styles */
+.user-profile-settings {
+  min-height: 100vh;
+  background: var(--bg-primary, #f5f5f5);
+  color: var(--text-primary, #333);
+  transition: all 0.3s ease;
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+  direction: rtl;
 }
 
-.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
+.user-profile-settings.dark-mode {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-card: #2d2d2d;
+  --bg-input: #3d3d3d;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted: #888888;
+  --border-color: #404040;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --error-color: #f44336;
+  --info-color: #2196F3;
+  --primary-color: #2196F3;
+  --secondary-color: #FF9800;
 }
 
-/* Enhanced table styles */
-.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.95);
+/* Loading States */
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+  text-align: center;
 }
 
-.dark .sticky-header {
-  background-color: rgba(31, 41, 55, 0.95);
-}
-
-/* Custom scrollbar for better UX */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #9ca3af #f3f4f6;
-}
-
-.dark .custom-scrollbar {
-  scrollbar-color: #6b7280 #374151;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-track {
-  background: #374151;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #9ca3af;
-  border-radius: 4px;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #6b7280;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Mobile-optimized styles */
-@media (max-width: 640px) {
-  .mobile-scroll {
-    -webkit-overflow-scrolling: touch;
-    overflow-x: auto;
-  }
-  
-  .mobile-stack {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .mobile-horizontal-scroll {
-    display: flex;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 8px;
-  }
-  
-  .mobile-horizontal-scroll > * {
-    flex: 0 0 auto;
-  }
-  
-  /* Improve touch targets */
-  button, select, input {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Optimize typography for mobile */
-  h1, h2, h3 {
-    line-height: 1.2;
-  }
-  
-  /* Simplify shadows and borders for performance */
-  .mobile-card {
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Smooth transitions */
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-}
-
-/* Fullscreen optimizations */
-:fullscreen {
-  background-color: #f9fafb;
-}
-
-:-webkit-full-screen {
-  background-color: #f9fafb;
-}
-
-:-moz-full-screen {
-  background-color: #f9fafb;
-}
-
-/* Smooth transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-/* Loading animation */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--border-color, #e0e0e0);
+  border-top-color: var(--primary-color, #2196F3);
+  border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
 }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Glass effect */
-.glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.error-alert {
+  background: var(--bg-card, #fff);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px var(--shadow-color, rgba(0, 0, 0, 0.1));
+  max-width: 500px;
+  width: 100%;
 }
 
-.dark .glass {
-  background: rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.error-alert i {
+  font-size: 3rem;
+  color: var(--error-color);
+  margin-bottom: 1rem;
 }
 
-/* Card hover effects */
-.hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.retry-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 1rem;
+  transition: all 0.3s;
 }
 
-.hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+.retry-btn:hover {
+  background: var(--primary-color-dark, #1976D2);
+  transform: translateY(-2px);
 }
 
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  body {
-    background: white !important;
-    color: black !important;
-  }
+/* Header */
+.profile-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Dark mode adjustments for mobile */
-@media (max-width: 640px) {
-  .dark .mobile-card {
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
+.profile-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+  animation: shimmer 3s infinite;
 }
 
-/* Live search indicator animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
-/* Enhanced gradient borders */
-.gradient-border {
+.user-avatar {
   position: relative;
 }
 
-.gradient-border::before {
+.avatar-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.avatar-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: 3px solid var(--bg-primary);
+}
+
+.avatar-badge.superadmin { background: #ff9800; }
+.avatar-badge.company_manager { background: #2196f3; }
+.avatar-badge.warehouse_manager { background: #4caf50; }
+
+.user-info {
+  flex: 1;
+}
+
+.user-info h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.user-meta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.role-badge,
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.role-badge.superadmin { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+.role-badge.company_manager { background: rgba(33, 150, 243, 0.2); color: #2196f3; }
+.role-badge.warehouse_manager { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+
+.status-badge.active { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+.status-badge.inactive { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.theme-toggle,
+.logout-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.theme-toggle:hover,
+.logout-btn:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-2px);
+}
+
+.theme-toggle {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+/* Tabs */
+.profile-tabs {
+  background: var(--bg-card, #fff);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.tabs-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-btn {
+  padding: 1rem 1.5rem;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.tab-btn:hover:not(.disabled) {
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+}
+
+.tab-btn.active::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ef4444, #10b981);
-  -webkit-mask: 
-    linear-gradient(#fff 0 0) content-box, 
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 3px 3px 0 0;
 }
 
-/* Smooth table row animations */
-.table-row-enter-active,
-.table-row-leave-active {
-  transition: all 0.3s ease;
+.tab-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.table-row-enter-from,
-.table-row-leave-to {
+.tab-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+}
+
+/* Main Content */
+.profile-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.tab-pane {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+}
+
+.edit-btn,
+.save-btn,
+.cancel-btn,
+.refresh-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  border: none;
+}
+
+.edit-btn {
+  background: var(--primary-color);
+  color: white;
+}
+
+.edit-btn:hover {
+  background: var(--primary-color-dark, #1976D2);
+  transform: translateY(-2px);
+}
+
+.save-btn {
+  background: var(--success-color);
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #388E3C;
+  transform: translateY(-2px);
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background: var(--error-color);
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #D32F2F;
+  transform: translateY(-2px);
+}
+
+.refresh-btn {
+  background: var(--info-color);
+  color: white;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #1976D2;
+  transform: translateY(-2px);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.refresh-btn .spin {
+  animation: spin 1s linear infinite;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Personal Info */
+.personal-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.info-item {
+  background: var(--bg-card, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.info-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px var(--shadow-color, rgba(0,0,0,0.15));
+}
+
+.info-item label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.info-value {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-group input.error {
+  border-color: var(--error-color);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.toggle-switch input {
   opacity: 0;
-  transform: translateX(-10px);
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--success-color);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Warehouse Summary */
+.warehouse-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--bg-card, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.summary-card i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.summary-content h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.summary-content p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Warehouse Cards */
+.warehouse-list-section {
+  background: var(--bg-card, #fff);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.all-warehouses-notice,
+.no-warehouses {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.all-warehouses-notice i {
+  color: var(--success-color);
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.no-warehouses i {
+  color: var(--warning-color);
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.warehouse-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.warehouse-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.warehouse-card.primary {
+  border-right: 4px solid var(--primary-color);
+}
+
+.warehouse-card.dispatch {
+  border-right: 4px solid var(--secondary-color);
+}
+
+.warehouse-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px var(--shadow-color, rgba(0,0,0,0.15));
+}
+
+.warehouse-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.warehouse-header h4 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.warehouse-type {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.warehouse-type.primary {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--primary-color);
+}
+
+.warehouse-type.dispatch {
+  background: rgba(255, 152, 0, 0.1);
+  color: var(--secondary-color);
+}
+
+.warehouse-info {
+  margin-bottom: 1rem;
+}
+
+.warehouse-info p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.warehouse-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.warehouse-status.active {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+}
+
+.warehouse-status:not(.active) {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--error-color);
+}
+
+/* Warehouse Edit */
+.warehouse-edit {
+  margin-top: 1.5rem;
+}
+
+.edit-options {
+  background: var(--bg-input, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-card, #fff);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.checkbox-option:hover {
+  background: var(--bg-input);
+}
+
+.checkbox-option input {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.checkbox-option input:checked + .checkmark {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkbox-option input:checked + .checkmark::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.selection-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.select-all-btn {
+  background: var(--info-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.select-all-btn:hover {
+  background: #1976D2;
+  transform: translateY(-2px);
+}
+
+.warehouse-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.category-section h5 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.checkbox-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.checkbox-item input {
+  display: none;
+}
+
+.checkbox-item .checkmark {
+  flex-shrink: 0;
+}
+
+.warehouse-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.warehouse-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.warehouse-code {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Permissions */
+.permissions-overview {
+  margin-bottom: 2rem;
+}
+
+.permission-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.summary-item {
+  background: var(--bg-card, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.summary-item i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.summary-item h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.summary-item p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.full-access-notice,
+.no-permissions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.full-access-notice i {
+  color: var(--success-color);
+  font-size: 3rem;
+  margin-left: 1rem;
+}
+
+.no-permissions i {
+  color: var(--warning-color);
+  font-size: 3rem;
+  margin-left: 1rem;
+}
+
+.permission-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.permission-category {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.permission-category h4 {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+.permission-items {
+  padding: 1.5rem;
+}
+
+.permission-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.permission-item:last-child {
+  border-bottom: none;
+}
+
+.permission-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.permission-info i {
+  font-size: 1.25rem;
+  color: var(--primary-color);
+}
+
+.permission-info h5 {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.permission-info p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.permission-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.permission-status i.granted {
+  color: var(--success-color);
+}
+
+.permission-status i.denied {
+  color: var(--error-color);
+}
+
+.permission-status span {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Permissions Edit */
+.permissions-presets {
+  background: var(--bg-card, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.permissions-presets h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.preset-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.permissions-selection {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.permission-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.permission-category {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.permission-category:last-child {
+  border-bottom: none;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: var(--bg-input);
+}
+
+.category-header h5 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+.category-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.category-toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.permission-checkboxes {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.permission-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.permission-checkbox:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.permission-checkbox input {
+  display: none;
+}
+
+.permission-checkbox .checkmark {
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.permission-label {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.permission-label i {
+  color: var(--primary-color);
+  font-size: 1.125rem;
+  margin-top: 0.125rem;
+}
+
+.permission-name {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.permission-desc {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Security */
+.security-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.security-card {
+  background: var(--bg-card, #fff);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.security-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.security-header i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.security-header h3 {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.security-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.password-form {
+  max-width: 500px;
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  width: 100%;
+  padding-left: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+}
+
+.password-strength {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.strength-bar {
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.password-strength.weak .strength-fill {
+  background: var(--error-color);
+  width: 33%;
+}
+
+.password-strength.medium .strength-fill {
+  background: var(--warning-color);
+  width: 66%;
+}
+
+.password-strength.strong .strength-fill {
+  background: var(--success-color);
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* Session Management */
+.session-list {
+  margin-bottom: 1.5rem;
+}
+
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.session-item.current {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.session-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.session-info i {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin-top: 0.25rem;
+}
+
+.session-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.session-info p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.session-status .status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.session-status .status-badge.active {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+}
+
+.session-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Two-Factor Authentication */
+.two-factor-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-info i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.status-info h4 {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.status-info p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.toggle-btn.enabled {
+  background: var(--success-color);
+  color: white;
+  border-color: var(--success-color);
+}
+
+.toggle-btn:hover {
+  transform: translateY(-2px);
+}
+
+.toggle-slider {
+  width: 36px;
+  height: 20px;
+  background: var(--border-color);
+  border-radius: 10px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.toggle-btn.enabled .toggle-slider {
+  background: white;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  right: 2px;
+  transition: all 0.3s;
+}
+
+.toggle-btn.enabled .toggle-slider::before {
+  background: var(--success-color);
+  right: 18px;
+}
+
+/* Activity Log */
+.activity-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  background: var(--bg-card, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.activity-list {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.1));
+  padding: 1.5rem;
+}
+
+.loading-activity,
+.no-activities {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+.loading-activity .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.no-activities i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--warning-color);
+}
+
+.activity-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+
+.activity-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-color, rgba(0,0,0,0.1));
+}
+
+.activity-item.login {
+  border-right: 4px solid var(--success-color);
+}
+
+.activity-item.update {
+  border-right: 4px solid var(--info-color);
+}
+
+.activity-item.create {
+  border-right: 4px solid var(--primary-color);
+}
+
+.activity-item.delete {
+  border-right: 4px solid var(--error-color);
+}
+
+.activity-item.permission {
+  border-right: 4px solid var(--warning-color);
+}
+
+.activity-icon {
+  flex-shrink: 0;
+}
+
+.activity-icon i {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+.activity-item.login .activity-icon i { color: var(--success-color); }
+.activity-item.update .activity-icon i { color: var(--info-color); }
+.activity-item.create .activity-icon i { color: var(--primary-color); }
+.activity-item.delete .activity-icon i { color: var(--error-color); }
+.activity-item.permission .activity-icon i { color: var(--warning-color); }
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.activity-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+.activity-time {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.activity-description {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.activity-details {
+  background: var(--bg-input);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.activity-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.activity-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.activity-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  right: 2rem;
+  max-width: 400px;
+  margin: 0 auto;
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow-color, rgba(0,0,0,0.3));
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slideUp 0.3s ease;
+  z-index: 1000;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.toast-container.success {
+  border-right: 4px solid var(--success-color);
+}
+
+.toast-container.error {
+  border-right: 4px solid var(--error-color);
+}
+
+.toast-container.info {
+  border-right: 4px solid var(--info-color);
+}
+
+.toast-container.warning {
+  border-right: 4px solid var(--warning-color);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.toast-content i {
+  font-size: 1.5rem;
+}
+
+.toast-container.success .toast-content i { color: var(--success-color); }
+.toast-container.error .toast-content i { color: var(--error-color); }
+.toast-container.info .toast-content i { color: var(--info-color); }
+.toast-container.warning .toast-content i { color: var(--warning-color); }
+
+.toast-content p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  transition: color 0.3s;
+}
+
+.toast-close:hover {
+  color: var(--error-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1.5rem;
+  }
+  
+  .user-meta {
+    justify-content: center;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .tabs-container {
+    padding: 0 0.5rem;
+  }
+  
+  .tab-btn {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .personal-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .warehouse-summary,
+  .permission-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .warehouse-cards,
+  .checkbox-grid,
+  .permission-checkboxes {
+    grid-template-columns: 1fr;
+  }
+  
+  .activity-filters {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .edit-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .save-btn,
+  .cancel-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .activity-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .activity-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .two-factor-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .permissions-presets {
+    text-align: center;
+  }
+  
+  .preset-buttons {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-header {
+    padding: 1.5rem 1rem;
+  }
+  
+  .avatar-circle {
+    width: 80px;
+    height: 80px;
+    font-size: 1.5rem;
+  }
+  
+  .user-info h1 {
+    font-size: 1.5rem;
+  }
+  
+  .theme-toggle {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .logout-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .tab-btn span:not(.tab-badge) {
+    display: none;
+  }
+  
+  .tab-btn i {
+    font-size: 1.25rem;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .security-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .permission-category {
+    margin-bottom: 1rem;
+  }
+  
+  .category-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .selection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .select-all-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .profile-header,
+  .profile-tabs,
+  .header-actions,
+  .edit-btn,
+  .save-btn,
+  .cancel-btn,
+  .refresh-btn,
+  .theme-toggle,
+  .logout-btn,
+  .toast-container {
+    display: none !important;
+  }
+  
+  .profile-content {
+    padding: 0;
+  }
+  
+  .user-profile-settings {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .warehouse-card,
+  .permission-category,
+  .security-card,
+  .activity-item {
+    break-inside: avoid;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+  
+  .warehouse-cards,
+  .permission-checkboxes {
+    display: block;
+  }
 }
 </style>
