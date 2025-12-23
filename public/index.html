@@ -3,23 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="description" content="نظام متكامل لإدارة مخازن زجاج العطور - البران للعطور" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Favicon -->
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="إدارة المخازن" />
-
-    <!-- Microsoft Tiles -->
-    <meta name="msapplication-TileColor" content="#3b82f6" />
-    <meta name="msapplication-TileImage" content="/img/icons/mstile-150x150.png" />
-    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <link rel="icon" href="/favicon.ico" />
 
     <!-- Arabic font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,22 +14,16 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap"
       rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
     />
 
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#3b82f6" />
-    <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: dark)" />
+    <title>Perfume Inventory</title>
 
     <!-- PWA manifest -->
-    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
-
-    <title>نظام إدارة المخازن - البران للعطور</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#3b82f6" />
 
     <style>
-      /* Loading styles - Critical CSS inlined */
+      /* Loading styles */
       #app-loading {
         position: fixed;
         inset: 0;
@@ -53,8 +34,7 @@
         justify-content: center;
         color: white;
         z-index: 9999;
-        font-family: "Tajawal", system-ui, -apple-system, sans-serif;
-        transition: opacity 0.5s ease;
+        font-family: "Tajawal", sans-serif;
       }
 
       .loading-spinner {
@@ -73,21 +53,15 @@
         }
       }
 
-      /* Critical body styles */
       body {
         margin: 0;
         padding: 0;
-        overflow-x: hidden;
+        font-family: "Tajawal", sans-serif;
         background: #f5f5f5;
-        -webkit-tap-highlight-color: transparent;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
       }
 
-      /* Hide loading screen when Vue loads */
       body.vue-loaded #app-loading {
-        opacity: 0;
-        pointer-events: none;
+        display: none;
       }
 
       /* Install button */
@@ -97,29 +71,13 @@
         bottom: 20px;
         right: 20px;
         padding: 12px 20px;
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        background-color: #3b82f6;
         color: white;
         border: none;
         border-radius: 8px;
         font-size: 16px;
         cursor: pointer;
         z-index: 10000;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        font-family: "Tajawal", sans-serif;
-        transition: all 0.3s ease;
-      }
-
-      #install-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-      }
-
-      /* Print styles */
-      @media print {
-        #app-loading,
-        #install-btn {
-          display: none !important;
-        }
       }
     </style>
   </head>
@@ -128,208 +86,87 @@
     <!-- Loading screen -->
     <div id="app-loading">
       <div class="loading-spinner"></div>
-      <h2 style="margin-bottom: 10px; font-weight: 700;">جاري تحميل النظام...</h2>
-      <p style="opacity: 0.8; margin-top: 0;">نظام إدارة المخازن - البران للعطور</p>
+      <h2>جاري تحميل النظام...</h2>
+      <p>نظام إدارة المخازن</p>
     </div>
 
     <!-- Vue app root -->
     <div id="app"></div>
 
-    <!-- PWA Install button -->
-    <button id="install-btn" aria-label="تثبيت التطبيق">📱 تثبيت التطبيق</button>
+    <!-- Install button -->
+    <button id="install-btn">تثبيت التطبيق</button>
 
     <!-- Auto-hide loader when Vue mounts -->
     <script>
-      (function() {
-        const appDiv = document.getElementById('app');
-        const maxWaitTime = 15000; // 15 seconds max wait
-        let vueMounted = false;
-        let checkInterval;
+      document.addEventListener("DOMContentLoaded", function () {
+        const appDiv = document.getElementById("app");
 
-        const checkVueMount = function() {
-          if (appDiv && appDiv.children.length > 0 && !vueMounted) {
-            console.log('✅ Vue mounted successfully');
-            vueMounted = true;
-            document.body.classList.add('vue-loaded');
+        const checkInterval = setInterval(function () {
+          if (appDiv && appDiv.children.length > 0) {
+            console.log("✅ Vue mounted successfully");
+            document.body.classList.add("vue-loaded");
             clearInterval(checkInterval);
-            
-            // Force hide after animation
-            setTimeout(() => {
-              const loadingEl = document.getElementById('app-loading');
-              if (loadingEl) {
-                loadingEl.style.display = 'none';
-              }
-            }, 500);
           }
-        };
+        }, 100);
 
-        // Start checking immediately
-        checkInterval = setInterval(checkVueMount, 100);
-
-        // Initial check
-        setTimeout(checkVueMount, 100);
-
-        // Timeout fallback
-        setTimeout(function() {
-          if (!vueMounted) {
-            clearInterval(checkInterval);
-            console.error('❌ Vue did not mount in time');
-            const loadingEl = document.getElementById('app-loading');
+        setTimeout(function () {
+          clearInterval(checkInterval);
+          if (!document.body.classList.contains("vue-loaded")) {
+            console.error("❌ Vue did not mount in time");
+            const loadingEl = document.getElementById("app-loading");
             if (loadingEl) {
               loadingEl.innerHTML = `
-                <div style="padding: 20px; text-align: center; max-width: 90%;">
-                  <h2 style="color: #fff; margin-bottom: 15px;">⚠️ خطأ في التحميل</h2>
-                  <p style="color: rgba(255,255,255,0.9); margin-bottom: 20px;">
-                    يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.
-                  </p>
+                <div style="padding: 20px; text-align: center;">
+                  <h2>⚠️ خطأ في التحميل</h2>
+                  <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
                   <button onclick="window.location.reload()" 
-                    style="padding: 10px 20px; background: white; color: #667eea; 
-                           border: none; border-radius: 5px; margin: 10px;
-                           font-family: 'Tajawal', sans-serif; font-weight: 500;
-                           cursor: pointer;">
-                    🔄 إعادة التحميل
-                  </button>
-                  <button onclick="if(localStorage.clear())location.reload()" 
-                    style="padding: 10px 20px; background: rgba(255,255,255,0.1); 
-                           color: white; border: 1px solid rgba(255,255,255,0.3); 
-                           border-radius: 5px; margin: 10px;
-                           font-family: 'Tajawal', sans-serif; font-weight: 500;
-                           cursor: pointer;">
-                    🧹 مسح التخزين
+                    style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
+                    إعادة التحميل
                   </button>
                 </div>
               `;
             }
           }
-        }, maxWaitTime);
-      })();
+        }, 10000);
+      });
+    </script>
+
+    <!-- REGISTER SERVICE WORKER -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then(reg => console.log("Service Worker registered:", reg))
+            .catch(err => console.error("Service Worker registration failed:", err));
+        });
+      }
     </script>
 
     <!-- PWA INSTALL PROMPT -->
     <script>
-      (function() {
-        let deferredPrompt;
-        const installBtn = document.getElementById('install-btn');
-        let promptShown = false;
+      let deferredPrompt;
+      const installBtn = document.getElementById("install-btn");
 
-        // Handle install prompt
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          
-          // Only show button if not already installed
-          if (!window.matchMedia('(display-mode: standalone)').matches) {
-            // Wait a bit before showing to avoid interrupting initial load
-            setTimeout(() => {
-              if (!promptShown && deferredPrompt) {
-                installBtn.style.display = 'inline-block';
-                promptShown = true;
-              }
-            }, 3000);
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault(); // Prevent Chrome mini-infobar
+        deferredPrompt = e;
+        installBtn.style.display = "inline-block"; // Show install button
+      });
+
+      installBtn.addEventListener("click", async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt(); // Show the install popup
+          const choice = await deferredPrompt.userChoice;
+          if (choice.outcome === "accepted") {
+            console.log("User accepted the install prompt");
+          } else {
+            console.log("User dismissed the install prompt");
           }
-        });
-
-        // Install button click handler
-        installBtn.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            installBtn.disabled = true;
-            installBtn.innerHTML = 'جاري التثبيت...';
-            
-            try {
-              deferredPrompt.prompt();
-              const choice = await deferredPrompt.userChoice;
-              
-              if (choice.outcome === 'accepted') {
-                console.log('✅ User accepted the install prompt');
-                installBtn.style.display = 'none';
-              } else {
-                console.log('❌ User dismissed the install prompt');
-                installBtn.innerHTML = '📱 تثبيت التطبيق';
-                installBtn.disabled = false;
-                // Hide button for this session
-                setTimeout(() => {
-                  installBtn.style.display = 'none';
-                }, 3000);
-              }
-              deferredPrompt = null;
-            } catch (error) {
-              console.error('❌ Install prompt error:', error);
-              installBtn.innerHTML = '📱 تثبيت التطبيق';
-              installBtn.disabled = false;
-            }
-          }
-        });
-
-        // Hide install button if app is already installed
-        window.addEventListener('appinstalled', () => {
-          console.log('🎉 App installed successfully');
-          installBtn.style.display = 'none';
           deferredPrompt = null;
-        });
-
-        // Check if already installed on load
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-          installBtn.style.display = 'none';
-          console.log('📱 App running in standalone mode');
+          installBtn.style.display = "none"; // Hide button after click
         }
-      })();
-    </script>
-
-    <!-- Performance Monitoring -->
-    <script>
-      // Performance monitoring
-      if (typeof window !== 'undefined') {
-        // Load performance monitoring after app loads
-        setTimeout(() => {
-          if (window.performance && window.performance.getEntriesByType) {
-            const navTiming = window.performance.getEntriesByType('navigation')[0];
-            if (navTiming) {
-              console.log('⚡ Page Load Performance:', {
-                'DOM Ready': Math.round(navTiming.domContentLoadedEventEnd - navTiming.domContentLoadedEventStart),
-                'Page Load': Math.round(navTiming.loadEventEnd - navTiming.loadEventStart),
-                'TTFB': Math.round(navTiming.responseStart - navTiming.requestStart)
-              });
-            }
-          }
-        }, 1000);
-      }
-    </script>
-
-    <!-- Prevent any accidental service worker registration -->
-    <script>
-      // Block any service worker registration attempts from index.html
-      (function() {
-        // Store original addEventListener
-        const originalAddEventListener = window.addEventListener;
-        
-        // Intercept load events
-        window.addEventListener = function(type, listener, options) {
-          if (type === 'load') {
-            // Check if this listener tries to register service workers
-            const listenerString = listener.toString();
-            if (listenerString.includes('serviceWorker') || listenerString.includes('register')) {
-              console.log('🛑 Blocked service worker registration from HTML (handled by Vue app)');
-              return; // Don't add this listener
-            }
-          }
-          return originalAddEventListener.call(this, type, listener, options);
-        };
-        
-        // Also prevent immediate service worker registration
-        if ('serviceWorker' in navigator) {
-          // Override navigator.serviceWorker.register temporarily
-          const originalRegister = navigator.serviceWorker.register;
-          navigator.serviceWorker.register = function() {
-            console.log('🛑 Service worker registration intercepted (handled by Vue app)');
-            return Promise.reject(new Error('Service worker registration handled by Vue app'));
-          };
-          
-          // Restore after a short delay to let Vue app handle it
-          setTimeout(() => {
-            navigator.serviceWorker.register = originalRegister;
-          }, 5000);
-        }
-      })();
+      });
     </script>
   </body>
-</html>
+</html>       
