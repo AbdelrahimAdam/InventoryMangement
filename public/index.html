@@ -138,78 +138,8 @@
     <!-- PWA Install button -->
     <button id="install-btn" aria-label="تثبيت التطبيق">📱 تثبيت التطبيق</button>
 
-    <!-- Service Worker Management -->
+    <!-- Auto-hide loader when Vue mounts -->
     <script>
-      // Clear old service workers before registering new one
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
-          try {
-            // Clean up any existing registrations first
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const registration of registrations) {
-              await registration.unregister();
-              console.log('🧹 Unregistered old service worker:', registration.scope);
-            }
-
-            // Check if we're in production
-            const isProduction = window.location.hostname !== 'localhost' && 
-                                 window.location.hostname !== '127.0.0.1';
-
-            if (isProduction) {
-              // Try to register the service worker with retry logic
-              const registerSW = async (retries = 3) => {
-                try {
-                  // First try the main service worker
-                  const registration = await navigator.serviceWorker.register('/service-worker.js', {
-                    scope: '/',
-                    updateViaCache: 'none'
-                  });
-
-                  console.log('✅ Service Worker registered successfully:', registration.scope);
-
-                  // Listen for updates
-                  registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    if (newWorker) {
-                      newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                          console.log('🔄 New content is available; please refresh.');
-                          
-                          // Show update notification
-                          if (window.confirm('توجد نسخة جديدة من التطبيق. هل تريد التحديث الآن؟')) {
-                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                            window.location.reload();
-                          }
-                        }
-                      });
-                    }
-                  });
-
-                  return registration;
-                } catch (error) {
-                  console.warn(`❌ Service Worker registration attempt ${4 - retries} failed:`, error);
-                  
-                  if (retries > 0) {
-                    // Wait 2 seconds before retry
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    return registerSW(retries - 1);
-                  }
-                  throw error;
-                }
-              };
-
-              // Start registration
-              await registerSW();
-            } else {
-              console.log('🔧 Development mode: Service Worker registration skipped');
-            }
-          } catch (error) {
-            console.error('❌ Service Worker registration failed after all attempts:', error);
-          }
-        });
-      }
-
-      // Auto-hide loader when Vue mounts
       (function() {
         const appDiv = document.getElementById('app');
         const maxWaitTime = 15000; // 15 seconds max wait
@@ -349,16 +279,6 @@
     <script>
       // Performance monitoring
       if (typeof window !== 'undefined') {
-        // Report Web Vitals
-        const reportWebVitals = (metric) => {
-          console.log('📊 Performance:', {
-            name: metric.name,
-            value: Math.round(metric.value),
-            rating: metric.rating,
-            delta: metric.delta
-          });
-        };
-
         // Load performance monitoring after app loads
         setTimeout(() => {
           if (window.performance && window.performance.getEntriesByType) {
@@ -373,6 +293,43 @@
           }
         }, 1000);
       }
+    </script>
+
+    <!-- Prevent any accidental service worker registration -->
+    <script>
+      // Block any service worker registration attempts from index.html
+      (function() {
+        // Store original addEventListener
+        const originalAddEventListener = window.addEventListener;
+        
+        // Intercept load events
+        window.addEventListener = function(type, listener, options) {
+          if (type === 'load') {
+            // Check if this listener tries to register service workers
+            const listenerString = listener.toString();
+            if (listenerString.includes('serviceWorker') || listenerString.includes('register')) {
+              console.log('🛑 Blocked service worker registration from HTML (handled by Vue app)');
+              return; // Don't add this listener
+            }
+          }
+          return originalAddEventListener.call(this, type, listener, options);
+        };
+        
+        // Also prevent immediate service worker registration
+        if ('serviceWorker' in navigator) {
+          // Override navigator.serviceWorker.register temporarily
+          const originalRegister = navigator.serviceWorker.register;
+          navigator.serviceWorker.register = function() {
+            console.log('🛑 Service worker registration intercepted (handled by Vue app)');
+            return Promise.reject(new Error('Service worker registration handled by Vue app'));
+          };
+          
+          // Restore after a short delay to let Vue app handle it
+          setTimeout(() => {
+            navigator.serviceWorker.register = originalRegister;
+          }, 5000);
+        }
+      })();
     </script>
   </body>
 </html>
