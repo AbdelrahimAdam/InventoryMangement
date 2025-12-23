@@ -90,7 +90,7 @@
               <div>
                 <div class="text-sm text-gray-500 dark:text-gray-400">النسبة من الكمية الكلية</div>
                 <div class="font-bold text-gray-900 dark:text-white">
-                  {{ ((dashboardStats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) }}%
+                  {{ allWarehouseStats.totalQuantity > 0 ? ((dashboardStats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
                 </div>
               </div>
             </div>
@@ -121,7 +121,7 @@
               <p v-else class="text-3xl font-bold text-gray-900 dark:text-white">
                 {{ formatEnglishNumber(dashboardStats.totalItems) }}
               </p>
-              <div v-if="selectedWarehouse !== 'all'" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <div v-if="selectedWarehouse !== 'all' && allWarehouseStats.totalItems > 0" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 <span class="inline-flex items-center gap-1">
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
@@ -335,7 +335,7 @@
                       {{ formatEnglishNumber(stats.totalItems) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ ((stats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) }}%
+                      {{ allWarehouseStats.totalItems > 0 ? ((stats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) : '0' }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
@@ -343,7 +343,7 @@
                       {{ formatEnglishNumber(stats.totalQuantity) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ ((stats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) }}%
+                      {{ allWarehouseStats.totalQuantity > 0 ? ((stats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
@@ -1532,14 +1532,21 @@ export default {
     const refreshDashboard = async () => {
       loading.value = true;
       try {
-        // Refresh inventory data
-        await store.dispatch('loadAllInventory', { forceRefresh: true });
+        // Refresh ALL inventory data without any limit
+        await store.dispatch('loadAllInventory', { 
+          forceRefresh: true,
+          limit: null // This ensures no limit is applied
+        });
         
-        // Refresh transactions
-        await store.dispatch('getRecentTransactions');
+        // Refresh ALL transactions
+        await store.dispatch('getRecentTransactions', { limit: null });
         
         // Refresh dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
+        
+        console.log('🔄 Dashboard refreshed successfully');
+        console.log(`📦 Total items loaded: ${inventoryItems.value.length}`);
+        console.log(`📊 Total transactions loaded: ${recentStoreTransactions.value.length}`);
         
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
@@ -1551,6 +1558,10 @@ export default {
     const handleWarehouseChange = async () => {
       loading.value = true;
       try {
+        console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
+        console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
+        console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
+        
         await loadDashboardStats(selectedWarehouse.value);
       } catch (error) {
         console.error('Error changing warehouse:', error);
@@ -1561,26 +1572,50 @@ export default {
 
     const loadDashboardData = async () => {
       loading.value = true;
+      console.log('🚀 Loading ALL dashboard data...');
       
       try {
-        // Load recent transactions
-        const recentTransactionsPromise = store.dispatch('getRecentTransactions');
-        
-        // Load dashboard stats
-        const statsPromise = loadDashboardStats(selectedWarehouse.value);
-        
-        // Set timeout to prevent hanging
-        const timeoutPromise = new Promise(resolve => {
-          setTimeout(() => {
-            resolve();
-          }, 5000);
+        // Load ALL inventory items without limit
+        console.log('📦 Loading ALL inventory items...');
+        const inventoryPromise = store.dispatch('loadAllInventory', { 
+          forceRefresh: true,
+          limit: null // Ensure no limit
         });
         
-        // Wait for all promises
-        await Promise.race([Promise.all([recentTransactionsPromise, statsPromise]), timeoutPromise]);
+        // Load ALL recent transactions
+        console.log('📊 Loading ALL recent transactions...');
+        const recentTransactionsPromise = store.dispatch('getRecentTransactions', { 
+          limit: null // Ensure no limit
+        });
+        
+        // Load warehouses if needed
+        if (!warehouses.value || warehouses.value.length === 0) {
+          console.log('🏢 Loading warehouses...');
+          await store.dispatch('loadWarehouses');
+        }
+        
+        // Load dashboard stats
+        console.log('📈 Loading dashboard stats...');
+        const statsPromise = loadDashboardStats(selectedWarehouse.value);
+        
+        // Wait for all promises with a longer timeout for large datasets
+        const timeoutPromise = new Promise(resolve => {
+          setTimeout(() => {
+            console.log('⏰ Timeout reached, continuing with loaded data...');
+            resolve();
+          }, 15000); // 15 seconds timeout for large datasets
+        });
+        
+        await Promise.race([Promise.all([inventoryPromise, recentTransactionsPromise, statsPromise]), timeoutPromise]);
+        
+        // Log success information
+        console.log('✅ Dashboard data loaded successfully!');
+        console.log(`📦 Total inventory items: ${inventoryItems.value.length}`);
+        console.log(`📊 Total transactions: ${recentStoreTransactions.value.length}`);
+        console.log(`🏢 Total warehouses: ${warehouses.value.length}`);
         
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('❌ Error loading dashboard data:', error);
       } finally {
         loading.value = false;
       }
@@ -1595,7 +1630,7 @@ export default {
 
     // Initialize
     onMounted(async () => {
-      console.log('Dashboard mounted');
+      console.log('🚀 Dashboard mounted');
       
       // Start time update
       updateTime();
@@ -1607,7 +1642,7 @@ export default {
       try {
         await loadDashboardData();
       } catch (error) {
-        console.error('Error in dashboard mounted:', error);
+        console.error('❌ Error in dashboard mounted:', error);
         loading.value = false;
       }
       
@@ -1623,7 +1658,9 @@ export default {
     // Watch for warehouse filter changes
     watch(selectedWarehouse, async (newValue) => {
       if (!loading.value) {
-        console.log('Warehouse filter changed to:', newValue);
+        console.log('🏢 Warehouse filter changed to:', newValue);
+        console.log(`📦 Filtered items: ${filteredInventory.value.length}`);
+        console.log(`📊 Filtered transactions: ${filteredRecentTransactions.value.length}`);
         await loadDashboardStats(newValue);
       }
     });
@@ -1631,7 +1668,8 @@ export default {
     // Watch for inventory changes to update stats
     watch(inventoryItems, async () => {
       if (!loading.value && !statsLoading.value) {
-        console.log('Inventory changed, updating stats...');
+        console.log('🔄 Inventory changed, updating stats...');
+        console.log(`📦 New total items: ${inventoryItems.value.length}`);
         await loadDashboardStats(selectedWarehouse.value);
       }
     }, { deep: true });
