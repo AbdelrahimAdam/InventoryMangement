@@ -10,37 +10,10 @@
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
-  "id": "/",
-  "categories": ["business", "productivity", "utilities"],
-  
   "icons": [
-    {
-      "src": "/icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
     {
       "src": "/icons/icon-144x144.png",
       "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-152x152.png",
-      "sizes": "152x152",
       "type": "image/png",
       "purpose": "any maskable"
     },
@@ -51,93 +24,33 @@
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/maskable-icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ],
-  
+  "categories": ["business", "productivity", "utilities"],
   "shortcuts": [
     {
       "name": "لوحة التحكم",
       "short_name": "الرئيسية",
       "description": "الذهاب إلى لوحة التحكم الرئيسية",
-      "url": "/",
-      "icons": [
-        {
-          "src": "/icons/dashboard-icon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "url": "/"
     },
     {
       "name": "المخزون",
       "short_name": "المخزون",
       "description": "عرض وإدارة المخزون",
-      "url": "/inventory",
-      "icons": [
-        {
-          "src": "/icons/inventory-icon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "url": "/inventory"
     },
     {
       "name": "إضافة صنف",
       "short_name": "إضافة",
       "description": "إضافة صنف جديد إلى المخزون",
-      "url": "/inventory/add",
-      "icons": [
-        {
-          "src": "/icons/add-icon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "المستخدمون",
-      "short_name": "المستخدمون",
-      "description": "إدارة حسابات المستخدمين",
-      "url": "/users",
-      "icons": [
-        {
-          "src": "/icons/users-icon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "التقارير",
-      "short_name": "التقارير",
-      "description": "عرض تقارير المخزون والحركات",
-      "url": "/reports",
-      "icons": [
-        {
-          "src": "/icons/reports-icon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "url": "/inventory/add"
     }
   ],
-  
   "screenshots": [
     {
       "src": "/screenshots/desktop.png",
@@ -145,50 +58,8 @@
       "type": "image/png",
       "form_factor": "wide",
       "label": "Dashboard view on desktop"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Dashboard view on mobile"
     }
   ],
-  
   "related_applications": [],
-  "prefer_related_applications": false,
-  
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
-  
-  "protocol_handlers": [
-    {
-      "protocol": "web+inventory",
-      "url": "/inventory/%s"
-    }
-  ],
-  
-  "share_target": {
-    "action": "/share",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  },
-  
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  
-  "handle_links": "preferred",
-  
-  "capture_links": "new-client",
-  
-  "iarc_rating_id": "e58b46c6-7d71-4f7a-a3f9-5d686b7c8b9d"
+  "prefer_related_applications": false
 }
