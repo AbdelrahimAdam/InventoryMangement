@@ -392,7 +392,7 @@ export default createStore({
       state.realtimeListeners = [];
       state.activeItemListeners.clear();
     }
-  }),
+  },
 
   actions: {
     // ✅ FIXED: Get REAL total item count (Spark Plan optimized)
