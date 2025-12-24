@@ -1,54 +1,77 @@
- /* eslint-disable no-console */
+// src/registerServiceWorker.js
+/* eslint-disable no-console */
 
-if ('serviceWorker' in navigator) {
+export function registerServiceWorker() {
+  // Only register in production and if supported
+  if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) {
+    return;
+  }
+
   window.addEventListener('load', () => {
-    const swUrl = `${process.env.BASE_URL}service-worker.js`;
+    // Use correct path for service worker
+    const swUrl = `${process.env.BASE_URL || '/'}service-worker.js`;
     
-    navigator.serviceWorker
-      .register(swUrl)
-      .then(registration => {
-        console.log('✅ Service Worker registered:', registration);
+    // Clear any existing registrations first
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    }).then(() => {
+      // Register new service worker
+      return navigator.serviceWorker.register(swUrl);
+    }).then(registration => {
+      console.log('✅ Service Worker registered successfully:', registration);
+      
+      // Handle updates
+      registration.onupdatefound = () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
         
-        // Check for updates
-        registration.onupdatefound = () => {
-          const installingWorker = registration.installing;
-          if (installingWorker == null) {
-            return;
-          }
-          installingWorker.onstatechange = () => {
-            if (installingWorker.state === 'installed') {
-              if (navigator.serviceWorker.controller) {
-                // New content available
-                console.log('New content available; please refresh.');
-                
-                // Show update notification
-                showUpdateNotification();
-              } else {
-                // Content is cached for offline use
-                console.log('Content is cached for offline use.');
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // New update available
+              console.log('🔄 New content available');
+              
+              // Notify user
+              if (window.confirm('تم تحديث التطبيق. هل تريد إعادة تحميل الصفحة للحصول على أحدث نسخة؟')) {
+                window.location.reload();
               }
+            } else {
+              // First time install
+              console.log('✅ Content is cached for offline use');
             }
-          };
+          }
         };
-      })
-      .catch(error => {
-        console.error('❌ Error during service worker registration:', error);
-      });
+      };
+      
+      // Check for updates periodically
+      setInterval(() => {
+        registration.update();
+      }, 60 * 60 * 1000); // Check every hour
+      
+    }).catch(error => {
+      console.warn('⚠️ Service Worker registration failed:', error.message);
+      // Don't show error if file doesn't exist (404)
+      if (!error.message.includes('404') && !error.message.includes('Failed to fetch')) {
+        console.error('Service Worker registration error details:', error);
+      }
+    });
+  });
+  
+  // Handle controller changes
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('🔄 Service Worker controller changed');
   });
 }
 
-function showUpdateNotification() {
-  // You can show a custom notification here
-  if (confirm('تم تحديث التطبيق. هل تريد إعادة تحميل الصفحة؟')) {
-    window.location.reload();
+// Unregister old service workers
+export function unregisterServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.unregister();
+    }).catch(error => {
+      console.error('Error unregistering service worker:', error);
+    });
   }
 }
-
-// Handle messages from service worker
-navigator.serviceWorker.addEventListener('message', event => {
-  console.log('Message from Service Worker:', event.data);
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    window.location.reload();
-  }
-});         
