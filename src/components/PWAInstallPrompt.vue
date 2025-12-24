@@ -35,7 +35,6 @@ export default {
       deferredPrompt: null,
       showInstallPrompt: false,
       dismissed: false,
-      pwaCheckInterval: null,
       debugMode: process.env.NODE_ENV === 'development'
     }
   },
@@ -54,42 +53,31 @@ export default {
     // Check if should show prompt (not dismissed recently)
     this.checkDismissalStatus()
     
-    // Start PWA criteria checking
-    this.startPWAChecking()
-    
     // Check if we should show prompt based on criteria
     setTimeout(() => {
       this.checkAndShowPrompt()
     }, 3000)
     
-    // Track user engagement
-    this.startEngagementTracking()
+    // Hide the HTML button if our Vue component is showing
+    this.hideHTMLButton()
   },
   beforeUnmount() {
     window.removeEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt)
     window.removeEventListener('appinstalled', this.handleAppInstalled)
-    if (this.pwaCheckInterval) {
-      clearInterval(this.pwaCheckInterval)
-    }
-    this.stopEngagementTracking()
   },
   methods: {
     handleBeforeInstallPrompt(e) {
       console.log('✅ beforeinstallprompt event fired', e)
       
-      // Prevent Chrome from automatically showing the prompt
       e.preventDefault()
-      
-      // Stash the event so it can be triggered later
       this.deferredPrompt = e
       
-      // Show the install prompt if not dismissed
       if (!this.dismissed) {
         this.showInstallPrompt = true
         console.log('📱 Showing install prompt from browser event')
         
-        // Show notification
-        this.showNotification('يمكنك تثبيت التطبيق على جهازك')
+        // Hide the HTML button since we're showing ours
+        this.hideHTMLButton()
       }
     },
     
@@ -99,73 +87,238 @@ export default {
       this.showInstallPrompt = false
       this.deferredPrompt = null
       
-      // Show success notification
       this.showNotification('تم تثبيت التطبيق بنجاح!', 'success')
     },
     
     async installApp() {
-      if (!this.deferredPrompt) {
-        console.log('❌ No deferred prompt available')
-        
-        // Show manual installation instructions
-        this.showManualInstallInstructions()
+      console.log('📱 Install button clicked in Vue component')
+      
+      // FIRST: Try browser's deferredPrompt
+      if (this.deferredPrompt) {
+        await this.showBrowserInstallPrompt()
         return
       }
       
-      console.log('📱 Showing install prompt to user')
-      
-      // Show the install prompt
-      this.deferredPrompt.prompt()
-      
-      // Wait for the user to respond to the prompt
-      const choiceResult = await this.deferredPrompt.userChoice
-      
-      console.log(`User choice: ${choiceResult.outcome}`)
-      
-      if (choiceResult.outcome === 'accepted') {
-        console.log('✅ User accepted the install prompt')
-        this.showNotification('جاري تثبيت التطبيق...', 'success')
-      } else {
-        console.log('❌ User dismissed the install prompt')
-        this.showNotification('تم إلغاء التثبيت', 'warning')
+      // SECOND: Check if we're on Chrome and can trigger install
+      const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor)
+      if (isChrome) {
+        console.log('📱 Chrome detected, trying to trigger install...')
+        await this.triggerChromeInstall()
+        return
       }
       
-      // Clear the deferredPrompt variable
-      this.deferredPrompt = null
-      this.showInstallPrompt = false
+      // THIRD: Show device-specific instructions
+      console.log('📱 Showing device-specific instructions')
+      this.showDeviceSpecificInstructions()
+    },
+    
+    async showBrowserInstallPrompt() {
+      if (!this.deferredPrompt) return
       
-      // Mark as dismissed for 24 hours
-      this.dismissPrompt()
+      try {
+        console.log('📱 Showing browser install prompt...')
+        this.deferredPrompt.prompt()
+        
+        const choiceResult = await this.deferredPrompt.userChoice
+        console.log(`📱 User choice: ${choiceResult.outcome}`)
+        
+        if (choiceResult.outcome === 'accepted') {
+          console.log('✅ User accepted the install')
+          this.showNotification('جاري تثبيت التطبيق...', 'success')
+        } else {
+          console.log('❌ User dismissed the install')
+          this.showNotification('تم إلغاء التثبيت', 'warning')
+        }
+        
+        this.deferredPrompt = null
+        this.showInstallPrompt = false
+        this.dismissPrompt()
+        
+      } catch (error) {
+        console.error('📱 Install prompt error:', error)
+        this.showDeviceSpecificInstructions()
+      }
+    },
+    
+    async triggerChromeInstall() {
+      console.log('📱 Attempting to trigger Chrome installation...')
+      
+      // Show loading toast
+      this.showNotification('جاري إعداد التثبيت...', 'info')
+      
+      // Method 1: Try to trigger beforeinstallprompt by reloading
+      sessionStorage.setItem('forcePWAInstall', 'true')
+      
+      // Method 2: Show Chrome-specific instructions
+      this.showChromeInstructions()
+    },
+    
+    showChromeInstructions() {
+      const isAndroid = /Android/.test(navigator.userAgent)
+      const isDesktop = !isAndroid && !/iPad|iPhone|iPod/.test(navigator.userAgent)
+      
+      let title = ''
+      let steps = []
+      
+      if (isAndroid) {
+        title = 'تثبيت على Android (Chrome)'
+        steps = [
+          'اضغط على ⋮ (القائمة) في أعلى المتصفح',
+          'اختر "إضافة إلى الشاشة الرئيسية"',
+          'اضغط على "إضافة"'
+        ]
+      } else if (isDesktop) {
+        title = 'تثبيت على الكمبيوتر (Chrome)'
+        steps = [
+          'ابحث عن أيقونة 📥 في شريط العنوان',
+          'أو اضغط على ⋮ → "تثبيت تطبيق إدارة المخازن"',
+          'اضغط على "تثبيت"'
+        ]
+      }
+      
+      // Show modal with instructions
+      this.showInstructionsModal(title, steps, 'Chrome')
+    },
+    
+    showDeviceSpecificInstructions() {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+      const isAndroid = /Android/.test(navigator.userAgent)
+      const isDesktop = !isIOS && !isAndroid
+      
+      let title = ''
+      let steps = []
+      let browser = ''
+      
+      if (isIOS) {
+        title = 'تثبيت على iPhone/iPad'
+        steps = [
+          'اضغط على 📤 (مشاركة) في أسفل Safari',
+          'مرر لأسفل وابحث عن "أضف إلى الشاشة الرئيسية"',
+          'اضغط على "إضافة" في الزاوية اليمنى العليا'
+        ]
+        browser = 'Safari'
+      } else if (isAndroid) {
+        title = 'تثبيت على Android'
+        steps = [
+          'اضغط على ⋮ (القائمة) في أعلى المتصفح',
+          'اختر "إضافة إلى الشاشة الرئيسية"',
+          'اضغط على "إضافة"'
+        ]
+        browser = 'Chrome'
+      } else {
+        title = 'تثبيت على الكمبيوتر'
+        steps = [
+          'ابحث عن أيقونة 📥 في شريط العنوان (Chrome/Edge)',
+          'أو اضغط على ⋮ → "تثبيت تطبيق إدارة المخازن"',
+          'اضغط على "تثبيت"'
+        ]
+        browser = 'Chrome أو Edge'
+      }
+      
+      this.showInstructionsModal(title, steps, browser)
+    },
+    
+    showInstructionsModal(title, steps, browser) {
+      const stepsHTML = steps.map(step => 
+        `<li style="margin-bottom: 8px; padding-right: 10px;">${step}</li>`
+      ).join('')
+      
+      const modal = document.createElement('div')
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      `
+      
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 12px; padding: 25px; max-width: 450px; width: 100%; text-align: right; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #1f2937; font-size: 18px;">${title}</h3>
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+              style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+              ✕
+            </button>
+          </div>
+          
+          <div style="color: #4b5563; margin-bottom: 25px; line-height: 1.6;">
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+              <strong>الخطوات:</strong>
+              <ol style="margin-right: 20px; margin-top: 10px;">
+                ${stepsHTML}
+              </ol>
+            </div>
+            
+            <div style="background: #e8f4fd; border-right: 4px solid #3b82f6; padding: 15px; border-radius: 8px; margin-top: 20px;">
+              <p style="margin: 0; color: #1e40af; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                <span>💡</span> ملاحظة:
+              </p>
+              <p style="margin: 8px 0 0 0; color: #374151; font-size: 14px;">
+                تأكد من استخدام ${browser} المتصفح
+              </p>
+            </div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; gap: 10px;">
+            <button onclick="window.location.reload()" 
+              style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🔄</span> إعادة تحميل
+            </button>
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+              style="flex: 1; background: #f1f5f9; color: #475569; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500;">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      `
+      
+      document.body.appendChild(modal)
+      
+      // Add animation style if not exists
+      if (!document.querySelector('#modal-animations')) {
+        const style = document.createElement('style')
+        style.id = 'modal-animations'
+        style.textContent = `
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `
+        document.head.appendChild(style)
+      }
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal)
+        }
+      })
     },
     
     dismissPrompt() {
       this.showInstallPrompt = false
       this.dismissed = true
-      
-      // Store dismissal time
       localStorage.setItem('pwaPromptDismissed', Date.now().toString())
     },
     
     checkIfInstalled() {
-      // Check multiple ways app might be installed
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      const isFullscreen = document.fullscreenElement
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
       const isIOSStandalone = isIOS && window.navigator.standalone
       
-      if (this.debugMode) {
-        console.log('📱 Install check:', {
-          isStandalone,
-          isFullscreen,
-          isIOS,
-          isIOSStandalone
-        })
-      }
-      
-      if (isStandalone || isFullscreen || isIOSStandalone) {
+      if (isStandalone || isIOSStandalone) {
         console.log('📱 App appears to be already installed')
         this.dismissed = true
         this.showInstallPrompt = false
+        this.hideHTMLButton()
         return true
       }
       
@@ -178,153 +331,35 @@ export default {
         const hoursSinceDismiss = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60)
         if (hoursSinceDismiss < 24) {
           this.dismissed = true
-          if (this.debugMode) {
-            console.log(`📱 Prompt dismissed ${hoursSinceDismiss.toFixed(1)} hours ago`)
-          }
+          this.hideHTMLButton()
         } else {
-          // Clear old dismissal
           localStorage.removeItem('pwaPromptDismissed')
           this.dismissed = false
         }
       }
     },
     
-    startPWAChecking() {
-      // Debug: Check PWA criteria periodically in dev mode
-      if (this.debugMode) {
-        this.pwaCheckInterval = setInterval(() => {
-          this.debugPWACriteria()
-        }, 10000)
-      }
-    },
-    
-    debugPWACriteria() {
-      const criteria = {
-        https: window.location.protocol === 'https:',
-        serviceWorker: 'serviceWorker' in navigator,
-        serviceWorkerRegistered: !!navigator.serviceWorker.controller,
-        manifest: document.querySelector('link[rel="manifest"]') !== null,
-        icons: document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').length > 0,
-        themeColor: document.querySelector('meta[name="theme-color"]') !== null,
-        viewport: document.querySelector('meta[name="viewport"]') !== null
-      }
-      
-      console.log('📱 PWA Criteria Check:', criteria)
-      
-      const allMet = Object.values(criteria).every(v => v)
-      console.log(allMet ? '✅ All PWA requirements met!' : '❌ Some requirements missing')
-      
-      return criteria
-    },
-    
     checkAndShowPrompt() {
-      // Check if basic PWA criteria are met
-      const criteria = {
-        https: window.location.protocol === 'https:',
-        serviceWorkerRegistered: !!navigator.serviceWorker.controller,
-        manifest: document.querySelector('link[rel="manifest"]') !== null
-      }
+      // Check basic PWA criteria
+      const hasServiceWorker = !!navigator.serviceWorker?.controller
+      const hasManifest = !!document.querySelector('link[rel="manifest"]')
+      const isHTTPS = window.location.protocol === 'https:'
       
-      const basicCriteriaMet = criteria.https && 
-                               criteria.serviceWorkerRegistered && 
-                               criteria.manifest
+      const basicCriteriaMet = isHTTPS && hasServiceWorker && hasManifest
       
       if (basicCriteriaMet && !this.dismissed && !this.showInstallPrompt) {
         console.log('📱 Basic PWA criteria met, showing install prompt')
         this.showInstallPrompt = true
-        
-        // Show notification
-        this.showNotification('يمكنك تثبيت التطبيق للحصول على تجربة أفضل')
+        this.hideHTMLButton()
       }
     },
     
-    showManualInstallInstructions() {
-      // Create a modal with manual install instructions
-      const instructions = `
-        <div style="padding: 20px; text-align: right; direction: rtl;">
-          <h3 style="color: #3b82f6; margin-bottom: 15px;">كيفية تثبيت التطبيق:</h3>
-          
-          <div style="margin-bottom: 15px;">
-            <strong>📱 على الهاتف (Android/Chrome):</strong>
-            <ol style="margin-right: 20px;">
-              <li>اضغط على قائمة النقاط الثلاث ⋮</li>
-              <li>اختر "تثبيت التطبيق" أو "Add to Home Screen"</li>
-            </ol>
-          </div>
-          
-          <div style="margin-bottom: 15px;">
-            <strong>🍎 على iPhone/iPad (Safari):</strong>
-            <ol style="margin-right: 20px;">
-              <li>اضغط على أيقونة المشاركة 📤</li>
-              <li>مرر لأسفل واختر "أضف إلى الشاشة الرئيسية"</li>
-              <li>اضغط على "إضافة"</li>
-            </ol>
-          </div>
-          
-          <div>
-            <strong>💻 على الكمبيوتر (Chrome/Edge):</strong>
-            <ol style="margin-right: 20px;">
-              <li>اضغط على أيقونة التثبيت في شريط العنوان 📥</li>
-              <li>أو اضغط على ⋮ → "تثبيت [اسم التطبيق]"</li>
-            </ol>
-          </div>
-        </div>
-      `
-      
-      // Show notification that opens instructions
-      if (this.$store && this.$store.dispatch) {
-        this.$store.dispatch('showNotification', {
-          type: 'info',
-          message: 'انقر هنا لمعرفة كيفية تثبيت التطبيق',
-          duration: 10000,
-          action: () => this.openInstructionsModal(instructions)
-        })
-      } else {
-        // Fallback: directly open modal
-        this.openInstructionsModal(instructions)
+    hideHTMLButton() {
+      // Hide the HTML button from index.html to avoid conflicts
+      const htmlButton = document.getElementById('install-btn')
+      if (htmlButton) {
+        htmlButton.style.display = 'none'
       }
-    },
-    
-    openInstructionsModal(instructions) {
-      const modal = document.createElement('div')
-      modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-      `
-      modal.innerHTML = `
-        <div style="background: white; border-radius: 12px; padding: 0; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-          <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="margin: 0; color: #1f2937;">تعليمات التثبيت</h3>
-              <button id="close-instructions" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
-            </div>
-          </div>
-          <div>${instructions}</div>
-          <div style="padding: 20px; border-top: 1px solid #e5e7eb; text-align: left;">
-            <button id="close-btn" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">إغلاق</button>
-          </div>
-        </div>
-      `
-      
-      document.body.appendChild(modal)
-      
-      const closeModal = () => {
-        document.body.removeChild(modal)
-      }
-      
-      modal.querySelector('#close-instructions').addEventListener('click', closeModal)
-      modal.querySelector('#close-btn').addEventListener('click', closeModal)
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal()
-      })
     },
     
     showNotification(message, type = 'info') {
@@ -335,98 +370,72 @@ export default {
           duration: 5000
         })
       } else {
-        console.log('📱 Notification:', message)
-      }
-    },
-    
-    startEngagementTracking() {
-      // Track engagement for PWA criteria
-      if (!localStorage.getItem('pwaEngagementStart')) {
-        localStorage.setItem('pwaEngagementStart', Date.now().toString())
-      }
-      
-      // Update engagement time periodically
-      this.engagementInterval = setInterval(() => {
-        const startTime = parseInt(localStorage.getItem('pwaEngagementStart') || '0')
-        const engagementTime = Date.now() - startTime
-        localStorage.setItem('pwaEngagementTime', engagementTime.toString())
+        // Fallback: create a simple toast
+        const toast = document.createElement('div')
+        toast.textContent = message
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: ${type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+          color: white;
+          padding: 14px 28px;
+          border-radius: 10px;
+          z-index: 10002;
+          font-family: 'Tajawal', sans-serif;
+          font-weight: 500;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+          animation: slideDown 0.3s ease;
+          max-width: 90%;
+          text-align: center;
+        `
         
-        // Log engagement in debug mode
-        if (this.debugMode && engagementTime % 30000 < 1000) {
-          console.log(`📱 User engagement: ${Math.round(engagementTime / 1000)} seconds`)
+        document.body.appendChild(toast)
+        
+        setTimeout(() => {
+          toast.style.opacity = '0'
+          toast.style.transition = 'opacity 0.3s ease'
+          setTimeout(() => {
+            if (toast.parentNode) document.body.removeChild(toast)
+          }, 300)
+        }, 4000)
+        
+        // Add animation style if not exists
+        if (!document.querySelector('#toast-animations')) {
+          const style = document.createElement('style')
+          style.id = 'toast-animations'
+          style.textContent = `
+            @keyframes slideDown {
+              from {
+                transform: translate(-50%, -100%);
+                opacity: 0;
+              }
+              to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+              }
+            }
+          `
+          document.head.appendChild(style)
         }
-      }, 5000)
-    },
-    
-    stopEngagementTracking() {
-      if (this.engagementInterval) {
-        clearInterval(this.engagementInterval)
       }
     },
     
-    // Browser console test function
+    // Debug function
     testPWA() {
-      const testResults = {
-        // Basic checks
+      const status = {
         isHTTPS: window.location.protocol === 'https:',
         hasServiceWorker: 'serviceWorker' in navigator,
-        serviceWorkerController: !!navigator.serviceWorker.controller,
-        
-        // Manifest checks
-        hasManifestLink: !!document.querySelector('link[rel="manifest"]'),
-        manifestIcons: 0,
-        manifestValid: false,
-        
-        // Meta tags
-        hasThemeColor: !!document.querySelector('meta[name="theme-color"]'),
-        hasViewport: !!document.querySelector('meta[name="viewport"]'),
-        hasAppleMeta: !!document.querySelector('meta[name="apple-mobile-web-app-capable"]'),
-        
-        // Icons
-        hasIcons: document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').length > 0,
-        
-        // User engagement
-        engagementTime: parseInt(localStorage.getItem('pwaEngagementTime') || '0'),
-        hasSufficientEngagement: false
+        serviceWorkerActive: !!navigator.serviceWorker?.controller,
+        hasManifest: !!document.querySelector('link[rel="manifest"]'),
+        hasIcons: document.querySelectorAll('link[rel*="icon"]').length > 0,
+        deferredPrompt: !!this.deferredPrompt,
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches
       }
       
-      // Check manifest details
-      const manifestLink = document.querySelector('link[rel="manifest"]')
-      if (manifestLink) {
-        fetch(manifestLink.href)
-          .then(res => res.json())
-          .then(manifest => {
-            testResults.manifestIcons = manifest.icons?.length || 0
-            testResults.manifestValid = !!manifest.name && !!manifest.short_name && !!manifest.start_url
-            testResults.manifestDisplay = manifest.display || 'browser'
-            
-            console.log('📱 PWA Test Results:', testResults)
-            console.log('📱 Manifest:', {
-              name: manifest.name,
-              short_name: manifest.short_name,
-              display: manifest.display,
-              start_url: manifest.start_url,
-              icons: manifest.icons?.length
-            })
-            
-            // Check if meets criteria
-            const meetsCriteria = testResults.isHTTPS &&
-                                 testResults.serviceWorkerController &&
-                                 testResults.manifestValid &&
-                                 testResults.manifestIcons > 0 &&
-                                 testResults.hasThemeColor
-            
-            console.log(meetsCriteria ? '✅ Meets PWA criteria!' : '❌ Does not meet all criteria')
-          })
-          .catch(err => {
-            console.error('📱 Manifest fetch error:', err)
-            console.log('📱 PWA Test Results:', testResults)
-          })
-      } else {
-        console.log('📱 PWA Test Results:', testResults)
-      }
-      
-      return testResults
+      console.log('📱 PWA Test:', status)
+      return status
     }
   }
 }
@@ -462,6 +471,18 @@ export default {
   display: flex;
   align-items: center;
   position: relative;
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1),
+                0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1),
+                0 0 0 10px rgba(59, 130, 246, 0);
+  }
 }
 
 .pwa-install-icon {
@@ -634,21 +655,5 @@ export default {
     padding: 6px 12px;
     font-size: 13px;
   }
-}
-
-/* Animation for attention */
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1),
-                0 0 0 0 rgba(59, 130, 246, 0.7);
-  }
-  50% {
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1),
-                0 0 0 10px rgba(59, 130, 246, 0);
-  }
-}
-
-.pwa-install-content {
-  animation: pulse-glow 2s infinite;
 }
 </style>
