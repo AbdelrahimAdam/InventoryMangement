@@ -100,9 +100,60 @@
       pointer-events: none;
     }
 
+    /* Install button - Always visible if criteria met */
+    #install-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      z-index: 10000;
+      font-family: 'Tajawal', sans-serif;
+      transition: all 0.3s ease;
+      display: none; /* Hidden by default */
+      animation: pulse 2s infinite;
+    }
+
+    #install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    #install-btn:active {
+      transform: translateY(0);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3),
+                    0 0 0 0 rgba(59, 130, 246, 0.7);
+      }
+      50% {
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3),
+                    0 0 0 10px rgba(59, 130, 246, 0);
+      }
+    }
+
+    /* Mobile specific styles */
+    @media (max-width: 768px) {
+      #install-btn {
+        bottom: 70px; /* Above mobile navigation */
+        font-size: 13px;
+        padding: 10px 20px;
+      }
+    }
+
     /* Print styles */
     @media print {
-      #app-loading {
+      #app-loading,
+      #install-btn {
         display: none !important;
       }
       
@@ -141,6 +192,9 @@
 
   <!-- Vue app root -->
   <div id="app"></div>
+
+  <!-- Install button -->
+  <button id="install-btn">📱 تثبيت التطبيق</button>
 
   <!-- Auto-hide loader when Vue mounts -->
   <script>
@@ -191,7 +245,7 @@
     });
   </script>
 
-  <!-- Service Worker Registration Only -->
+  <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       console.log('📱 Service Worker supported');
@@ -218,6 +272,626 @@
           });
       });
     }
+  </script>
+
+  <!-- Enhanced PWA Installation Handler -->
+  <script>
+    let deferredPrompt = null;
+    const installBtn = document.getElementById("install-btn");
+    
+    // Debug function to check PWA status
+    window.checkPWAStatus = function() {
+      const status = {
+        // Core PWA requirements
+        isHTTPS: window.location.protocol === 'https:',
+        hasServiceWorker: 'serviceWorker' in navigator,
+        serviceWorkerActive: false,
+        hasManifest: false,
+        manifestValid: false,
+        hasIcons: false,
+        hasThemeColor: !!document.querySelector('meta[name="theme-color"]'),
+        
+        // Installability
+        beforeInstallPromptFired: !!deferredPrompt,
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream,
+        isIOSStandalone: false,
+        isAndroid: /Android/.test(navigator.userAgent)
+      };
+      
+      // Check service worker
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        status.serviceWorkerActive = true;
+      }
+      
+      // Check manifest
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        status.hasManifest = true;
+        // Try to fetch manifest to validate
+        fetch(manifestLink.href)
+          .then(res => res.json())
+          .then(manifest => {
+            status.manifestValid = !!manifest.name && !!manifest.start_url && manifest.icons?.length > 0;
+            console.log('📱 Manifest validated:', status.manifestValid);
+          })
+          .catch(err => {
+            console.error('📱 Manifest fetch error:', err);
+          });
+      }
+      
+      // Check icons
+      status.hasIcons = document.querySelectorAll('link[rel*="icon"]').length > 0;
+      
+      // Check if already installed
+      if (status.isIOS) {
+        status.isIOSStandalone = window.navigator.standalone === true;
+      }
+      
+      console.log('📱 PWA Status Check:', status);
+      
+      // Check if all requirements are met
+      const requirementsMet = status.isHTTPS && 
+                              status.serviceWorkerActive && 
+                              status.hasManifest && 
+                              status.hasIcons;
+      
+      console.log(requirementsMet ? '✅ PWA requirements met!' : '❌ PWA requirements not fully met');
+      
+      return status;
+    };
+    
+    // Check PWA status and show button if criteria met
+    function checkAndShowButton() {
+      const status = window.checkPWAStatus();
+      const requirementsMet = status.isHTTPS && 
+                              status.serviceWorkerActive && 
+                              status.hasManifest && 
+                              status.hasIcons;
+      
+      if (requirementsMet && !status.isStandalone && !status.isIOSStandalone && installBtn) {
+        console.log('📱 Showing install button (criteria met)');
+        installBtn.style.display = 'block';
+        return true;
+      }
+      return false;
+    }
+    
+    // Listen for beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('📱 beforeinstallprompt event fired - Browser wants to show install prompt');
+      
+      // Prevent Chrome from showing the mini-infobar
+      e.preventDefault();
+      
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      
+      // Show our install button immediately
+      if (installBtn) {
+        installBtn.style.display = 'block';
+        console.log('📱 Showing install button from beforeinstallprompt');
+      }
+    });
+    
+    // If beforeinstallprompt doesn't fire, check PWA status manually
+    setTimeout(() => {
+      if (!deferredPrompt) {
+        console.log('📱 Checking PWA status manually...');
+        const buttonShown = checkAndShowButton();
+        if (!buttonShown) {
+          console.log('📱 Button not shown, checking again in 3 seconds...');
+          setTimeout(checkAndShowButton, 3000);
+        }
+      }
+    }, 3000);
+    
+    // Handle install button click - UPDATED TO FORCE INSTALL
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        console.log('📱 Install button clicked');
+        
+        if (deferredPrompt) {
+          // Use browser's install prompt
+          await showInstallPrompt();
+        } else {
+          console.log('📱 No deferred prompt, checking if we can force install...');
+          
+          // Check if we're on Chrome and can use experimental API
+          const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+          
+          if (isChrome) {
+            console.log('📱 Chrome detected, trying to trigger install...');
+            // Try to trigger install via the browser's native method
+            try {
+              // Create a synthetic event to trigger installation
+              await triggerChromeInstall();
+            } catch (error) {
+              console.log('📱 Could not trigger Chrome install automatically');
+              showEnhancedInstallInstructions(true); // Show enhanced instructions
+            }
+          } else {
+            // For other browsers, show instructions
+            showEnhancedInstallInstructions(true);
+          }
+        }
+      });
+    }
+    
+    // Try to trigger Chrome install programmatically
+    async function triggerChromeInstall() {
+      console.log('📱 Attempting to trigger Chrome installation...');
+      
+      // Method 1: Try to reload and wait for beforeinstallprompt
+      console.log('📱 Reloading page to trigger beforeinstallprompt...');
+      showToast('جاري إعداد التثبيت...', 'info');
+      
+      // Store that we're trying to install
+      localStorage.setItem('pwaInstallAttempt', Date.now().toString());
+      
+      // Method 2: Try to open the install dialog via window management
+      if (window.chrome && chrome.app && chrome.app.install) {
+        try {
+          chrome.app.install();
+          return;
+        } catch (e) {
+          console.log('📱 Chrome app.install API not available');
+        }
+      }
+      
+      // Method 3: For Android Chrome, try to trigger add to home screen
+      const isAndroidChrome = /Android.*Chrome/.test(navigator.userAgent);
+      if (isAndroidChrome) {
+        console.log('📱 Android Chrome detected');
+        showAndroidInstallInstructions();
+        return;
+      }
+      
+      // Method 4: Show enhanced install instructions
+      showEnhancedInstallInstructions();
+    }
+    
+    // Show Android-specific install instructions
+    function showAndroidInstallInstructions() {
+      const modal = document.createElement('div');
+      modal.id = 'android-install-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 15px; padding: 25px; max-width: 400px; width: 100%; text-align: right; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 60px; height: 60px; background: #3b82f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+              <span style="color: white; font-size: 28px;">📱</span>
+            </div>
+            <h3 style="margin: 0; color: #1f2937; font-size: 20px;">تثبيت التطبيق على Android</h3>
+          </div>
+          
+          <div style="color: #4b5563; margin-bottom: 25px; line-height: 1.6;">
+            <ol style="margin-right: 20px;">
+              <li style="margin-bottom: 10px;">اضغط على <strong>⋮</strong> (القائمة) في أعلى المتصفح</li>
+              <li style="margin-bottom: 10px;">اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong></li>
+              <li style="margin-bottom: 10px;">اضغط على <strong>"إضافة"</strong></li>
+              <li style="margin-bottom: 10px;">سيظهر التطبيق على الشاشة الرئيسية</li>
+            </ol>
+            
+            <div style="background: #f8fafc; border-right: 4px solid #3b82f6; padding: 15px; margin-top: 20px; border-radius: 8px;">
+              <p style="margin: 0; color: #3b82f6; font-weight: 500;">
+                💡 تلميح: إذا لم تظهر لك هذه الخيارات، تأكد من:
+              </p>
+              <ul style="margin-right: 20px; margin-top: 10px;">
+                <li>أنك تستخدم Chrome المتصفح</li>
+                <li>أن الصفحة قد تم تحميلها بالكامل</li>
+                <li>أنك قمت بزيارة الصفحة أكثر من مرة</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; gap: 10px;">
+            <button onclick="window.location.reload()" 
+              style="flex: 1; background: #f1f5f9; color: #475569; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; transition: all 0.2s;">
+              🔄 إعادة تحميل
+            </button>
+            <button onclick="document.getElementById('android-install-modal').remove()" 
+              style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; transition: all 0.2s;">
+              فهمت
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      });
+    }
+    
+    // Show enhanced install instructions with screenshots
+    function showEnhancedInstallInstructions() {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isAndroid = /Android/.test(navigator.userAgent);
+      
+      let instructions = '';
+      let screenshotHint = '';
+      
+      if (isIOS) {
+        instructions = `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #3b82f6; margin-bottom: 10px;">🍎 على iPhone/iPad:</h4>
+            <ol style="margin-right: 20px;">
+              <li style="margin-bottom: 8px;">اضغط على <strong>📤</strong> (مشاركة) في أسفل Safari</li>
+              <li style="margin-bottom: 8px;">مرر لأسفل وابحث عن <strong>"أضف إلى الشاشة الرئيسية"</strong></li>
+              <li style="margin-bottom: 8px;">اضغط على <strong>"إضافة"</strong> في الزاوية اليمنى العليا</li>
+            </ol>
+          </div>
+        `;
+        screenshotHint = 'تأكد من استخدام Safari وليس Chrome';
+      } else if (isAndroid) {
+        instructions = `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #3b82f6; margin-bottom: 10px;">📱 على Android:</h4>
+            <ol style="margin-right: 20px;">
+              <li style="margin-bottom: 8px;">اضغط على <strong>⋮</strong> (القائمة) في أعلى المتصفح</li>
+              <li style="margin-bottom: 8px;">اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong></li>
+              <li style="margin-bottom: 8px;">اضغط على <strong>"إضافة"</strong></li>
+            </ol>
+          </div>
+        `;
+        screenshotHint = 'يجب أن تستخدم Chrome المتصفح';
+      } else {
+        instructions = `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #3b82f6; margin-bottom: 10px;">💻 على الكمبيوتر:</h4>
+            <ol style="margin-right: 20px;">
+              <li style="margin-bottom: 8px;">ابحث عن أيقونة 📥 في شريط العنوان</li>
+              <li style="margin-bottom: 8px;">أو اضغط على <strong>⋮</strong> → "تثبيت تطبيق إدارة المخازن"</li>
+            </ol>
+          </div>
+        `;
+        screenshotHint = 'في Chrome أو Edge، ابحث عن أيقونة التثبيت';
+      }
+      
+      const modal = document.createElement('div');
+      modal.id = 'enhanced-install-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 15px; padding: 25px; max-width: 500px; width: 100%; text-align: right; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #1f2937; font-size: 20px;">كيفية تثبيت التطبيق</h3>
+            <button onclick="document.getElementById('enhanced-install-modal').remove()" 
+              style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+              ✕
+            </button>
+          </div>
+          
+          <div style="color: #4b5563; margin-bottom: 25px; line-height: 1.6;">
+            ${instructions}
+            
+            <div style="background: linear-gradient(135deg, #f8fafc, #e0f2fe); border-radius: 10px; padding: 20px; margin-top: 20px;">
+              <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                <div style="width: 40px; height: 40px; background: #3b82f6; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                  <span style="color: white; font-size: 20px;">💡</span>
+                </div>
+                <div>
+                  <h4 style="margin: 0; color: #1e40af;">نصائح مهمة:</h4>
+                </div>
+              </div>
+              <ul style="margin-right: 20px;">
+                <li>${screenshotHint}</li>
+                <li>قد تحتاج إلى زيارة الصفحة أكثر من مرة</li>
+                <li>تأكد من اتصال الإنترنت</li>
+                <li>إذا لم تظهر الخيارات، جرب إعادة تحميل الصفحة</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; gap: 10px;">
+            <button onclick="window.location.reload()" 
+              style="flex: 1; background: #f1f5f9; color: #475569; border: none; padding: 14px; border-radius: 10px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🔄</span> إعادة تحميل
+            </button>
+            <button onclick="testInstall()" 
+              style="flex: 1; background: #10b981; color: white; border: none; padding: 14px; border-radius: 10px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🚀</span> حاول مرة أخرى
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      });
+      
+      // Add test function
+      window.testInstall = function() {
+        document.body.removeChild(modal);
+        showToast('جاري التحقق من إمكانية التثبيت...', 'info');
+        setTimeout(() => {
+          if (deferredPrompt) {
+            showInstallPrompt();
+          } else {
+            showToast('لا تزال الإمكانية غير متاحة. حاول إعادة تحميل الصفحة.', 'warning');
+          }
+        }, 1000);
+      };
+    }
+    
+    // Show the install prompt (if deferredPrompt exists)
+    async function showInstallPrompt() {
+      if (!deferredPrompt) {
+        console.log('❌ No deferred prompt available');
+        showEnhancedInstallInstructions();
+        return;
+      }
+      
+      console.log('📱 Showing install prompt...');
+      
+      try {
+        // Show the install prompt
+        deferredPrompt.prompt();
+        
+        // Wait for the user to respond
+        const choiceResult = await deferredPrompt.userChoice;
+        
+        console.log(`📱 User choice: ${choiceResult.outcome}`);
+        
+        if (choiceResult.outcome === 'accepted') {
+          console.log('✅ User accepted the install');
+          showToast('تم تثبيت التطبيق بنجاح! سيتم فتحه في نافذة جديدة.', 'success');
+        } else {
+          console.log('❌ User dismissed the install');
+          showToast('تم إلغاء التثبيت', 'warning');
+        }
+        
+        // Clear the deferredPrompt
+        deferredPrompt = null;
+        
+        // Hide the button
+        if (installBtn) installBtn.style.display = 'none';
+        
+      } catch (error) {
+        console.error('📱 Install prompt error:', error);
+        showEnhancedInstallInstructions();
+      }
+    }
+    
+    // Listen for app installed event
+    window.addEventListener('appinstalled', () => {
+      console.log('🎉 App was successfully installed');
+      deferredPrompt = null;
+      if (installBtn) installBtn.style.display = 'none';
+      showToast('تم تثبيت التطبيق بنجاح!', 'success');
+    });
+    
+    // Show manual install instructions
+    function showManualInstallInstructions(enhanced = false) {
+      if (enhanced) {
+        showEnhancedInstallInstructions();
+      } else {
+        // Original simple instructions
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isDesktop = !isIOS && !isAndroid;
+        
+        let instructions = '';
+        
+        if (isIOS) {
+          instructions = `
+            <h3 style="color: #3b82f6; margin-bottom: 15px;">🍎 على iPhone/iPad:</h3>
+            <ol style="margin-right: 20px; margin-bottom: 20px;">
+              <li>اضغط على أيقونة المشاركة 📤 في أسفل Safari</li>
+              <li>مرر لأسفل واختر "أضف إلى الشاشة الرئيسية"</li>
+              <li>اضغط على "إضافة" في الزاوية اليمنى العليا</li>
+            </ol>
+          `;
+        } else if (isAndroid) {
+          instructions = `
+            <h3 style="color: #3b82f6; margin-bottom: 15px;">📱 على Android:</h3>
+            <ol style="margin-right: 20px;">
+              <li>اضغط على قائمة النقاط الثلاث ⋮ في أعلى المتصفح</li>
+              <li>اختر "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق"</li>
+              <li>اضغط على "تثبيت" أو "إضافة"</li>
+            </ol>
+          `;
+        } else {
+          instructions = `
+            <h3 style="color: #3b82f6; margin-bottom: 15px;">💻 على الكمبيوتر:</h3>
+            <ol style="margin-right: 20px;">
+              <li>في Chrome/Edge: اضغط على أيقونة 📥 في شريط العنوان</li>
+              <li>أو اضغط على ⋮ → "تثبيت تطبيق إدارة المخازن"</li>
+            </ol>
+          `;
+        }
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'install-instructions-modal';
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10001;
+          padding: 20px;
+          animation: fadeIn 0.3s ease;
+        `;
+        
+        modal.innerHTML = `
+          <div style="background: white; border-radius: 12px; padding: 25px; max-width: 450px; width: 100%; text-align: right; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h3 style="margin: 0; color: #1f2937; font-size: 18px;">تعليمات تثبيت التطبيق</h3>
+              <button id="close-instructions" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            <div style="color: #4b5563; margin-bottom: 25px; line-height: 1.6;">
+              ${instructions}
+            </div>
+            <div style="text-align: left;">
+              <button onclick="document.getElementById('install-instructions-modal').remove()" 
+                style="background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 500; transition: opacity 0.2s;">
+                فهمت
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close button
+        modal.querySelector('#close-instructions').addEventListener('click', () => {
+          document.body.removeChild(modal);
+        });
+        
+        // Close on background click
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            document.body.removeChild(modal);
+          }
+        });
+      }
+    }
+    
+    // Show toast notification
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+        color: white;
+        padding: 14px 28px;
+        border-radius: 10px;
+        z-index: 10002;
+        font-family: 'Tajawal', sans-serif;
+        font-weight: 500;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        animation: slideDown 0.3s ease;
+        max-width: 90%;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      `;
+      
+      document.body.appendChild(toast);
+      
+      // Remove after 4 seconds
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+          if (toast.parentNode) {
+            document.body.removeChild(toast);
+          }
+        }, 300);
+      }, 4000);
+    }
+    
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideDown {
+        from {
+          transform: translate(-50%, -100%);
+          opacity: 0;
+        }
+        to {
+          transform: translate(-50%, 0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Initialize - check PWA status on load
+    setTimeout(() => {
+      console.log('📱 Initial PWA status check...');
+      checkAndShowButton();
+      
+      // Check if we have a pending install attempt
+      const installAttempt = localStorage.getItem('pwaInstallAttempt');
+      if (installAttempt) {
+        const timeSinceAttempt = Date.now() - parseInt(installAttempt);
+        if (timeSinceAttempt < 60000) { // Within last minute
+          console.log('📱 Found recent install attempt, checking if we can install now...');
+          setTimeout(checkAndShowButton, 1000);
+        }
+        localStorage.removeItem('pwaInstallAttempt');
+      }
+    }, 2000);
+    
+    // Also check when service worker becomes active
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('📱 Service Worker controller changed');
+        setTimeout(checkAndShowButton, 1000);
+      });
+    }
+    
+    // Try to trigger beforeinstallprompt by simulating user engagement
+    setTimeout(() => {
+      if (!deferredPrompt) {
+        console.log('📱 Simulating user engagement to trigger install prompt...');
+        // Simulate user activity
+        window.dispatchEvent(new Event('scroll'));
+        window.dispatchEvent(new KeyboardEvent('keydown', {key: ' '}));
+        
+        // Check again after simulation 
+        setTimeout(() => {
+          if (!deferredPrompt) {
+            console.log('📱 Still no beforeinstallprompt event...');
+          }
+        }, 1000);
+      }
+    }, 5000);
   </script>
 </body>
 </html>
