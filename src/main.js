@@ -14,16 +14,6 @@ import { lazyImageDirective } from './directives/lazyImage';
 
 console.log('🚀 Starting Warehouse Management System...');
 
-// ==================== REGISTER SERVICE WORKER ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then(reg => console.log('✔ Service Worker registered:', reg))
-      .catch(err => console.error('❌ Service Worker registration failed:', err));
-  });
-}
-
 // ==================== 1. SHOW LOADING SCREEN ====================
 function showLoadingScreen() {
   const appEl = document.getElementById('app');
