@@ -1,172 +1,596 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  <!-- Viewport for responsive design -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="إدارة المخازن">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="إدارة المخازن">
+  <meta name="description" content="نظام متكامل لإدارة مخازن زجاج العطور - البران للعطور">
+  <meta name="keywords" content="مخازن, عطور, إدارة, بران">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png">
+  
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167x167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png">
+  
+  <!-- Arabic font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
+  
+  <title>نظام إدارة المخازن - البران للعطور</title>
 
-    <!-- Favicon -->
-    <link rel="icon" href="/favicon.ico" />
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-    <!-- Arabic font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap"
-      rel="stylesheet"
-    />
+    html {
+      scroll-behavior: smooth;
+    }
 
-    <title>Perfume Inventory</title>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      overflow-x: hidden;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
 
-    <!-- PWA manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#3b82f6" />
+    /* Loading screen */
+    #app-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      z-index: 9999;
+      text-align: center;
+      padding: 20px;
+      transition: opacity 0.3s ease;
+    }
 
-    <style>
-      /* Loading styles */
-      #app-loading {
-        position: fixed;
-        inset: 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        z-index: 9999;
-        font-family: "Tajawal", sans-serif;
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    .loading-progress {
+      width: 200px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      margin: 20px auto;
+      overflow: hidden;
+    }
+
+    .loading-progress-bar {
+      height: 100%;
+      background: white;
+      width: 30%;
+      animation: progress 2s ease-in-out infinite;
+      border-radius: 2px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
+    }
 
+    @keyframes progress {
+      0% {
+        transform: translateX(-100%);
+      }
+      50% {
+        transform: translateX(250%);
+      }
+      100% {
+        transform: translateX(-100%);
+      }
+    }
+
+    /* Error state */
+    .error-state {
+      background: white;
+      padding: 40px 20px;
+      border-radius: 10px;
+      text-align: center;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .error-state h2 {
+      color: #e74c3c;
+      margin-bottom: 15px;
+    }
+
+    .error-state button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+      font-family: 'Tajawal', sans-serif;
+    }
+
+    /* Hide loading when Vue loads */
+    body.vue-loaded #app-loading {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Install button - Desktop only */
+    #install-btn {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      z-index: 10000;
+      font-family: 'Tajawal', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    #install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    #install-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Mobile specific styles */
+    @media (max-width: 768px) {
+      #app-loading h2 {
+        font-size: 20px;
+      }
+      
+      #app-loading p {
+        font-size: 14px;
+      }
+      
       .loading-spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: white;
-        animation: spin 1s linear infinite;
-        margin-bottom: 20px;
+        width: 50px;
+        height: 50px;
       }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: "Tajawal", sans-serif;
-        background: #f5f5f5;
-      }
-
-      body.vue-loaded #app-loading {
-        display: none;
-      }
-
-      /* Install button */
+      
+      /* Hide desktop install button on mobile */
       #install-btn {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        background-color: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        cursor: pointer;
-        z-index: 10000;
+        display: none !important;
       }
-    </style>
-  </head>
+    }
 
-  <body>
-    <!-- Loading screen -->
-    <div id="app-loading">
-      <div class="loading-spinner"></div>
-      <h2>جاري تحميل النظام...</h2>
-      <p>نظام إدارة المخازن</p>
+    /* Tablet styles */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      #app-loading h2 {
+        font-size: 24px;
+      }
+    }
+
+    /* Desktop styles */
+    @media (min-width: 1025px) {
+      #app-loading h2 {
+        font-size: 28px;
+      }
+      
+      #app-loading p {
+        font-size: 16px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      #app-loading,
+      #install-btn {
+        display: none !important;
+      }
+      
+      body {
+        background: white;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #121212;
+        color: #e0e0e0;
+      }
+      
+      .error-state {
+        background: #1e1e1e;
+        color: #e0e0e0;
+      }
+      
+      .error-state h2 {
+        color: #ff6b6b;
+      }
+      
+      .error-state button {
+        background: #0d6efd;
+      }
+    }
+
+    /* Safari specific fixes */
+    @supports (-webkit-touch-callout: none) {
+      #app {
+        min-height: -webkit-fill-available;
+      }
+    }
+
+    /* Prevent zoom on mobile */
+    @media (max-width: 768px) {
+      input,
+      select,
+      textarea {
+        font-size: 16px !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading screen -->
+  <div id="app-loading">
+    <div class="loading-spinner"></div>
+    <h2>نظام إدارة المخازن</h2>
+    <p>جاري تحميل النظام...</p>
+    <div class="loading-progress">
+      <div class="loading-progress-bar"></div>
     </div>
+    <p style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
+      الإصدار 2.0.0 | البران للعطور
+    </p>
+  </div>
 
-    <!-- Vue app root -->
-    <div id="app"></div>
+  <!-- Vue app root -->
+  <div id="app"></div>
 
-    <!-- Install button -->
-    <button id="install-btn">تثبيت التطبيق</button>
+  <!-- Desktop install button -->
+  <button id="install-btn">📱 تثبيت التطبيق</button>
 
-    <!-- Auto-hide loader when Vue mounts -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const appDiv = document.getElementById("app");
+  <!-- Auto-hide loader when Vue mounts -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      console.log('📱 DOM Content Loaded');
+      
+      const appDiv = document.getElementById("app");
+      let vueMounted = false;
 
-        const checkInterval = setInterval(function () {
-          if (appDiv && appDiv.children.length > 0) {
-            console.log("✅ Vue mounted successfully");
-            document.body.classList.add("vue-loaded");
-            clearInterval(checkInterval);
-          }
-        }, 100);
-
-        setTimeout(function () {
-          clearInterval(checkInterval);
-          if (!document.body.classList.contains("vue-loaded")) {
-            console.error("❌ Vue did not mount in time");
+      // Check for Vue mounting
+      const checkVueMount = setInterval(function () {
+        if (appDiv && appDiv.children.length > 0) {
+          console.log("✅ Vue mounted successfully");
+          document.body.classList.add("vue-loaded");
+          vueMounted = true;
+          clearInterval(checkVueMount);
+          
+          // Remove loading screen after animation
+          setTimeout(() => {
             const loadingEl = document.getElementById("app-loading");
             if (loadingEl) {
-              loadingEl.innerHTML = `
-                <div style="padding: 20px; text-align: center;">
-                  <h2>⚠️ خطأ في التحميل</h2>
-                  <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
-                  <button onclick="window.location.reload()" 
-                    style="padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 5px; margin: 10px;">
-                    إعادة التحميل
-                  </button>
-                </div>
-              `;
+              loadingEl.style.display = 'none';
             }
-          }
-        }, 10000);
-      });
-    </script>
+          }, 300);
+        }
+      }, 100);
 
-    <!-- REGISTER SERVICE WORKER -->
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/service-worker.js")
-            .then(reg => console.log("Service Worker registered:", reg))
-            .catch(err => console.error("Service Worker registration failed:", err));
-        });
+      // Timeout after 15 seconds
+      setTimeout(function () {
+        if (!vueMounted) {
+          console.error("❌ Vue did not mount in time");
+          clearInterval(checkVueMount);
+          const loadingEl = document.getElementById("app-loading");
+          if (loadingEl) {
+            loadingEl.innerHTML = `
+              <div class="error-state">
+                <h2>⚠️ خطأ في التحميل</h2>
+                <p>يرجى التحقق من اتصال الإنترنت وإعادة تحميل الصفحة.</p>
+                <button onclick="window.location.reload()">
+                  🔄 إعادة التحميل
+                </button>
+                <p style="margin-top: 20px; font-size: 12px; color: #666;">
+                  إذا استمرت المشكلة، الرجاء الاتصال بالدعم الفني
+                </p>
+              </div>
+            `;
+          }
+        }
+      }, 15000);
+
+      // Detect standalone mode (already installed)
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('📱 Running in standalone mode (PWA installed)');
+        document.body.classList.add('pwa-installed');
       }
-    </script>
+    });
+  </script>
 
-    <!-- PWA INSTALL PROMPT -->
-    <script>
-      let deferredPrompt;
-      const installBtn = document.getElementById("install-btn");
-
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault(); // Prevent Chrome mini-infobar
-        deferredPrompt = e;
-        installBtn.style.display = "inline-block"; // Show install button
-      });
-
-      installBtn.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt(); // Show the install popup
-          const choice = await deferredPrompt.userChoice;
-          if (choice.outcome === "accepted") {
-            console.log("User accepted the install prompt");
-          } else {
-            console.log("User dismissed the install prompt");
+  <!-- Enhanced PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      console.log('📱 Service Worker supported');
+      
+      window.addEventListener('load', () => {
+        const swUrl = '/service-worker.js';
+        
+        // Unregister any existing service workers first
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('📱 Unregistered old service worker');
           }
-          deferredPrompt = null;
-          installBtn.style.display = "none"; // Hide button after click
+        }).then(() => {
+          // Register new service worker
+          return navigator.serviceWorker.register(swUrl);
+        }).then(registration => {
+          console.log('✅ Service Worker registered successfully:', registration.scope);
+          
+          // Check for updates
+          registration.addEventListener('updatefound', () => {
+            console.log('🔄 New service worker found');
+          });
+          
+          // Send message to service worker for debugging
+          if (registration.active) {
+            registration.active.postMessage({ type: 'DEBUG', message: 'Service Worker Active' });
+          }
+          
+        }).catch(error => {
+          console.warn('⚠️ Service Worker registration failed:', error.message);
+          
+          // Don't show error for 404s (file might not exist yet)
+          if (!error.message.includes('404') && !error.message.includes('Failed to fetch')) {
+            console.error('Service Worker error details:', error);
+          }
+        });
+      });
+    } else {
+      console.log('📱 Service Worker not supported');
+    }
+  </script>
+
+  <!-- Enhanced PWA Install Prompt -->
+  <script>
+    let deferredPrompt = null;
+    const installBtn = document.getElementById("install-btn");
+
+    // Listen for beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('📱 beforeinstallprompt event fired');
+      
+      // Prevent Chrome from showing the mini-infobar
+      e.preventDefault();
+      
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      
+      // Show our custom install button (desktop only)
+      if (installBtn && window.innerWidth > 768) {
+        installBtn.style.display = 'block';
+        console.log('📱 Showing desktop install button');
+      }
+      
+      // Log PWA criteria
+      console.log('📱 PWA Install Criteria:', {
+        isHTTPS: window.location.protocol === 'https:',
+        hasServiceWorker: !!navigator.serviceWorker.controller,
+        hasManifest: !!document.querySelector('link[rel="manifest"]'),
+        userEngaged: true
+      });
+    });
+
+    // Handle install button click
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) {
+          console.log('❌ No deferred prompt available');
+          showManualInstallInstructions();
+          return;
+        }
+        
+        console.log('📱 Showing install prompt to user');
+        
+        // Show the install prompt
+        deferredPrompt.prompt();
+        
+        // Wait for the user to respond
+        const choiceResult = await deferredPrompt.userChoice;
+        
+        console.log(`📱 User choice: ${choiceResult.outcome}`);
+        
+        if (choiceResult.outcome === 'accepted') {
+          console.log('✅ User accepted the install');
+          showToast('تم تثبيت التطبيق بنجاح!', 'success');
+        } else {
+          console.log('❌ User dismissed the install');
+          showToast('تم إلغاء التثبيت', 'warning');
+        }
+        
+        // Clear the deferredPrompt
+        deferredPrompt = null;
+        
+        // Hide the button
+        installBtn.style.display = 'none';
+      });
+    }
+
+    // Listen for app installed event
+    window.addEventListener('appinstalled', (evt) => {
+      console.log('🎉 App was successfully installed');
+      deferredPrompt = null;
+      if (installBtn) installBtn.style.display = 'none';
+      showToast('تم تثبيت التطبيق بنجاح!', 'success');
+    });
+
+    // Helper function to show toast messages
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 10001;
+        font-family: 'Tajawal', sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideDown 0.3s ease;
+      `;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+
+    // Manual install instructions
+    function showManualInstallInstructions() {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isAndroid = /Android/.test(navigator.userAgent);
+      
+      let instructions = '';
+      
+      if (isIOS) {
+        instructions = `
+          <h3 style="color: #3b82f6; margin-bottom: 15px;">🍎 على iPhone/iPad:</h3>
+          <ol style="margin-right: 20px;">
+            <li>اضغط على أيقونة المشاركة 📤 في أسفل الشاشة</li>
+            <li>مرر لأسفل واختر "أضف إلى الشاشة الرئيسية"</li>
+            <li>اضغط على "إضافة" في الزاوية اليمنى العليا</li>
+          </ol>
+        `;
+      } else if (isAndroid) {
+        instructions = `
+          <h3 style="color: #3b82f6; margin-bottom: 15px;">📱 على Android:</h3>
+          <ol style="margin-right: 20px;">
+            <li>اضغط على قائمة النقاط الثلاث ⋮ في أعلى المتصفح</li>
+            <li>اختر "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق"</li>
+            <li>اضغط على "تثبيت" أو "إضافة"</li>
+          </ol>
+        `;
+      } else {
+        instructions = `
+          <h3 style="color: #3b82f6; margin-bottom: 15px;">💻 على الكمبيوتر:</h3>
+          <ol style="margin-right: 20px;">
+            <li>اضغط على أيقونة التثبيت 📥 في شريط العنوان</li>
+            <li>أو اضغط على ⋮ → "تثبيت تطبيق إدارة المخازن"</li>
+          </ol>
+        `;
+      }
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 12px; padding: 20px; max-width: 400px; width: 100%; text-align: right;">
+          <h3 style="margin: 0 0 15px 0; color: #1f2937;">تعليمات تثبيت التطبيق</h3>
+          <div style="color: #6b7280; margin-bottom: 20px;">
+            ${instructions}
+          </div>
+          <button onclick="this.parentElement.parentElement.remove()" 
+            style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-family: 'Tajawal';">
+            فهمت
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
         }
       });
-    </script>
-  </body>
-</html>       
+    }
+
+    // Add CSS animation for slideDown
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideDown {
+        from {
+          transform: translate(-50%, -100%);
+          opacity: 0;
+        }
+        to {
+          transform: translate(-50%, 0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>
