@@ -28,7 +28,7 @@
             </button>
           </div>
 
-          <!-- Progress Steps -->
+          <!-- Progress Steps - Mobile Optimized -->
           <div class="progress-steps">
             <div class="steps-container">
               <div 
@@ -55,654 +55,666 @@
             </div>
           </div>
 
-          <!-- Step 1: Basic Information -->
-          <div v-if="currentStep === 1" class="step-content">
-            <form @submit.prevent="validateStep1" class="step-form">
-              <div class="form-section">
-                <h3>
-                  <i class="fas fa-user-circle"></i> المعلومات الأساسية
-                </h3>
-                
-                <div class="form-grid">
-                  <!-- Full Name -->
-                  <div class="form-group" :class="{ 'error': formErrors.name }">
-                    <label for="fullName">
-                      <i class="fas fa-user"></i> الاسم الكامل *
-                    </label>
-                    <input
-                      type="text"
-                      id="fullName"
-                      v-model="userData.name"
-                      placeholder="أدخل الاسم الكامل للمستخدم"
-                      @input="clearError('name')"
-                      @blur="validateField('name')"
-                    >
-                    <div class="form-hint">
-                      <i class="fas fa-info-circle"></i>
-                      سيظهر هذا الاسم في جميع أنحاء النظام
-                    </div>
-                    <span v-if="formErrors.name" class="error-message">
-                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.name }}
-                    </span>
-                  </div>
-
-                  <!-- Email Address -->
-                  <div class="form-group" :class="{ 'error': formErrors.email }">
-                    <label for="email">
-                      <i class="fas fa-envelope"></i> البريد الإلكتروني *
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      v-model="userData.email"
-                      placeholder="example@company.com"
-                      @input="clearError('email')"
-                      @blur="validateField('email')"
-                    >
-                    <div class="form-hint">
-                      <i class="fas fa-info-circle"></i>
-                      سيستخدم هذا البريد لتسجيل الدخول واستقبال الإشعارات
-                    </div>
-                    <span v-if="formErrors.email" class="error-message">
-                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.email }}
-                    </span>
-                  </div>
-
-                  <!-- User Role -->
-                  <div class="form-group" :class="{ 'error': formErrors.role }">
-                    <label for="userRole">
-                      <i class="fas fa-user-tag"></i> الدور الوظيفي *
-                    </label>
-                    <div class="role-selector">
-                      <div 
-                        v-for="role in availableRoles" 
-                        :key="role.id"
-                        class="role-option"
-                        :class="{ 'selected': userData.role === role.id }"
-                        @click="selectRole(role.id)"
-                      >
-                        <div class="role-icon">
-                          <i :class="role.icon"></i>
-                        </div>
-                        <div class="role-info">
-                          <h4>{{ role.name }}</h4>
-                          <p>{{ role.description }}</p>
-                        </div>
-                        <div class="role-check">
-                          <i class="fas fa-check" v-if="userData.role === role.id"></i>
-                        </div>
-                      </div>
-                    </div>
-                    <span v-if="formErrors.role" class="error-message">
-                      <i class="fas fa-exclamation-circle"></i> {{ formErrors.role }}
-                    </span>
-                  </div>
-
-                  <!-- Phone Number (Optional) -->
-                  <div class="form-group">
-                    <label for="phone">
-                      <i class="fas fa-phone"></i> رقم الهاتف
-                    </label>
-                    <div class="phone-input">
-                      <select v-model="userData.phoneCountryCode" class="country-code">
-                        <option value="+966">+966 🇸🇦</option>
-                        <option value="+20">+20 🇪🇬</option>
-                        <option value="+971">+971 🇦🇪</option>
-                        <option value="+973">+973 🇧🇭</option>
-                        <option value="+965">+965 🇰🇼</option>
-                        <option value="+974">+974 🇶🇦</option>
-                      </select>
-                      <input
-                        type="tel"
-                        id="phone"
-                        v-model="userData.phone"
-                        placeholder="5X XXX XXXX"
-                      >
-                    </div>
-                    <div class="form-hint">
-                      <i class="fas fa-info-circle"></i>
-                      اختياري - لاستخدامه في التواصل الطارئ
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step Actions -->
-              <div class="step-actions">
-                <button type="button" @click="closeModal" class="btn-secondary">
-                  <i class="fas fa-times"></i> إلغاء
-                </button>
-                <button type="submit" class="btn-primary" :disabled="step1Loading">
-                  <i class="fas" :class="step1Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
-                  التالي: الصلاحيات والمخازن
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Step 2: Permissions & Warehouses -->
-          <div v-if="currentStep === 2" class="step-content">
-            <form @submit.prevent="validateStep2" class="step-form">
-              <div class="form-sections-grid">
-                <!-- Warehouses Section -->
-                <div class="form-section warehouse-section">
-                  <div class="section-header">
+          <!-- Step Content Container -->
+          <div class="step-content-wrapper">
+            <!-- Step 1: Basic Information -->
+            <transition name="step-transition">
+              <div v-if="currentStep === 1" class="step-content">
+                <form @submit.prevent="validateStep1" class="step-form">
+                  <div class="form-section">
                     <h3>
-                      <i class="fas fa-warehouse"></i> صلاحيات المخازن
+                      <i class="fas fa-user-circle"></i> المعلومات الأساسية
                     </h3>
-                    <div class="section-actions">
-                      <button 
-                        type="button" 
-                        @click="toggleAllWarehouses" 
-                        class="btn-sm"
-                        :class="{ 'btn-primary': !userData.allWarehouses, 'btn-secondary': userData.allWarehouses }"
-                      >
-                        <i class="fas" :class="userData.allWarehouses ? 'fa-check-square' : 'fa-square'"></i>
-                        {{ userData.allWarehouses ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="warehouse-permissions">
-                    <!-- All Warehouses Option -->
-                    <div class="permission-option all-warehouses">
-                      <label class="checkbox-label">
+                    
+                    <div class="form-grid">
+                      <!-- Full Name -->
+                      <div class="form-group" :class="{ 'error': formErrors.name }">
+                        <label for="fullName">
+                          <i class="fas fa-user"></i> الاسم الكامل *
+                        </label>
                         <input
-                          type="checkbox"
-                          v-model="userData.allWarehouses"
-                          @change="toggleAllWarehousesAccess"
+                          type="text"
+                          id="fullName"
+                          v-model="userData.name"
+                          placeholder="أدخل الاسم الكامل للمستخدم"
+                          @input="clearError('name')"
+                          @blur="validateField('name')"
                         >
-                        <span class="checkbox-custom"></span>
-                        <div class="checkbox-content">
-                          <h4>الوصول إلى جميع المخازن</h4>
-                          <p>المستخدم يمكنه الوصول إلى جميع المخازن بدون قيود</p>
-                        </div>
-                      </label>
-                    </div>
-
-                    <!-- Specific Warehouses -->
-                    <div v-if="!userData.allWarehouses" class="specific-warehouses">
-                      <div class="warehouse-categories">
-                        <!-- Primary Warehouses -->
-                        <div class="category-section">
-                          <div class="category-header">
-                            <h4>
-                              <i class="fas fa-building"></i> المخازن الرئيسية
-                            </h4>
-                            <button 
-                              type="button" 
-                              @click="toggleCategory('primary')" 
-                              class="btn-sm btn-secondary"
-                            >
-                              <i class="fas fa-check-square"></i> تحديد/إلغاء الكل
-                            </button>
-                          </div>
-                          <div class="warehouse-grid">
-                            <label
-                              v-for="warehouse in primaryWarehouses"
-                              :key="warehouse.id"
-                              class="warehouse-option"
-                              :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
-                            >
-                              <input
-                                type="checkbox"
-                                :value="warehouse.id"
-                                v-model="userData.allowedWarehouses"
-                                @change="updateWarehouseSelection"
-                              >
-                              <span class="checkbox-custom"></span>
-                              <div class="warehouse-info">
-                                <div class="warehouse-icon">
-                                  <i class="fas fa-warehouse"></i>
-                                </div>
-                                <div class="warehouse-details">
-                                  <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
-                                  <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
-                                  <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
-                                    <i class="fas fa-circle"></i>
-                                    {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
-                                  </div>
-                                </div>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-
-                        <!-- Dispatch Warehouses -->
-                        <div class="category-section">
-                          <div class="category-header">
-                            <h4>
-                              <i class="fas fa-shipping-fast"></i> مخازن التوزيع
-                            </h4>
-                            <button 
-                              type="button" 
-                              @click="toggleCategory('dispatch')" 
-                              class="btn-sm btn-secondary"
-                            >
-                              <i class="fas fa-check-square"></i> تحديد/إلغاء الكل
-                            </button>
-                          </div>
-                          <div class="warehouse-grid">
-                            <label
-                              v-for="warehouse in dispatchWarehouses"
-                              :key="warehouse.id"
-                              class="warehouse-option"
-                              :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
-                            >
-                              <input
-                                type="checkbox"
-                                :value="warehouse.id"
-                                v-model="userData.allowedWarehouses"
-                                @change="updateWarehouseSelection"
-                              >
-                              <span class="checkbox-custom"></span>
-                              <div class="warehouse-info">
-                                <div class="warehouse-icon">
-                                  <i class="fas fa-shipping-fast"></i>
-                                </div>
-                                <div class="warehouse-details">
-                                  <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
-                                  <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
-                                  <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
-                                    <i class="fas fa-circle"></i>
-                                    {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
-                                  </div>
-                                </div>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- No Warehouses Message -->
-                    <div v-if="!userData.allWarehouses && userData.allowedWarehouses.length === 0" class="no-warehouses-message">
-                      <i class="fas fa-exclamation-circle"></i>
-                      <p>لم يتم اختيار أي مخزن. المستخدم لن يتمكن من الوصول إلى أي مخزن.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Permissions Section -->
-                <div class="form-section permissions-section">
-                  <div class="section-header">
-                    <h3>
-                      <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
-                    </h3>
-                    <div class="permission-presets">
-                      <span>إعدادات سريعة:</span>
-                      <div class="preset-buttons">
-                        <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
-                          <i class="fas fa-eye"></i> عرض فقط
-                        </button>
-                        <button type="button" @click="applyPermissionPreset('basic')" class="preset-btn">
-                          <i class="fas fa-user-cog"></i> أساسي
-                        </button>
-                        <button type="button" @click="applyPermissionPreset('full')" class="preset-btn">
-                          <i class="fas fa-crown"></i> كامل
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="permissions-container">
-                    <div class="permissions-summary" v-if="selectedPermissionsCount > 0">
-                      <i class="fas fa-check-circle"></i>
-                      <div>
-                        <h4>تم اختيار {{ selectedPermissionsCount }} صلاحية</h4>
-                        <p>من أصل {{ totalPermissionsCount }} صلاحية متاحة</p>
-                      </div>
-                    </div>
-
-                    <div class="permission-categories">
-                      <div
-                        v-for="category in permissionCategories"
-                        :key="category.id"
-                        class="permission-category"
-                      >
-                        <div class="category-header">
-                          <h4>{{ category.name }}</h4>
-                          <label class="category-toggle">
-                            <input
-                              type="checkbox"
-                              :checked="isCategorySelected(category.permissions)"
-                              @change="toggleCategorySelection(category.permissions, $event)"
-                            >
-                            <span>تحديد/إلغاء الكل</span>
-                          </label>
-                        </div>
-                        
-                        <div class="permission-list">
-                          <label
-                            v-for="permission in category.permissions"
-                            :key="permission.id"
-                            class="permission-item"
-                            :class="{ 'selected': userData.permissions.includes(permission.id) }"
-                          >
-                            <input
-                              type="checkbox"
-                              :value="permission.id"
-                              v-model="userData.permissions"
-                            >
-                            <span class="checkbox-custom"></span>
-                            <div class="permission-info">
-                              <div class="permission-icon">
-                                <i :class="permission.icon"></i>
-                              </div>
-                              <div class="permission-details">
-                                <h5>{{ permission.name }}</h5>
-                                <p>{{ permission.description }}</p>
-                              </div>
-                              <div class="permission-hint" v-if="permission.hint">
-                                <i class="fas fa-info-circle"></i>
-                                <span>{{ permission.hint }}</span>
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step Actions -->
-              <div class="step-actions">
-                <button type="button" @click="prevStep" class="btn-secondary">
-                  <i class="fas fa-arrow-right"></i> السابق
-                </button>
-                <button type="submit" class="btn-primary" :disabled="step2Loading">
-                  <i class="fas" :class="step2Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
-                  التالي: كلمة المرور والإعدادات
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Step 3: Password & Settings -->
-          <div v-if="currentStep === 3" class="step-content">
-            <form @submit.prevent="validateStep3" class="step-form">
-              <div class="form-section">
-                <h3>
-                  <i class="fas fa-key"></i> الأمان والإعدادات
-                </h3>
-
-                <div class="form-grid">
-                  <!-- Password Section -->
-                  <div class="password-section">
-                    <h4>
-                      <i class="fas fa-lock"></i> كلمة المرور
-                      <span class="section-badge" :class="passwordStrength.class">
-                        {{ passwordStrength.text }}
-                      </span>
-                    </h4>
-
-                    <div class="password-options">
-                      <!-- Auto Generate Password -->
-                      <div class="password-option">
-                        <label class="radio-label">
-                          <input
-                            type="radio"
-                            v-model="passwordOption"
-                            value="auto"
-                          >
-                          <span class="radio-custom"></span>
-                          <div class="option-content">
-                            <div class="option-header">
-                              <h5>توليد تلقائي</h5>
-                              <span class="option-recommended">موصى به</span>
-                            </div>
-                            <p>توليد كلمة مرور قوية عشوائية وإرسالها للمستخدم عبر البريد</p>
-                          </div>
-                        </label>
-                      </div>
-
-                      <!-- Manual Password -->
-                      <div class="password-option">
-                        <label class="radio-label">
-                          <input
-                            type="radio"
-                            v-model="passwordOption"
-                            value="manual"
-                          >
-                          <span class="radio-custom"></span>
-                          <div class="option-content">
-                            <h5>تعيين يدوي</h5>
-                            <p>تعيين كلمة مرور محددة من قبلك</p>
-                          </div>
-                        </label>
-
-                        <div v-if="passwordOption === 'manual'" class="manual-password-fields">
-                          <div class="form-group" :class="{ 'error': formErrors.password }">
-                            <label for="password">
-                              <i class="fas fa-key"></i> كلمة المرور *
-                            </label>
-                            <div class="password-input">
-                              <input
-                                :type="showPassword ? 'text' : 'password'"
-                                id="password"
-                                v-model="userData.password"
-                                placeholder="كلمة المرور (8 أحرف على الأقل)"
-                                @input="validatePassword"
-                                @blur="validateField('password')"
-                              >
-                              <button
-                                type="button"
-                                @click="showPassword = !showPassword"
-                                class="password-toggle"
-                              >
-                                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                              </button>
-                            </div>
-                            <div class="password-strength-indicator">
-                              <div class="strength-bars">
-                                <div 
-                                  v-for="n in 4" 
-                                  :key="n"
-                                  class="strength-bar"
-                                  :class="{ 
-                                    'filled': passwordStrength.score >= n,
-                                    'weak': passwordStrength.class === 'weak',
-                                    'medium': passwordStrength.class === 'medium',
-                                    'strong': passwordStrength.class === 'strong'
-                                  }"
-                                ></div>
-                              </div>
-                              <span class="strength-text">{{ passwordStrength.details }}</span>
-                            </div>
-                            <span v-if="formErrors.password" class="error-message">
-                              <i class="fas fa-exclamation-circle"></i> {{ formErrors.password }}
-                            </span>
-                          </div>
-
-                          <div class="form-group" :class="{ 'error': formErrors.confirmPassword }">
-                            <label for="confirmPassword">
-                              <i class="fas fa-key"></i> تأكيد كلمة المرور *
-                            </label>
-                            <div class="password-input">
-                              <input
-                                :type="showConfirmPassword ? 'text' : 'password'"
-                                id="confirmPassword"
-                                v-model="userData.confirmPassword"
-                                placeholder="أعد إدخال كلمة المرور"
-                                @input="clearError('confirmPassword')"
-                                @blur="validateField('confirmPassword')"
-                              >
-                              <button
-                                type="button"
-                                @click="showConfirmPassword = !showConfirmPassword"
-                                class="password-toggle"
-                              >
-                                <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                              </button>
-                            </div>
-                            <span v-if="formErrors.confirmPassword" class="error-message">
-                              <i class="fas fa-exclamation-circle"></i> {{ formErrors.confirmPassword }}
-                            </span>
-                          </div>
-
-                          <!-- Password Requirements -->
-                          <div class="password-requirements">
-                            <h5>متطلبات كلمة المرور:</h5>
-                            <ul>
-                              <li :class="{ 'met': userData.password.length >= 8 }">
-                                <i class="fas" :class="userData.password.length >= 8 ? 'fa-check-circle' : 'fa-circle'"></i>
-                                8 أحرف على الأقل
-                              </li>
-                              <li :class="{ 'met': /[A-Z]/.test(userData.password) }">
-                                <i class="fas" :class="/[A-Z]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
-                                حرف كبير واحد على الأقل
-                              </li>
-                              <li :class="{ 'met': /[0-9]/.test(userData.password) }">
-                                <i class="fas" :class="/[0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
-                                رقم واحد على الأقل
-                              </li>
-                              <li :class="{ 'met': /[^A-Za-z0-9]/.test(userData.password) }">
-                                <i class="fas" :class="/[^A-Za-z0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
-                                رمز خاص واحد على الأقل
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Settings Section -->
-                  <div class="settings-section">
-                    <h4>
-                      <i class="fas fa-cogs"></i> إعدادات الحساب
-                    </h4>
-
-                    <div class="settings-options">
-                      <!-- Account Status -->
-                      <div class="setting-option">
-                        <label class="toggle-label">
-                          <div class="toggle-info">
-                            <i class="fas fa-toggle-on"></i>
-                            <div>
-                              <h5>تفعيل الحساب فوراً</h5>
-                              <p>المستخدم يمكنه تسجيل الدخول مباشرة بعد الإنشاء</p>
-                            </div>
-                          </div>
-                          <label class="toggle-switch">
-                            <input type="checkbox" v-model="userData.isActive">
-                            <span class="toggle-slider"></span>
-                          </label>
-                        </label>
-                      </div>
-
-                      <!-- Email Notification -->
-                      <div class="setting-option">
-                        <label class="toggle-label">
-                          <div class="toggle-info">
-                            <i class="fas fa-envelope"></i>
-                            <div>
-                              <h5>إرسال بريد الترحيب</h5>
-                              <p>إرسال بريد إلكتروني ترحيبي يحتوي على بيانات الحساب</p>
-                            </div>
-                          </div>
-                          <label class="toggle-switch">
-                            <input type="checkbox" v-model="userData.sendWelcomeEmail">
-                            <span class="toggle-slider"></span>
-                          </label>
-                        </label>
-                      </div>
-
-                      <!-- Two-Factor Authentication -->
-                      <div class="setting-option">
-                        <label class="toggle-label">
-                          <div class="toggle-info">
-                            <i class="fas fa-mobile-alt"></i>
-                            <div>
-                              <h5>تفعيل المصادقة الثنائية</h5>
-                              <p>إضافة طبقة أمان إضافية لحساب المستخدم</p>
-                            </div>
-                          </div>
-                          <label class="toggle-switch">
-                            <input type="checkbox" v-model="userData.twoFactorEnabled">
-                            <span class="toggle-slider"></span>
-                          </label>
-                        </label>
-                      </div>
-
-                      <!-- Notes -->
-                      <div class="form-group">
-                        <label for="notes">
-                          <i class="fas fa-sticky-note"></i> ملاحظات إضافية
-                        </label>
-                        <textarea
-                          id="notes"
-                          v-model="userData.notes"
-                          placeholder="أي ملاحظات إضافية حول المستخدم أو الحساب..."
-                          rows="3"
-                        ></textarea>
                         <div class="form-hint">
                           <i class="fas fa-info-circle"></i>
-                          هذه الملاحظات مرئية للمشرفين فقط
+                          سيظهر هذا الاسم في جميع أنحاء النظام
+                        </div>
+                        <span v-if="formErrors.name" class="error-message">
+                          <i class="fas fa-exclamation-circle"></i> {{ formErrors.name }}
+                        </span>
+                      </div>
+
+                      <!-- Email Address -->
+                      <div class="form-group" :class="{ 'error': formErrors.email }">
+                        <label for="email">
+                          <i class="fas fa-envelope"></i> البريد الإلكتروني *
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          v-model="userData.email"
+                          placeholder="example@company.com"
+                          @input="clearError('email')"
+                          @blur="validateField('email')"
+                        >
+                        <div class="form-hint">
+                          <i class="fas fa-info-circle"></i>
+                          سيستخدم هذا البريد لتسجيل الدخول واستقبال الإشعارات
+                        </div>
+                        <span v-if="formErrors.email" class="error-message">
+                          <i class="fas fa-exclamation-circle"></i> {{ formErrors.email }}
+                        </span>
+                      </div>
+
+                      <!-- User Role -->
+                      <div class="form-group" :class="{ 'error': formErrors.role }">
+                        <label for="userRole">
+                          <i class="fas fa-user-tag"></i> الدور الوظيفي *
+                        </label>
+                        <div class="role-selector">
+                          <div 
+                            v-for="role in availableRoles" 
+                            :key="role.id"
+                            class="role-option"
+                            :class="{ 'selected': userData.role === role.id }"
+                            @click="selectRole(role.id)"
+                          >
+                            <div class="role-icon">
+                              <i :class="role.icon"></i>
+                            </div>
+                            <div class="role-info">
+                              <h4>{{ role.name }}</h4>
+                              <p>{{ role.description }}</p>
+                            </div>
+                            <div class="role-check">
+                              <i class="fas fa-check" v-if="userData.role === role.id"></i>
+                            </div>
+                          </div>
+                        </div>
+                        <span v-if="formErrors.role" class="error-message">
+                          <i class="fas fa-exclamation-circle"></i> {{ formErrors.role }}
+                        </span>
+                      </div>
+
+                      <!-- Phone Number (Optional) -->
+                      <div class="form-group">
+                        <label for="phone">
+                          <i class="fas fa-phone"></i> رقم الهاتف
+                        </label>
+                        <div class="phone-input">
+                          <select v-model="userData.phoneCountryCode" class="country-code">
+                            <option value="+966">+966 🇸🇦</option>
+                            <option value="+20">+20 🇪🇬</option>
+                            <option value="+971">+971 🇦🇪</option>
+                            <option value="+973">+973 🇧🇭</option>
+                            <option value="+965">+965 🇰🇼</option>
+                            <option value="+974">+974 🇶🇦</option>
+                          </select>
+                          <input
+                            type="tel"
+                            id="phone"
+                            v-model="userData.phone"
+                            placeholder="5X XXX XXXX"
+                          >
+                        </div>
+                        <div class="form-hint">
+                          <i class="fas fa-info-circle"></i>
+                          اختياري - لاستخدامه في التواصل الطارئ
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Summary Preview -->
-                <div class="summary-preview">
-                  <h4>
-                    <i class="fas fa-clipboard-check"></i> ملخص المستخدم
-                  </h4>
-                  <div class="summary-content">
-                    <div class="summary-row">
-                      <div class="summary-item">
-                        <span class="summary-label">الاسم:</span>
-                        <span class="summary-value">{{ userData.name || 'غير محدد' }}</span>
+                  <!-- Step Actions -->
+                  <div class="step-actions">
+                    <button type="button" @click="closeModal" class="btn-secondary">
+                      <i class="fas fa-times"></i> إلغاء
+                    </button>
+                    <button type="submit" class="btn-primary" :disabled="step1Loading">
+                      <i class="fas" :class="step1Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
+                      التالي: الصلاحيات والمخازن
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </transition>
+
+            <!-- Step 2: Permissions & Warehouses -->
+            <transition name="step-transition">
+              <div v-if="currentStep === 2" class="step-content">
+                <form @submit.prevent="validateStep2" class="step-form">
+                  <div class="form-sections-grid">
+                    <!-- Warehouses Section -->
+                    <div class="form-section warehouse-section">
+                      <div class="section-header">
+                        <h3>
+                          <i class="fas fa-warehouse"></i> صلاحيات المخازن
+                        </h3>
+                        <div class="section-actions">
+                          <button 
+                            type="button" 
+                            @click="toggleAllWarehouses" 
+                            class="btn-sm"
+                            :class="{ 'btn-primary': !userData.allWarehouses, 'btn-secondary': userData.allWarehouses }"
+                          >
+                            <i class="fas" :class="userData.allWarehouses ? 'fa-check-square' : 'fa-square'"></i>
+                            {{ userData.allWarehouses ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                          </button>
+                        </div>
                       </div>
-                      <div class="summary-item">
-                        <span class="summary-label">البريد:</span>
-                        <span class="summary-value">{{ userData.email || 'غير محدد' }}</span>
+
+                      <div class="warehouse-permissions">
+                        <!-- All Warehouses Option -->
+                        <div class="permission-option all-warehouses">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              v-model="userData.allWarehouses"
+                              @change="toggleAllWarehousesAccess"
+                            >
+                            <span class="checkbox-custom"></span>
+                            <div class="checkbox-content">
+                              <h4>الوصول إلى جميع المخازن</h4>
+                              <p>المستخدم يمكنه الوصول إلى جميع المخازن بدون قيود</p>
+                            </div>
+                          </label>
+                        </div>
+
+                        <!-- Specific Warehouses -->
+                        <div v-if="!userData.allWarehouses" class="specific-warehouses">
+                          <div class="warehouse-categories">
+                            <!-- Primary Warehouses -->
+                            <div class="category-section">
+                              <div class="category-header">
+                                <h4>
+                                  <i class="fas fa-building"></i> المخازن الرئيسية
+                                </h4>
+                                <button 
+                                  type="button" 
+                                  @click="toggleCategory('primary')" 
+                                  class="btn-sm btn-secondary"
+                                >
+                                  <i class="fas" :class="isCategorySelected('primary') ? 'fa-minus-square' : 'fa-check-square'"></i>
+                                  {{ isCategorySelected('primary') ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                                </button>
+                              </div>
+                              <div class="warehouse-grid">
+                                <label
+                                  v-for="warehouse in primaryWarehouses"
+                                  :key="warehouse.id"
+                                  class="warehouse-option"
+                                  :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    :value="warehouse.id"
+                                    v-model="userData.allowedWarehouses"
+                                    @change="handleWarehouseSelection(warehouse.id)"
+                                  >
+                                  <span class="checkbox-custom"></span>
+                                  <div class="warehouse-info">
+                                    <div class="warehouse-icon">
+                                      <i class="fas fa-warehouse"></i>
+                                    </div>
+                                    <div class="warehouse-details">
+                                      <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
+                                      <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
+                                      <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
+                                        <i class="fas fa-circle"></i>
+                                        {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </label>
+                              </div>
+                            </div>
+
+                            <!-- Dispatch Warehouses -->
+                            <div class="category-section">
+                              <div class="category-header">
+                                <h4>
+                                  <i class="fas fa-shipping-fast"></i> مخازن التوزيع
+                                </h4>
+                                <button 
+                                  type="button" 
+                                  @click="toggleCategory('dispatch')" 
+                                  class="btn-sm btn-secondary"
+                                >
+                                  <i class="fas" :class="isCategorySelected('dispatch') ? 'fa-minus-square' : 'fa-check-square'"></i>
+                                  {{ isCategorySelected('dispatch') ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                                </button>
+                              </div>
+                              <div class="warehouse-grid">
+                                <label
+                                  v-for="warehouse in dispatchWarehouses"
+                                  :key="warehouse.id"
+                                  class="warehouse-option"
+                                  :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    :value="warehouse.id"
+                                    v-model="userData.allowedWarehouses"
+                                    @change="handleWarehouseSelection(warehouse.id)"
+                                  >
+                                  <span class="checkbox-custom"></span>
+                                  <div class="warehouse-info">
+                                    <div class="warehouse-icon">
+                                      <i class="fas fa-shipping-fast"></i>
+                                    </div>
+                                    <div class="warehouse-details">
+                                      <h5>{{ warehouse.name_ar || warehouse.name }}</h5>
+                                      <p>{{ warehouse.code }} • {{ warehouse.location || 'غير محدد' }}</p>
+                                      <div class="warehouse-status" :class="{ 'active': warehouse.is_active }">
+                                        <i class="fas fa-circle"></i>
+                                        {{ warehouse.is_active ? 'نشط' : 'غير نشط' }}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- No Warehouses Message -->
+                        <div v-if="!userData.allWarehouses && userData.allowedWarehouses.length === 0" class="no-warehouses-message">
+                          <i class="fas fa-exclamation-circle"></i>
+                          <p>لم يتم اختيار أي مخزن. المستخدم لن يتمكن من الوصول إلى أي مخزن.</p>
+                        </div>
                       </div>
                     </div>
-                    <div class="summary-row">
-                      <div class="summary-item">
-                        <span class="summary-label">الدور:</span>
-                        <span class="summary-badge" :class="userData.role">
-                          {{ getRoleName(userData.role) }}
-                        </span>
+
+                    <!-- Permissions Section -->
+                    <div class="form-section permissions-section">
+                      <div class="section-header">
+                        <h3>
+                          <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
+                        </h3>
+                        <div class="permission-presets">
+                          <span>إعدادات سريعة:</span>
+                          <div class="preset-buttons">
+                            <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
+                              <i class="fas fa-eye"></i> عرض فقط
+                            </button>
+                            <button type="button" @click="applyPermissionPreset('basic')" class="preset-btn">
+                              <i class="fas fa-user-cog"></i> أساسي
+                            </button>
+                            <button type="button" @click="applyPermissionPreset('full')" class="preset-btn">
+                              <i class="fas fa-crown"></i> كامل
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div class="summary-item">
-                        <span class="summary-label">المخازن:</span>
-                        <span class="summary-value">
-                          {{ userData.allWarehouses ? 'جميع المخازن' : userData.allowedWarehouses.length + ' مخزن' }}
-                        </span>
-                      </div>
-                    </div>
-                    <div class="summary-row">
-                      <div class="summary-item">
-                        <span class="summary-label">الصلاحيات:</span>
-                        <span class="summary-value">{{ selectedPermissionsCount }} صلاحية</span>
-                      </div>
-                      <div class="summary-item">
-                        <span class="summary-label">الحالة:</span>
-                        <span class="summary-badge" :class="userData.isActive ? 'active' : 'inactive'">
-                          {{ userData.isActive ? 'نشط' : 'معطل' }}
-                        </span>
+
+                      <div class="permissions-container">
+                        <div class="permissions-summary" v-if="selectedPermissionsCount > 0">
+                          <i class="fas fa-check-circle"></i>
+                          <div>
+                            <h4>تم اختيار {{ selectedPermissionsCount }} صلاحية</h4>
+                            <p>من أصل {{ totalPermissionsCount }} صلاحية متاحة</p>
+                          </div>
+                        </div>
+
+                        <div class="permission-categories">
+                          <div
+                            v-for="category in permissionCategories"
+                            :key="category.id"
+                            class="permission-category"
+                          >
+                            <div class="category-header">
+                              <h4>{{ category.name }}</h4>
+                              <label class="category-toggle">
+                                <input
+                                  type="checkbox"
+                                  :checked="isCategorySelected(category.permissions)"
+                                  @change="toggleCategorySelection(category.permissions, $event)"
+                                >
+                                <span>{{ isCategorySelected(category.permissions) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}</span>
+                              </label>
+                            </div>
+                            
+                            <div class="permission-list">
+                              <label
+                                v-for="permission in category.permissions"
+                                :key="permission.id"
+                                class="permission-item"
+                                :class="{ 'selected': userData.permissions.includes(permission.id) }"
+                              >
+                                <input
+                                  type="checkbox"
+                                  :value="permission.id"
+                                  v-model="userData.permissions"
+                                  @change="handlePermissionSelection(permission.id)"
+                                >
+                                <span class="checkbox-custom"></span>
+                                <div class="permission-info">
+                                  <div class="permission-icon">
+                                    <i :class="permission.icon"></i>
+                                  </div>
+                                  <div class="permission-details">
+                                    <h5>{{ permission.name }}</h5>
+                                    <p>{{ permission.description }}</p>
+                                  </div>
+                                  <div class="permission-hint" v-if="permission.hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>{{ permission.hint }}</span>
+                                  </div>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Step Actions -->
-              <div class="step-actions">
-                <button type="button" @click="prevStep" class="btn-secondary">
-                  <i class="fas fa-arrow-right"></i> السابق
-                </button>
-                <button type="submit" class="btn-success" :disabled="saving">
-                  <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
-                  {{ saving ? 'جاري إنشاء الحساب...' : (editingUser ? 'تحديث المستخدم' : 'إنشاء الحساب') }}
-                </button>
+                  <!-- Step Actions -->
+                  <div class="step-actions">
+                    <button type="button" @click="prevStep" class="btn-secondary">
+                      <i class="fas fa-arrow-right"></i> السابق
+                    </button>
+                    <button type="submit" class="btn-primary" :disabled="step2Loading">
+                      <i class="fas" :class="step2Loading ? 'fa-spinner fa-spin' : 'fa-arrow-left'"></i>
+                      التالي: كلمة المرور والإعدادات
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            </transition>
+
+            <!-- Step 3: Password & Settings -->
+            <transition name="step-transition">
+              <div v-if="currentStep === 3" class="step-content">
+                <form @submit.prevent="validateStep3" class="step-form">
+                  <div class="form-section">
+                    <h3>
+                      <i class="fas fa-key"></i> الأمان والإعدادات
+                    </h3>
+
+                    <div class="form-grid">
+                      <!-- Password Section -->
+                      <div class="password-section">
+                        <h4>
+                          <i class="fas fa-lock"></i> كلمة المرور
+                          <span class="section-badge" :class="passwordStrength.class">
+                            {{ passwordStrength.text }}
+                          </span>
+                        </h4>
+
+                        <div class="password-options">
+                          <!-- Auto Generate Password -->
+                          <div class="password-option">
+                            <label class="radio-label">
+                              <input
+                                type="radio"
+                                v-model="passwordOption"
+                                value="auto"
+                              >
+                              <span class="radio-custom"></span>
+                              <div class="option-content">
+                                <div class="option-header">
+                                  <h5>توليد تلقائي</h5>
+                                  <span class="option-recommended">موصى به</span>
+                                </div>
+                                <p>توليد كلمة مرور قوية عشوائية وإرسالها للمستخدم عبر البريد</p>
+                              </div>
+                            </label>
+                          </div>
+
+                          <!-- Manual Password -->
+                          <div class="password-option">
+                            <label class="radio-label">
+                              <input
+                                type="radio"
+                                v-model="passwordOption"
+                                value="manual"
+                              >
+                              <span class="radio-custom"></span>
+                              <div class="option-content">
+                                <h5>تعيين يدوي</h5>
+                                <p>تعيين كلمة مرور محددة من قبلك</p>
+                              </div>
+                            </label>
+
+                            <div v-if="passwordOption === 'manual'" class="manual-password-fields">
+                              <div class="form-group" :class="{ 'error': formErrors.password }">
+                                <label for="password">
+                                  <i class="fas fa-key"></i> كلمة المرور *
+                                </label>
+                                <div class="password-input">
+                                  <input
+                                    :type="showPassword ? 'text' : 'password'"
+                                    id="password"
+                                    v-model="userData.password"
+                                    placeholder="كلمة المرور (8 أحرف على الأقل)"
+                                    @input="validatePassword"
+                                    @blur="validateField('password')"
+                                  >
+                                  <button
+                                    type="button"
+                                    @click="showPassword = !showPassword"
+                                    class="password-toggle"
+                                  >
+                                    <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                  </button>
+                                </div>
+                                <div class="password-strength-indicator">
+                                  <div class="strength-bars">
+                                    <div 
+                                      v-for="n in 4" 
+                                      :key="n"
+                                      class="strength-bar"
+                                      :class="{ 
+                                        'filled': passwordStrength.score >= n,
+                                        'weak': passwordStrength.class === 'weak',
+                                        'medium': passwordStrength.class === 'medium',
+                                        'strong': passwordStrength.class === 'strong'
+                                      }"
+                                    ></div>
+                                  </div>
+                                  <span class="strength-text">{{ passwordStrength.details }}</span>
+                                </div>
+                                <span v-if="formErrors.password" class="error-message">
+                                  <i class="fas fa-exclamation-circle"></i> {{ formErrors.password }}
+                                </span>
+                              </div>
+
+                              <div class="form-group" :class="{ 'error': formErrors.confirmPassword }">
+                                <label for="confirmPassword">
+                                  <i class="fas fa-key"></i> تأكيد كلمة المرور *
+                                </label>
+                                <div class="password-input">
+                                  <input
+                                    :type="showConfirmPassword ? 'text' : 'password'"
+                                    id="confirmPassword"
+                                    v-model="userData.confirmPassword"
+                                    placeholder="أعد إدخال كلمة المرور"
+                                    @input="clearError('confirmPassword')"
+                                    @blur="validateField('confirmPassword')"
+                                  >
+                                  <button
+                                    type="button"
+                                    @click="showConfirmPassword = !showConfirmPassword"
+                                    class="password-toggle"
+                                  >
+                                    <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                  </button>
+                                </div>
+                                <span v-if="formErrors.confirmPassword" class="error-message">
+                                  <i class="fas fa-exclamation-circle"></i> {{ formErrors.confirmPassword }}
+                                </span>
+                              </div>
+
+                              <!-- Password Requirements -->
+                              <div class="password-requirements">
+                                <h5>متطلبات كلمة المرور:</h5>
+                                <ul>
+                                  <li :class="{ 'met': userData.password.length >= 8 }">
+                                    <i class="fas" :class="userData.password.length >= 8 ? 'fa-check-circle' : 'fa-circle'"></i>
+                                    8 أحرف على الأقل
+                                  </li>
+                                  <li :class="{ 'met': /[A-Z]/.test(userData.password) }">
+                                    <i class="fas" :class="/[A-Z]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                    حرف كبير واحد على الأقل
+                                  </li>
+                                  <li :class="{ 'met': /[0-9]/.test(userData.password) }">
+                                    <i class="fas" :class="/[0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                    رقم واحد على الأقل
+                                  </li>
+                                  <li :class="{ 'met': /[^A-Za-z0-9]/.test(userData.password) }">
+                                    <i class="fas" :class="/[^A-Za-z0-9]/.test(userData.password) ? 'fa-check-circle' : 'fa-circle'"></i>
+                                    رمز خاص واحد على الأقل
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Settings Section -->
+                      <div class="settings-section">
+                        <h4>
+                          <i class="fas fa-cogs"></i> إعدادات الحساب
+                        </h4>
+
+                        <div class="settings-options">
+                          <!-- Account Status -->
+                          <div class="setting-option">
+                            <label class="toggle-label">
+                              <div class="toggle-info">
+                                <i class="fas fa-toggle-on"></i>
+                                <div>
+                                  <h5>تفعيل الحساب فوراً</h5>
+                                  <p>المستخدم يمكنه تسجيل الدخول مباشرة بعد الإنشاء</p>
+                                </div>
+                              </div>
+                              <label class="toggle-switch">
+                                <input type="checkbox" v-model="userData.isActive">
+                                <span class="toggle-slider"></span>
+                              </label>
+                            </label>
+                          </div>
+
+                          <!-- Email Notification -->
+                          <div class="setting-option">
+                            <label class="toggle-label">
+                              <div class="toggle-info">
+                                <i class="fas fa-envelope"></i>
+                                <div>
+                                  <h5>إرسال بريد الترحيب</h5>
+                                  <p>إرسال بريد إلكتروني ترحيبي يحتوي على بيانات الحساب</p>
+                                </div>
+                              </div>
+                              <label class="toggle-switch">
+                                <input type="checkbox" v-model="userData.sendWelcomeEmail">
+                                <span class="toggle-slider"></span>
+                              </label>
+                            </label>
+                          </div>
+
+                          <!-- Two-Factor Authentication -->
+                          <div class="setting-option">
+                            <label class="toggle-label">
+                              <div class="toggle-info">
+                                <i class="fas fa-mobile-alt"></i>
+                                <div>
+                                  <h5>تفعيل المصادقة الثنائية</h5>
+                                  <p>إضافة طبقة أمان إضافية لحساب المستخدم</p>
+                                </div>
+                              </div>
+                              <label class="toggle-switch">
+                                <input type="checkbox" v-model="userData.twoFactorEnabled">
+                                <span class="toggle-slider"></span>
+                              </label>
+                            </label>
+                          </div>
+
+                          <!-- Notes -->
+                          <div class="form-group">
+                            <label for="notes">
+                              <i class="fas fa-sticky-note"></i> ملاحظات إضافية
+                            </label>
+                            <textarea
+                              id="notes"
+                              v-model="userData.notes"
+                              placeholder="أي ملاحظات إضافية حول المستخدم أو الحساب..."
+                              rows="3"
+                            ></textarea>
+                            <div class="form-hint">
+                              <i class="fas fa-info-circle"></i>
+                              هذه الملاحظات مرئية للمشرفين فقط
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Summary Preview -->
+                    <div class="summary-preview">
+                      <h4>
+                        <i class="fas fa-clipboard-check"></i> ملخص المستخدم
+                      </h4>
+                      <div class="summary-content">
+                        <div class="summary-row">
+                          <div class="summary-item">
+                            <span class="summary-label">الاسم:</span>
+                            <span class="summary-value">{{ userData.name || 'غير محدد' }}</span>
+                          </div>
+                          <div class="summary-item">
+                            <span class="summary-label">البريد:</span>
+                            <span class="summary-value">{{ userData.email || 'غير محدد' }}</span>
+                          </div>
+                        </div>
+                        <div class="summary-row">
+                          <div class="summary-item">
+                            <span class="summary-label">الدور:</span>
+                            <span class="summary-badge" :class="userData.role">
+                              {{ getRoleName(userData.role) }}
+                            </span>
+                          </div>
+                          <div class="summary-item">
+                            <span class="summary-label">المخازن:</span>
+                            <span class="summary-value">
+                              {{ userData.allWarehouses ? 'جميع المخازن' : userData.allowedWarehouses.length + ' مخزن' }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="summary-row">
+                          <div class="summary-item">
+                            <span class="summary-label">الصلاحيات:</span>
+                            <span class="summary-value">{{ selectedPermissionsCount }} صلاحية</span>
+                          </div>
+                          <div class="summary-item">
+                            <span class="summary-label">الحالة:</span>
+                            <span class="summary-badge" :class="userData.isActive ? 'active' : 'inactive'">
+                              {{ userData.isActive ? 'نشط' : 'معطل' }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Step Actions -->
+                  <div class="step-actions">
+                    <button type="button" @click="prevStep" class="btn-secondary">
+                      <i class="fas fa-arrow-right"></i> السابق
+                    </button>
+                    <button type="submit" class="btn-success" :disabled="saving">
+                      <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                      {{ saving ? 'جاري إنشاء الحساب...' : (editingUser ? 'تحديث المستخدم' : 'إنشاء الحساب') }}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -804,37 +816,26 @@ export default {
   name: 'AddUserModal',
   
   props: {
-    // Trigger button text
     buttonText: {
       type: String,
       default: 'إضافة مستخدم'
     },
-    
-    // Auto open modal (for direct usage)
     autoOpen: {
       type: Boolean,
       default: false
     },
-    
-    // Edit existing user
     editUser: {
       type: Object,
       default: null
     },
-    
-    // Custom roles (override default)
     customRoles: {
       type: Array,
       default: null
     },
-    
-    // Custom permissions
     customPermissions: {
       type: Array,
       default: null
     },
-    
-    // Callback after success
     onSuccess: {
       type: Function,
       default: null
@@ -843,12 +844,10 @@ export default {
   
   data() {
     return {
-      // Modal State
       showModal: false,
       showSuccessModal: false,
       isDarkMode: false,
       
-      // Steps
       currentStep: 1,
       steps: [
         {
@@ -868,7 +867,6 @@ export default {
         }
       ],
       
-      // User Data
       userData: {
         name: '',
         email: '',
@@ -886,28 +884,23 @@ export default {
         notes: ''
       },
       
-      // Form State
       formErrors: {},
       passwordOption: 'auto',
       showPassword: false,
       showConfirmPassword: false,
       
-      // Loading States
       step1Loading: false,
       step2Loading: false,
       saving: false,
       loading: false,
       loadingMessage: '',
       
-      // Success Data
       createdUser: null,
       generatedPassword: '',
       
-      // Error State
       showError: false,
       errorMessage: '',
       
-      // Edit Mode
       editingUser: null
     }
   },
@@ -916,7 +909,6 @@ export default {
     ...mapState(['warehouses']),
     ...mapGetters(['primaryWarehouses', 'dispatchWarehouses']),
     
-    // Available Roles
     availableRoles() {
       if (this.customRoles) return this.customRoles
       
@@ -942,7 +934,6 @@ export default {
       ]
     },
     
-    // Permission Categories
     permissionCategories() {
       if (this.customPermissions) return this.customPermissions
       
@@ -1100,19 +1091,16 @@ export default {
       ]
     },
     
-    // Total permissions count
     totalPermissionsCount() {
       return this.permissionCategories.reduce((total, category) => {
         return total + category.permissions.length
       }, 0)
     },
     
-    // Selected permissions count
     selectedPermissionsCount() {
       return this.userData.permissions.length
     },
     
-    // Password Strength
     passwordStrength() {
       const password = this.userData.password
       
@@ -1128,17 +1116,14 @@ export default {
       let score = 0
       let details = []
       
-      // Length check
       if (password.length >= 8) score++
       if (password.length >= 12) score++
       
-      // Complexity checks
       if (/[A-Z]/.test(password)) score++
       if (/[a-z]/.test(password)) score++
       if (/[0-9]/.test(password)) score++
       if (/[^A-Za-z0-9]/.test(password)) score++
       
-      // Determine strength
       let strengthClass = 'weak'
       let strengthText = 'ضعيفة'
       
@@ -1160,7 +1145,6 @@ export default {
         details = ['ضعيفة جداً، يجب تقويتها']
       }
       
-      // Add specific feedback
       if (password.length < 8) {
         details.push('يجب أن تكون 8 أحرف على الأقل')
       }
@@ -1184,7 +1168,6 @@ export default {
   },
   
   watch: {
-    // Watch for edit mode
     editUser: {
       immediate: true,
       handler(user) {
@@ -1198,7 +1181,6 @@ export default {
       }
     },
     
-    // Auto-open modal
     autoOpen: {
       immediate: true,
       handler(autoOpen) {
@@ -1208,14 +1190,12 @@ export default {
       }
     },
     
-    // Watch for all warehouses toggle
     'userData.allWarehouses': function(newVal) {
       if (newVal) {
         this.userData.allowedWarehouses = []
       }
     },
     
-    // Watch for password option change
     passwordOption(newVal) {
       if (newVal === 'auto') {
         this.userData.password = ''
@@ -1229,30 +1209,31 @@ export default {
   methods: {
     ...mapActions(['createUser', 'updateUser', 'showNotification']),
     
-    // Modal Control
     openModal() {
       this.showModal = true
       this.currentStep = 1
       this.resetForm()
       this.loadThemePreference()
+      
+      // Prevent body scrolling when modal is open
+      document.body.style.overflow = 'hidden'
     },
     
     closeModal() {
       if (!this.saving) {
         this.showModal = false
         this.resetForm()
+        document.body.style.overflow = ''
         this.$emit('closed')
       }
     },
     
-    // Theme Management
     loadThemePreference() {
       const savedTheme = localStorage.getItem('theme')
       this.isDarkMode = savedTheme === 'dark' || 
         (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
     },
     
-    // Form Management
     resetForm() {
       this.userData = {
         name: '',
@@ -1298,25 +1279,31 @@ export default {
       }
     },
     
-    // Step Navigation
     nextStep() {
       if (this.currentStep < this.steps.length) {
         this.currentStep++
+        this.scrollToTop()
       }
     },
     
     prevStep() {
       if (this.currentStep > 1) {
         this.currentStep--
+        this.scrollToTop()
       }
     },
     
-    // Validation
+    scrollToTop() {
+      const container = this.$el.querySelector('.step-content-wrapper')
+      if (container) {
+        container.scrollTop = 0
+      }
+    },
+    
     validateStep1() {
       this.clearErrors()
       let isValid = true
       
-      // Validate name
       if (!this.userData.name?.trim()) {
         this.formErrors.name = 'الاسم الكامل مطلوب'
         isValid = false
@@ -1325,7 +1312,6 @@ export default {
         isValid = false
       }
       
-      // Validate email
       if (!this.userData.email?.trim()) {
         this.formErrors.email = 'البريد الإلكتروني مطلوب'
         isValid = false
@@ -1334,7 +1320,6 @@ export default {
         isValid = false
       }
       
-      // Validate role
       if (!this.userData.role) {
         this.formErrors.role = 'يجب اختيار دور للمستخدم'
         isValid = false
@@ -1345,14 +1330,15 @@ export default {
         setTimeout(() => {
           this.step1Loading = false
           this.nextStep()
-        }, 500)
+        }, 300)
+      } else {
+        this.scrollToFirstError()
       }
     },
     
     validateStep2() {
       this.step2Loading = true
       
-      // Validate warehouses if not all
       if (!this.userData.allWarehouses && this.userData.allowedWarehouses.length === 0) {
         this.showNotification({
           type: 'warning',
@@ -1360,20 +1346,18 @@ export default {
         })
       }
       
-      // Auto-add view permissions based on role
       this.autoAddBasicPermissions()
       
       setTimeout(() => {
         this.step2Loading = false
         this.nextStep()
-      }, 500)
+      }, 300)
     },
     
     validateStep3() {
       this.clearErrors()
       let isValid = true
       
-      // Validate password if manual mode
       if (this.passwordOption === 'manual') {
         if (!this.userData.password) {
           this.formErrors.password = 'كلمة المرور مطلوبة'
@@ -1394,6 +1378,8 @@ export default {
       
       if (isValid) {
         this.saveUser()
+      } else {
+        this.scrollToFirstError()
       }
     },
     
@@ -1445,6 +1431,15 @@ export default {
       }
     },
     
+    scrollToFirstError() {
+      this.$nextTick(() => {
+        const firstError = this.$el.querySelector('.error')
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      })
+    },
+    
     clearErrors() {
       this.formErrors = {}
     },
@@ -1455,12 +1450,9 @@ export default {
       }
     },
     
-    // Role Selection
     selectRole(roleId) {
       this.userData.role = roleId
       this.clearError('role')
-      
-      // Auto-set permissions based on role
       this.autoSetPermissionsByRole()
     },
     
@@ -1469,17 +1461,16 @@ export default {
       return role ? role.name : roleId
     },
     
-    // Warehouses Management
     toggleAllWarehouses() {
-      if (this.userData.allWarehouses) {
-        this.userData.allWarehouses = false
-      } else {
-        // Select all warehouses
+      this.userData.allWarehouses = !this.userData.allWarehouses
+      if (!this.userData.allWarehouses) {
         const allWarehouseIds = [
           ...this.primaryWarehouses.map(w => w.id),
           ...this.dispatchWarehouses.map(w => w.id)
         ]
         this.userData.allowedWarehouses = [...allWarehouseIds]
+      } else {
+        this.userData.allowedWarehouses = []
       }
     },
     
@@ -1487,6 +1478,20 @@ export default {
       if (this.userData.allWarehouses) {
         this.userData.allowedWarehouses = []
       }
+    },
+    
+    isCategorySelected(categoryType) {
+      let warehouses = []
+      
+      if (categoryType === 'primary') {
+        warehouses = this.primaryWarehouses.map(w => w.id)
+      } else if (categoryType === 'dispatch') {
+        warehouses = this.dispatchWarehouses.map(w => w.id)
+      }
+      
+      if (warehouses.length === 0) return false
+      
+      return warehouses.every(id => this.userData.allowedWarehouses.includes(id))
     },
     
     toggleCategory(categoryType) {
@@ -1498,46 +1503,36 @@ export default {
         warehouses = this.dispatchWarehouses.map(w => w.id)
       }
       
-      // Check if all warehouses in category are selected
-      const allSelected = warehouses.every(id => 
-        this.userData.allowedWarehouses.includes(id)
-      )
+      const allSelected = this.isCategorySelected(categoryType)
       
       if (allSelected) {
-        // Deselect all
         this.userData.allowedWarehouses = this.userData.allowedWarehouses.filter(
           id => !warehouses.includes(id)
         )
       } else {
-        // Select all missing ones
         warehouses.forEach(id => {
           if (!this.userData.allowedWarehouses.includes(id)) {
             this.userData.allowedWarehouses.push(id)
           }
         })
       }
+      
+      this.userData.allWarehouses = false
     },
     
-    updateWarehouseSelection() {
-      // If all warehouses are selected individually, toggle allWarehouses
-      const allWarehouseIds = [
-        ...this.primaryWarehouses.map(w => w.id),
-        ...this.dispatchWarehouses.map(w => w.id)
-      ]
-      
-      const allSelected = allWarehouseIds.every(id => 
-        this.userData.allowedWarehouses.includes(id)
-      )
-      
-      if (allSelected && allWarehouseIds.length > 0) {
-        this.userData.allWarehouses = true
-        this.userData.allowedWarehouses = []
-      } else {
+    handleWarehouseSelection(warehouseId) {
+      if (this.userData.allWarehouses) {
         this.userData.allWarehouses = false
+      }
+      
+      const index = this.userData.allowedWarehouses.indexOf(warehouseId)
+      if (index === -1) {
+        this.userData.allowedWarehouses.push(warehouseId)
+      } else {
+        this.userData.allowedWarehouses.splice(index, 1)
       }
     },
     
-    // Permissions Management
     applyPermissionPreset(preset) {
       let permissions = []
       
@@ -1575,7 +1570,8 @@ export default {
       this.userData.permissions = [...permissions]
     },
     
-    isCategorySelected(permissions) {
+    isPermissionCategorySelected(permissions) {
+      if (!permissions || permissions.length === 0) return false
       return permissions.every(p => this.userData.permissions.includes(p.id))
     },
     
@@ -1584,17 +1580,24 @@ export default {
       const permissionIds = permissions.map(p => p.id)
       
       if (checked) {
-        // Add all permissions from category
         permissionIds.forEach(id => {
           if (!this.userData.permissions.includes(id)) {
             this.userData.permissions.push(id)
           }
         })
       } else {
-        // Remove all permissions from category
         this.userData.permissions = this.userData.permissions.filter(
           id => !permissionIds.includes(id)
         )
+      }
+    },
+    
+    handlePermissionSelection(permissionId) {
+      const index = this.userData.permissions.indexOf(permissionId)
+      if (index === -1) {
+        this.userData.permissions.push(permissionId)
+      } else {
+        this.userData.permissions.splice(index, 1)
       }
     },
     
@@ -1605,9 +1608,6 @@ export default {
           break
           
         case 'company_manager':
-          this.applyPermissionPreset('full')
-          break
-          
         case 'superadmin':
           this.applyPermissionPreset('full')
           break
@@ -1615,7 +1615,6 @@ export default {
     },
     
     autoAddBasicPermissions() {
-      // Always add view permissions if not present
       const basicViewPermissions = [
         'view_items',
         'view_transactions',
@@ -1629,14 +1628,12 @@ export default {
       })
     },
     
-    // Save User
     async saveUser() {
       try {
         this.saving = true
         this.loading = true
         this.loadingMessage = this.editingUser ? 'جاري تحديث بيانات المستخدم...' : 'جاري إنشاء الحساب...'
         
-        // Prepare user data
         const userData = {
           name: this.userData.name.trim(),
           email: this.userData.email.trim(),
@@ -1654,7 +1651,6 @@ export default {
         let result
         
         if (this.editingUser) {
-          // Update existing user
           result = await this.updateUser({
             userId: this.editingUser.id,
             userData
@@ -1665,7 +1661,6 @@ export default {
             message: `تم تحديث المستخدم "${userData.name}" بنجاح`
           })
         } else {
-          // Handle password
           let password = this.userData.password
           
           if (this.passwordOption === 'auto') {
@@ -1673,7 +1668,6 @@ export default {
             this.generatedPassword = password
           }
           
-          // Create new user
           result = await this.createUser({
             ...userData,
             password,
@@ -1687,16 +1681,13 @@ export default {
           }
         }
         
-        // Show success
         this.showSuccessModal = true
         this.showModal = false
         
-        // Call success callback
         if (this.onSuccess) {
           this.onSuccess(result)
         }
         
-        // Emit success event
         this.$emit('success', {
           user: result,
           password: this.generatedPassword,
@@ -1725,7 +1716,6 @@ export default {
       }
     },
     
-    // Success Modal Actions
     createAnotherUser() {
       this.showSuccessModal = false
       this.resetForm()
@@ -1743,6 +1733,7 @@ export default {
       this.showSuccessModal = false
       this.createdUser = null
       this.generatedPassword = ''
+      document.body.style.overflow = ''
       this.$emit('completed')
     },
     
@@ -1756,7 +1747,6 @@ export default {
       }
     },
     
-    // Error Handling
     showErrorToast(message) {
       this.errorMessage = message
       this.showError = true
@@ -1773,15 +1763,17 @@ export default {
   },
   
   mounted() {
-    // Load theme preference
     this.loadThemePreference()
     
-    // Listen for theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (!localStorage.getItem('theme')) {
         this.isDarkMode = e.matches
       }
     })
+  },
+  
+  beforeDestroy() {
+    document.body.style.overflow = ''
   }
 }
 </script>
@@ -1832,11 +1824,7 @@ export default {
   box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
 }
 
-.add-user-btn:active {
-  transform: translateY(0);
-}
-
-/* Modal Overlay */
+/* Modal Overlay - Centered and Responsive */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1850,18 +1838,22 @@ export default {
 }
 
 .modal-container {
-  max-width: 1000px;
   width: 100%;
+  max-width: 1000px;
   max-height: 90vh;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-content {
   background: var(--bg-card, #fff);
   border-radius: 16px;
-  box-shadow: 0 10px 40px var(--shadow-color, rgba(0, 0, 0, 0.2));
+  box-shadow: 0 20px 60px var(--shadow-color, rgba(0, 0, 0, 0.3));
   animation: slideUp 0.3s ease;
   overflow: hidden;
+  width: 100%;
 }
 
 /* Modal Header */
@@ -1871,7 +1863,12 @@ export default {
   color: white;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.header-content {
+  flex: 1;
 }
 
 .header-content h2 {
@@ -1880,12 +1877,14 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .modal-subtitle {
   margin: 0.5rem 0 0;
   opacity: 0.9;
   font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .modal-close {
@@ -1901,6 +1900,7 @@ export default {
   justify-content: center;
   font-size: 1.25rem;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .modal-close:hover {
@@ -1908,7 +1908,7 @@ export default {
   transform: rotate(90deg);
 }
 
-/* Progress Steps */
+/* Progress Steps - Mobile Optimized */
 .progress-steps {
   padding: 1.5rem 2rem;
   background: var(--bg-secondary, #f8f9fa);
@@ -1919,20 +1919,23 @@ export default {
   display: flex;
   justify-content: space-between;
   position: relative;
+  gap: 1rem;
 }
 
 .step-item {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 0.75rem;
   position: relative;
   flex: 1;
   z-index: 1;
+  min-width: 0;
 }
 
 .step-number {
   width: 36px;
   height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   background: var(--bg-input, #e9ecef);
   color: var(--text-secondary, #6c757d);
@@ -1941,7 +1944,6 @@ export default {
   justify-content: center;
   font-weight: 600;
   font-size: 0.875rem;
-  flex-shrink: 0;
   transition: all 0.3s;
 }
 
@@ -1958,18 +1960,23 @@ export default {
 
 .step-info {
   flex: 1;
+  min-width: 0;
 }
 
 .step-info h4 {
   margin: 0;
   font-size: 0.95rem;
   color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .step-info p {
   margin: 0.25rem 0 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary, #666);
+  display: none;
 }
 
 .step-item.active .step-info h4 {
@@ -1991,11 +1998,16 @@ export default {
   background: var(--success-color);
 }
 
-/* Step Content */
-.step-content {
-  padding: 2rem;
+/* Step Content Wrapper */
+.step-content-wrapper {
   max-height: calc(90vh - 200px);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.step-content {
+  padding: 2rem;
+  animation: fadeIn 0.3s ease;
 }
 
 .step-form {
@@ -2006,7 +2018,7 @@ export default {
 
 /* Form Sections */
 .form-section {
-  background: var(--bg-input, #f8f9fa);
+  background: var(--bg-card, #fff);
   border-radius: 12px;
   padding: 1.5rem;
   border: 1px solid var(--border-color, #e0e0e0);
@@ -2019,12 +2031,13 @@ export default {
   align-items: center;
   gap: 0.75rem;
   font-size: 1.25rem;
+  flex-wrap: wrap;
 }
 
 /* Form Grid */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
 
@@ -2050,10 +2063,12 @@ export default {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color, #ddd);
   border-radius: 8px;
-  background: var(--bg-card, #fff);
+  background: var(--bg-input, #fff);
   color: var(--text-primary, #333);
   font-size: 0.95rem;
   transition: all 0.2s;
+  width: 100%;
+  -webkit-appearance: none;
 }
 
 .form-group input:focus,
@@ -2076,8 +2091,9 @@ export default {
   color: var(--text-secondary, #666);
   margin-top: 0.25rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
+  line-height: 1.4;
 }
 
 /* Error Messages */
@@ -2086,8 +2102,9 @@ export default {
   color: var(--error-color);
   margin-top: 0.25rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
+  line-height: 1.4;
 }
 
 /* Role Selector */
@@ -2102,11 +2119,12 @@ export default {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: var(--bg-card, #fff);
+  background: var(--bg-input, #f8f9fa);
   border: 2px solid var(--border-color, #ddd);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
+  flex-wrap: wrap;
 }
 
 .role-option:hover {
@@ -2123,6 +2141,7 @@ export default {
 .role-icon {
   width: 50px;
   height: 50px;
+  min-width: 50px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
   color: white;
@@ -2130,7 +2149,6 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  flex-shrink: 0;
 }
 
 .role-option.superadmin .role-icon {
@@ -2143,6 +2161,7 @@ export default {
 
 .role-info {
   flex: 1;
+  min-width: 200px;
 }
 
 .role-info h4 {
@@ -2155,6 +2174,7 @@ export default {
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 .role-check {
@@ -2162,6 +2182,7 @@ export default {
   font-size: 1.25rem;
   opacity: 0;
   transition: opacity 0.2s;
+  min-width: 24px;
 }
 
 .role-option.selected .role-check {
@@ -2172,6 +2193,7 @@ export default {
 .phone-input {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .country-code {
@@ -2181,6 +2203,7 @@ export default {
 
 .phone-input input {
   flex: 1;
+  min-width: 150px;
 }
 
 /* Step 2 Specific Styles */
@@ -2190,17 +2213,11 @@ export default {
   gap: 1.5rem;
 }
 
-@media (max-width: 992px) {
-  .form-sections-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Section Header */
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
@@ -2208,16 +2225,18 @@ export default {
 
 .section-header h3 {
   margin: 0;
+  flex: 1;
+  min-width: 200px;
 }
 
 .section-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 /* Warehouse Section */
 .warehouse-section {
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -2230,7 +2249,7 @@ export default {
 }
 
 .permission-option.all-warehouses {
-  background: var(--bg-card, #fff);
+  background: var(--bg-input, #f8f9fa);
   padding: 1rem;
   border-radius: 10px;
   border: 2px solid var(--border-color, #ddd);
@@ -2238,7 +2257,7 @@ export default {
 
 .checkbox-label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   cursor: pointer;
 }
@@ -2246,11 +2265,12 @@ export default {
 .checkbox-custom {
   width: 20px;
   height: 20px;
+  min-width: 20px;
   border: 2px solid var(--border-color, #ddd);
   border-radius: 4px;
   position: relative;
-  flex-shrink: 0;
   transition: all 0.2s;
+  margin-top: 0.25rem;
 }
 
 .checkbox-label input {
@@ -2274,6 +2294,10 @@ export default {
   transform: rotate(45deg);
 }
 
+.checkbox-content {
+  flex: 1;
+}
+
 .checkbox-content h4 {
   margin: 0;
   font-size: 1rem;
@@ -2284,6 +2308,7 @@ export default {
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 /* Specific Warehouses */
@@ -2308,6 +2333,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .category-header h4 {
@@ -2316,11 +2343,13 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1;
+  min-width: 150px;
 }
 
 .warehouse-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 0.75rem;
 }
 
@@ -2356,6 +2385,7 @@ export default {
 .warehouse-icon {
   width: 40px;
   height: 40px;
+  min-width: 40px;
   border-radius: 8px;
   background: var(--bg-input, #f8f9fa);
   color: var(--primary-color);
@@ -2363,23 +2393,29 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  flex-shrink: 0;
 }
 
 .warehouse-details {
   flex: 1;
+  min-width: 0;
 }
 
 .warehouse-details h5 {
   margin: 0;
   font-size: 0.9rem;
   color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .warehouse-details p {
   margin: 0.25rem 0;
   font-size: 0.75rem;
   color: var(--text-secondary, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .warehouse-status {
@@ -2387,6 +2423,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  white-space: nowrap;
 }
 
 .warehouse-status.active {
@@ -2414,9 +2451,13 @@ export default {
   font-size: 1.5rem;
 }
 
+.no-warehouses-message p {
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* Permissions Section */
 .permissions-section {
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -2431,11 +2472,13 @@ export default {
 .permission-presets span {
   font-size: 0.875rem;
   color: var(--text-secondary, #666);
+  white-space: nowrap;
 }
 
 .preset-buttons {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .preset-btn {
@@ -2450,6 +2493,7 @@ export default {
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .preset-btn:hover {
@@ -2479,17 +2523,20 @@ export default {
 .permissions-summary i {
   font-size: 2rem;
   color: var(--primary-color);
+  flex-shrink: 0;
 }
 
 .permissions-summary h4 {
   margin: 0;
   color: var(--text-primary, #333);
+  font-size: 1rem;
 }
 
 .permissions-summary p {
   margin: 0.25rem 0 0;
   color: var(--text-secondary, #666);
   font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .permission-categories {
@@ -2510,11 +2557,15 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .category-header h4 {
   margin: 0;
   color: var(--text-primary, #333);
+  flex: 1;
+  min-width: 150px;
 }
 
 .category-toggle {
@@ -2524,11 +2575,13 @@ export default {
   cursor: pointer;
   font-size: 0.85rem;
   color: var(--text-secondary, #666);
+  white-space: nowrap;
 }
 
 .category-toggle input {
   width: 16px;
   height: 16px;
+  min-width: 16px;
   cursor: pointer;
 }
 
@@ -2540,7 +2593,7 @@ export default {
 
 .permission-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   padding: 1rem;
   background: var(--bg-input, #f8f9fa);
@@ -2567,13 +2620,15 @@ export default {
 .permission-info {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .permission-icon {
   width: 40px;
   height: 40px;
+  min-width: 40px;
   border-radius: 8px;
   background: var(--bg-card, #fff);
   color: var(--primary-color);
@@ -2581,11 +2636,11 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  flex-shrink: 0;
 }
 
 .permission-details {
   flex: 1;
+  min-width: 200px;
 }
 
 .permission-details h5 {
@@ -2598,18 +2653,20 @@ export default {
   margin: 0.25rem 0 0;
   font-size: 0.8rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 .permission-hint {
   font-size: 0.75rem;
   color: var(--text-secondary, #666);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.5rem;
   background: var(--bg-card, #fff);
   border-radius: 6px;
   max-width: 200px;
+  line-height: 1.4;
 }
 
 /* Step 3 Specific Styles */
@@ -2621,12 +2678,23 @@ export default {
   border: 1px solid var(--border-color, #ddd);
 }
 
+.password-section h4,
+.settings-section h4 {
+  margin: 0 0 1rem;
+  color: var(--text-primary, #333);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .section-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
   margin-right: 0.5rem;
+  white-space: nowrap;
 }
 
 .section-badge.weak {
@@ -2673,10 +2741,10 @@ export default {
 .radio-custom {
   width: 20px;
   height: 20px;
+  min-width: 20px;
   border: 2px solid var(--border-color, #ddd);
   border-radius: 50%;
   position: relative;
-  flex-shrink: 0;
   margin-top: 0.25rem;
   transition: all 0.2s;
 }
@@ -2703,6 +2771,7 @@ export default {
 
 .option-content {
   flex: 1;
+  min-width: 200px;
 }
 
 .option-header {
@@ -2710,6 +2779,7 @@ export default {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
+  flex-wrap: wrap;
 }
 
 .option-header h5 {
@@ -2725,12 +2795,14 @@ export default {
   border-radius: 10px;
   font-size: 0.7rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .option-content p {
   margin: 0;
   font-size: 0.85rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 .manual-password-fields {
@@ -2761,6 +2833,7 @@ export default {
   color: var(--text-secondary, #666);
   cursor: pointer;
   padding: 0.25rem;
+  z-index: 1;
 }
 
 .password-strength-indicator {
@@ -2796,6 +2869,7 @@ export default {
 .strength-text {
   font-size: 0.75rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 .password-requirements {
@@ -2855,19 +2929,23 @@ export default {
 .toggle-label {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
+  gap: 1rem;
 }
 
 .toggle-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
+  flex: 1;
+  min-width: 200px;
 }
 
 .toggle-info i {
   font-size: 1.5rem;
   color: var(--primary-color);
+  margin-top: 0.25rem;
 }
 
 .toggle-info h5 {
@@ -2880,6 +2958,7 @@ export default {
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
   color: var(--text-secondary, #666);
+  line-height: 1.4;
 }
 
 .toggle-switch {
@@ -2887,6 +2966,7 @@ export default {
   display: inline-block;
   width: 60px;
   height: 34px;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -2942,6 +3022,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .summary-content {
@@ -2963,17 +3044,22 @@ export default {
   padding: 0.75rem;
   background: var(--bg-card, #fff);
   border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .summary-label {
   font-weight: 600;
   color: var(--text-secondary, #666);
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .summary-value {
   color: var(--text-primary, #333);
   font-size: 0.9rem;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .summary-badge {
@@ -2981,6 +3067,7 @@ export default {
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .summary-badge.warehouse_manager {
@@ -3014,6 +3101,8 @@ export default {
   justify-content: space-between;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-color, #ddd);
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 /* Buttons */
@@ -3030,6 +3119,7 @@ export default {
   transition: all 0.3s;
   border: none;
   font-size: 0.95rem;
+  white-space: nowrap;
 }
 
 .btn-primary {
@@ -3045,6 +3135,7 @@ export default {
 .btn-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none !important;
 }
 
 .btn-secondary {
@@ -3088,6 +3179,7 @@ export default {
 .success-modal h2 {
   margin: 0 0 1.5rem;
   color: var(--text-primary, #333);
+  line-height: 1.4;
 }
 
 .success-details {
@@ -3103,6 +3195,7 @@ export default {
   align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .detail-item:last-child {
@@ -3113,6 +3206,12 @@ export default {
   font-size: 1.5rem;
   color: var(--primary-color);
   margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.detail-item > div {
+  flex: 1;
+  min-width: 200px;
 }
 
 .detail-item h4 {
@@ -3124,6 +3223,7 @@ export default {
 .detail-item p {
   margin: 0.25rem 0 0;
   color: var(--text-primary, #333);
+  line-height: 1.4;
 }
 
 .password-display {
@@ -3131,6 +3231,7 @@ export default {
   align-items: center;
   gap: 1rem;
   margin: 0.5rem 0;
+  flex-wrap: wrap;
 }
 
 .password-display code {
@@ -3142,6 +3243,8 @@ export default {
   font-family: monospace;
   font-size: 1rem;
   text-align: center;
+  min-width: 200px;
+  word-break: break-all;
 }
 
 .copy-btn {
@@ -3155,21 +3258,24 @@ export default {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .password-warning {
   color: var(--warning-color);
   font-size: 0.85rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   margin-top: 0.5rem;
+  line-height: 1.4;
 }
 
 .success-actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 /* Loading Overlay */
@@ -3181,11 +3287,13 @@ export default {
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  padding: 1rem;
 }
 
 .loading-content {
   text-align: center;
   color: white;
+  max-width: 300px;
 }
 
 .loading-content .spinner {
@@ -3201,14 +3309,15 @@ export default {
 .loading-content p {
   font-size: 1.125rem;
   margin: 0;
+  line-height: 1.4;
 }
 
 /* Error Toast */
 .error-toast {
   position: fixed;
   bottom: 2rem;
-  left: 2rem;
-  right: 2rem;
+  left: 1rem;
+  right: 1rem;
   max-width: 400px;
   margin: 0 auto;
   background: var(--bg-card, #fff);
@@ -3216,7 +3325,7 @@ export default {
   box-shadow: 0 4px 20px var(--shadow-color, rgba(0, 0, 0, 0.2));
   padding: 1rem 1.5rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   animation: slideUp 0.3s ease;
   z-index: 2000;
@@ -3225,7 +3334,7 @@ export default {
 
 .toast-content {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   flex: 1;
 }
@@ -3233,6 +3342,7 @@ export default {
 .toast-content i {
   font-size: 1.5rem;
   color: var(--error-color);
+  margin-top: 0.125rem;
 }
 
 .toast-content h4 {
@@ -3245,6 +3355,7 @@ export default {
   margin: 0.25rem 0 0;
   color: var(--text-secondary, #666);
   font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .toast-close {
@@ -3254,6 +3365,19 @@ export default {
   cursor: pointer;
   font-size: 1.25rem;
   padding: 0.25rem;
+  margin-top: -0.25rem;
+}
+
+/* Step Transitions */
+.step-transition-enter-active,
+.step-transition-leave-active {
+  transition: all 0.3s ease;
+}
+
+.step-transition-enter-from,
+.step-transition-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
 }
 
 /* Animations */
@@ -3278,25 +3402,40 @@ export default {
 }
 
 /* Responsive Design */
+@media (max-width: 992px) {
+  .form-sections-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .step-info p {
+    display: block;
+  }
+}
+
 @media (max-width: 768px) {
   .modal-container {
-    margin: 0.5rem;
+    max-height: 95vh;
   }
   
   .modal-header {
     padding: 1rem 1.5rem;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
   }
   
-  .modal-close {
-    align-self: flex-end;
+  .header-content h2 {
+    font-size: 1.5rem;
+  }
+  
+  .modal-subtitle {
+    font-size: 0.85rem;
+  }
+  
+  .progress-steps {
+    padding: 1rem 1.5rem;
   }
   
   .steps-container {
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
   }
   
   .step-item {
@@ -3304,18 +3443,25 @@ export default {
   }
   
   .step-connector {
-    display: none;
+    display: block;
+    top: 0;
+    bottom: 0;
+    left: 18px;
+    right: auto;
+    width: 2px;
+    height: calc(100% + 1.5rem);
+    transform: translateY(18px);
   }
   
   .step-content {
-    padding: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .step-content-wrapper {
+    max-height: calc(95vh - 180px);
   }
   
   .form-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .form-sections-grid {
     grid-template-columns: 1fr;
   }
   
@@ -3325,7 +3471,6 @@ export default {
   
   .step-actions {
     flex-direction: column;
-    gap: 1rem;
   }
   
   .step-actions button {
@@ -3333,15 +3478,103 @@ export default {
     justify-content: center;
   }
   
-  .success-actions {
-    flex-direction: column;
+  .form-section h3,
+  .section-header h3,
+  .password-section h4,
+  .settings-section h4 {
+    font-size: 1.1rem;
+  }
+  
+  .role-info {
+    min-width: 150px;
+  }
+  
+  .permission-details {
+    min-width: 150px;
+  }
+  
+  .option-content {
+    min-width: 150px;
+  }
+  
+  .toggle-info {
+    min-width: 150px;
+  }
+  
+  .detail-item > div {
+    min-width: 150px;
+  }
+  
+  .password-display code {
+    min-width: 150px;
   }
 }
 
 @media (max-width: 480px) {
+  .modal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .modal-close {
+    align-self: flex-end;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .section-actions {
+    justify-content: flex-start;
+  }
+  
+  .category-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .category-toggle {
+    align-self: flex-start;
+  }
+  
+  .permission-presets {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .preset-buttons {
+    justify-content: flex-start;
+  }
+  
+  .toggle-label {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .toggle-switch {
+    align-self: flex-start;
+  }
+  
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .success-actions {
+    flex-direction: column;
+  }
+  
+  .success-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
   .role-option {
     flex-direction: column;
     text-align: center;
+    align-items: center;
   }
   
   .role-info {
@@ -3356,13 +3589,64 @@ export default {
     width: 100%;
   }
   
-  .permission-presets {
+  .permission-item {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .preset-buttons {
+  .permission-info {
     flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .permission-hint {
+    max-width: none;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-success,
+  .btn-sm,
+  .preset-btn,
+  .copy-btn,
+  .modal-close,
+  .password-toggle,
+  .toast-close {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .role-option,
+  .warehouse-option,
+  .permission-item,
+  .password-option,
+  .setting-option {
+    min-height: 44px;
+  }
+  
+  .checkbox-custom,
+  .radio-custom {
+    min-width: 24px;
+    min-height: 24px;
+  }
+  
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+  
+  .toggle-switch {
+    min-width: 60px;
+    min-height: 34px;
+  }
+  
+  .toggle-slider:before {
+    min-width: 26px;
+    min-height: 26px;
   }
 }
 </style>
