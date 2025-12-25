@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <!-- Main content -->
     <div class="max-w-full mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-6">
-      <!-- Page Header - Optimized for Mobile -->
+      <!-- Page Header - Mobile Optimized -->
       <div class="mb-4 sm:mb-6">
         <div class="flex flex-col gap-3 sm:gap-4">
           <!-- Top row: Title and User Info -->
@@ -100,7 +100,7 @@
             <span class="truncate text-xs sm:text-sm">{{ refreshing ? 'جاري التحديث...' : 'تحديث' }}</span>
           </button>
 
-          <!-- Load More Button - RESTORED -->
+          <!-- Load More Button -->
           <button
             v-if="hasMore && !loading && !useLiveSearch && filteredItems.length > 0"
             @click="loadMoreItems"
@@ -189,155 +189,168 @@
         </div>
       </div>
 
-      <!-- Filters Section - COMPACT MOBILE DESIGN -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-4 sm:mb-6">
-        <!-- Collapsible Filters Header for Mobile -->
-        <div class="lg:hidden mb-3" v-if="!showFiltersOnMobile">
+      <!-- FILTERS AND SEARCH SECTION - COLLAPSIBLE ON MOBILE -->
+      <div class="mb-4 sm:mb-6">
+        <!-- Collapsible Header for Mobile -->
+        <div class="lg:hidden mb-3">
           <button 
-            @click="showFiltersOnMobile = !showFiltersOnMobile"
-            class="w-full flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            @click="showFilters = !showFilters"
+            class="w-full flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              الفلاتر والبحث
-            </span>
-            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" :class="{'rotate-180': showFiltersOnMobile}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+              </svg>
+              <span class="font-medium text-gray-700 dark:text-gray-300">
+                الفلاتر والبحث
+              </span>
+              <span v-if="hasActiveFilters" class="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-yellow-500 text-white rounded-full">
+                {{ activeFilterCount }}
+              </span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform duration-200" :class="{'rotate-180': showFilters}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
         </div>
 
-        <!-- Filters Grid - Always visible on desktop, collapsible on mobile -->
-        <div :class="{'hidden lg:grid': !showFiltersOnMobile, 'grid': showFiltersOnMobile}" class="grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
-          <!-- Warehouse Filter -->
-          <div v-if="accessibleWarehouses.length > 0" class="order-1">
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
-            <select
-              v-model="selectedWarehouse"
-              @change="handleWarehouseChange"
-              class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
-            >
-              <option value="">جميع المخازن</option>
-              <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
-                {{ warehouse.name_ar }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Status Filter -->
-          <div class="order-2">
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحالة</label>
-            <select
-              v-model="statusFilter"
-              @change="handleFilterChange"
-              class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
-            >
-              <option value="">الكل</option>
-              <option value="in_stock">متوفر</option>
-              <option value="low_stock">قليل</option>
-              <option value="out_of_stock">نفذ</option>
-            </select>
-          </div>
-
-          <!-- Search Input -->
-          <div class="md:col-span-2 order-3 md:order-3">
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">بحث سريع</label>
-            <div class="relative">
-              <input
-                type="text"
-                v-model="searchTerm"
-                @input="handleLiveSearch"
-                placeholder="ابحث بالاسم، الكود، اللون..."
-                class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
-              />
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
+        <!-- Filters and Search Content - Collapsible on Mobile, Always visible on Desktop -->
+        <div :class="{'hidden lg:block': !showFilters, 'block': showFilters}" class="space-y-4">
+          <!-- Main Filters Card -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
+              <!-- Warehouse Filter -->
+              <div v-if="accessibleWarehouses.length > 0" class="order-1">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
+                <select
+                  v-model="selectedWarehouse"
+                  @change="handleWarehouseChange"
+                  class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
+                >
+                  <option value="">جميع المخازن</option>
+                  <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
+                    {{ warehouse.name_ar }}
+                  </option>
+                </select>
               </div>
-              <!-- Clear Search Button -->
+
+              <!-- Status Filter -->
+              <div class="order-2">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحالة</label>
+                <select
+                  v-model="statusFilter"
+                  @change="handleFilterChange"
+                  class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
+                >
+                  <option value="">الكل</option>
+                  <option value="in_stock">متوفر</option>
+                  <option value="low_stock">قليل</option>
+                  <option value="out_of_stock">نفذ</option>
+                </select>
+              </div>
+
+              <!-- Search Input -->
+              <div class="md:col-span-2 order-3 md:order-3">
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">بحث سريع</label>
+                <div class="relative">
+                  <input
+                    type="text"
+                    v-model="searchTerm"
+                    @input="handleLiveSearch"
+                    placeholder="ابحث بالاسم، الكود، اللون..."
+                    class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
+                  />
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  <!-- Clear Search Button -->
+                  <button 
+                    v-if="searchTerm"
+                    @click="searchTerm = ''; resetToNormalView()"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Filters -->
+            <div v-if="hasActiveFilters" class="mt-3 sm:mt-4 flex flex-wrap gap-1 sm:gap-2">
+              <span v-if="selectedWarehouse" 
+                    class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
+                <span class="hidden xs:inline">المخزن:</span>
+                <span class="font-medium truncate max-w-[80px]">{{ getWarehouseLabel(selectedWarehouse) }}</span>
+                <button @click="selectedWarehouse = ''" class="text-blue-600 hover:text-blue-800">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </span>
+              <span v-if="statusFilter" 
+                    class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">
+                <span class="hidden xs:inline">الحالة:</span>
+                <span class="font-medium">{{ getStatusLabel(statusFilter) }}</span>
+                <button @click="statusFilter = ''" class="text-green-600 hover:text-green-800">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </span>
+              <span v-if="searchTerm" 
+                    class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
+                <span class="hidden xs:inline">البحث:</span>
+                <span class="font-medium truncate max-w-[60px]">{{ searchTerm }}</span>
+                <button @click="searchTerm = ''" class="text-yellow-600 hover:text-yellow-800">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </span>
               <button 
-                v-if="searchTerm"
-                @click="searchTerm = ''; resetToNormalView()"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                v-if="hasActiveFilters" 
+                @click="clearAllFilters"
+                class="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline"
               >
-                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
+                مسح الكل
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- Active Filters - Compact Mobile Version -->
-        <div v-if="hasActiveFilters" class="mt-3 sm:mt-4 flex flex-wrap gap-1 sm:gap-2">
-          <span v-if="selectedWarehouse" 
-                class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
-            <span class="hidden xs:inline">المخزن:</span>
-            <span class="font-medium truncate max-w-[80px]">{{ getWarehouseLabel(selectedWarehouse) }}</span>
-            <button @click="selectedWarehouse = ''" class="text-blue-600 hover:text-blue-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </span>
-          <span v-if="statusFilter" 
-                class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">
-            <span class="hidden xs:inline">الحالة:</span>
-            <span class="font-medium">{{ getStatusLabel(statusFilter) }}</span>
-            <button @click="statusFilter = ''" class="text-green-600 hover:text-green-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </span>
-          <span v-if="searchTerm" 
-                class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
-            <span class="hidden xs:inline">البحث:</span>
-            <span class="font-medium truncate max-w-[60px]">{{ searchTerm }}</span>
-            <button @click="searchTerm = ''" class="text-yellow-600 hover:text-yellow-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </span>
-          <button 
-            v-if="hasActiveFilters" 
-            @click="clearAllFilters"
-            class="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline"
-          >
-            مسح الكل
-          </button>
-        </div>
-      </div>
-
-      <!-- Search Mode Indicator -->
-      <div v-if="useLiveSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <span class="text-sm">نتائج البحث: {{ liveSearchResults.length }}</span>
+          <!-- Search Mode Indicator -->
+          <div v-if="useLiveSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <span class="text-sm">نتائج البحث: {{ liveSearchResults.length }}</span>
+              </div>
+              <button 
+                @click="resetToNormalView"
+                class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
+              >
+                عودة للعرض العادي
+              </button>
+            </div>
           </div>
-          <button 
-            @click="resetToNormalView"
-            class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
-          >
-            عودة
-          </button>
-        </div>
-      </div>
 
-      <!-- Export Progress -->
-      <div v-if="exporting" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            <span class="text-sm">جاري تجهير Excel...</span>
+          <!-- Export Progress -->
+          <div v-if="exporting" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 p-3 sm:p-4 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span class="text-sm">جاري تجهير Excel...</span>
+              </div>
+              <span class="text-xs">{{ exportProgress }}</span>
+            </div>
           </div>
-          <span class="text-xs">{{ exportProgress }}</span>
         </div>
       </div>
 
@@ -647,19 +660,19 @@
             </table>
           </div>
 
-          <!-- Loading More Indicator - RESTORED -->
+          <!-- Loading More Indicator -->
           <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
             <p class="text-sm">جاري تحميل المزيد من العناصر...</p>
           </div>
 
-          <!-- End of List Indicator - RESTORED -->
+          <!-- End of List Indicator -->
           <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
             <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
           </div>
         </div>
 
-        <!-- Mobile Cards with Virtual Scrolling - RESTORED VIRTUAL SCROLLING -->
+        <!-- Mobile Cards with Virtual Scrolling -->
         <div class="lg:hidden">
           <div 
             class="overflow-y-auto"
@@ -807,7 +820,7 @@
               </div>
             </div>
 
-            <!-- Load More Button for Mobile - RESTORED -->
+            <!-- Load More Button for Mobile -->
             <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
@@ -818,13 +831,13 @@
               </button>
             </div>
 
-            <!-- Loading More Indicator for Mobile - RESTORED -->
+            <!-- Loading More Indicator for Mobile -->
             <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
               <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
               <p class="text-sm">جاري تحميل المزيد...</p>
             </div>
 
-            <!-- End of List for Mobile - RESTORED -->
+            <!-- End of List for Mobile -->
             <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
@@ -990,9 +1003,9 @@ export default {
     const searchTimeout = ref(null);
     
     // Mobile UI state
-    const showFiltersOnMobile = ref(false);
+    const showFilters = ref(false); // For collapsible filters on mobile
     
-    // Virtual scrolling state - RESTORED
+    // Virtual scrolling state
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
@@ -1087,6 +1100,15 @@ export default {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
     
+    // Count active filters for mobile badge
+    const activeFilterCount = computed(() => {
+      let count = 0;
+      if (selectedWarehouse.value) count++;
+      if (statusFilter.value) count++;
+      if (searchTerm.value) count++;
+      return count;
+    });
+    
     // Filtered items - switch between normal view and live search
     const filteredItems = computed(() => {
       if (useLiveSearch.value) {
@@ -1127,7 +1149,7 @@ export default {
       }
     });
     
-    // Visible items for virtual scrolling - RESTORED
+    // Visible items for virtual scrolling
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
       const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
@@ -1295,7 +1317,7 @@ export default {
       }
     };
     
-    // Virtual scrolling handlers - RESTORED
+    // Virtual scrolling handlers
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
@@ -1489,7 +1511,7 @@ export default {
       useLiveSearch.value = false;
       liveSearchResults.value = [];
       searchTerm.value = '';
-      showFiltersOnMobile.value = false;
+      showFilters.value = false;
       
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
@@ -1505,7 +1527,7 @@ export default {
       selectedWarehouse.value = '';
       statusFilter.value = '';
       searchTerm.value = '';
-      showFiltersOnMobile.value = false;
+      showFilters.value = false;
       resetToNormalView();
     };
     
@@ -1682,7 +1704,7 @@ export default {
       }
     };
     
-    // Load more items - RESTORED
+    // Load more items
     const loadMoreItems = async () => {
       if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
@@ -1960,7 +1982,7 @@ export default {
       isLiveSearching,
       
       // Mobile UI State
-      showFiltersOnMobile,
+      showFilters,
       
       // UI State
       showActionMenu,
@@ -1994,6 +2016,7 @@ export default {
       lowStockCount,
       warehouseCount,
       hasActiveFilters,
+      activeFilterCount,
       
       // Helper Methods
       formatNumber,
