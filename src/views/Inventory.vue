@@ -100,9 +100,9 @@
             <span class="truncate text-xs sm:text-sm">{{ refreshing ? 'جاري التحديث...' : 'تحديث' }}</span>
           </button>
 
-          <!-- Load More Button -->
+          <!-- Load More Button - RESTORED -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch"
+            v-if="hasMore && !loading && !useLiveSearch && filteredItems.length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -113,7 +113,7 @@
             <svg v-else class="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            <span class="truncate text-xs sm:text-sm">{{ loadingMore ? 'جاري التحميل...' : 'المزيد' }}</span>
+            <span class="truncate text-xs sm:text-sm">{{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}</span>
           </button>
 
           <!-- Add Item Button -->
@@ -367,7 +367,7 @@
 
       <!-- Inventory Table Container -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table -->
+        <!-- Desktop Table with Virtual Scrolling -->
         <div class="hidden lg:block">
           <div 
             class="overflow-x-auto relative" 
@@ -422,9 +422,11 @@
                 </tr>
               </thead>
               <tbody>
+                <!-- Virtual Scrolling - Only render visible rows -->
                 <tr v-for="item in visibleItems" 
                     :key="item.id"
                     class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    :style="{ transform: 'translateY(0)' }"
                 >
                   <!-- Photo -->
                   <td class="px-4 sm:px-6 py-3 sm:py-4">
@@ -645,19 +647,19 @@
             </table>
           </div>
 
-          <!-- Loading More Indicator -->
+          <!-- Loading More Indicator - RESTORED -->
           <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
             <p class="text-sm">جاري تحميل المزيد من العناصر...</p>
           </div>
 
-          <!-- End of List Indicator -->
+          <!-- End of List Indicator - RESTORED -->
           <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
             <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
           </div>
         </div>
 
-        <!-- Mobile Cards - IMPROVED LAYOUT -->
+        <!-- Mobile Cards with Virtual Scrolling - RESTORED VIRTUAL SCROLLING -->
         <div class="lg:hidden">
           <div 
             class="overflow-y-auto"
@@ -674,6 +676,7 @@
             </div>
 
             <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Virtual Scrolling for Mobile - Only render visible items -->
               <div 
                 v-for="item in mobileVisibleItems" 
                 :key="item.id"
@@ -804,24 +807,24 @@
               </div>
             </div>
 
-            <!-- Load More Button for Mobile -->
+            <!-- Load More Button for Mobile - RESTORED -->
             <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
                 class="w-full px-4 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                تحميل المزيد
+                تحميل المزيد من العناصر
               </button>
             </div>
 
-            <!-- Loading More Indicator for Mobile -->
+            <!-- Loading More Indicator for Mobile - RESTORED -->
             <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
               <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
               <p class="text-sm">جاري تحميل المزيد...</p>
             </div>
 
-            <!-- End of List for Mobile -->
+            <!-- End of List for Mobile - RESTORED -->
             <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
@@ -989,7 +992,7 @@ export default {
     // Mobile UI state
     const showFiltersOnMobile = ref(false);
     
-    // Virtual scrolling state
+    // Virtual scrolling state - RESTORED
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
@@ -1124,7 +1127,7 @@ export default {
       }
     });
     
-    // Visible items for virtual scrolling
+    // Visible items for virtual scrolling - RESTORED
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
       const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
@@ -1292,7 +1295,7 @@ export default {
       }
     };
     
-    // Virtual scrolling handlers
+    // Virtual scrolling handlers - RESTORED
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
@@ -1679,7 +1682,7 @@ export default {
       }
     };
     
-    // Load more items
+    // Load more items - RESTORED
     const loadMoreItems = async () => {
       if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
@@ -2444,5 +2447,29 @@ select:focus-visible {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
+}
+
+/* Virtual scrolling specific styles */
+[style*="transform: translateY"] {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* Optimize virtual scrolling rows */
+tbody tr {
+  contain-intrinsic-size: 80px;
+  content-visibility: auto;
+}
+
+/* Mobile card virtualization */
+.lg\:hidden > div > div > div {
+  contain-intrinsic-size: 120px;
+  content-visibility: auto;
+}
+
+/* Smooth scroll behavior */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 </style>
