@@ -34,8 +34,9 @@
                 </svg>
                 المخزون
               </router-link>
-              
-              <!-- Toggle Invoice System -->
+
+              <!-- ====== INVOICE SYSTEM TOGGLE BUTTON ====== -->
+              <!-- Make sure this button is visible by removing any conditions -->
               <button 
                 @click="toggleInvoiceSystem"
                 :class="[
@@ -44,12 +45,14 @@
                     ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700'
                     : 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:from-teal-600 hover:to-emerald-600'
                 ]"
+                style="display: inline-flex !important;"
               >
                 <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
                 {{ showInvoiceSystem ? 'العودة للصرف' : 'نظام الفواتير' }}
               </button>
+              <!-- ====== END TOGGLE BUTTON ====== -->
             </div>
           </div>
         </div>
@@ -68,7 +71,7 @@
               <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">نظام الفواتير الضريبية</h2>
               <p class="text-sm text-gray-500 dark:text-gray-400">نظام فواتير متوافق مع مصلحة الضرائب المصرية</p>
             </div>
-            
+
             <div class="flex flex-col sm:flex-row gap-3">
               <button @click="createNewInvoice" class="btn-primary">
                 <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,7 +101,7 @@
                 <p class="text-xl font-bold text-gray-900 dark:text-white">{{ totalInvoices }}</p>
               </div>
             </div>
-            
+
             <div class="stat-card">
               <div class="stat-icon bg-green-100 dark:bg-green-900">
                 <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +113,7 @@
                 <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalSales) }}</p>
               </div>
             </div>
-            
+
             <div class="stat-card">
               <div class="stat-icon bg-yellow-100 dark:bg-yellow-900">
                 <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +125,7 @@
                 <p class="text-xl font-bold text-gray-900 dark:text-white">{{ uniqueCustomers }}</p>
               </div>
             </div>
-            
+
             <div class="stat-card">
               <div class="stat-icon bg-purple-100 dark:bg-purple-900">
                 <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +168,7 @@
                     <option value="simplified">فاتورة مبسطة</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">طريقة الدفع *</label>
                   <select v-model="invoiceForm.paymentMethod" class="input-field">
@@ -175,30 +178,30 @@
                     <option value="credit">آجل</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ملاحظات</label>
                   <textarea v-model="invoiceForm.notes" rows="3" class="input-field" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
               </div>
-              
+
               <!-- Customer Information -->
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم العميل *</label>
                   <input v-model="invoiceForm.customer.name" type="text" class="input-field" placeholder="اسم العميل الكامل" required>
                 </div>
-                
+
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">رقم الهاتف *</label>
                   <input v-model="invoiceForm.customer.phone" type="tel" class="input-field" placeholder="01XXXXXXXXX" required>
                 </div>
-                
+
                 <div v-if="invoiceForm.type === 'B2B'">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الرقم الضريبي *</label>
                   <input v-model="invoiceForm.customer.taxId" type="text" class="input-field" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
                 </div>
-                
+
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">العنوان</label>
                   <input v-model="invoiceForm.customer.address" type="text" class="input-field" placeholder="عنوان العميل">
@@ -370,7 +373,7 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">الحسابات</h5>
                   <div class="space-y-2">
@@ -388,7 +391,7 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
                   <div class="text-center">
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">الإجمالي النهائي</p>
@@ -430,7 +433,7 @@
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الفواتير المسجلة</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400">إجمالي {{ filteredInvoices.length }} فاتورة</p>
               </div>
-              
+
               <div class="flex flex-col sm:flex-row gap-3">
                 <div class="relative">
                   <input 
@@ -444,7 +447,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
                 </div>
-                
+
                 <select v-model="invoiceStatusFilter" @change="filterInvoices" class="input-field">
                   <option value="">جميع الحالات</option>
                   <option value="draft">مسودة</option>
@@ -452,7 +455,7 @@
                   <option value="paid">مدفوعة</option>
                   <option value="cancelled">ملغية</option>
                 </select>
-                
+
                 <select v-model="invoiceTypeFilter" @change="filterInvoices" class="input-field">
                   <option value="">جميع الأنواع</option>
                   <option value="B2B">B2B</option>
@@ -587,6 +590,7 @@
       <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) -->
       <!-- ============================================ -->
       <div v-else>
+        <!-- Original dispatch system content -->
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
@@ -2794,5 +2798,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Make sure invoice toggle button is visible */
+button[class*="bg-gradient-to-r"] {
+  display: inline-flex !important;
+  visibility: visible !important;
 }
 </style>
