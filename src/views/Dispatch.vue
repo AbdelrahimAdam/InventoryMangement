@@ -35,8 +35,7 @@
                 المخزون
               </router-link>
 
-              <!-- ====== INVOICE SYSTEM TOGGLE BUTTON ====== -->
-              <!-- Make sure this button is visible by removing any conditions -->
+              <!-- Invoice System Toggle Button -->
               <button 
                 @click="toggleInvoiceSystem"
                 :class="[
@@ -52,7 +51,6 @@
                 </svg>
                 {{ showInvoiceSystem ? 'العودة للصرف' : 'نظام الفواتير' }}
               </button>
-              <!-- ====== END TOGGLE BUTTON ====== -->
             </div>
           </div>
         </div>
@@ -590,7 +588,6 @@
       <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) -->
       <!-- ============================================ -->
       <div v-else>
-        <!-- Original dispatch system content -->
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
@@ -1199,9 +1196,12 @@ export default {
     // ============================================
     // SECTION 3: COMPUTED PROPERTIES FROM STORE
     // ============================================
-    const userRole = computed(() => store.getters.userRole);
-    const userName = computed(() => store.getters.userName);
-    const userProfile = computed(() => store.getters.userProfile);
+    // User properties from store
+    const userRole = computed(() => store.getters.userRole || '');
+    const userName = computed(() => store.getters.userName || '');
+    const userProfile = computed(() => store.getters.userProfile || {});
+    
+    // Store state getters
     const allInventory = computed(() => store.state.inventory || []);
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
@@ -1210,9 +1210,7 @@ export default {
     const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
     const dispatchFromWarehouses = computed(() => store.getters.dispatchFromWarehouses || []);
     const canViewDispatches = computed(() => store.getters.isAuthenticated);
-    
-    // Check if user can perform dispatch (only superadmin)
-    const canPerformDispatch = computed(() => userRole.value === 'superadmin');
+    const canPerformDispatch = computed(() => store.getters.canDispatch || userRole.value === 'superadmin');
     
     // ============================================
     // SECTION 4: ORIGINAL DISPATCH COMPUTED PROPERTIES
@@ -2760,49 +2758,383 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .stat-card {
-    @apply p-3;
+/* Additional custom styles */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+.transition-all-200 {
+  transition: all 200ms ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* RTL specific adjustments */
+[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
   }
   
-  .stat-icon {
-    @apply h-10 w-10;
+  body {
+    background: white !important;
+    color: black !important;
   }
-}
-
-/* Ensure RTL direction for invoice system */
-[dir="rtl"] .input-field,
-[dir="rtl"] .btn-primary,
-[dir="rtl"] .btn-secondary,
-[dir="rtl"] .btn-success {
-  text-align: right;
-}
-
-/* Smooth transitions for all interactive elements */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+  
+  .print\:border {
+    border: 1px solid #000 !important;
+  }
 }
 
 /* Loading animation */
-@keyframes spin {
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .mobile\:text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .mobile\:p-3 {
+    padding: 0.75rem;
+  }
+  
+  .mobile\:text-xs {
+    font-size: 0.75rem;
+  }
+}
+
+/* Dark mode transitions */
+.dark-transition {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+/* Focus states for accessibility */
+.focus-visible\:ring-2:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+/* Custom grid for responsive layouts */
+.grid-responsive {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+}
+
+/* Badge variants */
+.badge-primary {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.badge-success {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+}
+
+.badge-warning {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+}
+
+.badge-danger {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+}
+
+/* Table row hover */
+.table-row-hover {
+  @apply transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-invoice {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.bg-gradient-dispatch {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+/* Custom animations */
+@keyframes slideIn {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(-10px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.animate-spin {
-  animation: spin 1s linear infinite;
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }
 
-/* Make sure invoice toggle button is visible */
-button[class*="bg-gradient-to-r"] {
-  display: inline-flex !important;
-  visibility: visible !important;
+/* Responsive table container */
+.table-container {
+  @apply overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700;
+}
+
+/* Custom select styling */
+.custom-select {
+  @apply appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-500;
+}
+
+/* Custom shadow for elevation */
+.elevation-1 {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.elevation-2 {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.elevation-3 {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive text truncation */
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Invoice status indicators */
+.status-dot {
+  @apply inline-block h-2 w-2 rounded-full mr-2;
+}
+
+.status-dot-draft {
+  @apply bg-gray-400;
+}
+
+.status-dot-issued {
+  @apply bg-blue-500;
+}
+
+.status-dot-paid {
+  @apply bg-green-500;
+}
+
+.status-dot-cancelled {
+  @apply bg-red-500;
+}
+
+/* Responsive padding utilities */
+.responsive-padding {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* Custom border radius */
+.rounded-inherit {
+  border-radius: inherit;
+}
+
+/* Custom z-index layers */
+.z-dropdown {
+  z-index: 1000;
+}
+
+.z-modal {
+  z-index: 2000;
+}
+
+.z-tooltip {
+  z-index: 3000;
+}
+
+/* Invoice type indicators */
+.invoice-type-b2b {
+  @apply border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.invoice-type-b2c {
+  @apply border-l-4 border-green-500 bg-green-50 dark:bg-green-900/20;
+}
+
+.invoice-type-simplified {
+  @apply border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20;
+}
+
+/* Responsive typography */
+.responsive-heading {
+  @apply text-lg sm:text-xl lg:text-2xl font-bold;
+}
+
+.responsive-subheading {
+  @apply text-sm sm:text-base lg:text-lg font-semibold;
+}
+
+.responsive-body {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Custom transitions */
+.transition-fast {
+  transition: all 150ms ease;
+}
+
+.transition-medium {
+  transition: all 250ms ease;
+}
+
+.transition-slow {
+  transition: all 350ms ease;
+}
+
+/* Focus ring for keyboard navigation */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
+}
+
+/* Custom opacity utilities */
+.opacity-hover:hover {
+  opacity: 0.9;
+}
+
+.opacity-disabled {
+  opacity: 0.5;
+}
+
+/* Responsive gap utilities */
+.gap-responsive {
+  @apply gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Custom line clamp */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Custom border utilities */
+.border-subtle {
+  @apply border-gray-200 dark:border-gray-700;
+}
+
+.border-emphasis {
+  @apply border-gray-300 dark:border-gray-600;
+}
+
+/* Responsive margin utilities */
+.margin-responsive {
+  @apply my-4 sm:my-6 lg:my-8;
+}
+
+/* Custom width utilities */
+.w-responsive {
+  @apply w-full sm:w-auto;
+}
+
+/* Invoice form validation styles */
+.input-error {
+  @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+}
+
+.input-success {
+  @apply border-green-500 focus:border-green-500 focus:ring-green-500;
+}
+
+/* Responsive height utilities */
+.h-responsive {
+  @apply h-auto sm:h-64 lg:h-96;
+}
+
+/* Custom cursor utilities */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* Responsive min-height utilities */
+.min-h-responsive {
+  @apply min-h-[200px] sm:min-h-[300px] lg:min-h-[400px];
+}
+
+/* Invoice print styles */
+@media print {
+  .invoice-print {
+    font-family: 'Cairo', sans-serif;
+    font-size: 12pt;
+  }
+  
+  .invoice-print * {
+    color: #000 !important;
+    background: #fff !important;
+  }
+  
+  .invoice-print table {
+    page-break-inside: avoid;
+  }
+  
+  .invoice-print .page-break {
+    page-break-before: always;
+  }
 }
 </style>
