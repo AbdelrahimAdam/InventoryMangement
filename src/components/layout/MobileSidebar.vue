@@ -47,7 +47,10 @@
         to="/" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -61,7 +64,10 @@
         to="/warehouses" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/warehouses', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/warehouses'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/warehouses', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/warehouses'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
@@ -75,7 +81,10 @@
         to="/users" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/users', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/users'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/users', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/users'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -88,7 +97,10 @@
         to="/inventory" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path.includes('/inventory'), 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/inventory')}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path.includes('/inventory'), 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/inventory')
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
@@ -101,12 +113,32 @@
         to="/transactions" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/transactions', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/transactions'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/transactions', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/transactions'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
         </svg>
         سجل الحركات
+      </router-link>
+
+      <!-- Invoices Link -->
+      <router-link 
+        v-if="canManageInvoices"
+        to="/invoices" 
+        @click="$emit('close')"
+        class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path.includes('/invoices'), 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': !$route.path.includes('/invoices')
+        }"
+      >
+        <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+        الفواتير
       </router-link>
 
       <!-- Reports Link -->
@@ -115,7 +147,10 @@
         to="/reports" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/reports', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/reports'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/reports', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/reports'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -128,7 +163,10 @@
         to="/profile" 
         @click="$emit('close')"
         class="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent"
-        :class="{'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/profile', 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/profile'}"
+        :class="{
+          'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-sm': $route.path === '/profile', 
+          'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600': $route.path !== '/profile'
+        }"
       >
         <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -157,6 +195,7 @@
 
           <!-- Transfer Button -->
           <router-link 
+            v-if="canTransfer"
             to="/transfers"
             @click="$emit('close')"
             class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 hover:from-blue-100 hover:to-blue-50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
@@ -179,6 +218,19 @@
             </svg>
             صرف خارجي
           </router-link>
+
+          <!-- Create Invoice Button -->
+          <router-link 
+            v-if="canCreateInvoice"
+            to="/invoices/create"
+            @click="$emit('close')"
+            class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent bg-gradient-to-l from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/10 hover:from-purple-100 hover:to-purple-50 dark:hover:from-purple-900/30 dark:hover:to-purple-900/20 text-purple-700 dark:text-purple-300 hover:border-purple-300 dark:hover:border-purple-700 shadow-sm"
+          >
+            <svg class="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            إنشاء فاتورة
+          </router-link>
         </div>
       </div>
 
@@ -193,11 +245,19 @@
         تسجيل خروج
       </button>
     </div>
+
+    <!-- Footer Info -->
+    <div class="mt-6 p-4 border-t border-gray-200 dark:border-gray-700">
+      <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <span>الإصدار 1.0.0</span>
+        <span>{{ currentTime }}</span>
+      </div>
+    </div>
   </aside>
 </template>
 
 <script>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
@@ -208,11 +268,47 @@ export default {
     const store = useStore();
     const router = useRouter();
     
-    const userProfile = computed(() => store.state.userProfile);
+    // Time state
+    const currentTime = ref('');
+    
+    // Update time function
+    const updateTime = () => {
+      const now = new Date();
+      currentTime.value = now.toLocaleTimeString('ar-EG', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+    
+    // Start time updates
+    onMounted(() => {
+      updateTime();
+      const timeInterval = setInterval(updateTime, 60000);
+      
+      onUnmounted(() => {
+        clearInterval(timeInterval);
+      });
+    });
+    
+    // Store getters with proper error handling
+    const userProfile = computed(() => store.getters.userProfile || {});
     const user = computed(() => store.state.user);
-    const userRole = computed(() => store.getters.userRole);
-    const allowedWarehouses = computed(() => store.getters.allowedWarehouses || []);
-    const userPermissions = computed(() => store.getters.userPermissions || []);
+    const userRole = computed(() => store.getters.userRole || '');
+    const allowedWarehouses = computed(() => {
+      try {
+        return store.getters.allowedWarehouses || [];
+      } catch {
+        return [];
+      }
+    });
+    const userPermissions = computed(() => {
+      try {
+        return store.getters.userPermissions || [];
+      } catch {
+        return [];
+      }
+    });
     
     const userName = computed(() => {
       return userProfile.value?.name || userProfile.value?.email || user.value?.email || 'مستخدم';
@@ -231,11 +327,20 @@ export default {
     const getUserInitials = () => {
       const name = userName.value;
       if (!name || name === 'مستخدم') return 'م';
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+      
+      // Extract Arabic initials
+      const arabicName = name.trim();
+      if (arabicName.length === 0) return 'م';
+      
+      // Take the first character
+      return arabicName.charAt(0);
     };
     
-    const canManageWarehouses = computed(() => store.getters.canManageWarehouses);
-    const canManageUsers = computed(() => store.getters.canManageUsers);
+    // Permission getters - using store getters directly
+    const canManageWarehouses = computed(() => store.getters.canManageWarehouses || false);
+    const canManageUsers = computed(() => store.getters.canManageUsers || false);
+    const canTransfer = computed(() => store.getters.canTransfer || false);
+    const canDispatch = computed(() => store.getters.canDispatch || false);
     
     const canModifyItems = computed(() => {
       const role = userRole.value;
@@ -251,12 +356,14 @@ export default {
       return false;
     });
     
-    const canDispatch = computed(() => store.getters.canDispatch);
+    const canViewReports = computed(() => store.getters.canViewReports || false);
     
-    const canViewReports = computed(() => {
-      const role = userRole.value;
-      return ['superadmin', 'company_manager'].includes(role);
-    });
+    // Invoice permissions
+    const canManageInvoices = computed(() => store.getters.canManageInvoices || false);
+    const canCreateInvoice = computed(() => store.getters.canCreateInvoice || false);
+    const canEditInvoice = computed(() => store.getters.canEditInvoice || false);
+    const canDeleteInvoice = computed(() => store.getters.canDeleteInvoice || false);
+    const canExportInvoices = computed(() => store.getters.canExportInvoices || false);
     
     const handleLogout = async () => {
       try {
@@ -265,21 +372,129 @@ export default {
         router.push('/login');
       } catch (error) {
         console.error('Logout error:', error);
-        router.push('/login');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ أثناء تسجيل الخروج'
+        });
       }
     };
     
     return {
+      // State
+      currentTime,
+      
+      // User info
       userName,
       roleName,
       getUserInitials,
+      
+      // Permissions
       canManageWarehouses,
       canManageUsers,
       canModifyItems,
+      canTransfer,
       canDispatch,
       canViewReports,
+      canManageInvoices,
+      canCreateInvoice,
+      canEditInvoice,
+      canDeleteInvoice,
+      canExportInvoices,
+      
+      // Actions
       handleLogout
     };
   }
 };
 </script>
+
+<style scoped>
+/* Custom animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Enhanced hover effects */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.dark .hover-lift:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+/* RTL specific styles */
+[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* Responsive improvements */
+@media (max-width: 640px) {
+  .p-4 {
+    padding: 1rem;
+  }
+  
+  .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .space-y-1 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.25rem * var(--tw-space-y-reverse));
+  }
+}
+</style>
