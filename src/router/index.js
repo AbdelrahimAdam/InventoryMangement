@@ -103,79 +103,22 @@ const inventoryRoutes = {
   }
 };
 
-// ============================================
-// UPDATED: Invoice System Route with DispatchPageWithInvoices
-// ============================================
+// المسار الخاص بالفواتير (نظام الفواتير المتكامل)
 const invoiceSystemRoutes = {
   path: '/invoice-system',
   name: 'InvoiceSystem',
-  // Using the combined Dispatch and Invoice system component
-  component: () => {
-    console.log('🔗 تحميل نظام الفواتير المتكامل...');
-    return import('@/views/DispatchPageWithInvoices.vue').catch((error) => {
-      console.error('❌ فشل في تحميل DispatchPageWithInvoices:', error);
-      
-      // Try alternative paths
-      console.log('🔄 جرب تحميل من مكونات أخرى...');
-      return import('@/components/DispatchPageWithInvoices.vue').catch((error2) => {
-        console.error('❌ فشل في جميع المحاولات:', error2);
-        
-        // Fallback component
-        return {
-          template: `
-            <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-              <div class="text-center max-w-lg">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-full mb-6">
-                  <svg class="w-10 h-10 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                  </svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">نظام الفواتير غير متاح</h1>
-                <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
-                  لم يتم العثور على صفحة نظام الفواتير المتكامل. يرجى التأكد من:
-                </p>
-                <div class="space-y-3 mb-8 text-right bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-                  <p class="text-gray-700 dark:text-gray-300">
-                    1. وجود ملف <strong>DispatchPageWithInvoices.vue</strong> في المجلد الصحيح
-                  </p>
-                  <p class="text-gray-700 dark:text-gray-300">
-                    2. صحة المسار: <code class="text-blue-600">@/views/DispatchPageWithInvoices.vue</code>
-                  </p>
-                  <p class="text-gray-700 dark:text-gray-300">
-                    3. بناء المشروع بشكل صحيح
-                  </p>
-                </div>
-                <div class="space-y-4">
-                  <button @click="goToDispatch" class="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                    الذهاب إلى صفحة الصرف العادية
-                  </button>
-                  <router-link to="/" class="block w-full py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
-                    العودة للرئيسية
-                  </router-link>
-                </div>
-              </div>
-            </div>
-          `,
-          methods: {
-            goToDispatch() {
-              this.$router.push('/dispatch');
-            }
-          }
-        };
-      });
-    });
-  },
+  // استخدام مكون Dispatch.vue الحالي لنظام الفواتير المتكامل
+  component: lazyLoad('Dispatch'),
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
     requiredPermissions: ['manage_invoices', 'dispatch_items'],
-    title: 'نظام الفواتير والصرف'
+    title: 'نظام الفواتير والصرف',
+    isInvoiceSystem: true // علامة خاصة تشير أن هذا هو نظام الفواتير
   }
 };
 
-// ============================================
-// UPDATED: Invoices Routes for individual invoices management
-// ============================================
+// المسارات التقليدية للفواتير (لإدارة الفواتير الفردية)
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
@@ -348,7 +291,7 @@ const routes = [
   },
 
   // ============================================
-  // NEW: Added the Invoice System Route here
+  // NEW: نظام الفواتير المتكامل (يستخدم Dispatch.vue)
   // ============================================
   invoiceSystemRoutes,
 
@@ -363,7 +306,7 @@ const routes = [
     }
   },
 
-  // مسارات الفواتير (لإدارة الفواتير الفردية)
+  // مسارات الفواتير التقليدية (لإدارة الفواتير الفردية)
   invoicesRoutes,
 
   {
@@ -821,6 +764,11 @@ router.afterEach((to) => {
   
   // إضافة أيقونة للمسار الحالي في السجل
   console.log(`📍 ${pageTitle} - ${to.path}`);
+  
+  // إرسال معلومة عن نظام الفواتير إذا كان المسار هو invoice-system
+  if (to.path === '/invoice-system') {
+    console.log('🧾 تحميل نظام الفواتير المتكامل...');
+  }
 });
 
 // Initialize router
