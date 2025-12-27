@@ -32,41 +32,6 @@
       </transition-group>
     </div>
 
-    <!-- REFRESH BUTTON - UPDATED -->
-    <div v-if="showRefreshButton" class="fixed bottom-4 left-4 right-4 z-40 lg:left-auto lg:right-4 lg:bottom-4 lg:w-auto">
-      <div class="flex items-center justify-center lg:justify-end">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-2">
-          <!-- Manual Refresh Button -->
-          <button
-            @click="refreshAllData"
-            :disabled="refreshing"
-            :class="[
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200',
-              refreshing 
-                ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg'
-            ]"
-          >
-            <svg 
-              :class="['w-4 h-4 transition-transform duration-300', refreshing ? 'animate-spin' : '']" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            <span>{{ refreshing ? 'جاري التحديث...' : 'تحديث البيانات' }}</span>
-          </button>
-
-          <!-- Last Update Time -->
-          <div class="hidden lg:block text-xs text-gray-500 dark:text-gray-400 px-3 border-r border-l border-gray-200 dark:border-gray-700">
-            <div v-if="lastRefreshTime">آخر تحديث: {{ formatTime(lastRefreshTime) }}</div>
-            <div v-else>لم يتم التحديث بعد</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Minimal Initial Loading -->
     <div v-if="initializing && !isPublicRoute && !isMobileRoute" class="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div class="flex flex-col items-center justify-center h-full">
@@ -223,13 +188,10 @@ export default {
     const initialDataLoaded = ref(false);
     const showPreloadIndicator = ref(false);
     
-    // Refresh button refs
-    const refreshing = ref(false);
-    const lastRefreshTime = ref(null);
-    
     // Store getters
     const notifications = computed(() => store.state.notifications || []);
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
+    const userProfile = computed(() => store.state.userProfile);
     
     // Computed properties
     const isPublicRoute = computed(() => {
@@ -245,11 +207,6 @@ export default {
       return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
     });
 
-    // Show refresh button condition - UPDATED: Now checks for authenticated routes only
-    const showRefreshButton = computed(() => {
-      return isAuthenticated.value && !isPublicRoute.value && !isMobileRoute.value && !initializing.value;
-    });
-
     // Methods
     const removeNotification = (notificationId) => {
       store.commit('REMOVE_NOTIFICATION', notificationId);
@@ -262,51 +219,6 @@ export default {
 
     const toggleMobileMenu = () => {
       mobileMenuOpen.value = !mobileMenuOpen.value;
-    };
-
-    // Format time for display
-    const formatTime = (date) => {
-      if (!date) return '';
-      const d = new Date(date);
-      return d.toLocaleTimeString('ar-EG', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    };
-
-    // 🔥 UPDATED: Refresh all data using store actions
-    const refreshAllData = async () => {
-      if (refreshing.value) return;
-      
-      refreshing.value = true;
-      try {
-        // Use store actions to refresh data
-        await store.dispatch('refreshInventory'); // This reloads all inventory
-        await store.dispatch('fetchTransactions'); // Refresh transactions
-        await store.dispatch('loadWarehouses'); // Refresh warehouses
-        await store.dispatch('getRecentTransactions'); // Refresh recent transactions
-        
-        lastRefreshTime.value = new Date();
-        
-        // Show success notification
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم تحديث جميع البيانات بنجاح',
-          duration: 2000
-        });
-        
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ أثناء تحديث البيانات',
-          duration: 3000
-        });
-      } finally {
-        refreshing.value = false;
-      }
     };
 
     // ✅ CRITICAL: Preload essential data for instant display
@@ -327,26 +239,22 @@ export default {
           ...doc.data()
         }));
         
-        // Store warehouses immediately
-        store.commit('SET_WAREHOUSES', warehouses);
+        // Store warehouses immediately using store action
+        store.dispatch('loadWarehouses');
         
         // 2. If user is authenticated, preload minimal inventory
-        if (isAuthenticated.value) {
-          // Get user's accessible warehouses from store
-          const userProfile = store.state.userProfile;
+        if (isAuthenticated.value && userProfile.value) {
           let accessibleWarehouses = [];
           
-          if (userProfile) {
-            if (userProfile.role === 'superadmin' || userProfile.role === 'company_manager') {
-              // Superadmins and company managers can access all warehouses
+          if (userProfile.value.role === 'superadmin' || userProfile.value.role === 'company_manager') {
+            // Superadmins and company managers can access all warehouses
+            accessibleWarehouses = warehouses;
+          } else if (userProfile.value.role === 'warehouse_manager') {
+            const allowedWarehouses = userProfile.value.allowed_warehouses || [];
+            if (allowedWarehouses.includes('all')) {
               accessibleWarehouses = warehouses;
-            } else if (userProfile.role === 'warehouse_manager') {
-              const allowedWarehouses = userProfile.allowed_warehouses || [];
-              if (allowedWarehouses.includes('all')) {
-                accessibleWarehouses = warehouses;
-              } else {
-                accessibleWarehouses = warehouses.filter(w => allowedWarehouses.includes(w.id));
-              }
+            } else {
+              accessibleWarehouses = warehouses.filter(w => allowedWarehouses.includes(w.id));
             }
           }
           
@@ -391,16 +299,13 @@ export default {
           // Mark initial data as loaded
           initialDataLoaded.value = true;
           
-          // Set initial refresh time
-          lastRefreshTime.value = new Date();
-          
           // Show preload indicator briefly
           showPreloadIndicator.value = true;
           setTimeout(() => {
             showPreloadIndicator.value = false;
           }, 2000); // Hide after 2 seconds
           
-          // ✅ Start background loading of remaining data
+          // ✅ Start background loading of remaining data using store actions
           setTimeout(() => {
             loadRemainingDataInBackground();
           }, 1000);
@@ -412,14 +317,17 @@ export default {
       }
     };
 
-    // ✅ Load remaining data in background
+    // ✅ Load remaining data in background using store actions
     const loadRemainingDataInBackground = async () => {
       try {
         // 1. Load full inventory in background using store action
-        store.dispatch('loadAllInventory');
+        store.dispatch('loadAllInventory', { forceRefresh: false });
         
-        // 2. Load recent transactions (already handled by store)
-        // No need to load separately as store will handle it
+        // 2. Load recent transactions using store action
+        store.dispatch('getRecentTransactions');
+        
+        // 3. Load destinations if needed
+        store.dispatch('loadDestinations');
         
       } catch (error) {
         console.error('Background load error:', error);
@@ -430,11 +338,11 @@ export default {
     // ✅ Optimized initialization
     const initializeApp = async () => {
       try {
-        // Start preloading immediately (before auth check)
-        const preloadPromise = preloadEssentialData();
-        
         // Initialize auth using store action
         await store.dispatch('initializeAuth');
+        
+        // Start preloading immediately after auth
+        const preloadPromise = preloadEssentialData();
         
         // Wait for preload to complete (but don't block if it's slow)
         await Promise.race([
@@ -544,6 +452,16 @@ export default {
       }
     });
 
+    // Watch for user profile changes
+    watch(userProfile, (profile) => {
+      if (profile && isAuthenticated.value && !initialDataLoaded.value) {
+        // User profile loaded, preload data
+        setTimeout(() => {
+          preloadEssentialData();
+        }, 100);
+      }
+    });
+
     // Check mobile on mount and resize
     const checkMobile = () => {
       isMobile.value = window.innerWidth < 1024;
@@ -560,8 +478,6 @@ export default {
       preloadedTarget,
       initialDataLoaded,
       showPreloadIndicator,
-      refreshing,
-      lastRefreshTime,
       
       // Computed
       isAuthenticated,
@@ -569,14 +485,11 @@ export default {
       isMobileRoute,
       notifications,
       preloadedProgress,
-      showRefreshButton,
       
       // Methods
       removeNotification,
       toggleSidebar,
-      toggleMobileMenu,
-      formatTime,
-      refreshAllData
+      toggleMobileMenu
     };
   }
 };
