@@ -103,7 +103,7 @@ const inventoryRoutes = {
   }
 };
 
-// المسار الخاص بنظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
+// المسار الخاص بالفواتير (نظام الفواتير المتكامل)
 const invoiceSystemRoutes = {
   path: '/invoice-system',
   name: 'InvoiceSystem',
@@ -112,36 +112,22 @@ const invoiceSystemRoutes = {
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-    // UPDATED: مدير الشركة له صلاحية كاملة لنظام الفواتير
     requiredPermissions: ['manage_invoices', 'dispatch_items'],
     title: 'نظام الفواتير والصرف',
-    isInvoiceSystem: true, // علامة خاصة تشير أن هذا هو نظام الفواتير
-    // UPDATED: صلاحيات خاصة لكل دور
-    permissions: {
-      superadmin: 'full_access',
-      company_manager: 'full_access', // مدير الشركة له صلاحيات كاملة
-      warehouse_manager: 'limited_access' // مدير المخزن له صلاحيات محدودة
-    }
+    isInvoiceSystem: true // علامة خاصة تشير أن هذا هو نظام الفواتير
   }
 };
 
-// المسارات التقليدية للفواتير مع صلاحيات كاملة لمدير الشركة
+// المسارات التقليدية للفواتير (لإدارة الفواتير الفردية)
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
   component: lazyLoad('Invoices'),
   meta: { 
     requiresAuth: true,
-    // UPDATED: مدير الشركة له وصول كامل
-    allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+    allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
     requiredPermissions: ['manage_invoices'],
-    title: 'الفواتير',
-    // UPDATED: صلاحيات خاصة لكل دور
-    permissions: {
-      superadmin: 'full_access',
-      company_manager: 'full_access', // صلاحيات كاملة
-      warehouse_manager: 'limited_access' // صلاحيات محدودة
-    }
+    title: 'الفواتير'
   },
   children: [
     {
@@ -150,14 +136,8 @@ const invoicesRoutes = {
       component: lazyLoad('CreateInvoice'),
       meta: { 
         requiresAuth: true,
-        // UPDATED: مدير الشركة يمكنه إنشاء فواتير
-        allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-        requiredPermissions: ['create_invoices'],
-        permissions: {
-          superadmin: 'full_access',
-          company_manager: 'full_access',
-          warehouse_manager: 'limited_access'
-        }
+        allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        requiredPermissions: ['create_invoices']
       }
     },
     {
@@ -166,14 +146,8 @@ const invoicesRoutes = {
       component: lazyLoad('InvoiceDetails'),
       meta: { 
         requiresAuth: true,
-        // UPDATED: مدير الشركة يمكنه عرض تفاصيل الفواتير
-        allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-        requiredPermissions: ['view_invoices'],
-        permissions: {
-          superadmin: 'full_access',
-          company_manager: 'full_access',
-          warehouse_manager: 'limited_access'
-        }
+        allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        requiredPermissions: ['view_invoices']
       }
     }
   ]
@@ -317,7 +291,7 @@ const routes = [
   },
 
   // ============================================
-  // نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
+  // NEW: نظام الفواتير المتكامل (يستخدم Dispatch.vue)
   // ============================================
   invoiceSystemRoutes,
 
@@ -332,7 +306,7 @@ const routes = [
     }
   },
 
-  // مسارات الفواتير التقليدية مع صلاحيات كاملة لمدير الشركة
+  // مسارات الفواتير التقليدية (لإدارة الفواتير الفردية)
   invoicesRoutes,
 
   {
@@ -450,17 +424,9 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   return true;
 };
 
-// UPDATED: Check warehouse manager access - Special handling for company_manager
+// Check warehouse manager access - UPDATED for store compliance
 const canWarehouseManagerAccess = (userProfile, routeName) => {
-  const userRole = userProfile?.role || '';
-  
-  // إذا كان المستخدم مدير شركة، سامح له بالوصول لجميع الصفحات
-  if (userRole === 'company_manager') {
-    console.log(`✅ مدير الشركة له صلاحية الوصول الكاملة: ${routeName}`);
-    return true;
-  }
-  
-  if (userRole !== 'warehouse_manager') return true;
+  if (userProfile?.role !== 'warehouse_manager') return true;
 
   const allowedWarehouses = userProfile?.allowed_warehouses || [];
 
@@ -493,38 +459,12 @@ const canWarehouseManagerAccess = (userProfile, routeName) => {
   return true;
 };
 
-// UPDATED: Special access check for company manager
-const checkCompanyManagerAccess = (userRole, routeMeta, userProfile) => {
-  if (userRole !== 'company_manager') return true;
-  
-  // مدير الشركة له صلاحية الوصول إلى نظام الفواتير بالكامل
-  if (routeMeta.permissions?.company_manager === 'full_access') {
-    console.log('✅ مدير الشركة له صلاحية كاملة على نظام الفواتير');
-    return true;
-  }
-  
-  // التحقق من الصلاحيات العامة
-  if (routeMeta.requiredPermissions) {
-    const userPermissions = userProfile?.permissions || [];
-    const hasPermission = routeMeta.requiredPermissions.every(permission => 
-      userPermissions.includes(permission)
-    );
-    
-    if (!hasPermission) {
-      console.log(`⛔ مدير الشركة ليس لديه الأذونات المطلوبة: ${routeMeta.requiredPermissions}`);
-      return false;
-    }
-  }
-  
-  return true;
-};
-
 // Cache للصلاحيات لتحسين الأداء
 const routePermissionCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
 
 // نسخة محسنة من canAccessRoute مع cache
-const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile) => {
+const canAccessRouteCached = (userRole, userPermissions, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
 
   const cacheKey = `${userRole}_${JSON.stringify(routeMeta)}_${userPermissions.join(',')}`;
@@ -534,13 +474,7 @@ const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile)
     return cached.result;
   }
 
-  let result = canAccessRoute(userRole, userPermissions, routeMeta);
-  
-  // التحقق الإضافي لمدير الشركة
-  if (result && userRole === 'company_manager') {
-    result = checkCompanyManagerAccess(userRole, routeMeta, userProfile);
-  }
-  
+  const result = canAccessRoute(userRole, userPermissions, routeMeta);
   routePermissionCache.set(cacheKey, { result, timestamp: Date.now() });
   return result;
 };
@@ -618,16 +552,16 @@ router.beforeEach((to, from, next) => {
           return;
         }
 
-        // استخدام النسخة المحسنة مع cache (تمرير userProfile الآن)
-        if (!canAccessRouteCached(userRole, userPermissions, to.meta, userProfile)) {
+        // استخدام النسخة المحسنة مع cache
+        if (!canAccessRouteCached(userRole, userPermissions, to.meta)) {
           console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
           next('/unauthorized');
           return;
         }
 
-        // Special checks for warehouse managers (ومديري الشركات يمرون هنا أيضاً)
+        // Special checks for warehouse managers
         if (!canWarehouseManagerAccess(userProfile, to.name)) {
-          console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
+          console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول إلى:', to.name);
           next('/unauthorized');
           return;
         }
@@ -833,7 +767,7 @@ router.afterEach((to) => {
   
   // إرسال معلومة عن نظام الفواتير إذا كان المسار هو invoice-system
   if (to.path === '/invoice-system') {
-    console.log('🧾 تحميل نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة...');
+    console.log('🧾 تحميل نظام الفواتير المتكامل...');
   }
 });
 
@@ -849,12 +783,9 @@ router.isReady().then(() => {
   
   // إضافة معلومات خاصة عن نظام الفواتير
   const invoiceRoutes = router.getRoutes().filter(r => r.path.includes('invoice'));
-  console.log('🧾 مسارات نظام الفواتير (مدير الشركة له صلاحية كاملة):');
+  console.log('🧾 مسارات نظام الفواتير:');
   invoiceRoutes.forEach(route => {
     console.log(`  • ${route.name}: ${route.path} - ${route.meta?.title || 'بدون عنوان'}`);
-    if (route.meta?.permissions?.company_manager === 'full_access') {
-      console.log(`    ✅ صلاحيات كاملة لمدير الشركة`);
-    }
   });
 }).catch(error => {
   console.error('❌ خطأ في تحميل الموجه:', error);
