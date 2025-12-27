@@ -2195,7 +2195,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           <div class="details-grid">
             <div class="detail-box">
               <h3>البائع (المورد)</h3>
-              <div><strong>الاسم:</strong> شركة المخازن المتحدة</div>
+              <div><strong>الاسم:</strong> البران للعطور</div>
               <div><strong>السجل التجاري:</strong> 789456123</div>
               <div><strong>الرقم الضريبي:</strong> 123-456-789</div>
               <div><strong>العنوان:</strong> القاهرة، مصر</div>
