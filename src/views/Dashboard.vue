@@ -283,7 +283,296 @@
         </div>
       </div>
 
-      <!-- Warehouse Statistics Section -->
+      <!-- QUICK ACTIONS SECTION (MOVED HERE) -->
+      <div class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <router-link 
+              to="/inventory"
+              class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white">المخزون الكامل</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">عرض جميع الأصناف</div>
+              </div>
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              to="/reports"
+              class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white">التقارير</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">تحليل كامل للأداء</div>
+              </div>
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              v-if="canModifyItems"
+              to="/inventory/add"
+              class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white">إضافة صنف</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">إضافة صنف جديد</div>
+              </div>
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              to="/transactions"
+              class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white">الحركات</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">سجل الحركات الكامل</div>
+              </div>
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Items & Transactions Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Recent Items -->
+        <div class="lg:col-span-2">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs px-2 py-1 rounded-full" :class="recentItemsStatusClass">
+                  {{ recentItemsCount }} صنف
+                </span>
+              </div>
+            </div>
+
+            <div v-if="inventoryLoading" class="text-center py-8">
+              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الأصناف...</p>
+            </div>
+
+            <div v-else-if="filteredRecentInventory.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                v-for="item in filteredRecentInventory" 
+                :key="item.id"
+                class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer fade-in"
+                @click="openItemModal(item)"
+              >
+                <div class="flex items-start gap-3">
+                  <div class="relative">
+                    <div class="h-12 w-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600">
+                      <img 
+                        v-if="item.photo_url" 
+                        :src="item.photo_url" 
+                        :alt="item.name"
+                        class="h-full w-full object-cover lazy-image"
+                        loading="lazy"
+                        @error="handleImageError"
+                      >
+                      <div v-else class="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <span :class="getStatusClass(item.remaining_quantity)" 
+                          class="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 status-dot"></span>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between">
+                      <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</h3>
+                      <span :class="getQuantityClass(item.remaining_quantity)" class="font-bold text-lg">
+                        {{ formatEnglishNumber(item.remaining_quantity) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs font-mono bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+                        {{ item.code }}
+                      </span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {{ item.color || 'بدون لون' }}
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ getWarehouseLabel(item.warehouse_id) }}
+                      </span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ formatRelativeTime(item.created_at || item.updated_at) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
+            </div>
+
+            <!-- Load More Button -->
+            <div v-if="hasMoreItems && !inventoryLoading" class="mt-6 text-center">
+              <button
+                @click="loadMoreItems"
+                :disabled="loadMoreLoading"
+                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+              >
+                <svg v-if="loadMoreLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span v-else>⬇️ تحميل المزيد</span>
+              </button>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                تم تحميل {{ totalLoadedItems }} من أصل {{ totalItemsCount }} صنف
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions (Sidebar) -->
+        <div class="lg:col-span-1">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 10 حركات {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
+                  <div class="h-2 w-2 rounded-full bg-green-500"></div>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">إضافة</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <div class="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">نقل</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="recentTransactionsLoading" class="text-center py-8">
+              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الحركات...</p>
+            </div>
+
+            <div v-else-if="filteredRecentTransactions.length > 0" class="space-y-3">
+              <div 
+                v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
+                :key="transaction.id"
+                class="group p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer fade-in"
+                @click="openTransactionModal?.(transaction)"
+              >
+                <div class="flex items-center gap-3">
+                  <!-- Transaction Icon -->
+                  <div :class="[
+                    'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                    transaction.type === 'ADD' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
+                    transaction.type === 'TRANSFER' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' :
+                    'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
+                  ]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="transaction.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      <path v-if="transaction.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      <path v-if="transaction.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                  </div>
+
+                  <!-- Transaction Details -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between">
+                      <div class="flex-1">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ transaction.item_name }}</h4>
+                        <div class="flex items-center gap-1 mt-1">
+                          <span class="text-xs text-gray-500 dark:text-gray-400">{{ getTransactionTypeLabel(transaction.type) }}</span>
+                          <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
+                            {{ formatEnglishNumber(transaction.total_delta || 0) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between mt-2">
+                      <span class="text-xs text-gray-500 dark:text-gray-400 truncate" style="max-width: 100px;">
+                        <template v-if="transaction.type === 'TRANSFER'">
+                          {{ getWarehouseLabel(transaction.from_warehouse) }} → {{ getWarehouseLabel(transaction.to_warehouse) }}
+                        </template>
+                        <template v-else>
+                          {{ getWarehouseLabel(transaction.to_warehouse) }}
+                        </template>
+                      </span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ formatRelativeTime(transaction.timestamp) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد حركات</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم تتم أي حركات في هذا المخزن.</p>
+            </div>
+            
+            <!-- View All Transactions Button -->
+            <div v-if="filteredRecentTransactions.length > 0" class="mt-4">
+              <router-link 
+                to="/transactions"
+                class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-center gap-2"
+              >
+                <span>عرض جميع الحركات</span>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </router-link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WAREHOUSE STATISTICS SECTION (MOVED TO BOTTOM) -->
       <div v-if="selectedWarehouse === 'all'" class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
@@ -428,321 +717,17 @@
           </div>
         </div>
       </div>
-
-      <!-- Quick Actions & Recent Items -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Quick Actions -->
-        <div class="lg:col-span-1">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
-            <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
-            <div class="space-y-3">
-              <router-link 
-                to="/inventory"
-                class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
-              >
-                <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="font-medium text-gray-900 dark:text-white">المخزون الكامل</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">عرض جميع الأصناف</div>
-                </div>
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </router-link>
-
-              <router-link 
-                to="/reports"
-                class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
-              >
-                <div class="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="font-medium text-gray-900 dark:text-white">التقارير</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">تحليل كامل للأداء</div>
-                </div>
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </router-link>
-
-              <router-link 
-                v-if="canModifyItems"
-                to="/inventory/add"
-                class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
-              >
-                <div class="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="font-medium text-gray-900 dark:text-white">إضافة صنف</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">إضافة صنف جديد</div>
-                </div>
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </router-link>
-
-              <router-link 
-                to="/transactions"
-                class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
-              >
-                <div class="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <svg class="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="font-medium text-gray-900 dark:text-white">الحركات</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">سجل الحركات الكامل</div>
-                </div>
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </router-link>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Items -->
-        <div class="lg:col-span-2">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
-            <div class="flex items-center justify-between mb-6">
-              <div>
-                <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs px-2 py-1 rounded-full" :class="recentItemsStatusClass">
-                  {{ recentItemsCount }} صنف
-                </span>
-              </div>
-            </div>
-
-            <div v-if="inventoryLoading" class="text-center py-8">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الأصناف...</p>
-            </div>
-
-            <div v-else-if="filteredRecentInventory.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div 
-                v-for="item in filteredRecentInventory" 
-                :key="item.id"
-                class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer"
-                @click="openItemModal(item)"
-              >
-                <div class="flex items-start gap-3">
-                  <div class="relative">
-                    <div class="h-12 w-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600">
-                      <img 
-                        v-if="item.photo_url" 
-                        :src="item.photo_url" 
-                        :alt="item.name"
-                        class="h-full w-full object-cover"
-                        @error="handleImageError"
-                      >
-                      <div v-else class="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                      </div>
-                    </div>
-                    <span :class="getStatusClass(item.remaining_quantity)" 
-                          class="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800"></span>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-start justify-between">
-                      <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</h3>
-                      <span :class="getQuantityClass(item.remaining_quantity)" class="font-bold text-lg">
-                        {{ formatEnglishNumber(item.remaining_quantity) }}
-                      </span>
-                    </div>
-                    <div class="flex items-center gap-2 mt-1">
-                      <span class="text-xs font-mono bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
-                        {{ item.code }}
-                      </span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {{ item.color || 'بدون لون' }}
-                      </span>
-                    </div>
-                    <div class="flex items-center justify-between mt-2">
-                      <span class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ getWarehouseLabel(item.warehouse_id) }}
-                      </span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ formatRelativeTime(item.created_at || item.updated_at) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="text-center py-8">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-              </svg>
-              <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
-            </div>
-
-            <!-- Load More Button -->
-            <div v-if="hasMoreItems && !inventoryLoading" class="mt-6 text-center">
-              <button
-                @click="loadMoreItems"
-                :disabled="loadMoreLoading"
-                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <svg v-if="loadMoreLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span v-else>⬇️ تحميل المزيد</span>
-              </button>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                تم تحميل {{ totalLoadedItems }} من أصل {{ totalItemsCount }} صنف
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Transactions -->
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الحركات</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 10 حركات {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full bg-green-500"></div>
-              <span class="text-xs text-gray-500 dark:text-gray-400">إضافة</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-              <span class="text-xs text-gray-500 dark:text-gray-400">نقل</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full bg-purple-500"></div>
-              <span class="text-xs text-gray-500 dark:text-gray-400">صرف</span>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="recentTransactionsLoading" class="text-center py-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الحركات...</p>
-        </div>
-
-        <div v-else-if="filteredRecentTransactions.length > 0" class="space-y-4">
-          <div 
-            v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
-            :key="transaction.id"
-            class="group flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200"
-          >
-            <!-- Transaction Icon -->
-            <div :class="[
-              'h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0',
-              transaction.type === 'ADD' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
-              transaction.type === 'TRANSFER' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' :
-              'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
-            ]">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="transaction.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                <path v-if="transaction.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                <path v-if="transaction.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-            </div>
-
-            <!-- Transaction Details -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-medium text-gray-900 dark:text-white">{{ transaction.item_name }}</h4>
-                  <div class="flex items-center gap-2 mt-1">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ transaction.item_code }}</span>
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
-                      {{ getTransactionTypeLabel(transaction.type) }}
-                    </span>
-                  </div>
-                </div>
-                <span :class="[
-                  'font-bold text-lg',
-                  transaction.type === 'ADD' ? 'text-green-600 dark:text-green-400' :
-                  'text-red-600 dark:text-red-400'
-                ]">
-                  {{ transaction.type === 'ADD' ? '+' : '' }}{{ formatEnglishNumber(transaction.total_delta || 0) }}
-                </span>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
-                <div class="flex items-center gap-2">
-                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  </svg>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">
-                    <template v-if="transaction.type === 'TRANSFER'">
-                      من {{ getWarehouseLabel(transaction.from_warehouse) }} → إلى {{ getWarehouseLabel(transaction.to_warehouse) }}
-                    </template>
-                    <template v-else-if="transaction.type === 'DISPATCH'">
-                      من {{ getWarehouseLabel(transaction.from_warehouse) }} → {{ getDestinationLabel(transaction.destination) }}
-                    </template>
-                    <template v-else>
-                      {{ getWarehouseLabel(transaction.to_warehouse) }}
-                    </template>
-                  </span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                  </svg>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">{{ transaction.created_by || 'نظام' }}</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">
-                    {{ formatDetailedTime(transaction.timestamp) }}
-                    <span class="text-xs text-gray-500">({{ formatRelativeTime(transaction.timestamp) }})</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="text-center py-8">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد حركات</h3>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم تتم أي حركات في هذا المخزن.</p>
-        </div>
-      </div>
     </div>
 
     <!-- Item Details Modal -->
-    <div v-if="showItemModal" class="fixed inset-0 z-50 overflow-y-auto">
+    <div v-if="showItemModal" class="fixed inset-0 z-50 overflow-y-auto modal-backdrop">
       <!-- Backdrop -->
       <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeItemModal"></div>
 
       <!-- Modal Container -->
       <div class="flex min-h-full items-center justify-center p-4">
         <!-- Modal Content -->
-        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden transition-all duration-300 transform scale-100">
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden transition-all duration-300 transform scale-100 slide-in">
           <!-- Modal Header -->
           <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
@@ -783,7 +768,7 @@
           </div>
 
           <!-- Modal Body -->
-          <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)] custom-scrollbar">
             <div v-if="modalLoading" class="py-20 text-center">
               <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p class="mt-4 text-gray-600 dark:text-gray-400">جاري تحميل تفاصيل الصنف...</p>
@@ -800,7 +785,8 @@
                         v-if="selectedItem.photo_url" 
                         :src="selectedItem.photo_url" 
                         :alt="selectedItem.name"
-                        class="w-full h-full object-cover"
+                        class="w-full h-full object-cover lazy-image"
+                        loading="lazy"
                         @error="handleModalImageError"
                       >
                       <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-600">
@@ -934,7 +920,7 @@
                   <div 
                     v-for="trans in itemTransactions.slice(0, 5)" 
                     :key="trans.id"
-                    class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
+                    class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 fade-in"
                   >
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-3">
@@ -1010,7 +996,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
@@ -1020,11 +1006,14 @@ export default {
     const store = useStore();
     const router = useRouter();
     
+    // Loading states
     const loading = ref(false);
     const initialLoading = ref(true);
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
     const loadMoreLoading = ref(false);
+    
+    // UI state
     const selectedWarehouse = ref('all');
     const currentTime = ref('');
     const currentDate = ref('');
@@ -1036,7 +1025,7 @@ export default {
     const modalLoading = ref(false);
     const itemTransactions = ref([]);
     
-    // Store stats
+    // Stats
     const dashboardStats = ref({
       totalItems: 0,
       totalQuantity: 0,
@@ -1055,14 +1044,18 @@ export default {
     // Warehouse-specific stats
     const allWarehousesStats = ref({});
 
-    // Computed properties
+    // Cache for stats calculation
+    const statsCache = ref({});
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+    // ========== OPTIMIZED COMPUTED PROPERTIES ==========
+    
     const userRole = computed(() => store.getters.userRole || '');
     
     const warehouses = computed(() => {
       try {
         return store.getters.warehouses || [];
-      } catch (error) {
-        console.error('Error getting warehouses:', error);
+      } catch {
         return [];
       }
     });
@@ -1071,8 +1064,7 @@ export default {
       try {
         const inventory = store.getters.inventoryItems || [];
         return Array.isArray(inventory) ? inventory : [];
-      } catch (error) {
-        console.error('Error getting inventory items:', error);
+      } catch {
         return [];
       }
     });
@@ -1081,13 +1073,12 @@ export default {
       try {
         const items = store.getters.recentTransactions || [];
         return Array.isArray(items) ? items : [];
-      } catch (error) {
-        console.error('Error getting recent transactions:', error);
+      } catch {
         return [];
       }
     });
     
-    // Pagination getters from store
+    // Pagination getters
     const hasMoreItems = computed(() => store.getters.hasMore || false);
     const totalLoadedItems = computed(() => store.getters.totalLoaded || 0);
     const isFetchingMore = computed(() => store.getters.isFetchingMore || false);
@@ -1111,19 +1102,18 @@ export default {
         }
         
         return false;
-      } catch (error) {
-        console.error('Error checking permissions:', error);
+      } catch {
         return false;
       }
     });
 
-    // Get total items count from store getter (cached)
+    // Get total items count (cached)
     const totalItemsCount = computed(() => {
       const stats = store.getters.dashboardRealStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
       return stats.totalItems || 0;
     });
     
-    // Today's transactions
+    // Today's transactions with caching
     const todayTransactions = computed(() => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1134,23 +1124,24 @@ export default {
           const transDate = transaction.timestamp?.toDate ? 
             transaction.timestamp.toDate() : new Date(transaction.timestamp);
           return transDate >= today;
-        } catch (error) {
+        } catch {
           return false;
         }
       });
     });
 
-    const todayAddCount = computed(() => {
-      return todayTransactions.value.filter(t => t.type === 'ADD').length;
-    });
+    // Pre-calculate these to avoid recomputation
+    const todayAddCount = computed(() => 
+      todayTransactions.value.filter(t => t.type === 'ADD').length
+    );
 
-    const todayTransferCount = computed(() => {
-      return todayTransactions.value.filter(t => t.type === 'TRANSFER').length;
-    });
+    const todayTransferCount = computed(() => 
+      todayTransactions.value.filter(t => t.type === 'TRANSFER').length
+    );
 
-    const todayDispatchCount = computed(() => {
-      return todayTransactions.value.filter(t => t.type === 'DISPATCH').length;
-    });
+    const todayDispatchCount = computed(() => 
+      todayTransactions.value.filter(t => t.type === 'DISPATCH').length
+    );
 
     const lastTransactionTime = computed(() => {
       if (todayTransactions.value.length === 0) return 'لا توجد حركات';
@@ -1159,7 +1150,7 @@ export default {
         const date = last.timestamp?.toDate ? 
           last.timestamp.toDate() : new Date(last.timestamp);
         return formatRelativeTime(date);
-      } catch (error) {
+      } catch {
         return 'غير معروف';
       }
     });
@@ -1178,7 +1169,7 @@ export default {
       return inventoryItems.value.filter(item => item.warehouse_id === selectedWarehouse.value);
     });
 
-    // Recent inventory (last 8 items, filtered by warehouse)
+    // Recent inventory (last 8 items)
     const filteredRecentInventory = computed(() => {
       const items = filteredInventory.value;
       if (!Array.isArray(items) || items.length === 0) return [];
@@ -1190,7 +1181,7 @@ export default {
             const dateA = new Date(a.created_at || a.updated_at || 0);
             const dateB = new Date(b.created_at || b.updated_at || 0);
             return dateB - dateA;
-          } catch (error) {
+          } catch {
             return 0;
           }
         })
@@ -1218,20 +1209,36 @@ export default {
       );
     });
 
-    // Calculate stock totals
-    const totalCartons = computed(() => {
-      return filteredInventory.value.reduce((sum, item) => {
-        return sum + (item.cartons_count || 0) * (item.per_carton_count || 12);
-      }, 0);
+    // ========== OPTIMIZED CALCULATIONS ==========
+    
+    // Memoized calculations for better performance
+    const calculatedTotals = computed(() => {
+      const inventory = filteredInventory.value;
+      
+      let totalCartons = 0;
+      let totalSingles = 0;
+      let outOfStockItems = 0;
+      
+      for (let i = 0; i < inventory.length; i++) {
+        const item = inventory[i];
+        const cartons = item.cartons_count || 0;
+        const perCarton = item.per_carton_count || 12;
+        const singles = item.single_bottles_count || 0;
+        
+        totalCartons += cartons * perCarton;
+        totalSingles += singles;
+        
+        if ((item.remaining_quantity || 0) === 0) {
+          outOfStockItems++;
+        }
+      }
+      
+      return { totalCartons, totalSingles, outOfStockItems };
     });
 
-    const totalSingles = computed(() => {
-      return filteredInventory.value.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
-    });
-
-    const outOfStockItems = computed(() => {
-      return filteredInventory.value.filter(item => (item.remaining_quantity || 0) === 0).length;
-    });
+    const totalCartons = computed(() => calculatedTotals.value.totalCartons);
+    const totalSingles = computed(() => calculatedTotals.value.totalSingles);
+    const outOfStockItems = computed(() => calculatedTotals.value.outOfStockItems);
 
     const stockHealthPercentage = computed(() => {
       const total = dashboardStats.value.totalItems;
@@ -1246,7 +1253,8 @@ export default {
       return 'bg-red-500';
     });
 
-    // Helper functions
+    // ========== HELPER FUNCTIONS ==========
+    
     const formatEnglishNumber = (num) => {
       if (isNaN(num) || num === null || num === undefined) return '0';
       return new Intl.NumberFormat('en-US').format(num);
@@ -1261,7 +1269,7 @@ export default {
           minute: '2-digit',
           hour12: true
         });
-      } catch (error) {
+      } catch {
         return '';
       }
     };
@@ -1282,7 +1290,7 @@ export default {
         if (diffDays === 1) return 'أمس';
         if (diffDays < 7) return `قبل ${diffDays} أيام`;
         return date.toLocaleDateString('ar-EG');
-      } catch (error) {
+      } catch {
         return '';
       }
     };
@@ -1291,17 +1299,8 @@ export default {
       if (!warehouseId) return '';
       try {
         return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
-      } catch (error) {
+      } catch {
         return warehouseId;
-      }
-    };
-
-    const getDestinationLabel = (destinationId) => {
-      if (!destinationId) return '';
-      try {
-        return store.getters.getDestinationLabel(destinationId) || destinationId;
-      } catch (error) {
-        return destinationId;
       }
     };
 
@@ -1357,7 +1356,8 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    // Modal functions
+    // ========== MODAL FUNCTIONS ==========
+    
     const openItemModal = async (item) => {
       selectedItem.value = item;
       modalLoading.value = true;
@@ -1372,8 +1372,7 @@ export default {
         itemTransactions.value = recentStoreTransactions.value.filter(trans => 
           trans.item_id === item.id || trans.item_code === item.code
         ).slice(0, 10);
-      } catch (error) {
-        console.error('Error loading item transactions:', error);
+      } catch {
         itemTransactions.value = [];
       } finally {
         modalLoading.value = false;
@@ -1395,7 +1394,8 @@ export default {
       }
     };
 
-    // Update time
+    // ========== TIME UPDATES ==========
+    
     const updateTime = () => {
       const now = new Date();
       currentTime.value = now.toLocaleTimeString('ar-EG', {
@@ -1411,37 +1411,48 @@ export default {
       });
     };
 
-    // Load statistics for a specific warehouse
+    // ========== OPTIMIZED STATS LOADING ==========
+    
     const loadWarehouseStats = async (warehouseId) => {
+      // Check cache first
+      const cacheKey = `warehouse_${warehouseId}_${lastUpdated.value.getTime()}`;
+      if (statsCache.value[cacheKey] && 
+          Date.now() - statsCache.value[cacheKey].timestamp < CACHE_TTL) {
+        return statsCache.value[cacheKey].data;
+      }
+
       try {
         const inventory = inventoryItems.value;
         const warehouseInventory = warehouseId === 'all' 
           ? inventory 
           : inventory.filter(item => item.warehouse_id === warehouseId);
         
-        const totalQuantity = warehouseInventory.reduce((sum, item) => {
+        let totalQuantity = 0;
+        let lowStockItems = 0;
+        let outOfStockItems = 0;
+        
+        for (let i = 0; i < warehouseInventory.length; i++) {
+          const item = warehouseInventory[i];
           const cartons = item.cartons_count || 0;
           const perCarton = item.per_carton_count || 12;
           const singles = item.single_bottles_count || 0;
-          return sum + (cartons * perCarton) + singles;
-        }, 0);
-        
-        const lowStockItems = warehouseInventory.filter(item => {
           const remaining = item.remaining_quantity || 0;
-          return remaining < 10 && remaining > 0;
-        }).length;
-        
-        const outOfStockItems = warehouseInventory.filter(item => {
-          const remaining = item.remaining_quantity || 0;
-          return remaining === 0;
-        }).length;
+          
+          totalQuantity += (cartons * perCarton) + singles;
+          
+          if (remaining === 0) {
+            outOfStockItems++;
+          } else if (remaining < 10) {
+            lowStockItems++;
+          }
+        }
         
         const healthyItems = warehouseInventory.length - lowStockItems - outOfStockItems;
         const healthPercentage = warehouseInventory.length > 0 
           ? Math.round((healthyItems / warehouseInventory.length) * 100) 
           : 0;
         
-        return {
+        const result = {
           totalItems: warehouseInventory.length,
           totalQuantity: totalQuantity,
           lowStockItems: lowStockItems,
@@ -1449,8 +1460,15 @@ export default {
           healthPercentage: healthPercentage,
           lastUpdated: new Date()
         };
-      } catch (error) {
-        console.error('Error loading warehouse stats:', error);
+        
+        // Cache the result
+        statsCache.value[cacheKey] = {
+          data: result,
+          timestamp: Date.now()
+        };
+        
+        return result;
+      } catch {
         return {
           totalItems: 0,
           totalQuantity: 0,
@@ -1462,41 +1480,41 @@ export default {
       }
     };
 
-    // Load statistics for all warehouses
     const loadAllWarehousesStats = async () => {
       warehouseStatsLoading.value = true;
       try {
         const warehousesList = warehouses.value;
         const stats = {};
         
-        // Load stats for each warehouse
-        for (const warehouse of warehousesList) {
+        // Use Promise.all for parallel loading
+        const promises = warehousesList.map(async (warehouse) => {
           stats[warehouse.id] = await loadWarehouseStats(warehouse.id);
-        }
+        });
+        
+        await Promise.all(promises);
         
         allWarehousesStats.value = stats;
-      } catch (error) {
-        console.error('Error loading all warehouses stats:', error);
+      } catch {
         allWarehousesStats.value = {};
       } finally {
         warehouseStatsLoading.value = false;
       }
     };
 
-    // Load dashboard stats - Using store getters directly
+    // Optimized dashboard stats loading
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
-        // Use store getter for real stats
+        // Use store getter for real stats (cached)
         const realStats = store.getters.dashboardRealStats(warehouseId);
         
         dashboardStats.value = {
           totalItems: realStats.totalItems,
           totalQuantity: realStats.totalQuantity,
           lowStockItems: realStats.lowStockItems,
-          outOfStockItems: 0, // We'll calculate this
+          outOfStockItems: 0,
           lastUpdated: realStats.lastUpdated || new Date()
         };
         
@@ -1504,48 +1522,68 @@ export default {
         const filteredItems = warehouseId === 'all' 
           ? inventoryItems.value 
           : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
-        dashboardStats.value.outOfStockItems = filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
         
-        // Load "all" stats for comparison
+        let outOfStockCount = 0;
+        for (let i = 0; i < filteredItems.length; i++) {
+          if ((filteredItems[i].remaining_quantity || 0) === 0) {
+            outOfStockCount++;
+          }
+        }
+        dashboardStats.value.outOfStockItems = outOfStockCount;
+        
+        // Load "all" stats for comparison (cached)
         const allStats = store.getters.dashboardRealStats('all');
         allWarehouseStats.value = {
           totalItems: allStats.totalItems,
           totalQuantity: allStats.totalQuantity,
           lowStockItems: allStats.lowStockItems,
-          outOfStockItems: inventoryItems.value.filter(item => (item.remaining_quantity || 0) === 0).length
+          outOfStockItems: 0 // We'll calculate this on demand
         };
         
-        // Load stats for all warehouses if "all" is selected
+        // Calculate all out of stock items
+        let allOutOfStockCount = 0;
+        for (let i = 0; i < inventoryItems.value.length; i++) {
+          if ((inventoryItems.value[i].remaining_quantity || 0) === 0) {
+            allOutOfStockCount++;
+          }
+        }
+        allWarehouseStats.value.outOfStockItems = allOutOfStockCount;
+        
+        // Load stats for all warehouses if "all" is selected (deferred)
         if (warehouseId === 'all') {
-          await loadAllWarehousesStats();
+          // Load in background for better UX
+          setTimeout(() => {
+            loadAllWarehousesStats();
+          }, 100);
         }
         
         console.log('✅ Dashboard stats loaded:', dashboardStats.value);
         
         lastUpdated.value = new Date();
         
-      } catch (error) {
-        console.error('❌ Error loading dashboard stats:', error);
-        
+      } catch {
         // Fallback to calculated stats
         const inventory = filteredInventory.value;
         
-        const totalQuantity = inventory.reduce((sum, item) => {
+        let totalQuantity = 0;
+        let lowStockItems = 0;
+        let outOfStockItems = 0;
+        
+        for (let i = 0; i < inventory.length; i++) {
+          const item = inventory[i];
           const cartons = item.cartons_count || 0;
           const perCarton = item.per_carton_count || 12;
           const singles = item.single_bottles_count || 0;
-          return sum + (cartons * perCarton) + singles;
-        }, 0);
-        
-        const lowStockItems = inventory.filter(item => {
           const remaining = item.remaining_quantity || 0;
-          return remaining < 10 && remaining > 0;
-        }).length;
-        
-        const outOfStockItems = inventory.filter(item => {
-          const remaining = item.remaining_quantity || 0;
-          return remaining === 0;
-        }).length;
+          
+          totalQuantity += (cartons * perCarton) + singles;
+          
+          if (remaining === 0) {
+            outOfStockItems++;
+          } else if (remaining < 10) {
+            lowStockItems++;
+          }
+        }
         
         dashboardStats.value = {
           totalItems: inventory.length,
@@ -1559,22 +1597,25 @@ export default {
         if (warehouseId !== 'all') {
           const allInventory = inventoryItems.value;
           
-          const allTotalQuantity = allInventory.reduce((sum, item) => {
+          let allTotalQuantity = 0;
+          let allLowStockItems = 0;
+          let allOutOfStockItems = 0;
+          
+          for (let i = 0; i < allInventory.length; i++) {
+            const item = allInventory[i];
             const cartons = item.cartons_count || 0;
             const perCarton = item.per_carton_count || 12;
             const singles = item.single_bottles_count || 0;
-            return sum + (cartons * perCarton) + singles;
-          }, 0);
-          
-          const allLowStockItems = allInventory.filter(item => {
             const remaining = item.remaining_quantity || 0;
-            return remaining < 10 && remaining > 0;
-          }).length;
-          
-          const allOutOfStockItems = allInventory.filter(item => {
-            const remaining = item.remaining_quantity || 0;
-            return remaining === 0;
-          }).length;
+            
+            allTotalQuantity += (cartons * perCarton) + singles;
+            
+            if (remaining === 0) {
+              allOutOfStockItems++;
+            } else if (remaining < 10) {
+              allLowStockItems++;
+            }
+          }
           
           allWarehouseStats.value = {
             totalItems: allInventory.length,
@@ -1588,7 +1629,8 @@ export default {
       }
     };
 
-    // Load more items
+    // ========== ACTIONS ==========
+    
     const loadMoreItems = async () => {
       if (loadMoreLoading.value || isFetchingMore.value) return;
       
@@ -1604,8 +1646,8 @@ export default {
         // Refresh dashboard stats after loading more items
         await loadDashboardStats(selectedWarehouse.value);
         
-      } catch (error) {
-        console.error('❌ Error loading more items:', error);
+      } catch {
+        console.error('❌ Error loading more items');
       } finally {
         loadMoreLoading.value = false;
       }
@@ -1614,17 +1656,22 @@ export default {
     const refreshDashboard = async () => {
       loading.value = true;
       try {
-        // Refresh all data
-        await store.dispatch('loadAllInventory', { forceRefresh: true });
-        await store.dispatch('getRecentTransactions');
+        // Clear cache
+        statsCache.value = {};
+        
+        // Refresh all data in parallel
+        const [inventoryPromise, transactionsPromise] = await Promise.allSettled([
+          store.dispatch('loadAllInventory', { forceRefresh: true }),
+          store.dispatch('getRecentTransactions')
+        ]);
         
         // Refresh dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
         
         console.log('🔄 Dashboard refreshed successfully');
         
-      } catch (error) {
-        console.error('Error refreshing dashboard:', error);
+      } catch {
+        console.error('Error refreshing dashboard');
       } finally {
         loading.value = false;
       }
@@ -1641,14 +1688,15 @@ export default {
         console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
         console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
         
-      } catch (error) {
-        console.error('Error changing warehouse:', error);
+      } catch {
+        console.error('Error changing warehouse');
       } finally {
         loading.value = false;
       }
     };
 
-    // Check authentication and load data
+    // ========== INITIAL DATA LOADING ==========
+    
     const loadDashboardData = async () => {
       initialLoading.value = true;
       console.log('🚀 Loading dashboard data...');
@@ -1662,19 +1710,14 @@ export default {
           return;
         }
         
-        // Load warehouses if needed
-        if (!warehouses.value || warehouses.value.length === 0) {
-          console.log('🏢 Loading warehouses...');
-          await store.dispatch('loadWarehouses');
-        }
-        
-        // Load initial inventory
-        console.log('📦 Loading initial inventory...');
-        await store.dispatch('loadAllInventory', { forceRefresh: true });
-        
-        // Load recent transactions
-        console.log('📊 Loading recent transactions...');
-        await store.dispatch('getRecentTransactions');
+        // Load initial data in parallel for faster loading
+        const [warehousesData, inventoryData, transactionsData] = await Promise.allSettled([
+          !warehouses.value || warehouses.value.length === 0 
+            ? store.dispatch('loadWarehouses')
+            : Promise.resolve(),
+          store.dispatch('loadAllInventory', { forceRefresh: true }),
+          store.dispatch('getRecentTransactions')
+        ]);
         
         // Load dashboard stats
         console.log('📈 Loading dashboard stats...');
@@ -1686,7 +1729,7 @@ export default {
         console.error('❌ Error loading dashboard data:', error);
         
         // Check if error is authentication-related
-        if (error.message.includes('not authenticated') || error.message.includes('permission-denied')) {
+        if (error.message?.includes('not authenticated') || error.message?.includes('permission-denied')) {
           console.log('🔒 Authentication error detected, redirecting to login...');
           await router.push('/login');
           return;
@@ -1697,14 +1740,16 @@ export default {
       }
     };
 
-    // Handle escape key to close modal
+    // ========== KEYBOARD HANDLING ==========
+    
     const handleEscapeKey = (event) => {
       if (event.key === 'Escape' && showItemModal.value) {
         closeItemModal();
       }
     };
 
-    // Initialize
+    // ========== LIFECYCLE HOOKS ==========
+    
     onMounted(async () => {
       console.log('🚀 Dashboard mounted');
       
@@ -1718,8 +1763,8 @@ export default {
       try {
         // Load dashboard data
         await loadDashboardData();
-      } catch (error) {
-        console.error('❌ Error in dashboard mounted:', error);
+      } catch {
+        console.error('❌ Error in dashboard mounted');
         initialLoading.value = false;
         loading.value = false;
       }
@@ -1733,7 +1778,8 @@ export default {
       });
     });
 
-    // Watch for warehouse filter changes
+    // ========== WATCHERS ==========
+    
     watch(selectedWarehouse, async (newValue) => {
       if (!loading.value) {
         console.log('🏢 Warehouse filter changed to:', newValue);
@@ -1741,15 +1787,18 @@ export default {
       }
     });
 
-    // Watch for inventory changes to update stats
+    // Debounced inventory watch to prevent too many updates
+    let inventoryWatchTimeout;
     watch(inventoryItems, async () => {
       if (!loading.value && !statsLoading.value) {
-        console.log('🔄 Inventory changed, updating stats...');
-        await loadDashboardStats(selectedWarehouse.value);
+        clearTimeout(inventoryWatchTimeout);
+        inventoryWatchTimeout = setTimeout(async () => {
+          console.log('🔄 Inventory changed, updating stats...');
+          await loadDashboardStats(selectedWarehouse.value);
+        }, 500); // Debounce by 500ms
       }
     }, { deep: true });
 
-    // Watch for pagination changes
     watch(totalLoadedItems, (newCount) => {
       console.log(`📦 Total loaded items updated: ${newCount}`);
     });
@@ -1808,7 +1857,6 @@ export default {
       formatDetailedTime,
       formatRelativeTime,
       getWarehouseLabel,
-      getDestinationLabel,
       getTransactionTypeLabel,
       getQuantityClass,
       getStatusClass,
@@ -1949,5 +1997,29 @@ export default {
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Lazy image loading */
+.lazy-image {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.lazy-image.loaded {
+  opacity: 1;
+}
+
+/* Optimized loading states */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
 }
 </style>
