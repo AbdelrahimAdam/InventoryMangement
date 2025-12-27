@@ -83,6 +83,12 @@
                 </svg>
                 تصدير Excel
               </button>
+              <button @click="exportToPDF" :disabled="invoices.length === 0" class="btn-success">
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                تصدير PDF
+              </button>
             </div>
           </div>
 
@@ -258,6 +264,9 @@
                             {{ formatNumber(item.remaining_quantity) }} متبقي
                           </span>
                         </div>
+                        <div class="mt-2 text-sm text-blue-600 dark:text-blue-400">
+                          السعر: {{ formatCurrency(item.sale_price || 0) }}
+                        </div>
                       </div>
                       <svg class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -281,7 +290,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    <tr v-for="(item, index) in invoiceForm.items" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr v-for="(item, index) in invoiceForm.items" :key="item.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td class="px-4 py-3">
                         <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.name }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.code }}</div>
@@ -348,6 +357,10 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div v-else class="text-center py-8 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p class="text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف للفاتورة</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">اضغط على الأصناف المتاحة لإضافتها للفاتورة</p>
               </div>
             </div>
 
@@ -526,6 +539,11 @@
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                         </svg>
                       </button>
+                      <button @click="exportInvoicePDF(invoice)" class="action-btn text-purple-600 dark:text-purple-400" title="تصدير PDF">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                      </button>
                       <button @click="editInvoice(invoice)" v-if="invoice.status === 'draft'" class="action-btn text-yellow-600 dark:text-yellow-400" title="تعديل الفاتورة">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -566,16 +584,16 @@
           <div v-if="filteredInvoices.length > 0" class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div class="text-sm text-gray-700 dark:text-gray-300">
-                عرض <span class="font-medium">{{ startIndex + 1 }}</span> إلى <span class="font-medium">{{ endIndex }}</span> من <span class="font-medium">{{ filteredInvoices.length }}</span> فاتورة
+                عرض <span class="font-medium">{{ startInvoiceIndex + 1 }}</span> إلى <span class="font-medium">{{ endInvoiceIndex }}</span> من <span class="font-medium">{{ filteredInvoices.length }}</span> فاتورة
               </div>
               <div class="flex items-center space-x-2">
-                <button @click="prevPage" :disabled="currentPage === 1" class="pagination-btn">
+                <button @click="prevInvoicePage" :disabled="currentPage === 1" class="pagination-btn">
                   السابق
                 </button>
                 <span class="text-sm text-gray-700 dark:text-gray-300">
                   صفحة {{ currentPage }} من {{ totalPages }}
                 </span>
-                <button @click="nextPage" :disabled="currentPage >= totalPages" class="pagination-btn">
+                <button @click="nextInvoicePage" :disabled="currentPage >= totalPages" class="pagination-btn">
                   التالي
                 </button>
               </div>
@@ -738,7 +756,7 @@
           <div v-else-if="!loading" class="text-center py-8">
             <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
               <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
             </div>
             <p class="text-gray-500 dark:text-gray-400 text-sm">
@@ -1126,6 +1144,7 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
+import html2pdf from 'html2pdf.js';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, increment } from 'firebase/firestore';
 import { db } from '@/firebase/config';
@@ -1971,23 +1990,42 @@ export default {
     };
     
     const addItemToInvoice = (item) => {
-      const existingItem = invoiceForm.value.items.find(i => i.id === item.id);
+      // Check if item already exists in invoice
+      const existingItemIndex = invoiceForm.value.items.findIndex(i => i.id === item.id);
       
-      if (existingItem) {
-        // Update quantity if already exists
-        existingItem.quantity = Math.min(existingItem.quantity + 1, item.remaining_quantity);
-        updateItemTotal(invoiceForm.value.items.indexOf(existingItem));
+      if (existingItemIndex !== -1) {
+        // If item exists, increase quantity (up to max available)
+        const existingItem = invoiceForm.value.items[existingItemIndex];
+        if (existingItem.quantity < item.remaining_quantity) {
+          existingItem.quantity++;
+          updateItemTotal(existingItemIndex);
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم زيادة كمية ${item.name}`
+          });
+        } else {
+          store.dispatch('showNotification', {
+            type: 'warning',
+            message: 'لا يمكن إضافة كمية أكثر من المتاح في المخزن'
+          });
+        }
       } else {
         // Add new item
         invoiceForm.value.items.push({
           id: item.id,
           name: item.name,
           code: item.code,
-          unitPrice: 0,
+          unitPrice: item.sale_price || 0,
           quantity: 1,
           discount: 0,
-          total: 0,
-          maxQuantity: item.remaining_quantity
+          total: item.sale_price || 0,
+          maxQuantity: item.remaining_quantity,
+          warehouseId: item.warehouse_id
+        });
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم إضافة ${item.name} إلى الفاتورة`
         });
       }
       
@@ -1996,8 +2034,14 @@ export default {
     };
     
     const removeItem = (index) => {
+      const itemName = invoiceForm.value.items[index].name;
       invoiceForm.value.items.splice(index, 1);
       loadWarehouseItems();
+      
+      store.dispatch('showNotification', {
+        type: 'info',
+        message: `تم إزالة ${itemName} من الفاتورة`
+      });
     };
     
     const increaseQuantity = (index) => {
@@ -2005,6 +2049,11 @@ export default {
       if (item.quantity < item.maxQuantity) {
         item.quantity++;
         updateItemTotal(index);
+      } else {
+        store.dispatch('showNotification', {
+          type: 'warning',
+          message: 'لا يمكن إضافة كمية أكثر من المتاح في المخزن'
+        });
       }
     };
     
@@ -2020,6 +2069,10 @@ export default {
       const item = invoiceForm.value.items[index];
       if (item.quantity > item.maxQuantity) {
         item.quantity = item.maxQuantity;
+        store.dispatch('showNotification', {
+          type: 'warning',
+          message: 'تم ضبط الكمية إلى الحد الأقصى المتاح'
+        });
       }
       if (item.quantity < 1) {
         item.quantity = 1;
@@ -2057,6 +2110,11 @@ export default {
     };
     
     const viewInvoice = (invoice) => {
+      const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+      const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+      const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+      const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+      
       const details = `
 تفاصيل الفاتورة:
 
@@ -2075,9 +2133,9 @@ ${invoice.customer.taxId ? `• الرقم الضريبي: ${invoice.customer.ta
 الأصناف:
 ${invoice.items.map((item, i) => `${i + 1}. ${item.name} (${item.code}) - ${item.quantity} × ${formatCurrency(item.unitPrice)} = ${formatCurrency(item.total)}`).join('\n')}
 
-المجموع: ${formatCurrency(subtotal.value)}
-الخصم: ${formatCurrency(totalDiscount.value)}
-${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${formatCurrency(taxAmount.value)}\n` : ''}الإجمالي النهائي: ${formatCurrency(totalAmount.value)}
+المجموع: ${formatCurrency(invoiceSubtotal)}
+الخصم: ${formatCurrency(invoiceDiscount)}
+${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${formatCurrency(invoiceTax)}\n` : ''}الإجمالي النهائي: ${formatCurrency(invoiceTotal)}
 
 ملاحظات: ${invoice.notes || 'لا توجد ملاحظات'}
       `;
@@ -2244,6 +2302,296 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       printWindow.document.close();
     };
     
+    const exportInvoicePDF = async (invoice) => {
+      try {
+        loading.value = true;
+        
+        // Calculate totals for the specific invoice
+        const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+        const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+        const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+        const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+        
+        // Create HTML content for PDF
+        const element = document.createElement('div');
+        element.innerHTML = `
+          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+              <div style="margin-bottom: 20px;">
+                <h1 style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px;">فاتورة ضريبية</h1>
+                <div style="font-size: 18px; color: #666; margin-bottom: 10px;">رقم الفاتورة: ${invoice.invoiceNumber}</div>
+                <div>تاريخ الفاتورة: ${formatDate(invoice.date)}</div>
+                <div>نوع الفاتورة: ${getInvoiceTypeLabel(invoice.type)}</div>
+              </div>
+            </div>
+            
+            <!-- Company and Customer Info -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+              <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #333;">البائع (المورد)</h3>
+                <div><strong>الاسم:</strong> شركة المخازن المتحدة</div>
+                <div><strong>السجل التجاري:</strong> 789456123</div>
+                <div><strong>الرقم الضريبي:</strong> 123-456-789</div>
+                <div><strong>العنوان:</strong> القاهرة، مصر</div>
+                <div><strong>الهاتف:</strong> 01001234567</div>
+              </div>
+              
+              <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #333;">المشتري (العميل)</h3>
+                <div><strong>الاسم:</strong> ${invoice.customer.name}</div>
+                ${invoice.customer.taxId ? `<div><strong>الرقم الضريبي:</strong> ${invoice.customer.taxId}</div>` : ''}
+                <div><strong>الهاتف:</strong> ${invoice.customer.phone}</div>
+                ${invoice.customer.address ? `<div><strong>العنوان:</strong> ${invoice.customer.address}</div>` : ''}
+                <div><strong>طريقة الدفع:</strong> ${invoice.paymentMethod === 'cash' ? 'نقدي' : 
+                   invoice.paymentMethod === 'bank' ? 'تحويل بنكي' : 
+                   invoice.paymentMethod === 'check' ? 'شيك' : 'آجل'}</div>
+              </div>
+            </div>
+            
+            <!-- Items Table -->
+            <h3 style="color: #333;">تفاصيل الأصناف</h3>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">
+              <thead>
+                <tr style="background-color: #f5f5f5;">
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">#</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">اسم الصنف</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">الكود</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">الكمية</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">سعر الوحدة</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">الخصم %</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.items.map((item, index) => `
+                  <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${index + 1}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${item.name}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${item.code}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${item.quantity}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatCurrency(item.unitPrice)}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${item.discount}%</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatCurrency(item.total)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <!-- Totals -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #f9f9f9; border-radius: 5px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span>المجموع:</span>
+                <span>${formatCurrency(invoiceSubtotal)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span>الخصم:</span>
+                <span style="color: red;">-${formatCurrency(invoiceDiscount)}</span>
+              </div>
+              ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span>الضريبة المضافة (14%):</span>
+                <span>+${formatCurrency(invoiceTax)}</span>
+              </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 2px solid #333; font-size: 24px; font-weight: bold; color: #2e7d32;">
+                <span>الإجمالي النهائي:</span>
+                <span>${formatCurrency(invoiceTotal)}</span>
+              </div>
+            </div>
+            
+            ${invoice.notes ? `
+            <div style="margin-top: 30px; padding: 15px; background-color: #f0f0f0; border-radius: 5px;">
+              <strong>ملاحظات:</strong> ${invoice.notes}
+            </div>
+            ` : ''}
+            
+            <div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #333;">
+              <div style="display: flex; justify-content: space-between;">
+                <div style="width: 45%; text-align: center;">
+                  <p>توقيع البائع:</p>
+                  <p style="margin-top: 60px;">___________________</p>
+                </div>
+                <div style="width: 45%; text-align: center;">
+                  <p>توقيع المشتري:</p>
+                  <p style="margin-top: 60px;">___________________</p>
+                </div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
+              <p>شكراً لتعاملكم معنا</p>
+              <p>تم الإنشاء بواسطة نظام إدارة المخزون والفواتير | ${new Date().toLocaleString('ar-EG')}</p>
+              <p>هذه الفاتورة متوافقة مع لوائح مصلحة الضرائب المصرية</p>
+            </div>
+          </div>
+        `;
+        
+        // PDF options
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: `فاتورة_${invoice.invoiceNumber}_${new Date().toISOString().split('T')[0]}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            allowTaint: true
+          },
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        
+        // Generate and download PDF
+        await html2pdf().set(opt).from(element).save();
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تصدير الفاتورة كملف PDF بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('Error exporting invoice to PDF:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تصدير الفاتورة كملف PDF'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const exportToPDF = async () => {
+      try {
+        loading.value = true;
+        
+        if (invoices.value.length === 0) {
+          store.dispatch('showNotification', {
+            type: 'warning',
+            message: 'لا توجد فواتير للتصدير'
+          });
+          return;
+        }
+        
+        // Create HTML content for all invoices
+        const element = document.createElement('div');
+        element.innerHTML = `
+          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+            <h1 style="text-align: center; font-size: 28px; font-weight: bold; color: #333; margin-bottom: 30px;">
+              تقرير الفواتير
+            </h1>
+            <div style="text-align: center; color: #666; margin-bottom: 20px;">
+              <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+              <p>إجمالي الفواتير: ${invoices.value.length}</p>
+              <p>إجمالي المبيعات: ${formatCurrency(totalSales.value)}</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px;">
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${totalInvoices.value}</div>
+                <div style="font-size: 12px; color: #666;">إجمالي الفواتير</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalSales.value)}</div>
+                <div style="font-size: 12px; color: #666;">إجمالي المبيعات</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${uniqueCustomers.value}</div>
+                <div style="font-size: 12px; color: #666;">العملاء</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalTax.value)}</div>
+                <div style="font-size: 12px; color: #666;">الضريبة</div>
+              </div>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+              قائمة الفواتير
+            </h2>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">
+              <thead>
+                <tr style="background-color: #f5f5f5;">
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">رقم الفاتورة</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">التاريخ</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">العميل</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">النوع</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">المبلغ</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredInvoices.value.map(invoice => {
+                  const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+                  const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+                  const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+                  const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+                  
+                  return `
+                    <tr>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.invoiceNumber}</td>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatDate(invoice.date)}</td>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.customer.name}</td>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${getInvoiceTypeLabel(invoice.type)}</td>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatCurrency(invoiceTotal)}</td>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${getInvoiceStatusLabel(invoice.status)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            
+            <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
+              <p>تم الإنشاء بواسطة نظام إدارة المخزون والفواتير</p>
+              <p>${new Date().toLocaleString('ar-EG')}</p>
+            </div>
+          </div>
+        `;
+        
+        // PDF options
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: `تقرير_الفواتير_${new Date().toISOString().split('T')[0]}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            allowTaint: true
+          },
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        
+        // Generate and download PDF
+        await html2pdf().set(opt).from(element).save();
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم تصدير ${filteredInvoices.value.length} فاتورة كملف PDF بنجاح`
+        });
+        
+      } catch (error) {
+        console.error('Error exporting to PDF:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تصدير التقرير كملف PDF'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
+    
     const deleteInvoice = async (invoiceId) => {
       if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
       
@@ -2404,24 +2752,31 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       try {
         loading.value = true;
         
-        const exportData = filteredInvoices.value.map(invoice => ({
-          'رقم الفاتورة': invoice.invoiceNumber,
-          'التاريخ': formatDate(invoice.date),
-          'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
-          'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
-          'اسم العميل': invoice.customer.name,
-          'هاتف العميل': invoice.customer.phone,
-          'الرقم الضريبي': invoice.customer.taxId || '',
-          'عدد الأصناف': invoice.items?.length || 0,
-          'المجموع': formatCurrency(invoice.subtotal || 0),
-          'الخصم': formatCurrency(invoice.discount || 0),
-          'الضريبة': formatCurrency(invoice.taxAmount || 0),
-          'الإجمالي': formatCurrency(invoice.totalAmount || 0),
-          'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
-                         invoice.paymentMethod === 'bank' ? 'بنكي' : 
-                         invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
-          'ملاحظات': invoice.notes || ''
-        }));
+        const exportData = filteredInvoices.value.map(invoice => {
+          const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+          const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+          const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+          const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+          
+          return {
+            'رقم الفاتورة': invoice.invoiceNumber,
+            'التاريخ': formatDate(invoice.date),
+            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
+            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
+            'اسم العميل': invoice.customer.name,
+            'هاتف العميل': invoice.customer.phone,
+            'الرقم الضريبي': invoice.customer.taxId || '',
+            'عدد الأصناف': invoice.items?.length || 0,
+            'المجموع': invoiceSubtotal,
+            'الخصم': invoiceDiscount,
+            'الضريبة': invoiceTax,
+            'الإجمالي': invoiceTotal,
+            'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
+                           invoice.paymentMethod === 'bank' ? 'بنكي' : 
+                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
+            'ملاحظات': invoice.notes || ''
+          };
+        });
         
         if (exportData.length === 0) {
           store.dispatch('showNotification', {
@@ -2715,6 +3070,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       prevInvoicePage,
       viewInvoice,
       printInvoice,
+      exportInvoicePDF,
+      exportToPDF,
       deleteInvoice,
       saveInvoice,
       saveAndPrint,
@@ -2727,7 +3084,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 <style scoped>
 /* Custom styles for the integrated system */
 .stat-card {
-  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center space-x-4 space-x-reverse;
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center space-x-4 space-x-reverse hover:shadow-md transition-shadow duration-200;
 }
 
 .stat-icon {
@@ -2743,7 +3100,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 }
 
 .btn-success {
-  @apply inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .input-field {
@@ -3135,6 +3492,319 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   
   .invoice-print .page-break {
     page-break-before: always;
+  }
+}
+
+/* Performance optimizations */
+.lazy-load {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.lazy-load.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Optimize animations */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Image optimization */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Font loading optimization */
+@font-face {
+  font-display: swap;
+}
+
+/* Invoice details card styling */
+.invoice-details-card {
+  @apply bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6;
+}
+
+.invoice-details-card h3 {
+  @apply text-xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-200 dark:border-gray-700;
+}
+
+.invoice-details-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.invoice-details-section {
+  @apply space-y-4;
+}
+
+.invoice-details-label {
+  @apply block text-sm font-medium text-gray-600 dark:text-gray-400;
+}
+
+.invoice-details-value {
+  @apply text-lg font-semibold text-gray-900 dark:text-white;
+}
+
+.invoice-items-table {
+  @apply w-full divide-y divide-gray-200 dark:divide-gray-700 mt-4;
+}
+
+.invoice-items-table th {
+  @apply px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800;
+}
+
+.invoice-items-table td {
+  @apply px-4 py-3 text-sm text-gray-900 dark:text-white;
+}
+
+.invoice-totals-section {
+  @apply bg-gray-50 dark:bg-gray-800/50 rounded-lg p-5 mt-6 border border-gray-200 dark:border-gray-700;
+}
+
+.invoice-total-row {
+  @apply flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0;
+}
+
+.invoice-total-label {
+  @apply text-sm text-gray-600 dark:text-gray-400;
+}
+
+.invoice-total-value {
+  @apply text-base font-semibold text-gray-900 dark:text-white;
+}
+
+.invoice-total-final {
+  @apply text-xl font-bold text-green-600 dark:text-green-400;
+}
+
+/* Performance optimization classes */
+.debounced-input {
+  transition: border-color 0.3s ease;
+}
+
+.virtual-scroll-container {
+  overflow-y: auto;
+  height: 400px;
+}
+
+.virtual-scroll-item {
+  position: absolute;
+  width: 100%;
+}
+
+/* Optimize table rendering */
+.table-fixed-layout {
+  table-layout: fixed;
+}
+
+/* Reduce paint operations */
+.transform-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize shadows */
+.optimized-shadow {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Invoice form optimizations */
+.invoice-form-section {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.invoice-form-loading {
+  @apply opacity-50 pointer-events-none;
+}
+
+/* Data loading optimizations */
+.skeleton-loader {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+}
+
+/* Optimize modal rendering */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300;
+}
+
+.modal-content {
+  @apply transform transition-all duration-300 ease-out;
+}
+
+/* Invoice card styling */
+.invoice-card {
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200;
+}
+
+.invoice-card-header {
+  @apply flex justify-between items-start mb-3;
+}
+
+.invoice-card-title {
+  @apply text-lg font-semibold text-gray-900 dark:text-white;
+}
+
+.invoice-card-subtitle {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.invoice-card-content {
+  @apply space-y-2;
+}
+
+.invoice-card-footer {
+  @apply flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700;
+}
+
+/* Responsive invoice grid */
+.invoice-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+
+/* PDF export styles */
+.pdf-export-container {
+  @apply hidden print:block;
+}
+
+/* Invoice summary card */
+.invoice-summary-card {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700 p-5;
+}
+
+.invoice-summary-title {
+  @apply text-lg font-bold text-blue-900 dark:text-blue-300 mb-4;
+}
+
+.invoice-summary-item {
+  @apply flex justify-between items-center py-2;
+}
+
+.invoice-summary-total {
+  @apply text-2xl font-bold text-blue-900 dark:text-blue-300 mt-3 pt-3 border-t border-blue-200 dark:border-blue-700;
+}
+
+/* Dispatch details card */
+.dispatch-details-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5;
+}
+
+.dispatch-details-title {
+  @apply text-lg font-semibold text-gray-900 dark:text-white mb-4;
+}
+
+.dispatch-details-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.dispatch-details-item {
+  @apply space-y-1;
+}
+
+.dispatch-details-label {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.dispatch-details-value {
+  @apply font-medium text-gray-900 dark:text-white;
+}
+
+/* Performance notice */
+.performance-notice {
+  @apply text-xs text-gray-500 dark:text-gray-400 italic;
+}
+
+/* Optimized button styles */
+.optimized-btn {
+  @apply transform-gpu transition-transform duration-200 hover:scale-105 active:scale-95;
+}
+
+/* Invoice actions toolbar */
+.invoice-actions-toolbar {
+  @apply flex items-center space-x-2 space-x-reverse bg-gray-50 dark:bg-gray-800 rounded-lg p-2;
+}
+
+/* Data table optimizations */
+.optimized-table {
+  @apply w-full divide-y divide-gray-200 dark:divide-gray-700;
+}
+
+.optimized-table th {
+  @apply px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 sticky top-0;
+}
+
+.optimized-table td {
+  @apply px-4 py-3 text-sm text-gray-900 dark:text-white;
+}
+
+/* Lazy loading for images */
+.lazy-image {
+  @apply opacity-0 transition-opacity duration-300;
+}
+
+.lazy-image.loaded {
+  @apply opacity-100;
+}
+
+/* Invoice print optimization */
+@media print {
+  .print-optimize * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* Responsive invoice form */
+@media (max-width: 768px) {
+  .invoice-form-responsive {
+    @apply space-y-4;
+  }
+  
+  .invoice-form-responsive .grid {
+    @apply grid-cols-1 gap-4;
+  }
+}
+
+/* Dispatch system optimizations */
+.dispatch-system-optimized {
+  @apply transition-opacity duration-300;
+}
+
+/* Loading state optimizations */
+.loading-state-optimized {
+  @apply animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800;
+}
+
+/* Export button optimizations */
+.export-btn-optimized {
+  @apply relative overflow-hidden;
+}
+
+.export-btn-optimized::after {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>
