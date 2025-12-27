@@ -213,15 +213,30 @@
               </div>
             </div>
 
-            <!-- Warehouse Selection -->
+            <!-- Warehouse Selection - FIXED SECTION -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اختر المخزن *</label>
-              <select v-model="selectedWarehouseForInvoice" @change="loadWarehouseItems" class="input-field" required>
+              <select 
+                v-model="selectedWarehouseForInvoice" 
+                @change="loadWarehouseItems" 
+                class="input-field" 
+                required
+                :disabled="availableWarehouses.length === 0"
+              >
                 <option value="">اختر مخزن</option>
-                <option v-for="warehouse in availableWarehouses" :key="warehouse.id" :value="warehouse.id">
+                <option 
+                  v-for="warehouse in availableWarehouses" 
+                  :key="warehouse.id" 
+                  :value="warehouse.id"
+                >
                   {{ warehouse.name_ar }}
                 </option>
               </select>
+              
+              <!-- Error message if no warehouses available -->
+              <div v-if="availableWarehouses.length === 0" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                ليس لديك صلاحية للوصول إلى أي مخزن. يرجى التواصل مع المشرف.
+              </div>
             </div>
 
             <!-- Items Section -->
@@ -675,15 +690,19 @@
                 </svg>
               </div>
 
-              <!-- Warehouse Filter for Available Items -->
+              <!-- Warehouse Filter for Available Items - FIXED SECTION -->
               <select
                 v-model="selectedWarehouse"
                 @change="updateAvailableItems"
                 class="px-3 sm:px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 min-h-[44px] min-w-[180px]"
-                :disabled="loading || !dispatchFromWarehouses.length"
+                :disabled="loading || !availableWarehousesForDispatch.length"
               >
                 <option value="">جميع المخازن</option>
-                <option v-for="warehouse in dispatchFromWarehouses" :key="warehouse.id" :value="warehouse.id">
+                <option 
+                  v-for="warehouse in availableWarehousesForDispatch" 
+                  :key="warehouse.id" 
+                  :value="warehouse.id"
+                >
                   {{ warehouse.name_ar }}
                 </option>
               </select>
@@ -801,7 +820,7 @@
                   class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[150px]"
                 >
                   <option value="">جميع المخازن</option>
-                  <option v-for="warehouse in dispatchFromWarehouses" :key="warehouse.id" :value="warehouse.id">
+                  <option v-for="warehouse in availableWarehousesForDispatch" :key="warehouse.id" :value="warehouse.id">
                     {{ warehouse.name_ar }}
                   </option>
                 </select>
@@ -1213,7 +1232,7 @@ export default {
     const availableItemsForInvoice = ref([]);
     
     // ============================================
-    // SECTION 3: COMPUTED PROPERTIES FROM STORE
+    // SECTION 3: COMPUTED PROPERTIES FROM STORE - UPDATED
     // ============================================
     // User properties from store
     const userRole = computed(() => store.getters.userRole || '');
@@ -1225,11 +1244,30 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // Store getters
+    // Store getters - UPDATED to use new logic
     const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
-    const dispatchFromWarehouses = computed(() => store.getters.dispatchFromWarehouses || []);
+    
+    // FIXED: Use accessibleWarehouses getter instead of dispatchFromWarehouses
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
+    
+    // For invoice system: show all warehouses that the user has access to
+    const availableWarehouses = computed(() => accessibleWarehouses.value);
+    
+    // For dispatch system: show only primary warehouses that the user has access to
+    const availableWarehousesForDispatch = computed(() => {
+      return accessibleWarehouses.value.filter(warehouse => 
+        warehouse.type === 'primary' || !warehouse.type
+      );
+    });
+    
     const canViewDispatches = computed(() => store.getters.isAuthenticated);
-    const canPerformDispatch = computed(() => store.getters.canDispatch || userRole.value === 'superadmin');
+    
+    // FIXED: Check if user can dispatch based on permissions
+    const canPerformDispatch = computed(() => {
+      return store.getters.canDispatch || 
+             userRole.value === 'superadmin' || 
+             userRole.value === 'warehouse_manager';
+    });
     
     // ============================================
     // SECTION 4: ORIGINAL DISPATCH COMPUTED PROPERTIES
@@ -1475,8 +1513,6 @@ export default {
              invoiceForm.value.items.length > 0 &&
              selectedWarehouseForInvoice.value !== '';
     });
-    
-    const availableWarehouses = computed(() => dispatchFromWarehouses.value);
     
     // ============================================
     // SECTION 6: UTILITY FUNCTIONS
@@ -2917,8 +2953,9 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           await store.dispatch('fetchTransactions');
         }
         
-        if (dispatchFromWarehouses.value.length === 1) {
-          selectedWarehouse.value = dispatchFromWarehouses.value[0].id;
+        // Auto-select first warehouse if only one is available
+        if (availableWarehousesForDispatch.value.length === 1) {
+          selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
         }
         
         setupRealtimeUpdates();
@@ -2974,7 +3011,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       canPerformDispatch,
       canExport,
       canViewDispatches,
-      dispatchFromWarehouses,
+      availableWarehousesForDispatch,
       availableItems,
       displayedAvailableItems,
       totalDispatches,
