@@ -1,7 +1,8 @@
 <template>
   <div id="app" dir="rtl" class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <!-- Global Notifications -->
-    <div v-if="notifications.length > 0" class="fixed top-4 left-4 right-4 z-50 space-y-2 max-w-md mx-auto">
+    <!-- Global Notifications - Lazy Loaded -->
+    <div v-if="showNotifications && notifications.length > 0" 
+         class="fixed top-4 left-4 right-4 z-50 space-y-2 max-w-md mx-auto">
       <transition-group name="notification">
         <div 
           v-for="notification in notifications.slice(0, 3)" 
@@ -32,56 +33,29 @@
       </transition-group>
     </div>
 
-    <!-- Minimal Initial Loading -->
-    <div v-if="initializing && !isPublicRoute && !isMobileRoute" class="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <!-- Ultra Minimal Loading Screen -->
+    <div v-if="showLoadingScreen" class="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div class="flex flex-col items-center justify-center h-full">
-        <!-- Logo or App Name -->
-        <div class="mb-8">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
-          </div>
-        </div>
-
-        <!-- Loading Indicator -->
+        <!-- Lightweight Loading Indicator -->
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400 mb-4"></div>
-
-        <!-- Loading Text -->
-        <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
-        <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">يرجى الانتظار لحظات</p>
-
-        <!-- Preloaded Inventory Status -->
-        <div v-if="preloadedItems > 0" class="mt-8">
-          <div class="w-64 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div 
-              class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-              :style="{ width: `${preloadedProgress}%` }"
-            ></div>
-          </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            تم تحميل {{ preloadedItems }} صنف
-          </p>
-        </div>
+        <p class="text-gray-600 dark:text-gray-400 font-medium text-sm">جاري التحميل...</p>
       </div>
     </div>
 
     <!-- Main app content -->
     <div v-else class="h-screen flex flex-col">
-      <!-- Check if current route is public (login, unauthorized, notfound) -->
+      <!-- Check if current route is public -->
       <template v-if="isPublicRoute || isMobileRoute">
-        <!-- Public pages - show only router view -->
-        <div class="flex-1 overflow-y-auto">
-          <router-view />
-        </div>
+        <!-- Public pages - minimal rendering -->
+        <router-view />
       </template>
 
       <!-- Authenticated layout -->
       <template v-else>
         <!-- Mobile Layout -->
         <div v-if="isMobile" class="lg:hidden h-full flex flex-col">
-          <!-- Mobile Header -->
-          <MobileHeader @toggle-menu="toggleMobileMenu" />
+          <!-- Deferred Mobile Header -->
+          <MobileHeader v-if="showMobileHeader" @toggle-menu="toggleMobileMenu" />
 
           <!-- Mobile Sidebar Overlay -->
           <transition name="fade">
@@ -92,61 +66,33 @@
             ></div>
           </transition>
 
-          <!-- Mobile Sidebar -->
+          <!-- Lazy Load Mobile Sidebar -->
           <transition name="slide">
             <MobileSidebar v-if="mobileMenuOpen" @close="mobileMenuOpen = false" />
           </transition>
 
-          <!-- Mobile Main Content -->
-          <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-            <div class="max-w-full mx-auto">
-              <router-view />
-            </div>
+          <!-- Main Content -->
+          <main class="flex-1 overflow-y-auto">
+            <router-view />
           </main>
 
-          <!-- Mobile Bottom Navigation -->
-          <MobileBottomNav />
+          <!-- Deferred Mobile Bottom Navigation -->
+          <MobileBottomNav v-if="showMobileNav" />
         </div>
 
         <!-- Desktop Layout -->
         <div v-else class="hidden lg:flex h-full">
-          <!-- Desktop Sidebar -->
-          <DesktopSidebar :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
+          <!-- Deferred Desktop Sidebar -->
+          <DesktopSidebar v-if="showDesktopSidebar" :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
 
           <!-- Main Content Area -->
-          <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-            <!-- Desktop Header -->
-            <DesktopHeader @toggle-sidebar="toggleSidebar" />
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Deferred Desktop Header -->
+            <DesktopHeader v-if="showDesktopHeader" @toggle-sidebar="toggleSidebar" />
 
             <!-- Main Content -->
-            <main class="flex-1 overflow-y-auto p-4">
-              <div class="max-w-full mx-auto">
-                <!-- Preload Indicator (Only show briefly) -->
-                <div v-if="showPreloadIndicator && !initialDataLoaded" class="mb-4">
-                  <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center gap-3">
-                      <div class="animate-pulse w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">جاري تحميل المخزون...</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-500">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
-                      </div>
-                    </div>
-                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
-                        class="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
-                        :style="{ width: `${preloadedProgress}%` }"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Router View -->
-                <router-view />
-              </div>
+            <main class="flex-1 overflow-y-auto">
+              <router-view />
             </main>
           </div>
         </div>
@@ -159,39 +105,37 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
-import MobileHeader from '@/components/layout/MobileHeader.vue';
-import MobileSidebar from '@/components/layout/MobileSidebar.vue';
-import MobileBottomNav from '@/components/layout/MobileBottomNav.vue';
-import DesktopSidebar from '@/components/layout/DesktopSidebar.vue';
-import DesktopHeader from '@/components/layout/DesktopHeader.vue';
 
 export default {
   name: 'App',
   components: {
-    MobileHeader,
-    MobileSidebar,
-    MobileBottomNav,
-    DesktopSidebar,
-    DesktopHeader
+    // Lazy load components for better performance
+    MobileHeader: () => import('@/components/layout/MobileHeader.vue'),
+    MobileSidebar: () => import('@/components/layout/MobileSidebar.vue'),
+    MobileBottomNav: () => import('@/components/layout/MobileBottomNav.vue'),
+    DesktopSidebar: () => import('@/components/layout/DesktopSidebar.vue'),
+    DesktopHeader: () => import('@/components/layout/DesktopHeader.vue')
   },
   setup() {
     const store = useStore();
     const route = useRoute();
     
-    // Refs
-    const initializing = ref(true);
+    // Ultra lightweight refs
+    const showLoadingScreen = ref(true);
     const mobileMenuOpen = ref(false);
     const sidebarCollapsed = ref(false);
     const isMobile = ref(false);
-    const preloadedItems = ref(0);
-    const preloadedTarget = ref(20); // Target to preload
-    const initialDataLoaded = ref(false);
-    const showPreloadIndicator = ref(false);
+    
+    // Deferred component loading flags
+    const showNotifications = ref(false);
+    const showMobileHeader = ref(false);
+    const showMobileNav = ref(false);
+    const showDesktopSidebar = ref(false);
+    const showDesktopHeader = ref(false);
     
     // Store getters
     const notifications = computed(() => store.state.notifications || []);
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
-    const userProfile = computed(() => store.state.userProfile);
     
     // Computed properties
     const isPublicRoute = computed(() => {
@@ -201,10 +145,6 @@ export default {
 
     const isMobileRoute = computed(() => {
       return route.name === 'MobileLogin' || route.name === 'MobileUnauthorized';
-    });
-
-    const preloadedProgress = computed(() => {
-      return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
     });
 
     // Methods
@@ -221,216 +161,131 @@ export default {
       mobileMenuOpen.value = !mobileMenuOpen.value;
     };
 
-    // ✅ CRITICAL: Preload essential data for instant display
-    const preloadEssentialData = async () => {
-      try {
-        const { db } = await import('@/firebase/config');
-        const { collection, query, orderBy, limit, getDocs, where } = await import('firebase/firestore');
-        
-        // 1. Preload warehouses (small, essential data)
-        const warehousesQuery = query(
-          collection(db, 'warehouses'),
-          limit(10)
-        );
-        
-        const warehousesSnapshot = await getDocs(warehousesQuery);
-        const warehouses = warehousesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Store warehouses immediately using store action
-        store.dispatch('loadWarehouses');
-        
-        // 2. If user is authenticated, preload minimal inventory
-        if (isAuthenticated.value && userProfile.value) {
-          let accessibleWarehouses = [];
-          
-          if (userProfile.value.role === 'superadmin' || userProfile.value.role === 'company_manager') {
-            // Superadmins and company managers can access all warehouses
-            accessibleWarehouses = warehouses;
-          } else if (userProfile.value.role === 'warehouse_manager') {
-            const allowedWarehouses = userProfile.value.allowed_warehouses || [];
-            if (allowedWarehouses.includes('all')) {
-              accessibleWarehouses = warehouses;
-            } else {
-              accessibleWarehouses = warehouses.filter(w => allowedWarehouses.includes(w.id));
-            }
-          }
-          
-          const warehouseIds = accessibleWarehouses.map(w => w.id);
-          
-          let itemsQuery;
-          
-          if (warehouseIds.length > 0) {
-            // Preload from user's warehouses only
-            itemsQuery = query(
-              collection(db, 'items'),
-              where('warehouse_id', 'in', warehouseIds.slice(0, 10)), // Firestore limit: 10 values in 'in' array
-              orderBy('updated_at', 'desc'),
-              limit(15) // Start with only 15 items for instant display
-            );
-          } else {
-            // Fallback: preload recent items
-            itemsQuery = query(
-              collection(db, 'items'),
-              orderBy('updated_at', 'desc'),
-              limit(15)
-            );
-          }
-          
-          const itemsSnapshot = await getDocs(itemsQuery);
-          const items = itemsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // Store preloaded items immediately
-          store.commit('SET_INVENTORY', items);
-          preloadedItems.value = items.length;
-          
-          // Update progress indicator
-          items.forEach((item, index) => {
-            setTimeout(() => {
-              preloadedItems.value = index + 1;
-            }, index * 50); // Stagger loading for visual effect
-          });
-          
-          // Mark initial data as loaded
-          initialDataLoaded.value = true;
-          
-          // Show preload indicator briefly
-          showPreloadIndicator.value = true;
-          setTimeout(() => {
-            showPreloadIndicator.value = false;
-          }, 2000); // Hide after 2 seconds
-          
-          // ✅ Start background loading of remaining data using store actions
-          setTimeout(() => {
-            loadRemainingDataInBackground();
-          }, 1000);
-        }
-        
-      } catch (error) {
-        console.warn('Preload warning (non-critical):', error.message);
-        // Continue anyway - this is just preloading
-      }
-    };
-
-    // ✅ Load remaining data in background using store actions
-    const loadRemainingDataInBackground = async () => {
-      try {
-        // 1. Load full inventory in background using store action
-        store.dispatch('loadAllInventory', { forceRefresh: false });
-        
-        // 2. Load recent transactions using store action
-        store.dispatch('getRecentTransactions');
-        
-        // 3. Load destinations if needed
-        store.dispatch('loadDestinations');
-        
-      } catch (error) {
-        console.error('Background load error:', error);
-        // Silently fail - user already has data to work with
-      }
-    };
-
-    // ✅ Optimized initialization
+    // 🔥 ULTRA FAST INITIALIZATION
     const initializeApp = async () => {
-      try {
-        // Initialize auth using store action
-        await store.dispatch('initializeAuth');
+      console.time('AppInitialization');
+      
+      // Step 1: Initialize theme immediately (0ms)
+      initializeTheme();
+      
+      // Step 2: Initialize auth with minimal blocking (50ms max)
+      await Promise.race([
+        store.dispatch('initializeAuth'),
+        new Promise(resolve => setTimeout(resolve, 50))
+      ]);
+      
+      // Step 3: Show authenticated UI immediately
+      if (isAuthenticated.value) {
+        // Load critical data in background without blocking
+        loadCriticalDataInBackground();
         
-        // Start preloading immediately after auth
-        const preloadPromise = preloadEssentialData();
+        // Deferred loading of UI components
+        setTimeout(() => {
+          showMobileHeader.value = true;
+          showMobileNav.value = true;
+          showDesktopSidebar.value = true;
+          showDesktopHeader.value = true;
+          showNotifications.value = true;
+        }, 100);
         
-        // Wait for preload to complete (but don't block if it's slow)
-        await Promise.race([
-          preloadPromise,
-          new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds wait
-        ]);
-        
-        // Show welcome notification only once
-        if (isAuthenticated.value && !localStorage.getItem('welcomeShown')) {
+        // Welcome message (optional, can be removed)
+        if (!localStorage.getItem('welcomeShown')) {
           setTimeout(() => {
             store.dispatch('showNotification', {
               type: 'success',
               message: 'مرحباً بك في نظام المخزون!',
-              duration: 3000
+              duration: 2000
             });
             localStorage.setItem('welcomeShown', 'true');
           }, 500);
         }
-        
-        // Initialize theme
-        initializeTheme();
-        
-        // Initialize sidebar state
+      }
+      
+      // Step 4: Hide loading screen quickly
+      setTimeout(() => {
+        showLoadingScreen.value = false;
+        console.timeEnd('AppInitialization');
+      }, 300); // Maximum 300ms loading screen
+    };
+
+    // 🔥 Load critical data in background
+    const loadCriticalDataInBackground = () => {
+      // Start loading immediately but don't wait
+      setTimeout(async () => {
+        try {
+          // Load warehouses first (smallest dataset)
+          await store.dispatch('loadWarehouses');
+          
+          // Load minimal inventory data
+          await store.dispatch('loadAllInventory', { 
+            forceRefresh: false,
+            batchSize: 30 // Load only 30 items initially
+          });
+          
+          // Load recent transactions
+          await store.dispatch('getRecentTransactions');
+          
+          console.log('✅ Critical data loaded in background');
+          
+        } catch (error) {
+          console.warn('Background data loading failed:', error.message);
+        }
+      }, 10); // Start after 10ms
+    };
+
+    // 🔥 Optimized theme initialization
+    const initializeTheme = () => {
+      // Check if theme is saved
+      const savedTheme = localStorage.getItem('theme');
+      
+      // Apply theme immediately without media query
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        // Use system preference but don't wait for media query
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+          document.documentElement.classList.add('dark');
+        }
+      }
+      
+      // Listen for theme changes (deferred)
+      setTimeout(() => {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+          if (!localStorage.getItem('theme')) {
+            if (e.matches) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+          }
+        });
+      }, 1000); // Defer this to after initial load
+    };
+
+    onMounted(async () => {
+      console.time('AppMount');
+      
+      // Initialize app immediately
+      initializeApp();
+      
+      // Check mobile (non-blocking)
+      setTimeout(() => {
+        isMobile.value = window.innerWidth < 1024;
+        window.addEventListener('resize', checkMobile);
+      }, 50);
+      
+      // Initialize sidebar state (non-blocking)
+      setTimeout(() => {
         const savedState = localStorage.getItem('sidebarCollapsed');
         if (savedState !== null) {
           sidebarCollapsed.value = savedState === 'true';
         }
-
-      } catch (error) {
-        console.error('App initialization error:', error);
-        
-        // Still show notification even if preload failed
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل بعض البيانات. يمكنك الاستمرار في العمل.',
-          duration: 5000
-        });
-      } finally {
-        // Always hide loading screen after max 1.5 seconds
-        setTimeout(() => {
-          initializing.value = false;
-        }, 300); // Short delay for smoother transition
-      }
-    };
-
-    // ✅ Optimized theme initialization
-    const initializeTheme = () => {
-      const savedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }, 50);
       
-      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      
-      // Listen for theme changes
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('theme')) {
-          if (e.matches) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-        }
-      });
-    };
-
-    onMounted(async () => {
-      // Check mobile first
-      checkMobile();
-      window.addEventListener('resize', checkMobile);
-      
-      // Start initialization immediately
-      initializeApp();
-      
-      // Performance monitoring (dev only)
-      if (process.env.NODE_ENV === 'development') {
-        setTimeout(() => {
-          const performance = window.performance;
-          const timing = performance?.timing;
-          if (timing) {
-            const loadTime = timing.loadEventEnd - timing.navigationStart;
-            const domReadyTime = timing.domContentLoadedEventEnd - timing.navigationStart;
-            console.log(`🚀 App loaded in ${loadTime}ms, DOM ready in ${domReadyTime}ms`);
-          }
-        }, 1000);
-      }
+      console.timeEnd('AppMount');
     });
 
     onUnmounted(() => {
@@ -442,49 +297,32 @@ export default {
       mobileMenuOpen.value = false;
     });
 
-    // Watch for auth changes to trigger additional data loading
-    watch(isAuthenticated, (authenticated) => {
-      if (authenticated && !initialDataLoaded.value) {
-        // If user logs in after initial load, preload data
-        setTimeout(() => {
-          preloadEssentialData();
-        }, 100);
-      }
-    });
-
-    // Watch for user profile changes
-    watch(userProfile, (profile) => {
-      if (profile && isAuthenticated.value && !initialDataLoaded.value) {
-        // User profile loaded, preload data
-        setTimeout(() => {
-          preloadEssentialData();
-        }, 100);
-      }
-    });
-
-    // Check mobile on mount and resize
+    // Check mobile on resize (debounced)
+    let resizeTimeout;
     const checkMobile = () => {
-      isMobile.value = window.innerWidth < 1024;
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        isMobile.value = window.innerWidth < 1024;
+      }, 100);
     };
 
-    // Provide data to child components
     return {
       // Refs
-      initializing,
+      showLoadingScreen,
       mobileMenuOpen,
       sidebarCollapsed,
       isMobile,
-      preloadedItems,
-      preloadedTarget,
-      initialDataLoaded,
-      showPreloadIndicator,
+      showNotifications,
+      showMobileHeader,
+      showMobileNav,
+      showDesktopSidebar,
+      showDesktopHeader,
       
       // Computed
       isAuthenticated,
       isPublicRoute,
       isMobileRoute,
       notifications,
-      preloadedProgress,
       
       // Methods
       removeNotification,
@@ -495,11 +333,18 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
+/* Critical CSS - Inline for fastest loading */
+#app {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Mobile sidebar animation */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease;
 }
 
 .slide-enter-from,
@@ -510,7 +355,7 @@ export default {
 /* Fade animation for overlay */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
 .fade-enter-from,
@@ -521,7 +366,7 @@ export default {
 /* Notification animations */
 .notification-enter-active,
 .notification-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s ease;
 }
 
 .notification-enter-from,
@@ -531,16 +376,16 @@ export default {
 }
 
 /* Performance optimizations */
-#app {
-  font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 /* Optimize scroll performance */
 main {
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+  overflow-anchor: none;
 }
 
 /* Reduce motion where supported */
@@ -578,13 +423,13 @@ main {
   }
 }
 
-/* Dark mode optimizations */
-.dark .bg-gradient-to-b {
-  background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
-}
-
 /* Ensure proper stacking context */
 .fixed {
   isolation: isolate;
+}
+
+/* Dark mode optimizations */
+.dark {
+  color-scheme: dark;
 }
 </style>
