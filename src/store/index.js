@@ -23,7 +23,8 @@ import {
   onSnapshot,
   serverTimestamp,
   getCountFromServer,
-  select
+  increment,
+  Timestamp
 } from 'firebase/firestore';
 import {
   InventoryService,
@@ -32,14 +33,15 @@ import {
   FIELD_LABELS,
   TRANSACTION_TYPES
 } from '@/services/inventoryService';
-import UserService from '@/services/UserService';
+import * as XLSX from 'xlsx';
 
 // Performance configuration - UPDATED for Spark Plan
 const PERFORMANCE_CONFIG = {
   INITIAL_LOAD: 50,
   SCROLL_LOAD: 20,
   SEARCH_LIMIT: 50,
-  CACHE_DURATION: 30 * 60 * 1000
+  CACHE_DURATION: 30 * 60 * 1000,
+  INVOICE_LOAD_LIMIT: 100
 };
 
 // Notification configuration
@@ -126,7 +128,34 @@ export default createStore({
     isFetchingInventory: false,
     isRefreshingSilently: false,
     recentTransactionsLoading: false,
-    activeItemListeners: new Set() // Track item listeners
+    activeItemListeners: new Set(), // Track item listeners
+    
+    // Invoice System State
+    invoices: [],
+    invoicesLoaded: false,
+    invoicesLoading: false,
+    invoicesError: null,
+    invoiceFilters: {
+      search: '',
+      status: '',
+      type: '',
+      dateFrom: '',
+      dateTo: ''
+    },
+    invoicePagination: {
+      lastDoc: null,
+      hasMore: true,
+      currentPage: 0,
+      totalLoaded: 0,
+      isFetching: false
+    },
+    invoiceStats: {
+      totalInvoices: 0,
+      totalSales: 0,
+      totalTax: 0,
+      uniqueCustomers: 0,
+      lastUpdated: null
+    }
   }),
 
   mutations: {
@@ -346,6 +375,86 @@ export default createStore({
     CLEAR_ITEM_LISTENERS(state) {
       state.activeItemListeners.clear();
     },
+    
+    // Invoice System Mutations
+    SET_INVOICES(state, invoices) {
+      state.invoices = invoices;
+    },
+    ADD_INVOICE(state, invoice) {
+      state.invoices.unshift(invoice);
+    },
+    UPDATE_INVOICE(state, updatedInvoice) {
+      const index = state.invoices.findIndex(inv => inv.id === updatedInvoice.id);
+      if (index !== -1) {
+        state.invoices.splice(index, 1, updatedInvoice);
+      } else {
+        state.invoices.unshift(updatedInvoice);
+      }
+    },
+    REMOVE_INVOICE(state, invoiceId) {
+      state.invoices = state.invoices.filter(inv => inv.id !== invoiceId);
+    },
+    SET_INVOICES_LOADING(state, loading) {
+      state.invoicesLoading = loading;
+    },
+    SET_INVOICES_LOADED(state, loaded) {
+      state.invoicesLoaded = loaded;
+    },
+    SET_INVOICES_ERROR(state, error) {
+      state.invoicesError = error;
+    },
+    SET_INVOICE_FILTERS(state, filters) {
+      state.invoiceFilters = { ...state.invoiceFilters, ...filters };
+    },
+    CLEAR_INVOICE_FILTERS(state) {
+      state.invoiceFilters = {
+        search: '',
+        status: '',
+        type: '',
+        dateFrom: '',
+        dateTo: ''
+      };
+    },
+    SET_INVOICE_PAGINATION(state, pagination) {
+      state.invoicePagination = { ...state.invoicePagination, ...pagination };
+    },
+    RESET_INVOICE_PAGINATION(state) {
+      state.invoicePagination = {
+        lastDoc: null,
+        hasMore: true,
+        currentPage: 0,
+        totalLoaded: 0,
+        isFetching: false
+      };
+    },
+    SET_INVOICE_STATS(state, stats) {
+      state.invoiceStats = { ...state.invoiceStats, ...stats };
+    },
+    CALCULATE_INVOICE_STATS(state) {
+      const validInvoices = state.invoices.filter(inv => inv.status !== 'cancelled');
+      
+      const totalInvoices = validInvoices.length;
+      const totalSales = validInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const totalTax = validInvoices
+        .filter(inv => inv.type === 'B2B' || inv.type === 'B2C')
+        .reduce((sum, inv) => sum + (inv.taxAmount || 0), 0);
+      
+      const customers = new Set();
+      validInvoices.forEach(inv => {
+        if (inv.customer?.phone) {
+          customers.add(inv.customer.phone);
+        }
+      });
+      
+      state.invoiceStats = {
+        totalInvoices,
+        totalSales,
+        totalTax,
+        uniqueCustomers: customers.size,
+        lastUpdated: new Date()
+      };
+    },
+    
     RESET_STATE(state) {
       Object.values(state.notificationTimeouts).forEach(timeoutId => {
         clearTimeout(timeoutId);
@@ -377,6 +486,22 @@ export default createStore({
           lowStockItems: 0,
           lastUpdated: null
         }
+      };
+      state.invoices = [];
+      state.invoicesLoaded = false;
+      state.invoiceFilters = {
+        search: '',
+        status: '',
+        type: '',
+        dateFrom: '',
+        dateTo: ''
+      };
+      state.invoiceStats = {
+        totalInvoices: 0,
+        totalSales: 0,
+        totalTax: 0,
+        uniqueCustomers: 0,
+        lastUpdated: null
       };
       
       // Clean up all listeners
@@ -2820,6 +2945,798 @@ export default createStore({
     async fetchInventoryOnce({ dispatch }) {
       console.log('📦 Using loadAllInventory');
       return await dispatch('loadAllInventory');
+    },
+
+    // ============================================
+    // INVOICE SYSTEM ACTIONS
+    // ============================================
+
+    async loadAllInvoices({ commit, state, dispatch }, { forceRefresh = false } = {}) {
+      if (state.invoicesLoading) {
+        console.log('Invoice load already in progress');
+        return state.invoices;
+      }
+
+      if (state.invoicesLoaded && !forceRefresh) {
+        console.log('Invoices already loaded');
+        return state.invoices;
+      }
+
+      commit('SET_INVOICES_LOADING', true);
+      commit('SET_INVOICES_ERROR', null);
+      commit('RESET_INVOICE_PAGINATION');
+
+      try {
+        console.log('🔄 Loading ALL invoices...');
+
+        if (!state.userProfile) {
+          throw new Error('User not authenticated');
+        }
+
+        // Check user permissions based on Firebase rules
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لعرض الفواتير');
+        }
+
+        const invoicesRef = collection(db, 'invoices');
+        const q = query(
+          invoicesRef,
+          orderBy('createdAt', 'desc'),
+          limit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
+        );
+
+        const snapshot = await getDocs(q);
+        console.log(`✅ Initial invoices loaded: ${snapshot.size} invoices`);
+
+        const invoices = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            date: data.date?.toDate?.() || data.date
+          };
+        });
+
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        commit('SET_INVOICE_PAGINATION', {
+          lastDoc,
+          hasMore: snapshot.size === PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT,
+          totalLoaded: invoices.length
+        });
+
+        commit('SET_INVOICES', invoices);
+        commit('SET_INVOICES_LOADED', true);
+        commit('CALCULATE_INVOICE_STATS');
+
+        console.log(`🎉 Invoices loaded successfully: ${invoices.length} invoices`);
+        return invoices;
+
+      } catch (error) {
+        console.error('❌ Error loading invoices:', error);
+        commit('SET_INVOICES_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل الفواتير'
+        });
+
+        return [];
+      } finally {
+        commit('SET_INVOICES_LOADING', false);
+      }
+    },
+
+    async searchInvoices({ commit, state, dispatch }, searchParams) {
+      commit('SET_INVOICES_LOADING', true);
+      commit('SET_INVOICES_ERROR', null);
+      commit('RESET_INVOICE_PAGINATION');
+
+      try {
+        const { search, status, type, dateFrom, dateTo } = searchParams || {};
+
+        commit('SET_INVOICE_FILTERS', { search, status, type, dateFrom, dateTo });
+
+        if (!state.userProfile) {
+          throw new Error('User not authenticated');
+        }
+
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لعرض الفواتير');
+        }
+
+        const invoicesRef = collection(db, 'invoices');
+        let invoicesQuery;
+
+        // Start with base query
+        if (search && search.length >= 2) {
+          // Search by invoice number or customer name
+          invoicesQuery = query(
+            invoicesRef,
+            orderBy('invoiceNumber'),
+            limit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
+          );
+        } else {
+          invoicesQuery = query(
+            invoicesRef,
+            orderBy('createdAt', 'desc'),
+            limit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
+          );
+        }
+
+        const snapshot = await getDocs(invoicesQuery);
+        console.log(`🔍 Invoice search found: ${snapshot.size} invoices`);
+
+        // Apply filters locally
+        let invoices = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            date: data.date?.toDate?.() || data.date
+          };
+        });
+
+        // Apply search filter
+        if (search && search.length >= 2) {
+          const searchLower = search.toLowerCase();
+          invoices = invoices.filter(invoice => 
+            invoice.invoiceNumber.toString().includes(searchLower) ||
+            invoice.customer?.name?.toLowerCase().includes(searchLower) ||
+            invoice.customer?.phone?.includes(searchLower)
+          );
+        }
+
+        // Apply status filter
+        if (status) {
+          invoices = invoices.filter(invoice => invoice.status === status);
+        }
+
+        // Apply type filter
+        if (type) {
+          invoices = invoices.filter(invoice => invoice.type === type);
+        }
+
+        // Apply date filters
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          invoices = invoices.filter(invoice => {
+            const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+            return invoiceDate >= fromDate;
+          });
+        }
+
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          invoices = invoices.filter(invoice => {
+            const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+            return invoiceDate <= toDate;
+          });
+        }
+
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        commit('SET_INVOICE_PAGINATION', {
+          lastDoc,
+          hasMore: snapshot.size === (search ? PERFORMANCE_CONFIG.SEARCH_LIMIT : PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT),
+          totalLoaded: invoices.length
+        });
+
+        commit('SET_INVOICES', invoices);
+        commit('SET_INVOICES_LOADED', true);
+        commit('CALCULATE_INVOICE_STATS');
+
+        return invoices;
+
+      } catch (error) {
+        console.error('❌ Error searching invoices:', error);
+        commit('SET_INVOICES_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الفواتير'
+        });
+
+        return [];
+      } finally {
+        commit('SET_INVOICES_LOADING', false);
+      }
+    },
+
+    async createInvoice({ commit, state, dispatch }, invoiceData) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // Check user permissions based on Firebase rules
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لإنشاء فواتير');
+        }
+
+        // Validate required fields
+        if (!invoiceData.customer?.name?.trim() || !invoiceData.customer?.phone?.trim()) {
+          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (اسم العميل، الهاتف)');
+        }
+
+        if (!invoiceData.items || invoiceData.items.length === 0) {
+          throw new Error('يجب إضافة أصناف على الأقل للفاتورة');
+        }
+
+        if (!invoiceData.warehouseId) {
+          throw new Error('يجب تحديد المخزن');
+        }
+
+        // Validate phone number
+        const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
+        if (!phoneRegex.test(invoiceData.customer.phone)) {
+          throw new Error('يرجى إدخال رقم هاتف صحيح (مثال: 01012345678)');
+        }
+
+        // Validate tax ID for B2B invoices
+        if (invoiceData.type === 'B2B' && (!invoiceData.customer.taxId || invoiceData.customer.taxId.length < 9)) {
+          throw new Error('يرجى إدخال رقم ضريبي صالح (9 أرقام على الأقل) للفواتير الضريبية');
+        }
+
+        // Calculate totals
+        const subtotal = invoiceData.items.reduce((sum, item) => {
+          const price = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          return sum + (price * quantity);
+        }, 0);
+
+        const discount = invoiceData.items.reduce((sum, item) => {
+          const price = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          const discountPercent = item.discount || 0;
+          return sum + ((price * quantity) * (discountPercent / 100));
+        }, 0);
+
+        const tax = (invoiceData.type === 'B2B' || invoiceData.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
+        const total = subtotal - discount + tax;
+
+        // Generate invoice number
+        const lastInvoice = state.invoices[0];
+        const lastNumber = lastInvoice ? lastInvoice.invoiceNumber : 0;
+        const invoiceNumber = lastNumber + 1;
+
+        // Prepare invoice data for Firestore
+        const cleanInvoiceData = {
+          invoiceNumber,
+          type: invoiceData.type,
+          paymentMethod: invoiceData.paymentMethod,
+          customer: {
+            name: invoiceData.customer.name.trim(),
+            phone: invoiceData.customer.phone.trim(),
+            taxId: invoiceData.customer.taxId?.trim() || '',
+            address: invoiceData.customer.address?.trim() || ''
+          },
+          items: invoiceData.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            code: item.code,
+            unitPrice: Number(item.unitPrice) || 0,
+            quantity: Number(item.quantity) || 0,
+            discount: Number(item.discount) || 0,
+            total: Number(item.total) || 0,
+            warehouseId: item.warehouseId
+          })),
+          warehouseId: invoiceData.warehouseId,
+          notes: invoiceData.notes?.trim() || '',
+          status: 'draft',
+          subtotal,
+          discount,
+          taxAmount: tax,
+          totalAmount: total,
+          date: Timestamp.now(),
+          createdBy: state.userProfile?.name || state.user?.email || 'نظام',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        };
+
+        // Create invoice document
+        const docRef = await addDoc(collection(db, 'invoices'), cleanInvoiceData);
+
+        // Update inventory quantities
+        const batch = writeBatch(db);
+        
+        for (const item of invoiceData.items) {
+          if (item.id) {
+            const itemRef = doc(db, 'items', item.id);
+            batch.update(itemRef, {
+              remaining_quantity: increment(-(item.quantity || 0))
+            });
+          }
+        }
+
+        await batch.commit();
+
+        // Create transaction record for inventory update
+        const transactionData = {
+          type: 'INVOICE',
+          item_id: invoiceData.items[0]?.id || 'multiple',
+          item_name: `فاتورة #${invoiceNumber}`,
+          item_code: `INV-${invoiceNumber}`,
+          from_warehouse: invoiceData.warehouseId,
+          to_warehouse: null,
+          cartons_delta: 0,
+          per_carton_updated: 0,
+          single_delta: 0,
+          total_delta: -invoiceData.items.reduce((sum, item) => sum + (item.quantity || 0), 0),
+          new_remaining: 0, // Will be updated by real-time listeners
+          user_id: state.user.uid,
+          timestamp: Timestamp.now(),
+          notes: `فاتورة مبيعات #${invoiceNumber} - ${invoiceData.customer.name}`,
+          created_by: state.userProfile?.name || state.user?.email || 'نظام'
+        };
+
+        await addDoc(collection(db, 'transactions'), transactionData);
+
+        const newInvoice = {
+          id: docRef.id,
+          ...cleanInvoiceData
+        };
+
+        commit('ADD_INVOICE', newInvoice);
+        commit('ADD_RECENT_TRANSACTION', transactionData);
+        commit('CALCULATE_INVOICE_STATS');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم إنشاء الفاتورة #${invoiceNumber} بنجاح`
+        });
+
+        return { success: true, invoiceId: docRef.id, invoiceNumber };
+
+      } catch (error) {
+        console.error('❌ Error creating invoice:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في إنشاء الفاتورة'
+        });
+
+        throw error;
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateInvoice({ commit, state, dispatch }, { invoiceId, invoiceData }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // Check user permissions based on Firebase rules
+        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لتعديل الفواتير');
+        }
+
+        // Get existing invoice
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const invoiceDoc = await getDoc(invoiceRef);
+
+        if (!invoiceDoc.exists()) {
+          throw new Error('الفاتورة غير موجودة');
+        }
+
+        const existingInvoice = invoiceDoc.data();
+
+        // Only allow updates to draft invoices
+        if (existingInvoice.status !== 'draft') {
+          throw new Error('لا يمكن تعديل فاتورة غير مسودة');
+        }
+
+        // Validate required fields
+        if (!invoiceData.customer?.name?.trim() || !invoiceData.customer?.phone?.trim()) {
+          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (اسم العميل، الهاتف)');
+        }
+
+        if (!invoiceData.items || invoiceData.items.length === 0) {
+          throw new Error('يجب إضافة أصناف على الأقل للفاتورة');
+        }
+
+        if (!invoiceData.warehouseId) {
+          throw new Error('يجب تحديد المخزن');
+        }
+
+        // Calculate new totals
+        const subtotal = invoiceData.items.reduce((sum, item) => {
+          const price = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          return sum + (price * quantity);
+        }, 0);
+
+        const discount = invoiceData.items.reduce((sum, item) => {
+          const price = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          const discountPercent = item.discount || 0;
+          return sum + ((price * quantity) * (discountPercent / 100));
+        }, 0);
+
+        const tax = (invoiceData.type === 'B2B' || invoiceData.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
+        const total = subtotal - discount + tax;
+
+        // Prepare update data
+        const updateData = {
+          type: invoiceData.type,
+          paymentMethod: invoiceData.paymentMethod,
+          customer: {
+            name: invoiceData.customer.name.trim(),
+            phone: invoiceData.customer.phone.trim(),
+            taxId: invoiceData.customer.taxId?.trim() || '',
+            address: invoiceData.customer.address?.trim() || ''
+          },
+          items: invoiceData.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            code: item.code,
+            unitPrice: Number(item.unitPrice) || 0,
+            quantity: Number(item.quantity) || 0,
+            discount: Number(item.discount) || 0,
+            total: Number(item.total) || 0,
+            warehouseId: item.warehouseId
+          })),
+          warehouseId: invoiceData.warehouseId,
+          notes: invoiceData.notes?.trim() || '',
+          subtotal,
+          discount,
+          taxAmount: tax,
+          totalAmount: total,
+          updatedAt: Timestamp.now()
+        };
+
+        await updateDoc(invoiceRef, updateData);
+
+        const updatedInvoice = {
+          id: invoiceId,
+          ...existingInvoice,
+          ...updateData
+        };
+
+        commit('UPDATE_INVOICE', updatedInvoice);
+        commit('CALCULATE_INVOICE_STATS');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تحديث الفاتورة #${existingInvoice.invoiceNumber} بنجاح`
+        });
+
+        return { success: true, invoiceId };
+
+      } catch (error) {
+        console.error('❌ Error updating invoice:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تحديث الفاتورة'
+        });
+
+        throw error;
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async deleteInvoice({ commit, state, dispatch }, invoiceId) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // Check user permissions based on Firebase rules
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لحذف الفواتير');
+        }
+
+        // Get existing invoice
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const invoiceDoc = await getDoc(invoiceRef);
+
+        if (!invoiceDoc.exists()) {
+          throw new Error('الفاتورة غير موجودة');
+        }
+
+        const existingInvoice = invoiceDoc.data();
+
+        // Only allow deletion of draft invoices
+        if (existingInvoice.status !== 'draft') {
+          throw new Error('لا يمكن حذف فاتورة غير مسودة');
+        }
+
+        const confirmDelete = confirm('هل أنت متأكد من حذف هذه الفاتورة؟');
+        if (!confirmDelete) {
+          return { success: false, message: 'تم إلغاء العملية' };
+        }
+
+        // First, restore inventory quantities
+        if (existingInvoice.items && Array.isArray(existingInvoice.items)) {
+          const batch = writeBatch(db);
+          
+          for (const item of existingInvoice.items) {
+            if (item.id) {
+              const itemRef = doc(db, 'items', item.id);
+              batch.update(itemRef, {
+                remaining_quantity: increment(item.quantity || 0)
+              });
+            }
+          }
+          
+          await batch.commit();
+        }
+
+        // Delete the invoice
+        await deleteDoc(invoiceRef);
+
+        commit('REMOVE_INVOICE', invoiceId);
+        commit('CALCULATE_INVOICE_STATS');
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم حذف الفاتورة #${existingInvoice.invoiceNumber} بنجاح`
+        });
+
+        return { success: true, message: 'تم حذف الفاتورة بنجاح' };
+
+      } catch (error) {
+        console.error('❌ Error deleting invoice:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في حذف الفاتورة'
+        });
+
+        return { success: false, error: error.message };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async updateInvoiceStatus({ commit, state, dispatch }, { invoiceId, status }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // Check user permissions based on Firebase rules
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لتغيير حالة الفواتير');
+        }
+
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const invoiceDoc = await getDoc(invoiceRef);
+
+        if (!invoiceDoc.exists()) {
+          throw new Error('الفاتورة غير موجودة');
+        }
+
+        const existingInvoice = invoiceDoc.data();
+
+        await updateDoc(invoiceRef, {
+          status,
+          updatedAt: Timestamp.now()
+        });
+
+        const updatedInvoice = {
+          id: invoiceId,
+          ...existingInvoice,
+          status
+        };
+
+        commit('UPDATE_INVOICE', updatedInvoice);
+        commit('CALCULATE_INVOICE_STATS');
+
+        const statusLabels = {
+          'draft': 'مسودة',
+          'issued': 'صادرة',
+          'paid': 'مدفوعة',
+          'cancelled': 'ملغية'
+        };
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تغيير حالة الفاتورة #${existingInvoice.invoiceNumber} إلى ${statusLabels[status] || status}`
+        });
+
+        return { success: true, invoiceId };
+
+      } catch (error) {
+        console.error('❌ Error updating invoice status:', error);
+        commit('SET_OPERATION_ERROR', error.message);
+
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تغيير حالة الفاتورة'
+        });
+
+        throw error;
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    async getInvoiceById({ commit, state, dispatch }, invoiceId) {
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لعرض الفواتير');
+        }
+
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const invoiceDoc = await getDoc(invoiceRef);
+
+        if (!invoiceDoc.exists()) {
+          throw new Error('الفاتورة غير موجودة');
+        }
+
+        const invoiceData = invoiceDoc.data();
+        
+        return {
+          id: invoiceDoc.id,
+          ...invoiceData,
+          date: invoiceData.date?.toDate?.() || invoiceData.date
+        };
+
+      } catch (error) {
+        console.error('❌ Error getting invoice:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'خطأ في تحميل الفاتورة'
+        });
+        throw error;
+      }
+    },
+
+    async exportInvoicesToExcel({ state, dispatch }, { filters = {} } = {}) {
+      try {
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لتصدير الفواتير');
+        }
+
+        // Get filtered invoices
+        let invoicesToExport = state.invoices;
+
+        // Apply filters if provided
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          invoicesToExport = invoicesToExport.filter(invoice => 
+            invoice.invoiceNumber.toString().includes(searchLower) ||
+            invoice.customer?.name?.toLowerCase().includes(searchLower) ||
+            invoice.customer?.phone?.includes(searchLower)
+          );
+        }
+
+        if (filters.status) {
+          invoicesToExport = invoicesToExport.filter(invoice => invoice.status === filters.status);
+        }
+
+        if (filters.type) {
+          invoicesToExport = invoicesToExport.filter(invoice => invoice.type === filters.type);
+        }
+
+        if (filters.dateFrom) {
+          const fromDate = new Date(filters.dateFrom);
+          invoicesToExport = invoicesToExport.filter(invoice => {
+            const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+            return invoiceDate >= fromDate;
+          });
+        }
+
+        if (filters.dateTo) {
+          const toDate = new Date(filters.dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          invoicesToExport = invoicesToExport.filter(invoice => {
+            const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+            return invoiceDate <= toDate;
+          });
+        }
+
+        if (invoicesToExport.length === 0) {
+          dispatch('showNotification', {
+            type: 'warning',
+            message: 'لا توجد فواتير للتصدير'
+          });
+          return;
+        }
+
+        // Prepare data for Excel
+        const exportData = invoicesToExport.map(invoice => {
+          const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+          
+          return {
+            'رقم الفاتورة': invoice.invoiceNumber,
+            'التاريخ': invoiceDate.toLocaleDateString('ar-EG'),
+            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
+            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
+            'اسم العميل': invoice.customer.name,
+            'هاتف العميل': invoice.customer.phone,
+            'الرقم الضريبي': invoice.customer.taxId || '',
+            'عدد الأصناف': invoice.items?.length || 0,
+            'المجموع': invoice.subtotal || 0,
+            'الخصم': invoice.discount || 0,
+            'الضريبة': invoice.taxAmount || 0,
+            'الإجمالي': invoice.totalAmount || 0,
+            'طريقة الدفع': getPaymentMethodLabel(invoice.paymentMethod),
+            'ملاحظات': invoice.notes || ''
+          };
+        });
+
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(exportData);
+
+        // Set column widths
+        const wscols = [
+          { wch: 12 }, // رقم الفاتورة
+          { wch: 12 }, // التاريخ
+          { wch: 15 }, // نوع الفاتورة
+          { wch: 12 }, // حالة الفاتورة
+          { wch: 20 }, // اسم العميل
+          { wch: 15 }, // هاتف العميل
+          { wch: 15 }, // الرقم الضريبي
+          { wch: 10 }, // عدد الأصناف
+          { wch: 15 }, // المجموع
+          { wch: 15 }, // الخصم
+          { wch: 15 }, // الضريبة
+          { wch: 15 }, // الإجمالي
+          { wch: 10 }, // طريقة الدفع
+          { wch: 30 }  // ملاحظات
+        ];
+        ws['!cols'] = wscols;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'الفواتير');
+
+        // Generate filename with current date
+        const filename = `الفواتير_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+        // Download file
+        XLSX.writeFile(wb, filename);
+
+        dispatch('showNotification', {
+          type: 'success',
+          message: `تم تصدير ${exportData.length} فاتورة بنجاح`
+        });
+
+      } catch (error) {
+        console.error('❌ Error exporting invoices:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في تصدير الفواتير'
+        });
+      }
+    },
+
+    async refreshInvoices({ dispatch }) {
+      console.log('🔄 Refreshing invoices...');
+      return await dispatch('loadAllInvoices', { forceRefresh: true });
+    },
+
+    async clearInvoiceFilters({ commit, dispatch }) {
+      commit('CLEAR_INVOICE_FILTERS');
+      await dispatch('loadAllInvoices');
     }
   },
 
@@ -2865,6 +3782,86 @@ export default createStore({
     requiresCompositeIndex: state => state.requiresCompositeIndex,
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
+    
+    // Invoice System Getters
+    invoices: state => state.invoices,
+    invoicesItems: state => Array.isArray(state.invoices) ? state.invoices : [],
+    invoicesCount: state => state.invoices.length,
+    invoicesLoading: state => state.invoicesLoading,
+    invoicesLoaded: state => state.invoicesLoaded,
+    invoicesError: state => state.invoicesError,
+    invoiceStats: state => state.invoiceStats,
+    filteredInvoices: (state) => {
+      let filtered = [...state.invoices];
+
+      // Apply search filter
+      if (state.invoiceFilters.search) {
+        const searchLower = state.invoiceFilters.search.toLowerCase();
+        filtered = filtered.filter(invoice => 
+          invoice.invoiceNumber.toString().includes(searchLower) ||
+          invoice.customer?.name?.toLowerCase().includes(searchLower) ||
+          invoice.customer?.phone?.includes(searchLower)
+        );
+      }
+
+      // Apply status filter
+      if (state.invoiceFilters.status) {
+        filtered = filtered.filter(invoice => invoice.status === state.invoiceFilters.status);
+      }
+
+      // Apply type filter
+      if (state.invoiceFilters.type) {
+        filtered = filtered.filter(invoice => invoice.type === state.invoiceFilters.type);
+      }
+
+      // Apply date filters
+      if (state.invoiceFilters.dateFrom) {
+        const fromDate = new Date(state.invoiceFilters.dateFrom);
+        filtered = filtered.filter(invoice => {
+          const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+          return invoiceDate >= fromDate;
+        });
+      }
+
+      if (state.invoiceFilters.dateTo) {
+        const toDate = new Date(state.invoiceFilters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(invoice => {
+          const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
+          return invoiceDate <= toDate;
+        });
+      }
+
+      return filtered;
+    },
+    hasInvoiceFilters: (state) => {
+      return !!state.invoiceFilters.search || 
+             !!state.invoiceFilters.status || 
+             !!state.invoiceFilters.type || 
+             !!state.invoiceFilters.dateFrom || 
+             !!state.invoiceFilters.dateTo;
+    },
+    canManageInvoices: (state) => {
+      if (!state.userProfile) return false;
+      return ['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role);
+    },
+    canCreateInvoice: (state) => {
+      if (!state.userProfile) return false;
+      return ['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role);
+    },
+    canEditInvoice: (state) => {
+      if (!state.userProfile) return false;
+      return ['superadmin', 'warehouse_manager'].includes(state.userProfile.role);
+    },
+    canDeleteInvoice: (state) => {
+      if (!state.userProfile) return false;
+      return ['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role);
+    },
+    canExportInvoices: (state) => {
+      if (!state.userProfile) return false;
+      return ['superadmin', 'company_manager'].includes(state.userProfile.role);
+    },
+
     canEdit: (state, getters) => {
       return ['superadmin', 'warehouse_manager'].includes(getters.userRole);
     },
@@ -3234,6 +4231,26 @@ export default createStore({
         code: w.code || '',
         type: w.type || 'primary'
       }));
+    },
+    getInvoiceById: (state) => (invoiceId) => {
+      return state.invoices.find(inv => inv.id === invoiceId);
+    },
+    getInvoiceTypeLabel: () => (type) => {
+      const labels = {
+        'B2B': 'فاتورة ضريبية (B2B)',
+        'B2C': 'فاتورة ضريبية (B2C)',
+        'simplified': 'فاتورة مبسطة'
+      };
+      return labels[type] || type;
+    },
+    getInvoiceStatusLabel: () => (status) => {
+      const labels = {
+        'draft': 'مسودة',
+        'issued': 'صادرة',
+        'paid': 'مدفوعة',
+        'cancelled': 'ملغية'
+      };
+      return labels[status] || status;
     }
   }
 });
@@ -3251,4 +4268,34 @@ function getAuthErrorMessage(errorCode) {
     'auth/configuration-not-found': 'خطأ في إعدادات النظام'
   };
   return errorMessages[errorCode] || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى';
+}
+
+// Helper functions for invoice system
+function getInvoiceTypeLabel(type) {
+  const labels = {
+    'B2B': 'فاتورة ضريبية (B2B)',
+    'B2C': 'فاتورة ضريبية (B2C)',
+    'simplified': 'فاتورة مبسطة'
+  };
+  return labels[type] || type;
+}
+
+function getInvoiceStatusLabel(status) {
+  const labels = {
+    'draft': 'مسودة',
+    'issued': 'صادرة',
+    'paid': 'مدفوعة',
+    'cancelled': 'ملغية'
+  };
+  return labels[status] || status;
+}
+
+function getPaymentMethodLabel(method) {
+  const labels = {
+    'cash': 'نقدي',
+    'bank': 'تحويل بنكي',
+    'check': 'شيك',
+    'credit': 'آجل'
+  };
+  return labels[method] || method;
 }
