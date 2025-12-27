@@ -103,7 +103,79 @@ const inventoryRoutes = {
   }
 };
 
-// المسار الخاص بالفواتير
+// ============================================
+// UPDATED: Invoice System Route with DispatchPageWithInvoices
+// ============================================
+const invoiceSystemRoutes = {
+  path: '/invoice-system',
+  name: 'InvoiceSystem',
+  // Using the combined Dispatch and Invoice system component
+  component: () => {
+    console.log('🔗 تحميل نظام الفواتير المتكامل...');
+    return import('@/views/DispatchPageWithInvoices.vue').catch((error) => {
+      console.error('❌ فشل في تحميل DispatchPageWithInvoices:', error);
+      
+      // Try alternative paths
+      console.log('🔄 جرب تحميل من مكونات أخرى...');
+      return import('@/components/DispatchPageWithInvoices.vue').catch((error2) => {
+        console.error('❌ فشل في جميع المحاولات:', error2);
+        
+        // Fallback component
+        return {
+          template: `
+            <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+              <div class="text-center max-w-lg">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-full mb-6">
+                  <svg class="w-10 h-10 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">نظام الفواتير غير متاح</h1>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
+                  لم يتم العثور على صفحة نظام الفواتير المتكامل. يرجى التأكد من:
+                </p>
+                <div class="space-y-3 mb-8 text-right bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                  <p class="text-gray-700 dark:text-gray-300">
+                    1. وجود ملف <strong>DispatchPageWithInvoices.vue</strong> في المجلد الصحيح
+                  </p>
+                  <p class="text-gray-700 dark:text-gray-300">
+                    2. صحة المسار: <code class="text-blue-600">@/views/DispatchPageWithInvoices.vue</code>
+                  </p>
+                  <p class="text-gray-700 dark:text-gray-300">
+                    3. بناء المشروع بشكل صحيح
+                  </p>
+                </div>
+                <div class="space-y-4">
+                  <button @click="goToDispatch" class="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    الذهاب إلى صفحة الصرف العادية
+                  </button>
+                  <router-link to="/" class="block w-full py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
+                    العودة للرئيسية
+                  </router-link>
+                </div>
+              </div>
+            </div>
+          `,
+          methods: {
+            goToDispatch() {
+              this.$router.push('/dispatch');
+            }
+          }
+        };
+      });
+    });
+  },
+  meta: { 
+    requiresAuth: true,
+    allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+    requiredPermissions: ['manage_invoices', 'dispatch_items'],
+    title: 'نظام الفواتير والصرف'
+  }
+};
+
+// ============================================
+// UPDATED: Invoices Routes for individual invoices management
+// ============================================
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
@@ -274,6 +346,12 @@ const routes = [
       requiredPermissions: ['dispatch_items']
     }
   },
+
+  // ============================================
+  // NEW: Added the Invoice System Route here
+  // ============================================
+  invoiceSystemRoutes,
+
   {
     path: '/transactions',
     name: 'Transactions',
@@ -285,7 +363,7 @@ const routes = [
     }
   },
 
-  // مسارات الفواتير
+  // مسارات الفواتير (لإدارة الفواتير الفردية)
   invoicesRoutes,
 
   {
@@ -393,7 +471,7 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
     const hasPermission = routeMeta.requiredPermissions.every(permission => 
       userPermissions.includes(permission)
     );
-    
+
     if (!hasPermission) {
       console.log(`⛔ الأذونات المطلوبة غير متوفرة: ${routeMeta.requiredPermissions} -> ${userPermissions}`);
       return false;
@@ -417,15 +495,21 @@ const canWarehouseManagerAccess = (userProfile, routeName) => {
 
   // Check specific permissions for warehouse manager
   const userPermissions = userProfile?.permissions || [];
-  
+
   // Different permission checks based on route
   if (routeName === 'AddInventory' && !userPermissions.includes('create_items')) {
     console.log('⛔ لا يملك صلاحية إضافة الأصناف');
     return false;
   }
-  
+
   if (routeName === 'EditInventory' && !userPermissions.includes('edit_items')) {
     console.log('⛔ لا يملك صلاحية تعديل الأصناف');
+    return false;
+  }
+
+  // Check for invoice system access
+  if (routeName === 'InvoiceSystem' && !userPermissions.includes('manage_invoices')) {
+    console.log('⛔ لا يملك صلاحية إدارة الفواتير');
     return false;
   }
 
@@ -478,7 +562,7 @@ router.beforeEach((to, from, next) => {
     // Initialize store instance
     initStoreInstance();
     const store = storeInstance;
-    
+
     const user = store?.state?.user;
     const userProfile = store?.state?.userProfile;
     const userRole = store?.getters?.userRole || '';
@@ -579,6 +663,11 @@ router.onError((error, to) => {
         path: '/invoices-fallback',
         query: { originalPath: to.path }
       });
+    } else if (to.path.includes('/invoice-system')) {
+      next({
+        path: '/invoice-system-fallback',
+        query: { originalPath: to.path }
+      });
     } else {
       next('/');
     }
@@ -667,6 +756,47 @@ router.addRoute({
   meta: { layout: 'empty' }
 });
 
+// إضافة مسار احتياطي لنظام الفواتير المتكامل
+router.addRoute({
+  path: '/invoice-system-fallback',
+  name: 'InvoiceSystemFallback',
+  component: {
+    template: `
+      <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div class="text-center max-w-md">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-teal-100 dark:bg-teal-900 rounded-full mb-6 animate-pulse">
+            <svg class="w-10 h-10 text-teal-600 dark:text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">جاري تحضير نظام الفواتير</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            صفحة نظام الفواتير المتكامل قيد التحميل. يرجى الانتظار...
+          </p>
+          <div class="space-y-4">
+            <button @click="reloadPage" class="w-full py-3 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200">
+              تحديث الصفحة
+            </button>
+            <router-link to="/dispatch" class="block w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+              الذهاب إلى صفحة الصرف
+            </router-link>
+            <router-link to="/" class="block w-full py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
+              العودة للرئيسية
+            </router-link>
+          </div>
+        </div>
+      </div>
+    `,
+    methods: {
+      reloadPage() {
+        const originalPath = this.$route.query.originalPath || '/invoice-system';
+        this.$router.push(originalPath);
+      }
+    }
+  },
+  meta: { layout: 'empty' }
+});
+
 // إعداد عنوان الصفحة ديناميكياً
 router.afterEach((to) => {
   // تحديث عنوان الصفحة
@@ -679,14 +809,18 @@ router.afterEach((to) => {
     '/transactions': 'الحركات',
     '/transfers': 'النقل بين المخازن',
     '/dispatch': 'الصرف الخارجي',
-    '/reports': 'التقارير',
-    '/profile': 'إعدادات الحساب',
+    '/invoice-system': 'نظام الفواتير والصرف',
     '/invoices': 'الفواتير',
-    '/invoices/create': 'إنشاء فاتورة'
+    '/invoices/create': 'إنشاء فاتورة',
+    '/reports': 'التقارير',
+    '/profile': 'إعدادات الحساب'
   };
 
   const pageTitle = pageTitles[to.path] || to.meta?.title || 'نظام المخزون';
   document.title = `${pageTitle} | نظام المخزون`;
+  
+  // إضافة أيقونة للمسار الحالي في السجل
+  console.log(`📍 ${pageTitle} - ${to.path}`);
 });
 
 // Initialize router
@@ -697,6 +831,13 @@ router.isReady().then(() => {
   console.log('📋 المسارات المسجلة:');
   router.getRoutes().forEach(route => {
     console.log(`- ${route.name || 'غير معروف'}: ${route.path} ${route.meta?.requiresAuth ? '(تتطلب تسجيل دخول)' : ''}`);
+  });
+  
+  // إضافة معلومات خاصة عن نظام الفواتير
+  const invoiceRoutes = router.getRoutes().filter(r => r.path.includes('invoice'));
+  console.log('🧾 مسارات نظام الفواتير:');
+  invoiceRoutes.forEach(route => {
+    console.log(`  • ${route.name}: ${route.path} - ${route.meta?.title || 'بدون عنوان'}`);
   });
 }).catch(error => {
   console.error('❌ خطأ في تحميل الموجه:', error);
