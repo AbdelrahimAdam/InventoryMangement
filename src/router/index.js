@@ -103,7 +103,7 @@ const inventoryRoutes = {
   }
 };
 
-// المسار الخاص بالفواتير (نظام الفواتير المتكامل)
+// المسار الخاص بنظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
 const invoiceSystemRoutes = {
   path: '/invoice-system',
   name: 'InvoiceSystem',
@@ -112,20 +112,21 @@ const invoiceSystemRoutes = {
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+    // استخدام الصلاحيات من store
     requiredPermissions: ['manage_invoices', 'dispatch_items'],
     title: 'نظام الفواتير والصرف',
     isInvoiceSystem: true // علامة خاصة تشير أن هذا هو نظام الفواتير
   }
 };
 
-// المسارات التقليدية للفواتير (لإدارة الفواتير الفردية)
+// المسارات التقليدية للفواتير مع صلاحيات كاملة لمدير الشركة
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
   component: lazyLoad('Invoices'),
   meta: { 
     requiresAuth: true,
-    allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
+    allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
     requiredPermissions: ['manage_invoices'],
     title: 'الفواتير'
   },
@@ -136,7 +137,7 @@ const invoicesRoutes = {
       component: lazyLoad('CreateInvoice'),
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
         requiredPermissions: ['create_invoices']
       }
     },
@@ -146,7 +147,7 @@ const invoicesRoutes = {
       component: lazyLoad('InvoiceDetails'),
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['superadmin', 'warehouse_manager', 'company_manager'],
+        allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
         requiredPermissions: ['view_invoices']
       }
     }
@@ -291,7 +292,7 @@ const routes = [
   },
 
   // ============================================
-  // NEW: نظام الفواتير المتكامل (يستخدم Dispatch.vue)
+  // نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
   // ============================================
   invoiceSystemRoutes,
 
@@ -306,7 +307,7 @@ const routes = [
     }
   },
 
-  // مسارات الفواتير التقليدية (لإدارة الفواتير الفردية)
+  // مسارات الفواتير التقليدية مع صلاحيات كاملة لمدير الشركة
   invoicesRoutes,
 
   {
@@ -399,7 +400,7 @@ const router = createRouter({
   }
 });
 
-// Helper function to check if user can access route - UPDATED for store compliance
+// Helper function to check if user can access route - UPDATED to use store getters
 const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
 
@@ -424,8 +425,8 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   return true;
 };
 
-// Check warehouse manager access - UPDATED for store compliance
-const canWarehouseManagerAccess = (userProfile, routeName) => {
+// Check warehouse manager access - UPDATED to use store getters
+const canWarehouseManagerAccess = (userProfile, routeName, routeMeta) => {
   if (userProfile?.role !== 'warehouse_manager') return true;
 
   const allowedWarehouses = userProfile?.allowed_warehouses || [];
@@ -439,21 +440,16 @@ const canWarehouseManagerAccess = (userProfile, routeName) => {
   // Check specific permissions for warehouse manager
   const userPermissions = userProfile?.permissions || [];
 
-  // Different permission checks based on route
-  if (routeName === 'AddInventory' && !userPermissions.includes('create_items')) {
-    console.log('⛔ لا يملك صلاحية إضافة الأصناف');
-    return false;
-  }
+  // Check permissions from route meta
+  if (routeMeta.requiredPermissions) {
+    const hasPermission = routeMeta.requiredPermissions.every(permission => 
+      userPermissions.includes(permission)
+    );
 
-  if (routeName === 'EditInventory' && !userPermissions.includes('edit_items')) {
-    console.log('⛔ لا يملك صلاحية تعديل الأصناف');
-    return false;
-  }
-
-  // Check for invoice system access
-  if (routeName === 'InvoiceSystem' && !userPermissions.includes('manage_invoices')) {
-    console.log('⛔ لا يملك صلاحية إدارة الفواتير');
-    return false;
+    if (!hasPermission) {
+      console.log(`⛔ مدير المخزن لا يملك الصلاحية: ${routeMeta.requiredPermissions}`);
+      return false;
+    }
   }
 
   return true;
@@ -464,7 +460,7 @@ const routePermissionCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
 
 // نسخة محسنة من canAccessRoute مع cache
-const canAccessRouteCached = (userRole, userPermissions, routeMeta) => {
+const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile) => {
   if (!routeMeta.allowedRoles) return true;
 
   const cacheKey = `${userRole}_${JSON.stringify(routeMeta)}_${userPermissions.join(',')}`;
@@ -553,14 +549,14 @@ router.beforeEach((to, from, next) => {
         }
 
         // استخدام النسخة المحسنة مع cache
-        if (!canAccessRouteCached(userRole, userPermissions, to.meta)) {
+        if (!canAccessRouteCached(userRole, userPermissions, to.meta, userProfile)) {
           console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
           next('/unauthorized');
           return;
         }
 
         // Special checks for warehouse managers
-        if (!canWarehouseManagerAccess(userProfile, to.name)) {
+        if (!canWarehouseManagerAccess(userProfile, to.name, to.meta)) {
           console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول إلى:', to.name);
           next('/unauthorized');
           return;
@@ -767,7 +763,7 @@ router.afterEach((to) => {
   
   // إرسال معلومة عن نظام الفواتير إذا كان المسار هو invoice-system
   if (to.path === '/invoice-system') {
-    console.log('🧾 تحميل نظام الفواتير المتكامل...');
+    console.log('🧾 تحميل نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة...');
   }
 });
 
@@ -783,10 +779,19 @@ router.isReady().then(() => {
   
   // إضافة معلومات خاصة عن نظام الفواتير
   const invoiceRoutes = router.getRoutes().filter(r => r.path.includes('invoice'));
-  console.log('🧾 مسارات نظام الفواتير:');
+  console.log('🧾 مسارات نظام الفواتير (مدير الشركة له صلاحية كاملة):');
   invoiceRoutes.forEach(route => {
     console.log(`  • ${route.name}: ${route.path} - ${route.meta?.title || 'بدون عنوان'}`);
   });
+  
+  // إظهار معلومات الصلاحيات من الـ store
+  const store = useStore();
+  const userRole = store.getters.userRole;
+  const userPermissions = store.getters.userPermissions;
+  console.log('🔐 صلاحيات المستخدم الحالي:');
+  console.log(`  • الدور: ${userRole}`);
+  console.log(`  • الصلاحيات: ${userPermissions.join(', ')}`);
+  
 }).catch(error => {
   console.error('❌ خطأ في تحميل الموجه:', error);
 });
