@@ -1,18 +1,13 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
-import { useStore } from 'vuex';
+import store from '@/store';
 
-// تعريف Lazy Loading مع تحسينات الأداء ومعالجة الأخطاء
+// تحميل المكونات بشكل كسول مع معالجة الأخطاء
 const lazyLoad = (componentName) => {
   return () => {
-    console.log(`🔗 محاولة تحميل المكون: ${componentName}`);
-    return import(
-      /* webpackChunkName: "[request]" */
-      /* webpackPrefetch: true */
-      `@/views/${componentName}.vue`
-    ).catch((error) => {
-      console.error(`❌ فشل في تحميل المكون ${componentName}:`, error);
-      // سقط للخلف إلى مكون بسيط لتجنب الأخطاء
+    console.log(`🔗 تحميل المكون: ${componentName}`);
+    return import(`@/views/${componentName}.vue`).catch((error) => {
+      console.error(`❌ فشل تحميل ${componentName}:`, error);
       return Promise.resolve({
         template: `
           <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -23,24 +18,16 @@ const lazyLoad = (componentName) => {
                 </svg>
               </div>
               <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">جاري تحميل ${componentName}</h2>
-              <p class="text-gray-600 dark:text-gray-400">
-                يرجى الانتظار بينما يتم تحميل الصفحة...
-              </p>
+              <p class="text-gray-600 dark:text-gray-400">يرجى الانتظار...</p>
             </div>
           </div>
         `,
         mounted() {
-          // حاول إعادة التحميل بعد ثانيتين
           setTimeout(() => {
-            console.log(`🔄 إعادة محاولة تحميل ${componentName}...`);
+            console.log(`🔄 إعادة تحميل ${componentName}...`);
             import(`@/views/${componentName}.vue`)
-              .then(module => {
-                console.log(`✅ تم تحميل ${componentName} بنجاح بعد إعادة المحاولة`);
-                // هنا يمكنك تحديث المكون إذا أردت
-              })
-              .catch(err => {
-                console.error(`❌ فشل إعادة تحميل ${componentName}:`, err);
-              });
+              .then(() => console.log(`✅ تم تحميل ${componentName}`))
+              .catch(err => console.error(`❌ فشل إعادة تحميل ${componentName}:`, err));
           }, 2000);
         }
       });
@@ -48,78 +35,66 @@ const lazyLoad = (componentName) => {
   };
 };
 
-// المسار الخاص بالمخزون مع استيراد مباشر لتجنب الأخطاء
+// مسار المخزون
 const inventoryRoutes = {
   path: '/inventory',
   name: 'Inventory',
-  component: () => import('@/views/Inventory.vue').catch(() => {
-    // إذا فشل تحميل Inventory.vue من views، حاول من components
-    console.log('🔄 جرب تحميل Inventory من المكونات...');
-    return import('@/views/Inventory.vue').catch((error) => {
-      console.error('❌ فشل في تحميل Inventory من أي مكان:', error);
-      return {
-        template: `
-          <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-            <div class="text-center">
-              <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full mb-6">
-                <svg class="w-10 h-10 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                </svg>
-              </div>
-              <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">خطأ في تحميل الصفحة</h1>
-              <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
-                تعذر تحميل صفحة المخزون. يرجى:
-              </p>
-              <div class="space-y-3 mb-8 text-right">
-                <p class="text-gray-700 dark:text-gray-300">1. التأكد من وجود ملف Inventory.vue</p>
-                <p class="text-gray-700 dark:text-gray-300">2. تحديث الصفحة (F5)</p>
-                <p class="text-gray-700 dark:text-gray-300">3. التواصل مع الدعم الفني</p>
-              </div>
-              <button @click="reloadPage" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                تحديث الصفحة
-              </button>
+  component: () => import('@/views/Inventory.vue').catch((error) => {
+    console.error('❌ فشل تحميل Inventory:', error);
+    return {
+      template: `
+        <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+          <div class="text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full mb-6">
+              <svg class="w-10 h-10 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+              </svg>
             </div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">خطأ في تحميل الصفحة</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">تعذر تحميل صفحة المخزون</p>
+            <div class="space-y-3 mb-8 text-right">
+              <p class="text-gray-700 dark:text-gray-300">1. التأكد من وجود ملف Inventory.vue</p>
+              <p class="text-gray-700 dark:text-gray-300">2. تحديث الصفحة (F5)</p>
+              <p class="text-gray-700 dark:text-gray-300">3. التواصل مع الدعم الفني</p>
+            </div>
+            <button @click="reloadPage" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+              <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              تحديث الصفحة
+            </button>
           </div>
-        `,
-        methods: {
-          reloadPage() {
-            window.location.reload();
-          }
+        </div>
+      `,
+      methods: {
+        reloadPage() {
+          window.location.reload();
         }
-      };
-    });
+      }
+    };
   }),
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-    requiredPermissions: ['view_items'],
-    permissions: {
-      company_manager: 'viewer',
-      warehouse_manager: 'full_access'
-    }
+    requiredPermissions: ['view_items']
   }
 };
 
-// المسار الخاص بنظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
+// نظام الفواتير المتكامل
 const invoiceSystemRoutes = {
   path: '/invoice-system',
   name: 'InvoiceSystem',
-  // استخدام مكون Dispatch.vue الحالي لنظام الفواتير المتكامل
   component: lazyLoad('Dispatch'),
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-    // استخدام الصلاحيات من store
     requiredPermissions: ['manage_invoices', 'dispatch_items'],
     title: 'نظام الفواتير والصرف',
-    isInvoiceSystem: true // علامة خاصة تشير أن هذا هو نظام الفواتير
+    isInvoiceSystem: true
   }
 };
 
-// المسارات التقليدية للفواتير مع صلاحيات كاملة لمدير الشركة
+// مسارات الفواتير
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
@@ -154,7 +129,7 @@ const invoicesRoutes = {
   ]
 };
 
-// جميع المسارات كما هي تماماً مع تحديث المسارات المطلوبة
+// جميع المسارات
 const routes = [
   {
     path: '/login',
@@ -195,79 +170,41 @@ const routes = [
       requiredPermissions: ['manage_users']
     }
   },
-
-  // استخدام المسار المحسن للمخزون
   inventoryRoutes,
-
   {
     path: '/inventory/add',
     name: 'AddInventory',
-    component: () => {
-      // استخدام نفس مكون Inventory مع معلمات مختلفة
-      return inventoryRoutes.component().then(component => {
-        // يمكنك إضافة معلمات إضافية هنا إذا أردت
-        return component;
-      }).catch(() => {
-        // سقط للخلف
-        return {
-          template: '<div>Add Inventory Page</div>'
-        };
-      });
-    },
+    component: () => inventoryRoutes.component().then(component => component).catch(() => ({
+      template: '<div>Add Inventory Page</div>'
+    })),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
-      requiredPermissions: ['create_items'],
-      permissions: {
-        company_manager: 'none',
-        warehouse_manager: 'full_access'
-      }
+      requiredPermissions: ['create_items']
     }
   },
   {
     path: '/inventory/edit/:id',
     name: 'EditInventory',
-    component: () => {
-      // استخدام نفس مكون Inventory مع معلمات مختلفة
-      return inventoryRoutes.component().then(component => {
-        return component;
-      }).catch(() => {
-        return {
-          template: '<div>Edit Inventory Page</div>'
-        };
-      });
-    },
+    component: () => inventoryRoutes.component().then(component => component).catch(() => ({
+      template: '<div>Edit Inventory Page</div>'
+    })),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
-      requiredPermissions: ['edit_items'],
-      permissions: {
-        company_manager: 'none',
-        warehouse_manager: 'full_access'
-      }
+      requiredPermissions: ['edit_items']
     }
   },
   {
     path: '/inventory/item/:id',
     name: 'ItemDetails',
-    component: () => {
-      // استخدام نفس مكون Inventory مع معلمات مختلفة
-      return inventoryRoutes.component().then(component => {
-        return component;
-      }).catch(() => {
-        return {
-          template: '<div>Item Details Page</div>'
-        };
-      });
-    },
+    component: () => inventoryRoutes.component().then(component => component).catch(() => ({
+      template: '<div>Item Details Page</div>'
+    })),
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
-      requiredPermissions: ['view_items'],
-      permissions: {
-        company_manager: 'viewer',
-        warehouse_manager: 'viewer'
-      }
+      requiredPermissions: ['view_items']
     }
   },
   {
@@ -290,12 +227,7 @@ const routes = [
       requiredPermissions: ['dispatch_items']
     }
   },
-
-  // ============================================
-  // نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة
-  // ============================================
   invoiceSystemRoutes,
-
   {
     path: '/transactions',
     name: 'Transactions',
@@ -306,10 +238,7 @@ const routes = [
       requiredPermissions: ['view_transactions']
     }
   },
-
-  // مسارات الفواتير التقليدية مع صلاحيات كاملة لمدير الشركة
   invoicesRoutes,
-
   {
     path: '/reports',
     name: 'Reports',
@@ -354,9 +283,7 @@ const routes = [
               </svg>
             </div>
             <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">صلاحية مرفوضة</h1>
-            <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
-              ليس لديك الصلاحية للوصول إلى هذه الصفحة
-            </p>
+            <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">ليس لديك الصلاحية للوصول إلى هذه الصفحة</p>
             <router-link to="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
               العودة للرئيسية
             </router-link>
@@ -374,9 +301,7 @@ const routes = [
         <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
           <div class="text-center">
             <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
-            <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
-              الصفحة غير موجودة
-            </p>
+            <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">الصفحة غير موجودة</p>
             <router-link to="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
               العودة للرئيسية
             </router-link>
@@ -391,26 +316,21 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  // إضافة scroll behavior لتحسين UX
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition;
-    }
+    if (savedPosition) return savedPosition;
     return { top: 0 };
   }
 });
 
-// Helper function to check if user can access route - UPDATED to use store getters
+// دالة للتحقق من صلاحية الوصول للمسار
 const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
 
-  // Check if user role is allowed
   if (!routeMeta.allowedRoles.includes(userRole)) {
     console.log(`⛔ الدور غير مسموح: ${userRole} -> ${routeMeta.allowedRoles}`);
     return false;
   }
 
-  // Check specific permissions from store
   if (routeMeta.requiredPermissions) {
     const hasPermission = routeMeta.requiredPermissions.every(permission => 
       userPermissions.includes(permission)
@@ -425,22 +345,19 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   return true;
 };
 
-// Check warehouse manager access - UPDATED to use store getters
+// التحقق من صلاحية مدير المخزن
 const canWarehouseManagerAccess = (userProfile, routeName, routeMeta) => {
   if (userProfile?.role !== 'warehouse_manager') return true;
 
   const allowedWarehouses = userProfile?.allowed_warehouses || [];
 
-  // For inventory management routes, check if user has any warehouses assigned
   if (routeName?.includes('Inventory') && allowedWarehouses.length === 0) {
     console.log(`⛔ مدير المخزن ليس لديه مخازن مسموحة: ${routeName}`);
     return false;
   }
 
-  // Check specific permissions for warehouse manager
   const userPermissions = userProfile?.permissions || [];
 
-  // Check permissions from route meta
   if (routeMeta.requiredPermissions) {
     const hasPermission = routeMeta.requiredPermissions.every(permission => 
       userPermissions.includes(permission)
@@ -455,11 +372,10 @@ const canWarehouseManagerAccess = (userProfile, routeName, routeMeta) => {
   return true;
 };
 
-// Cache للصلاحيات لتحسين الأداء
+// كاش للصلاحيات لتحسين الأداء
 const routePermissionCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+const CACHE_DURATION = 5 * 60 * 1000;
 
-// نسخة محسنة من canAccessRoute مع cache
 const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile) => {
   if (!routeMeta.allowedRoles) return true;
 
@@ -475,21 +391,11 @@ const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile)
   return result;
 };
 
-// متغير لتجنب تكرار التحقق
+// متغير لمنع تكرار التحقق
 let isCheckingRoute = false;
 
-// Get store instance for navigation guard
-let storeInstance = null;
-
-// Function to initialize store instance
-const initStoreInstance = () => {
-  if (!storeInstance) {
-    storeInstance = useStore();
-  }
-};
-
+// حارس التنقل
 router.beforeEach((to, from, next) => {
-  // إذا كان التحقق جارياً بالفعل، اخرج لمنع التكرار
   if (isCheckingRoute) {
     next();
     return;
@@ -498,100 +404,84 @@ router.beforeEach((to, from, next) => {
   isCheckingRoute = true;
 
   try {
-    // Initialize store instance
-    initStoreInstance();
-    const store = storeInstance;
-
+    // استخدام مخزن البيانات مباشرة
     const user = store?.state?.user;
     const userProfile = store?.state?.userProfile;
     const userRole = store?.getters?.userRole || '';
     const userPermissions = store?.getters?.userPermissions || [];
 
-    console.log('🔍 Navigation Guard Checking:', {
+    console.log('🔍 التحقق من التنقل:', {
       from: from.name,
       to: to.name,
       user: !!user,
       userRole,
-      userPermissions,
-      requiresAuth: to.meta.requiresAuth,
-      requiresGuest: to.meta.requiresGuest,
-      routeMeta: to.meta
+      requiresAuth: to.meta.requiresAuth
     });
 
-    // Handle requiresGuest (login page)
+    // التحقق من صفحات الزوار (تسجيل الدخول)
     if (to.meta.requiresGuest) {
       if (user) {
-        console.log('📱 المستخدم مسجل دخول بالفعل - إعادة التوجيه إلى الرئيسية');
+        console.log('📱 المستخدم مسجل دخول بالفعل - إعادة التوجيه');
         next('/');
       } else {
-        console.log('👤 صفحة تسجيل الدخول - السماح بالوصول');
         next();
       }
       return;
     }
 
-    // Check if route requires authentication
+    // التحقق من المصادقة
     if (to.meta.requiresAuth) {
       if (!user) {
-        console.log('🔒 الصفحة تتطلب تسجيل الدخول - إعادة التوجيه إلى /login');
+        console.log('🔒 الصفحة تتطلب تسجيل الدخول');
         next('/login');
         return;
       }
 
-      // If user exists, check role-based access
       if (userProfile && userRole) {
-        // Check if user account is active
         if (userProfile.is_active === false) {
-          console.log('⛔ الحساب غير نشط - تسجيل الخروج');
+          console.log('⛔ الحساب غير نشط');
           store.dispatch('logout');
           next('/login');
           return;
         }
 
-        // استخدام النسخة المحسنة مع cache
         if (!canAccessRouteCached(userRole, userPermissions, to.meta, userProfile)) {
-          console.log('⛔ المستخدم ليس لديه صلاحية الوصول إلى:', to.name);
+          console.log('⛔ المستخدم ليس لديه صلاحية الوصول');
           next('/unauthorized');
           return;
         }
 
-        // Special checks for warehouse managers
         if (!canWarehouseManagerAccess(userProfile, to.name, to.meta)) {
-          console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول إلى:', to.name);
+          console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول');
           next('/unauthorized');
           return;
         }
       } else {
-        console.log('⚠️ بيانات المستخدم غير مكتملة - إعادة التوجيه إلى /login');
+        console.log('⚠️ بيانات المستخدم غير مكتملة');
         next('/login');
         return;
       }
     }
 
-    // Allow navigation
     next();
-
   } catch (error) {
-    console.error('❌ Error in navigation guard:', error);
-    // In case of error, allow navigation to prevent blocking
+    console.error('❌ خطأ في حارس التنقل:', error);
     next();
   } finally {
-    // Reset flag
     setTimeout(() => {
       isCheckingRoute = false;
     }, 100);
   }
 });
 
-// Add navigation error handler to prevent redirect loops
+// معالج أخطاء التنقل
 router.onError((error, to) => {
   console.error('❌ خطأ في الموجه:', error);
   console.log('المسار المستهدف:', to.path);
 
   if (error.message.includes('Failed to fetch dynamically imported module')) {
-    console.log('🔄 فشل في تحميل المكون ديناميكياً. جاري إعادة التوجيه...');
+    console.log('🔄 فشل في تحميل المكون ديناميكياً');
 
-    // إذا كان خطأ في تحميل Inventory، أعد التوجيه إلى صفحة مؤقتة
     if (to.path.includes('/inventory')) {
       next({
         path: '/inventory-fallback',
@@ -613,13 +503,12 @@ router.onError((error, to) => {
   } else if (error.message.includes('redirected')) {
     window.location.href = '/login';
   } else {
-    // لأي خطأ آخر، أعد التوجيه إلى الصفحة الرئيسية
-    console.log('📦 إعادة التوجيه إلى الصفحة الرئيسية بسبب الخطأ');
+    console.log('📦 إعادة التوجيه إلى الصفحة الرئيسية');
     next('/');
   }
 });
 
-// إضافة مسار احتياطي للمخزون
+// مسارات احتياطية
 router.addRoute({
   path: '/inventory-fallback',
   name: 'InventoryFallback',
@@ -633,9 +522,7 @@ router.addRoute({
             </svg>
           </div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">جاري تحضير المخزون</h1>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            صفحة المخزون قيد التحميل. يرجى الانتظار...
-          </p>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">صفحة المخزون قيد التحميل</p>
           <div class="space-y-4">
             <button @click="reloadPage" class="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
               تحديث الصفحة
@@ -657,7 +544,6 @@ router.addRoute({
   meta: { layout: 'empty' }
 });
 
-// إضافة مسار احتياطي للفواتير
 router.addRoute({
   path: '/invoices-fallback',
   name: 'InvoicesFallback',
@@ -671,9 +557,7 @@ router.addRoute({
             </svg>
           </div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">جاري تحضير الفواتير</h1>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            صفحة الفواتير قيد التحميل. يرجى الانتظار...
-          </p>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">صفحة الفواتير قيد التحميل</p>
           <div class="space-y-4">
             <button @click="reloadPage" class="w-full py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
               تحديث الصفحة
@@ -695,7 +579,6 @@ router.addRoute({
   meta: { layout: 'empty' }
 });
 
-// إضافة مسار احتياطي لنظام الفواتير المتكامل
 router.addRoute({
   path: '/invoice-system-fallback',
   name: 'InvoiceSystemFallback',
@@ -709,9 +592,7 @@ router.addRoute({
             </svg>
           </div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">جاري تحضير نظام الفواتير</h1>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            صفحة نظام الفواتير المتكامل قيد التحميل. يرجى الانتظار...
-          </p>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">صفحة نظام الفواتير قيد التحميل</p>
           <div class="space-y-4">
             <button @click="reloadPage" class="w-full py-3 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200">
               تحديث الصفحة
@@ -736,9 +617,8 @@ router.addRoute({
   meta: { layout: 'empty' }
 });
 
-// إعداد عنوان الصفحة ديناميكياً
+// تحديث عنوان الصفحة
 router.afterEach((to) => {
-  // تحديث عنوان الصفحة
   const pageTitles = {
     '/': 'لوحة التحكم',
     '/inventory': 'المخزون',
@@ -758,34 +638,18 @@ router.afterEach((to) => {
   const pageTitle = pageTitles[to.path] || to.meta?.title || 'نظام المخزون';
   document.title = `${pageTitle} | نظام المخزون`;
   
-  // إضافة أيقونة للمسار الحالي في السجل
   console.log(`📍 ${pageTitle} - ${to.path}`);
-  
-  // إرسال معلومة عن نظام الفواتير إذا كان المسار هو invoice-system
-  if (to.path === '/invoice-system') {
-    console.log('🧾 تحميل نظام الفواتير المتكامل مع صلاحيات كاملة لمدير الشركة...');
-  }
 });
 
-// Initialize router
+// تهيئة الموجه
 router.isReady().then(() => {
   console.log('✅ الموجه جاهز للتشغيل');
-
-  // التحقق من هيكل المسارات عند بدء التشغيل
+  
   console.log('📋 المسارات المسجلة:');
   router.getRoutes().forEach(route => {
     console.log(`- ${route.name || 'غير معروف'}: ${route.path} ${route.meta?.requiresAuth ? '(تتطلب تسجيل دخول)' : ''}`);
   });
   
-  // إضافة معلومات خاصة عن نظام الفواتير
-  const invoiceRoutes = router.getRoutes().filter(r => r.path.includes('invoice'));
-  console.log('🧾 مسارات نظام الفواتير (مدير الشركة له صلاحية كاملة):');
-  invoiceRoutes.forEach(route => {
-    console.log(`  • ${route.name}: ${route.path} - ${route.meta?.title || 'بدون عنوان'}`);
-  });
-  
-  // إظهار معلومات الصلاحيات من الـ store
-  const store = useStore();
   const userRole = store.getters.userRole;
   const userPermissions = store.getters.userPermissions;
   console.log('🔐 صلاحيات المستخدم الحالي:');
