@@ -256,8 +256,8 @@
                   <input
                     type="text"
                     v-model="searchTerm"
-                    @input="handleLiveSearch"
-                    placeholder="ابحث بالاسم، الكود، اللون..."
+                    @input="handleSmartSearch"
+                    placeholder="ابحث بأي حقل - اكتب 3 أحرف على الأقل..."
                     class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                   />
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -322,13 +322,13 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="useSmartSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث: {{ liveSearchResults.length }}</span>
+                <span class="text-sm">نتائج البحث الذكي: {{ smartSearchResults.length }}</span>
               </div>
               <button 
                 @click="resetToNormalView"
@@ -383,7 +383,7 @@
         <!-- Desktop Table with Virtual Scrolling -->
         <div class="hidden lg:block">
           <div 
-            class="overflow-x-auto relative" 
+            class="overflow-x-auto relative virtual-scroll-container" 
             :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
@@ -438,8 +438,8 @@
                 <!-- Virtual Scrolling - Only render visible rows -->
                 <tr v-for="item in visibleItems" 
                     :key="item.id"
-                    class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200"
-                    :style="{ transform: 'translateY(0)' }"
+                    class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 virtual-row"
+                    :style="{ transform: `translateY(${item.virtualIndex * 80}px)` }"
                 >
                   <!-- Photo -->
                   <td class="px-4 sm:px-6 py-3 sm:py-4">
@@ -667,7 +667,7 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+          <div v-if="!hasMore && filteredItems.length > 0 && !useSmartSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
             <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
           </div>
         </div>
@@ -675,7 +675,7 @@
         <!-- Mobile Cards with Virtual Scrolling -->
         <div class="lg:hidden">
           <div 
-            class="overflow-y-auto"
+            class="overflow-y-auto virtual-scroll-container"
             :style="{ maxHeight: 'calc(100vh - 320px)' }"
             @scroll="onMobileScroll"
             ref="mobileScrollContainer"
@@ -693,7 +693,8 @@
               <div 
                 v-for="item in mobileVisibleItems" 
                 :key="item.id"
-                class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
+                class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 virtual-row"
+                :style="{ transform: `translateY(${item.virtualIndex * 120}px)` }"
                 @click="showItemDetails(item)"
               >
                 <!-- Main Row -->
@@ -821,7 +822,7 @@
             </div>
 
             <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
+            <div v-if="hasMore && !loadingMore && !useSmartSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
@@ -838,7 +839,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && filteredItems.length > 0 && !useSmartSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -950,8 +951,9 @@ const vClickOutside = {
 
 // Local storage cache keys
 const CACHE_KEYS = {
-  INVENTORY: 'inventory_cache_v2',
-  WAREHOUSES: 'warehouses_cache_v2',
+  INVENTORY: 'inventory_cache_v3',
+  WAREHOUSES: 'warehouses_cache_v3',
+  SEARCH_INDEX: 'search_index_v3',
   LAST_UPDATE: 'inventory_last_update',
   CACHE_TTL: 30 * 60 * 1000 // 30 minutes
 };
@@ -976,6 +978,7 @@ export default {
     // State
     const loading = ref(false);
     const loadingMore = ref(false);
+    const preloading = ref(false);
     const error = ref('');
     const showAddModal = ref(false);
     const showEditModal = ref(false);
@@ -996,26 +999,32 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
-    // Live search state
-    const useLiveSearch = ref(false);
-    const liveSearchResults = ref([]);
-    const isLiveSearching = ref(false);
+    // Enhanced search state
+    const useSmartSearch = ref(false);
+    const smartSearchResults = ref([]);
+    const isSmartSearching = ref(false);
     const searchTimeout = ref(null);
+    const searchIndex = ref({});
     
     // Mobile UI state
-    const showFilters = ref(false); // For collapsible filters on mobile
+    const showFilters = ref(false);
     
-    // Virtual scrolling state
+    // Enhanced virtual scrolling state
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
     const mobileVisibleStartIndex = ref(0);
-    const visibleItemCount = 50;
-    const mobileVisibleItemCount = 20;
-    const scrollBuffer = 20;
+    const visibleItemCount = ref(100); // Increased from 50
+    const mobileVisibleItemCount = ref(30); // Increased from 20
+    const scrollBuffer = ref(30); // Increased buffer for smoother experience
+    const prefetchThreshold = 200; // Pre-fetch when 200px from bottom
     const scrollThrottle = ref(null);
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
+    
+    // Warehouse and user cache
+    const warehouseCache = ref({});
+    const userCache = ref({});
     
     // UI state
     const showActionMenu = ref(null);
@@ -1100,7 +1109,6 @@ export default {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
     
-    // Count active filters for mobile badge
     const activeFilterCount = computed(() => {
       let count = 0;
       if (selectedWarehouse.value) count++;
@@ -1109,12 +1117,14 @@ export default {
       return count;
     });
     
-    // Filtered items - switch between normal view and live search
+    // Enhanced filtered items with virtual index
     const filteredItems = computed(() => {
-      if (useLiveSearch.value) {
-        return liveSearchResults.value;
+      let filtered = [];
+      
+      if (useSmartSearch.value && searchTerm.value.length >= 3) {
+        filtered = [...smartSearchResults.value];
       } else {
-        let filtered = [...inventory.value];
+        filtered = [...inventory.value];
         
         if (selectedWarehouse.value) {
           filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
@@ -1130,35 +1140,28 @@ export default {
           });
         }
         
-        if (searchTerm.value) {
-          const term = searchTerm.value.toLowerCase();
-          filtered = filtered.filter(item => 
-            item.name?.toLowerCase().includes(term) ||
-            item.code?.toLowerCase().includes(term) ||
-            item.color?.toLowerCase().includes(term) ||
-            item.supplier?.toLowerCase().includes(term) ||
-            item.item_location?.toLowerCase().includes(term)
-          );
+        if (searchTerm.value && searchTerm.value.length >= 3) {
+          filtered = performSmartSearch(searchTerm.value, filtered);
         }
-        
-        return filtered.sort((a, b) => {
-          const nameA = a.name?.toLowerCase() || '';
-          const nameB = b.name?.toLowerCase() || '';
-          return nameA.localeCompare(nameB, 'ar');
-        });
       }
+      
+      // Add virtual index for smooth scrolling
+      return filtered.map((item, index) => ({
+        ...item,
+        virtualIndex: index
+      }));
     });
     
-    // Visible items for virtual scrolling
+    // Enhanced visible items for virtual scrolling
     const visibleItems = computed(() => {
-      const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
-      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      const start = Math.max(0, visibleStartIndex.value - scrollBuffer.value);
+      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount.value + scrollBuffer.value);
       return filteredItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
-      const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
-      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer.value);
+      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount.value + scrollBuffer.value);
       return filteredItems.value.slice(start, end);
     });
     
@@ -1187,7 +1190,7 @@ export default {
     
     const getWarehouseLabel = (warehouseId) => {
       const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
-      return warehouse ? warehouse.name_ar : warehouseId;
+      return warehouse ? warehouse.name_ar : 'غير معروف';
     };
     
     const getStatusLabel = (status) => {
@@ -1287,37 +1290,109 @@ export default {
       event.target.onerror = null;
     };
     
-    // Cache Management
-    const loadFromCache = () => {
-      try {
-        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
-        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
+    // Enhanced Search Functions
+    const buildSearchIndex = (items) => {
+      const index = {};
+      items.forEach((item, idx) => {
+        const searchableFields = [
+          item.name || '',
+          item.code || '',
+          item.color || '',
+          item.supplier || '',
+          item.item_location || '',
+          String(item.remaining_quantity || ''),
+          String(item.cartons_count || ''),
+          String(item.per_carton_count || ''),
+          String(item.single_bottles_count || '')
+        ].map(field => field.toLowerCase());
         
-        if (cached && lastUpdateCache) {
-          const cacheAge = Date.now() - parseInt(lastUpdateCache);
-          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
-            const data = JSON.parse(cached);
-            store.commit('SET_INVENTORY', data);
-            isDataFresh.value = false;
-            return true;
-          }
+        // Generate 3-letter combinations for each word
+        searchableFields.forEach(field => {
+          const words = field.split(/\s+/);
+          words.forEach(word => {
+            if (word.length >= 3) {
+              for (let i = 0; i <= word.length - 3; i++) {
+                const trigram = word.substring(i, i + 3);
+                if (!index[trigram]) index[trigram] = new Set();
+                index[trigram].add(idx);
+              }
+            }
+          });
+        });
+      });
+      return index;
+    };
+    
+    const calculateSimilarity = (str1, str2) => {
+      const longer = str1.length > str2.length ? str1 : str2;
+      const shorter = str1.length > str2.length ? str2 : str1;
+      
+      if (shorter.length === 0) return 1.0;
+      
+      const distance = levenshteinDistance(str1, str2);
+      return 1.0 - distance / longer.length;
+    };
+    
+    const levenshteinDistance = (str1, str2) => {
+      const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+      
+      for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+      
+      for (let j = 1; j <= str2.length; j++) {
+        for (let i = 1; i <= str1.length; i++) {
+          const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+          matrix[j][i] = Math.min(
+            matrix[j][i - 1] + 1,
+            matrix[j - 1][i] + 1,
+            matrix[j - 1][i - 1] + indicator
+          );
         }
-      } catch (error) {
-        console.warn('Error loading from cache:', error);
       }
-      return false;
+      
+      return matrix[str2.length][str1.length];
     };
     
-    const saveToCache = () => {
-      try {
-        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
-        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
-      } catch (error) {
-        console.warn('Error saving to cache:', error);
+    const performSmartSearch = (searchTerm, items) => {
+      if (!searchTerm || searchTerm.length < 3) return items;
+      
+      const term = searchTerm.toLowerCase();
+      const results = new Set();
+      
+      // Exact matches first
+      items.forEach((item, idx) => {
+        if (
+          item.name?.toLowerCase().includes(term) ||
+          item.code?.toLowerCase().includes(term) ||
+          item.color?.toLowerCase().includes(term) ||
+          item.supplier?.toLowerCase().includes(term) ||
+          String(item.remaining_quantity).includes(term) ||
+          String(item.cartons_count).includes(term) ||
+          String(item.per_carton_count).includes(term) ||
+          String(item.single_bottles_count).includes(term)
+        ) {
+          results.add(idx);
+        }
+      });
+      
+      // 3-letter partial matches using index
+      const trigram = term.substring(0, 3);
+      if (searchIndex.value[trigram]) {
+        searchIndex.value[trigram].forEach(idx => results.add(idx));
       }
+      
+      // Fuzzy matching for similar words
+      const allTrigrams = Object.keys(searchIndex.value);
+      allTrigrams.forEach(tg => {
+        if (calculateSimilarity(tg, trigram) > 0.6) {
+          searchIndex.value[tg]?.forEach(idx => results.add(idx));
+        }
+      });
+      
+      return Array.from(results).map(idx => items[idx]);
     };
     
-    // Virtual scrolling handlers
+    // Enhanced virtual scrolling handlers
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
@@ -1333,14 +1408,17 @@ export default {
         const rowHeight = 80;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
         
-        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
+        // Smooth transition calculation
+        const delta = Math.abs(newStartIndex - visibleStartIndex.value);
+        if (delta > scrollBuffer.value / 3) {
           visibleStartIndex.value = newStartIndex;
         }
         
-        if (!useLiveSearch.value) {
+        // Pre-fetch when near bottom
+        if (!useSmartSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
+          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            preloadNextBatch();
           }
         }
       });
@@ -1361,51 +1439,71 @@ export default {
         const rowHeight = 120;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
         
-        if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
+        const delta = Math.abs(newStartIndex - mobileVisibleStartIndex.value);
+        if (delta > scrollBuffer.value / 3) {
           mobileVisibleStartIndex.value = newStartIndex;
         }
         
-        if (!useLiveSearch.value) {
+        if (!useSmartSearch.value) {
           const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
+          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            preloadNextBatch();
           }
         }
       });
     };
     
-    // Live search with debouncing
-    const handleLiveSearch = debounce(async () => {
-      if (!searchTerm.value.trim()) {
-        resetToNormalView();
+    const preloadNextBatch = async () => {
+      if (preloading.value || loadingMore.value) return;
+      
+      preloading.value = true;
+      try {
+        await store.dispatch('loadMoreInventory');
+        saveToCache();
+      } catch (error) {
+        console.error('Error preloading:', error);
+      } finally {
+        preloading.value = false;
+      }
+    };
+    
+    // Enhanced search handler
+    const handleSmartSearch = debounce(async () => {
+      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
+        useSmartSearch.value = false;
+        smartSearchResults.value = [];
         return;
       }
       
-      await performLiveSearch();
+      await performEnhancedSearch();
     }, 300);
     
-    const performLiveSearch = async () => {
-      if (!searchTerm.value.trim()) {
+    const performEnhancedSearch = async () => {
+      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
         resetToNormalView();
         return;
       }
       
-      isLiveSearching.value = true;
-      useLiveSearch.value = true;
+      isSmartSearching.value = true;
+      useSmartSearch.value = true;
       
       try {
-        const results = await store.dispatch('searchItemsForTransactions', {
-          searchTerm: searchTerm.value.trim(),
-          limitResults: 200
-        });
+        let results = [];
         
-        let filteredResults = results;
         if (selectedWarehouse.value) {
-          filteredResults = results.filter(item => item.warehouse_id === selectedWarehouse.value);
+          // Search within selected warehouse
+          const warehouseItems = inventory.value.filter(item => 
+            item.warehouse_id === selectedWarehouse.value
+          );
+          results = performSmartSearch(searchTerm.value, warehouseItems);
+        } else {
+          // Search all items
+          results = performSmartSearch(searchTerm.value, inventory.value);
         }
         
+        // Apply status filter if selected
         if (statusFilter.value) {
-          filteredResults = filteredResults.filter(item => {
+          results = results.filter(item => {
             const quantity = item.remaining_quantity || 0;
             if (statusFilter.value === 'in_stock') return quantity >= 10;
             if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
@@ -1414,8 +1512,9 @@ export default {
           });
         }
         
-        liveSearchResults.value = filteredResults;
+        smartSearchResults.value = results;
         
+        // Reset scroll positions
         visibleStartIndex.value = 0;
         mobileVisibleStartIndex.value = 0;
         if (scrollContainer.value) {
@@ -1426,15 +1525,15 @@ export default {
         }
         
       } catch (error) {
-        console.error('❌ Error in live search:', error);
+        console.error('❌ Error in smart search:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في البحث الفوري'
+          message: 'خطأ في البحث الذكي'
         });
         
-        useLiveSearch.value = false;
+        useSmartSearch.value = false;
       } finally {
-        isLiveSearching.value = false;
+        isSmartSearching.value = false;
       }
     };
     
@@ -1448,68 +1547,14 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      if (useLiveSearch.value && searchTerm.value.trim()) {
-        await performLiveSearch();
-      } else if (selectedWarehouse.value) {
-        await loadItemsFromSelectedWarehouse();
-      }
-    };
-    
-    const loadItemsFromSelectedWarehouse = async () => {
-      if (!selectedWarehouse.value) {
-        resetToNormalView();
-        return;
-      }
-      
-      isLiveSearching.value = true;
-      useLiveSearch.value = true;
-      
-      try {
-        const results = await store.dispatch('getItemsFromWarehouse', {
-          warehouseId: selectedWarehouse.value,
-          limitResults: 500
-        });
-        
-        let filteredResults = results;
-        if (statusFilter.value) {
-          filteredResults = results.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        if (searchTerm.value.trim()) {
-          const term = searchTerm.value.toLowerCase();
-          filteredResults = filteredResults.filter(item => 
-            item.name?.toLowerCase().includes(term) ||
-            item.code?.toLowerCase().includes(term) ||
-            item.color?.toLowerCase().includes(term) ||
-            item.supplier?.toLowerCase().includes(term) ||
-            item.item_location?.toLowerCase().includes(term)
-          );
-        }
-        
-        liveSearchResults.value = filteredResults;
-        
-      } catch (error) {
-        console.error('❌ Error loading items from warehouse:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الأصناف من المخزن'
-        });
-        
-        useLiveSearch.value = false;
-      } finally {
-        isLiveSearching.value = false;
+      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
+        await performEnhancedSearch();
       }
     };
     
     const resetToNormalView = () => {
-      useLiveSearch.value = false;
-      liveSearchResults.value = [];
+      useSmartSearch.value = false;
+      smartSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
       
@@ -1541,16 +1586,59 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      if (useLiveSearch.value) {
-        if (searchTerm.value.trim()) {
-          performLiveSearch();
-        } else if (selectedWarehouse.value) {
-          loadItemsFromSelectedWarehouse();
-        }
+      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
+        performEnhancedSearch();
       }
     };
     
-    // Excel Export - IMPROVED with multiple sheets by warehouse
+    // Cache Management
+    const loadFromCache = () => {
+      try {
+        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
+        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
+        const searchIndexCache = localStorage.getItem(CACHE_KEYS.SEARCH_INDEX);
+        
+        if (cached && lastUpdateCache && searchIndexCache) {
+          const cacheAge = Date.now() - parseInt(lastUpdateCache);
+          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
+            const data = JSON.parse(cached);
+            const index = JSON.parse(searchIndexCache);
+            
+            // Convert Sets back from arrays
+            Object.keys(index).forEach(key => {
+              index[key] = new Set(index[key]);
+            });
+            
+            store.commit('SET_INVENTORY', data);
+            searchIndex.value = index;
+            isDataFresh.value = false;
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading from cache:', error);
+      }
+      return false;
+    };
+    
+    const saveToCache = () => {
+      try {
+        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
+        
+        // Convert Sets to arrays for JSON storage
+        const indexForStorage = {};
+        Object.keys(searchIndex.value).forEach(key => {
+          indexForStorage[key] = Array.from(searchIndex.value[key]);
+        });
+        localStorage.setItem(CACHE_KEYS.SEARCH_INDEX, JSON.stringify(indexForStorage));
+        
+        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
+      } catch (error) {
+        console.warn('Error saving to cache:', error);
+      }
+    };
+    
+    // Excel Export
     const exportToExcel = async () => {
       if (filteredItems.value.length === 0) {
         store.dispatch('showNotification', {
@@ -1589,8 +1677,8 @@ export default {
             'الكمية الإجمالية المضافة': item.total_added || 0,
             'الكمية المتبقية': item.remaining_quantity || 0,
             'الحالة': getStockStatus(item.remaining_quantity || 0),
-            'أنشئ بواسطة': item.created_by_name || 'غير معروف',
-            'تم التحديث بواسطة': item.updated_by_name || item.created_by_name || 'غير معروف',
+            'أنشئ بواسطة': getActionUser(item),
+            'تم التحديث بواسطة': item.updated_by_name || getActionUser(item),
             'تاريخ الإنشاء': formatDate(item.created_at),
             'آخر تحديث': formatDate(item.updated_at)
           });
@@ -1625,22 +1713,10 @@ export default {
             
             // Add column widths for better formatting
             const colWidths = [
-              { wch: 12 }, // الكود
-              { wch: 20 }, // اسم الصنف
-              { wch: 12 }, // اللون
-              { wch: 15 }, // المخزن
-              { wch: 15 }, // مكان التخزين
-              { wch: 15 }, // المورد
-              { wch: 12 }, // عدد الكراتين
-              { wch: 12 }, // عدد في الكرتونة
-              { wch: 12 }, // عدد القطع الفردية
-              { wch: 15 }, // الكمية الإجمالية المضافة
-              { wch: 12 }, // الكمية المتبقية
-              { wch: 10 }, // الحالة
-              { wch: 15 }, // أنشئ بواسطة
-              { wch: 15 }, // تم التحديث بواسطة
-              { wch: 18 }, // تاريخ الإنشاء
-              { wch: 18 }, // آخر تحديث
+              { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+              { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
+              { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
+              { wch: 18 }
             ];
             ws['!cols'] = colWidths;
             
@@ -1686,6 +1762,9 @@ export default {
         await store.dispatch('refreshAllData');
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
+        
+        // Rebuild search index
+        searchIndex.value = buildSearchIndex(inventory.value);
         saveToCache();
         
         store.dispatch('showNotification', {
@@ -1706,10 +1785,21 @@ export default {
     
     // Load more items
     const loadMoreItems = async () => {
-      if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
+      if (hasMore.value && !loadingMore.value && !useSmartSearch.value) {
         try {
           loadingMore.value = true;
           await store.dispatch('loadMoreInventory');
+          
+          // Update search index with new items
+          const newItems = inventory.value.slice(-50); // Get last 50 items
+          const newIndex = buildSearchIndex(newItems);
+          Object.keys(newIndex).forEach(key => {
+            if (!searchIndex.value[key]) searchIndex.value[key] = new Set();
+            newIndex[key].forEach(idx => {
+              searchIndex.value[key].add(inventory.value.length - 50 + idx);
+            });
+          });
+          
           saveToCache();
         } catch (error) {
           console.error('❌ Error loading more items:', error);
@@ -1721,6 +1811,32 @@ export default {
           loadingMore.value = false;
         }
       }
+    };
+    
+    // Enhanced user action tracking
+    const getActionUser = (item) => {
+      if (!item) return 'غير معروف';
+      
+      // Check updated by first
+      if (item.updated_by_name && item.updated_by_name !== 'unknown' && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.updated_by_name;
+      }
+      
+      // Check created by
+      if (item.created_by_name && item.created_by_name !== 'unknown' && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.created_by_name;
+      }
+      
+      // Check last modified by
+      if (item.last_modified_by && item.last_modified_by !== 'unknown') {
+        return item.last_modified_by;
+      }
+      
+      return currentUserInfo.value || 'نظام';
+    };
+    
+    const getLastActionUser = (item) => {
+      return getActionUser(item);
     };
     
     // UI Actions
@@ -1799,12 +1915,15 @@ export default {
         deleteLoading.value = true;
         await store.dispatch('deleteInventoryItem', itemToDelete.value.id);
         
+        // Remove from search index
+        searchIndex.value = buildSearchIndex(inventory.value);
+        saveToCache();
+        
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم حذف الصنف بنجاح!'
         });
         
-        // Close details modal if open
         if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
           closeDetailsModal();
         }
@@ -1825,6 +1944,9 @@ export default {
     
     const handleItemSaved = async () => {
       showAddModal.value = false;
+      
+      // Rebuild search index
+      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1836,6 +1958,9 @@ export default {
     const handleItemUpdated = () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
+      
+      // Rebuild search index
+      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1847,6 +1972,9 @@ export default {
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
+      
+      // Rebuild search index
+      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1858,6 +1986,9 @@ export default {
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
+      
+      // Rebuild search index
+      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1866,32 +1997,21 @@ export default {
       });
     };
     
-    const getLastActionUser = (item) => {
-      if (!item) return 'غير معروف';
-      
-      if (item.updated_by_name && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.updated_by_name;
-      }
-      
-      if (item.created_by_name && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.created_by_name;
-      }
-      
-      return currentUserInfo.value;
-    };
-    
     // Lifecycle
     onMounted(() => {
-      // Load from cache first
       const fromCache = loadFromCache();
       
       if (!inventoryLoaded.value || fromCache) {
         loading.value = true;
         
-        // Load fresh data in background
         store.dispatch('loadAllInventory').then(() => {
           isDataFresh.value = true;
           lastUpdate.value = Date.now();
+          
+          // Build search index
+          if (inventory.value.length > 0) {
+            searchIndex.value = buildSearchIndex(inventory.value);
+          }
           saveToCache();
         }).catch(error => {
           console.error('❌ Error loading inventory:', error);
@@ -1899,6 +2019,9 @@ export default {
         }).finally(() => {
           loading.value = false;
         });
+      } else if (inventory.value.length > 0) {
+        // Build search index from existing data
+        searchIndex.value = buildSearchIndex(inventory.value);
       }
       
       if (allWarehouses.value.length === 0) {
@@ -1947,7 +2070,6 @@ export default {
     });
     
     watch(() => filteredItems.value.length, () => {
-      // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
     });
@@ -1956,6 +2078,7 @@ export default {
       // State
       loading,
       loadingMore,
+      preloading,
       error,
       showAddModal,
       showEditModal,
@@ -1976,10 +2099,10 @@ export default {
       refreshing,
       exportProgress,
       
-      // Live search state
-      useLiveSearch,
-      liveSearchResults,
-      isLiveSearching,
+      // Enhanced search state
+      useSmartSearch,
+      smartSearchResults,
+      isSmartSearching,
       
       // Mobile UI State
       showFilters,
@@ -2045,7 +2168,7 @@ export default {
       // Action Methods
       handleFilterChange,
       handleWarehouseChange,
-      handleLiveSearch,
+      handleSmartSearch,
       resetToNormalView,
       clearAllFilters,
       refreshData,
@@ -2072,83 +2195,102 @@ export default {
 </script>
 
 <style scoped>
-/* Performance optimized styles */
+/* Enhanced performance optimized styles */
 table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
+  table-layout: fixed;
 }
 
-/* Static header styling */
+/* Static header styling with backdrop blur */
 thead {
   position: sticky;
   top: 0;
   z-index: 20;
   background-color: #f9fafb;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .dark thead {
-  background-color: rgba(55, 65, 81, 0.95);
+  background-color: rgba(31, 41, 55, 0.95);
 }
 
-/* Reduced animations */
+/* Virtual scrolling optimization */
+.virtual-scroll-container {
+  will-change: transform;
+  contain: strict;
+  content-visibility: auto;
+}
+
+.virtual-row {
+  position: absolute;
+  width: 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Enhanced transitions */
 .transition-colors {
-  transition-property: background-color, border-color, color;
-  transition-duration: 200ms;
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 .transition-all {
   transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
 }
 
 /* Optimized hover states */
 .hover\:bg-gray-50:hover {
-  background-color: #f9fafb;
+  background-color: rgba(249, 250, 251, 0.9);
 }
 
 .dark .hover\:bg-gray-700\/50:hover {
   background-color: rgba(55, 65, 81, 0.5);
 }
 
-/* Scrollbar optimization */
+/* Enhanced scrollbar optimization */
 .overflow-x-auto {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  scrollbar-color: #94a3b8 #f1f5f9;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 .overflow-x-auto::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: #94a3b8;
+  border-radius: 4px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-track {
-  background: #374151;
+  background: #1e293b;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #475569;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #64748b;
 }
 
 /* Image optimization */
@@ -2156,59 +2298,46 @@ img {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   content-visibility: auto;
+  loading: lazy;
 }
 
-/* Mobile touch targets */
+/* Mobile touch targets optimization */
 @media (max-width: 768px) {
   button {
-    min-height: 40px;
+    min-height: 44px;
+    min-width: 44px;
   }
   
   input, select, textarea {
-    font-size: 16px; /* Prevent iOS zoom */
+    font-size: 16px;
   }
   
-  /* Make sure text doesn't overflow */
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  /* Virtual scrolling optimization for mobile */
+  .lg\:hidden > div {
+    will-change: transform;
+    contain: strict;
   }
   
-  /* Better virtual scrolling performance on mobile */
-  .overflow-y-auto {
+  /* Better virtual scrolling performance */
+  .virtual-scroll-container {
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-  
-  /* Compact mobile layout */
-  .grid-cols-2 > * {
-    padding: 0.5rem;
+    overscroll-behavior: contain;
   }
   
   /* Responsive text sizes */
   .text-xs {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
   
   .text-sm {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
   }
   
-  /* Adjust spacing for mobile */
-  .gap-2 {
-    gap: 0.5rem;
+  /* Enhanced touch feedback */
+  .active\:scale-95:active {
+    transform: scale(0.95);
   }
   
-  .gap-3 {
-    gap: 0.75rem;
-  }
-  
-  .p-3 {
-    padding: 0.75rem;
-  }
-  
-  /* Better touch feedback */
   .active\:bg-gray-100:active {
     background-color: #f3f4f6;
   }
@@ -2231,38 +2360,34 @@ img {
   }
 }
 
-/* Table cell alignment fix */
+/* Table cell optimization */
 .whitespace-nowrap {
   white-space: nowrap;
 }
 
-/* Ensure text doesn't overflow in table cells */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Modal z-index fix */
-.fixed {
-  isolation: isolate;
+/* Ensure smooth scrolling */
+.min-h-screen {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Virtual scrolling optimization */
-.virtual-scroll-container {
-  will-change: transform;
-  contain: content;
+/* Virtual scrolling specific optimizations */
+tbody {
+  position: relative;
+  height: calc(var(--total-rows) * 80px);
+  contain: strict;
 }
 
-/* Optimize paint and composite layers */
-tbody tr {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-
-/* Loading animation */
+/* Optimize animations */
 .animate-spin {
   animation: spin 1s linear infinite;
+  animation-timing-function: linear;
 }
 
 @keyframes spin {
@@ -2274,7 +2399,6 @@ tbody tr {
   }
 }
 
-/* Pulse animation */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -2288,36 +2412,6 @@ tbody tr {
   }
 }
 
-/* Ensure smooth scrolling on the entire page */
-.min-h-screen {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Better touch feedback for mobile */
-@media (max-width: 768px) {
-  .active\:scale-95:active {
-    transform: scale(0.95);
-  }
-  
-  .hover\:scale-110:hover {
-    transform: scale(1.1);
-  }
-  
-  /* Compact card layout */
-  .max-w-\[100px\] {
-    max-width: 100px;
-  }
-  
-  .max-w-\[120px\] {
-    max-width: 120px;
-  }
-  
-  .max-w-\[180px\] {
-    max-width: 180px;
-  }
-}
-
 /* Dark mode optimizations */
 .dark .border-gray-200 {
   border-color: #374151;
@@ -2327,22 +2421,19 @@ tbody tr {
   background-color: rgba(17, 24, 39, 0.5);
 }
 
-/* Clickable cursor */
+/* Clickable optimization */
 .cursor-pointer {
   cursor: pointer;
-}
-
-/* Smooth transitions for hover effects */
-.group-hover\:scale-105 {
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Memory optimization */
 * {
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
-/* Print styles */
+/* Print styles optimization */
 @media print {
   .no-print {
     display: none !important;
@@ -2354,31 +2445,52 @@ tbody tr {
   
   th, td {
     border: 1px solid #ddd;
+    page-break-inside: avoid;
   }
 }
 
-/* Optimize for low-end devices */
-@media (max-width: 768px) and (max-device-width: 1024px) {
-  /* Add active state for mobile buttons */
-  .active\:scale-95:active {
-    transform: scale(0.95);
-  }
-  
-  /* Reduce animations on mobile */
-  .transition-colors {
-    transition-duration: 150ms;
-  }
-  
-  /* Optimize images for mobile */
-  img {
-    max-width: 100%;
-    height: auto;
-  }
+/* Accessibility focus states */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  ring-width: 2px;
 }
 
-/* Fix modal scrolling on mobile */
+/* Rotate transition optimization */
+.rotate-180 {
+  transform: rotate(180deg);
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading state optimization */
+.text-center {
+  text-align: center;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+/* Responsive grid optimization */
+.grid-cols-2 > * {
+  min-width: 0;
+}
+
+/* Smooth transform optimization */
+.transform {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Virtual scrolling height calculation */
+[style*="max-height: calc(100vh - 320px)"] {
+  max-height: calc(100vh - 300px) !important;
+}
+
+/* Optimize modal scrolling on mobile */
 @media (max-width: 768px) {
-  /* Prevent body scroll when modal is open */
   body.modal-open {
     overflow: hidden;
     position: fixed;
@@ -2386,47 +2498,35 @@ tbody tr {
     height: 100%;
   }
   
-  /* Improve virtual scrolling container height */
-  [style*="max-height: calc(100vh - 320px)"] {
+  /* Improve virtual scrolling container */
+  .virtual-scroll-container {
     max-height: calc(100vh - 280px) !important;
   }
 }
 
-/* Ensure proper spacing in mobile cards */
-.space-y-1 > * + * {
-  margin-top: 0.25rem;
-}
-
-.space-y-2 > * + * {
-  margin-top: 0.5rem;
-}
-
-/* Performance warning for large datasets */
-@media (max-width: 768px) {
-  .performance-warning {
-    display: none; /* Hide on mobile if needed */
-  }
+/* Performance warnings */
+.performance-warning {
+  display: none;
 }
 
 /* Optimize dropdown menus */
 .absolute {
   z-index: 9999;
-}
-
-/* Better focus states for accessibility */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Improve virtual scrolling performance */
-[style*="transform: translateY"] {
   will-change: transform;
 }
 
-/* Responsive utility classes */
+/* Better table layout */
+table {
+  table-layout: auto;
+}
+
+@media (min-width: 1024px) {
+  table {
+    table-layout: fixed;
+  }
+}
+
+/* Compact mobile optimization */
 @media (max-width: 640px) {
   .hidden.xs\:inline {
     display: none;
@@ -2439,60 +2539,122 @@ select:focus-visible {
   .block.sm\:hidden {
     display: block;
   }
-}
-
-/* Rotate transition for filters */
-.rotate-180 {
-  transform: rotate(180deg);
-}
-
-/* Compact mobile filters */
-@media (max-width: 768px) {
-  .order-1 {
-    order: 1;
+  
+  /* Compact spacing */
+  .gap-2 {
+    gap: 0.5rem;
   }
   
-  .order-2 {
-    order: 2;
+  .gap-3 {
+    gap: 0.75rem;
   }
   
-  .order-3 {
-    order: 3;
-  }
-  
-  /* Adjust filter select height */
-  select {
-    min-height: 42px;
-  }
-  
-  /* Compact buttons */
-  button {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+  .p-3 {
+    padding: 0.75rem;
   }
 }
 
-/* Virtual scrolling specific styles */
-[style*="transform: translateY"] {
-  will-change: transform;
-  contain: layout style paint;
+/* Optimize filter select */
+select {
+  min-height: 42px;
+  cursor: pointer;
 }
 
-/* Optimize virtual scrolling rows */
+/* Virtual scrolling performance enhancements */
 tbody tr {
   contain-intrinsic-size: 80px;
   content-visibility: auto;
 }
 
-/* Mobile card virtualization */
-.lg\:hidden > div > div > div {
-  contain-intrinsic-size: 120px;
-  content-visibility: auto;
+@media (max-width: 1024px) {
+  tbody tr {
+    contain-intrinsic-size: 120px;
+  }
 }
 
 /* Smooth scroll behavior */
 .overflow-y-auto {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Optimize fixed button */
+.fixed {
+  isolation: isolate;
+  z-index: 40;
+}
+
+/* Loading spinner optimization */
+.inline-block.animate-spin {
+  animation: spin 1s linear infinite;
+  will-change: transform;
+}
+
+/* Ensure proper text rendering */
+.text-gray-900 {
+  color: #111827;
+}
+
+.dark .text-white {
+  color: #ffffff;
+}
+
+/* Optimize table cell padding */
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+/* Mobile card optimization */
+@media (max-width: 768px) {
+  .max-w-\[100px\] {
+    max-width: 100px;
+  }
+  
+  .max-w-\[120px\] {
+    max-width: 120px;
+  }
+  
+  .max-w-\[150px\] {
+    max-width: 150px;
+  }
+  
+  /* Better card layout */
+  .flex-col {
+    flex-direction: column;
+  }
+  
+  .space-y-1 > * + * {
+    margin-top: 0.25rem;
+  }
+  
+  .space-y-2 > * + * {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Virtual row positioning */
+[style*="transform: translateY"] {
+  position: absolute;
+  width: 100%;
+  left: 0;
+  right: 0;
+}
+
+/* Ensure table cells don't overflow */
+td {
+  overflow: hidden;
+}
+
+/* Optimize modal performance */
+.fixed.inset-0 {
+  will-change: transform;
+  backface-visibility: hidden;
 }
 </style>
