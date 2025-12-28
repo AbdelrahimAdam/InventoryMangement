@@ -54,7 +54,7 @@
                 </span>
               </span>
               <span class="text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">
-                {{ filteredItems.length }} عنصر • {{ formatTime(lastUpdate) }}
+                {{ (filteredItems || []).length }} عنصر • {{ formatTime(lastUpdate) }}
               </span>
             </div>
             
@@ -71,7 +71,7 @@
         <div class="flex flex-wrap gap-2 sm:gap-3">
           <!-- Export to Excel Button -->
           <button
-            v-if="filteredItems.length > 0"
+            v-if="(filteredItems || []).length > 0"
             @click="exportToExcel"
             :disabled="exporting"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -102,7 +102,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useSmartSearch && filteredItems.length > 0"
+            v-if="hasMore && !loading && !useSmartSearch && (filteredItems || []).length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -141,7 +141,7 @@
             </div>
             <div class="flex-1 text-right mr-1 sm:mr-2">
               <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">الأصناف</p>
-              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(filteredItems.length) }}</p>
+              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber((filteredItems || []).length) }}</p>
             </div>
           </div>
         </div>
@@ -220,7 +220,7 @@
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
               <!-- Warehouse Filter -->
-              <div v-if="accessibleWarehouses.length > 0" class="order-1">
+              <div v-if="(accessibleWarehouses || []).length > 0" class="order-1">
                 <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
                 <select
                   v-model="selectedWarehouse"
@@ -228,7 +228,7 @@
                   class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                 >
                   <option value="">جميع المخازن</option>
-                  <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
+                  <option v-for="warehouse in (accessibleWarehouses || [])" :key="warehouse.id" :value="warehouse.id">
                     {{ warehouse.name_ar }}
                   </option>
                 </select>
@@ -328,7 +328,7 @@
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث الذكي: {{ smartSearchResults.length }}</span>
+                <span class="text-sm">نتائج البحث الذكي: {{ (smartSearchResults || []).length }}</span>
               </div>
               <button 
                 @click="resetToNormalView"
@@ -355,7 +355,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading && !filteredItems.length" class="text-center py-8 sm:py-12">
+      <div v-if="loading && (!filteredItems || filteredItems.length === 0)" class="text-center py-8 sm:py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
         <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
         <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
@@ -378,63 +378,63 @@
         </div>
       </div>
 
-      <!-- Inventory Table Container -->
+      <!-- Inventory Table Container - FIXED -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table with Virtual Scrolling -->
+        <!-- Desktop Table with Virtual Scrolling - FIXED LAYOUT -->
         <div class="hidden lg:block">
           <div 
-            class="overflow-x-auto relative virtual-scroll-container" 
+            class="overflow-x-auto overflow-y-auto relative virtual-scroll-container" 
             :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
-            <table class="w-full">
+            <table class="w-full table-fixed">
               <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                 <tr>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-20 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الصورة
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>الاسم والكود</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر للتفاصيل)</span>
+                      <span class="truncate">الاسم والكود</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">(انقر للتفاصيل)</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     اللون
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المخزن
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المورد
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>الكميات</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">كراتين/في الكرتونة/فردي</span>
+                      <span class="truncate">الكميات</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">كراتين/في الكرتونة/فردي</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>المتبقي</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع</span>
+                      <span class="truncate">المتبقي</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">من المجموع</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الحالة
                   </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الإجراءات
                   </th>
                   <th v-else 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     آخر تحديث
                   </th>
                 </tr>
               </thead>
-              <tbody :style="{ height: `${filteredItems.length * 80}px`, position: 'relative' }">
+              <tbody :style="{ height: `${(filteredItems || []).length * 80}px`, position: 'relative' }">
                 <!-- Virtual Scrolling - Only render visible rows -->
                 <tr 
                   v-for="item in visibleItems" 
@@ -446,7 +446,7 @@
                   }"
                 >
                   <!-- Photo -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-20 px-3 py-3 text-center align-middle">
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
@@ -463,33 +463,33 @@
                   </td>
 
                   <!-- Name and Code -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="flex flex-col items-center justify-center space-y-1">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 max-w-[150px]"
+                  <td class="w-48 px-3 py-3 text-center align-middle">
+                    <div class="flex flex-col items-center justify-center space-y-1 max-w-full overflow-hidden">
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 w-full"
                         @click="showItemDetails(item)">
                         {{ item.name }}
                       </div>
                       <div class="text-xs text-gray-500 dark:text-gray-400">
-                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded truncate inline-block max-w-full">
                           {{ item.code }}
                         </span>
                       </div>
-                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 w-full justify-center">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
-                        <span class="truncate max-w-[120px]">{{ item.item_location }}</span>
+                        <span class="truncate max-w-[180px]">{{ item.item_location }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Color -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="flex items-center justify-center">
-                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300"
+                  <td class="w-32 px-3 py-3 text-center align-middle">
+                    <div class="flex items-center justify-center w-full">
+                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 max-w-full">
+                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="text-sm text-gray-900 dark:text-white">
+                        <span class="text-sm text-gray-900 dark:text-white truncate max-w-[80px]">
                           {{ item.color || '-' }}
                         </span>
                       </div>
@@ -497,63 +497,63 @@
                   </td>
 
                   <!-- Warehouse -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block truncate max-w-full">
                       {{ getWarehouseLabel(item.warehouse_id) }}
                     </span>
                   </td>
 
                   <!-- Supplier -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-[120px] px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-full px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
                       {{ item.supplier || '-' }}
                     </span>
                   </td>
 
                   <!-- Quantities -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="text-sm space-y-1 max-w-[150px] mx-auto">
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                  <td class="w-48 px-3 py-3 text-center align-middle">
+                    <div class="text-sm space-y-1 w-full px-2">
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">كراتين:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.cartons_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">في الكرتونة:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.per_carton_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">فردي:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.single_bottles_count || 0 }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Remaining Quantity -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
                     <div :class="getQuantityClass(item.remaining_quantity)" 
-                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[100px]">
-                      <span>{{ item.remaining_quantity }}</span>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[120px] max-w-full">
+                      <span class="truncate w-full">{{ item.remaining_quantity }}</span>
+                      <div class="text-xs text-gray-500 dark:text-gray-300 truncate w-full">
                         من {{ item.total_added }}
                       </div>
                     </div>
                   </td>
 
                   <!-- Status -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-32 px-3 py-3 text-center align-middle">
                     <span :class="getStockStatusClass(item.remaining_quantity)" 
-                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[80px]">
+                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[90px] max-w-full truncate">
                       {{ getStockStatus(item.remaining_quantity) }}
                     </span>
                   </td>
 
                   <!-- Actions or Updated Date -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2 w-full">
                       <!-- View Details Button -->
                       <button
                         @click="showItemDetails(item)"
-                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
+                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200 flex-shrink-0"
                         title="عرض التفاصيل"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,7 +566,7 @@
                       <div class="relative">
                         <button
                           @click="toggleActionMenu(item.id)"
-                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
+                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150 flex-shrink-0"
                           title="المزيد من الإجراءات"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -632,8 +632,8 @@
                         </div>
                       </div>
                     </div>
-                    <div v-else class="text-center">
-                      <span class="text-sm text-gray-500 dark:text-gray-400 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                    <div v-else class="text-center w-full">
+                      <span class="text-sm text-gray-500 dark:text-gray-300 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 truncate inline-block max-w-full">
                         {{ formatDate(item.updated_at) }}
                       </span>
                     </div>
@@ -641,7 +641,7 @@
                 </tr>
 
                 <!-- Empty State -->
-                <tr v-if="visibleItems.length === 0 && !loading" 
+                <tr v-if="(visibleItems || []).length === 0 && !loading" 
                     class="absolute inset-0">
                   <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div class="flex flex-col items-center justify-center h-full">
@@ -664,8 +664,8 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && filteredItems.length > 0 && !useSmartSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
+          <div v-if="!hasMore && (filteredItems || []).length > 0 && !useSmartSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm">تم عرض جميع العناصر ({{ (filteredItems || []).length }} عنصر)</p>
           </div>
         </div>
 
@@ -673,11 +673,11 @@
         <div class="lg:hidden">
           <div 
             class="overflow-y-auto virtual-scroll-container"
-            :style="{ maxHeight: 'calc(100vh - 320px)', height: `${filteredItems.length * 120}px` }"
+            :style="{ maxHeight: 'calc(100vh - 320px)', height: `${(filteredItems || []).length * 120}px` }"
             @scroll="onMobileScroll"
             ref="mobileScrollContainer"
           >
-            <div v-if="mobileVisibleItems.length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
+            <div v-if="(mobileVisibleItems || []).length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
               <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
@@ -685,7 +685,7 @@
               <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
             </div>
 
-            <div v-else class="relative" :style="{ height: `${filteredItems.length * 120}px` }">
+            <div v-else class="relative" :style="{ height: `${(filteredItems || []).length * 120}px` }">
               <!-- Virtual Scrolling for Mobile - Only render visible items -->
               <div 
                 v-for="item in mobileVisibleItems" 
@@ -737,7 +737,7 @@
                     </div>
 
                     <!-- Second Row: Warehouse and Color -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 mb-2">
                       <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -749,19 +749,19 @@
                       <div v-if="item.color" class="flex items-center gap-1">
                         <div class="w-3 h-3 rounded-full border border-gray-300"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span>{{ item.color }}</span>
+                        <span class="truncate max-w-[60px]">{{ item.color }}</span>
                       </div>
                     </div>
 
                     <!-- Third Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
                       <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                         <span class="truncate">{{ item.supplier }}</span>
                       </div>
-                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
+                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
@@ -775,7 +775,7 @@
                 <div v-if="showActions && !readonly && userRole !== 'viewer'" 
                      class="mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
                   <!-- Last Updated -->
-                  <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                  <div class="text-xs text-gray-500 dark:text-gray-300 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -822,7 +822,7 @@
             </div>
 
             <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !useSmartSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
+            <div v-if="hasMore && !loadingMore && !useSmartSearch && (mobileVisibleItems || []).length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
@@ -839,7 +839,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && filteredItems.length > 0 && !useSmartSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && (filteredItems || []).length > 0 && !useSmartSearch && (mobileVisibleItems || []).length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -1014,10 +1014,10 @@ export default {
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
     const mobileVisibleStartIndex = ref(0);
-    const visibleItemCount = ref(100); // Increased from 50
-    const mobileVisibleItemCount = ref(30); // Increased from 20
-    const scrollBuffer = ref(30); // Increased buffer for smoother experience
-    const prefetchThreshold = 200; // Pre-fetch when 200px from bottom
+    const visibleItemCount = ref(100);
+    const mobileVisibleItemCount = ref(30);
+    const scrollBuffer = ref(30);
+    const prefetchThreshold = 200;
     const scrollThrottle = ref(null);
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
@@ -1090,18 +1090,18 @@ export default {
     
     // Stats computed
     const totalQuantity = computed(() => {
-      return filteredItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return (filteredItems.value || []).reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
-      return filteredItems.value.filter(item => {
+      return (filteredItems.value || []).filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
       }).length;
     });
     
     const warehouseCount = computed(() => {
-      const warehouses = new Set(filteredItems.value.map(item => item.warehouse_id));
+      const warehouses = new Set((filteredItems.value || []).map(item => item.warehouse_id));
       return warehouses.size;
     });
     
@@ -1117,14 +1117,15 @@ export default {
       return count;
     });
     
-    // Enhanced filtered items with virtual index
+    // FIXED: Enhanced filtered items with virtual index
     const filteredItems = computed(() => {
       let filtered = [];
       
-      if (useSmartSearch.value && searchTerm.value.length >= 3) {
-        filtered = [...smartSearchResults.value];
+      if (useSmartSearch.value && searchTerm.value && searchTerm.value.length >= 3) {
+        filtered = [...(smartSearchResults.value || [])];
       } else {
-        filtered = [...inventory.value];
+        // FIX: استخدام قيمة افتراضية فارغة إذا كانت undefined
+        filtered = [...(inventory.value || [])];
         
         if (selectedWarehouse.value) {
           filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
@@ -1152,17 +1153,19 @@ export default {
       }));
     });
     
-    // Enhanced visible items for virtual scrolling
+    // FIXED: Enhanced visible items for virtual scrolling
     const visibleItems = computed(() => {
+      const items = filteredItems.value || [];
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount.value + scrollBuffer.value);
-      return filteredItems.value.slice(start, end);
+      const end = Math.min(items.length, visibleStartIndex.value + visibleItemCount.value + scrollBuffer.value);
+      return items.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
+      const items = filteredItems.value || [];
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount.value + scrollBuffer.value);
-      return filteredItems.value.slice(start, end);
+      const end = Math.min(items.length, mobileVisibleStartIndex.value + mobileVisibleItemCount.value + scrollBuffer.value);
+      return items.slice(start, end);
     });
     
     // Color mapping
@@ -1189,7 +1192,7 @@ export default {
     };
     
     const getWarehouseLabel = (warehouseId) => {
-      const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
+      const warehouse = (allWarehouses.value || []).find(w => w.id === warehouseId);
       return warehouse ? warehouse.name_ar : 'غير معروف';
     };
     
@@ -1290,8 +1293,11 @@ export default {
       event.target.onerror = null;
     };
     
-    // Enhanced Search Functions
+    // FIXED: Enhanced Search Functions
     const buildSearchIndex = (items) => {
+      // FIX: التحقق من وجود items
+      if (!items || items.length === 0) return {};
+      
       const index = {};
       items.forEach((item, idx) => {
         const searchableFields = [
@@ -1353,8 +1359,12 @@ export default {
       return matrix[str2.length][str1.length];
     };
     
+    // FIXED: performSmartSearch function
     const performSmartSearch = (searchTerm, items) => {
-      if (!searchTerm || searchTerm.length < 3) return items;
+      if (!searchTerm || searchTerm.length < 3) return items || [];
+      
+      // FIX: التحقق من وجود items
+      if (!items || items.length === 0) return [];
       
       const term = searchTerm.toLowerCase();
       const results = new Set();
@@ -1366,10 +1376,10 @@ export default {
           item.code?.toLowerCase().includes(term) ||
           item.color?.toLowerCase().includes(term) ||
           item.supplier?.toLowerCase().includes(term) ||
-          String(item.remaining_quantity).includes(term) ||
-          String(item.cartons_count).includes(term) ||
-          String(item.per_carton_count).includes(term) ||
-          String(item.single_bottles_count).includes(term)
+          String(item.remaining_quantity || '').includes(term) ||
+          String(item.cartons_count || '').includes(term) ||
+          String(item.per_carton_count || '').includes(term) ||
+          String(item.single_bottles_count || '').includes(term)
         ) {
           results.add(idx);
         }
@@ -1492,13 +1502,13 @@ export default {
         
         if (selectedWarehouse.value) {
           // Search within selected warehouse
-          const warehouseItems = inventory.value.filter(item => 
+          const warehouseItems = (inventory.value || []).filter(item => 
             item.warehouse_id === selectedWarehouse.value
           );
           results = performSmartSearch(searchTerm.value, warehouseItems);
         } else {
           // Search all items
-          results = performSmartSearch(searchTerm.value, inventory.value);
+          results = performSmartSearch(searchTerm.value, inventory.value || []);
         }
         
         // Apply status filter if selected
@@ -1640,7 +1650,7 @@ export default {
     
     // Excel Export
     const exportToExcel = async () => {
-      if (filteredItems.value.length === 0) {
+      if (!filteredItems.value || filteredItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1791,12 +1801,12 @@ export default {
           await store.dispatch('loadMoreInventory');
           
           // Update search index with new items
-          const newItems = inventory.value.slice(-50); // Get last 50 items
+          const newItems = (inventory.value || []).slice(-50);
           const newIndex = buildSearchIndex(newItems);
           Object.keys(newIndex).forEach(key => {
             if (!searchIndex.value[key]) searchIndex.value[key] = new Set();
             newIndex[key].forEach(idx => {
-              searchIndex.value[key].add(inventory.value.length - 50 + idx);
+              searchIndex.value[key].add((inventory.value || []).length - 50 + idx);
             });
           });
           
@@ -2009,7 +2019,7 @@ export default {
           lastUpdate.value = Date.now();
           
           // Build search index
-          if (inventory.value.length > 0) {
+          if (inventory.value && inventory.value.length > 0) {
             searchIndex.value = buildSearchIndex(inventory.value);
           }
           saveToCache();
@@ -2019,16 +2029,16 @@ export default {
         }).finally(() => {
           loading.value = false;
         });
-      } else if (inventory.value.length > 0) {
+      } else if (inventory.value && inventory.value.length > 0) {
         // Build search index from existing data
         searchIndex.value = buildSearchIndex(inventory.value);
       }
       
-      if (allWarehouses.value.length === 0) {
+      if ((allWarehouses.value || []).length === 0) {
         store.dispatch('loadWarehouses');
       }
       
-      if (accessibleWarehouses.value.length === 1) {
+      if ((accessibleWarehouses.value || []).length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
       }
       
@@ -2069,7 +2079,7 @@ export default {
       handleFilterChange();
     });
     
-    watch(() => filteredItems.value.length, () => {
+    watch(() => (filteredItems.value || []).length, () => {
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
     });
@@ -2200,7 +2210,7 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  table-layout: fixed;
+  table-layout: fixed; /* FIX: استخدام تخطيط ثابت */
 }
 
 /* Static header styling with backdrop blur */
@@ -2215,6 +2225,32 @@ thead {
 
 .dark thead {
   background-color: rgba(31, 41, 55, 0.95);
+}
+
+/* FIX: إصلاح محاذاة الجدول */
+th, td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 12px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* FIX: عرض أعمدة محدد */
+.w-20 { width: 80px; min-width: 80px; max-width: 80px; }
+.w-32 { width: 128px; min-width: 128px; max-width: 128px; }
+.w-40 { width: 160px; min-width: 160px; max-width: 160px; }
+.w-48 { width: 192px; min-width: 192px; max-width: 192px; }
+
+/* FIX: تحسين تباين الألوان في الوضع الداكن */
+.dark .text-gray-400,
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-gray-300 {
+  color: #d1d5db;
 }
 
 /* Virtual scrolling optimization */
@@ -2847,5 +2883,62 @@ table {
 th, td {
   text-align: center;
   vertical-align: middle;
+}
+
+/* FIX: إصلاح تداخل النص في الخلايا */
+td > div {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* FIX: تحسين عرض النصوص الطويلة */
+.truncate {
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* FIX: تحسين محاذاة العناصر داخل الخلايا */
+.flex.items-center {
+  flex-wrap: nowrap;
+}
+
+/* FIX: منع تداخل النصوص */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* FIX: تحسين تخطيط الجدول للشاشات الكبيرة */
+@media (min-width: 1536px) {
+  .w-20 { width: 100px; }
+  .w-32 { width: 150px; }
+  .w-40 { width: 180px; }
+  .w-48 { width: 220px; }
+}
+
+/* FIX: تحسين أداء العرض على الجوال */
+@media (max-width: 1024px) {
+  .virtual-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* تحسين عرض النصوص على الجوال */
+  .text-xs {
+    font-size: 0.7rem;
+  }
+  
+  .text-sm {
+    font-size: 0.8rem;
+  }
+}
+
+/* FIX: منع حدوث scrollbar غير ضروري */
+.overflow-x-auto {
+  overflow-y: hidden;
+}
+
+.overflow-y-auto {
+  overflow-x: hidden;
 }
 </style>
