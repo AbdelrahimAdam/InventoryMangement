@@ -102,7 +102,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch && filteredItems.length > 0"
+            v-if="hasMore && !loading && !useSmartSearch && filteredItems.length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -384,7 +384,7 @@
         <div class="hidden lg:block">
           <div 
             class="overflow-x-auto relative virtual-scroll-container" 
-            :style="{ maxHeight: 'calc(100vh - 400px)' }"
+            :style="{ maxHeight: 'calc(100vh - 400px)', height: `${filteredItems.length * 80}px` }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
@@ -434,15 +434,21 @@
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody :style="{ height: `${filteredItems.length * 80}px`, position: 'relative' }">
                 <!-- Virtual Scrolling - Only render visible rows -->
-                <tr v-for="item in visibleItems" 
-                    :key="item.id"
-                    class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 virtual-row"
-                    :style="{ transform: `translateY(${item.virtualIndex * 80}px)` }"
+                <tr 
+                  v-for="item in visibleItems" 
+                  :key="item.id"
+                  class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 virtual-row absolute left-0 right-0"
+                  :style="{ 
+                    height: '80px',
+                    top: `${item.virtualIndex * 80}px`,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }"
                 >
                   <!-- Photo -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
@@ -459,7 +465,7 @@
                   </td>
 
                   <!-- Name and Code -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-1 min-w-0">
                     <div class="min-w-0 max-w-xs">
                       <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
                         @click="showItemDetails(item)">
@@ -480,7 +486,7 @@
                   </td>
 
                   <!-- Color -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="flex items-center justify-center">
                       <div class="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300"
@@ -493,7 +499,7 @@
                   </td>
 
                   <!-- Warehouse -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="text-center">
                       <span class="text-xs sm:text-sm text-gray-900 dark:text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         {{ getWarehouseLabel(item.warehouse_id) }}
@@ -502,7 +508,7 @@
                   </td>
 
                   <!-- Supplier -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="max-w-[120px] sm:max-w-[150px] mx-auto">
                       <span class="text-xs sm:text-sm text-gray-900 dark:text-white truncate block px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         {{ item.supplier || '-' }}
@@ -511,7 +517,7 @@
                   </td>
 
                   <!-- Quantities -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="text-xs sm:text-sm space-y-1 max-w-[120px] sm:max-w-[150px] mx-auto">
                       <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
@@ -529,7 +535,7 @@
                   </td>
 
                   <!-- Remaining Quantity -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="text-center">
                       <div :class="getQuantityClass(item.remaining_quantity)" 
                            class="text-base sm:text-lg font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-full inline-flex flex-col items-center gap-1">
@@ -542,7 +548,7 @@
                   </td>
 
                   <!-- Status -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div class="flex justify-center">
                       <span :class="getStockStatusClass(item.remaining_quantity)" 
                             class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm">
@@ -552,7 +558,7 @@
                   </td>
 
                   <!-- Actions or Updated Date -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
                     <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-1 sm:gap-2">
                       <!-- View Details Button -->
                       <button
@@ -645,7 +651,8 @@
                 </tr>
 
                 <!-- Empty State -->
-                <tr v-if="visibleItems.length === 0 && !loading">
+                <tr v-if="visibleItems.length === 0 && !loading" 
+                    class="absolute inset-0 flex items-center justify-center">
                   <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div class="flex flex-col items-center">
                       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -676,7 +683,7 @@
         <div class="lg:hidden">
           <div 
             class="overflow-y-auto virtual-scroll-container"
-            :style="{ maxHeight: 'calc(100vh - 320px)' }"
+            :style="{ maxHeight: 'calc(100vh - 320px)', height: `${filteredItems.length * 120}px` }"
             @scroll="onMobileScroll"
             ref="mobileScrollContainer"
           >
@@ -688,13 +695,19 @@
               <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
             </div>
 
-            <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+            <div v-else class="relative" :style="{ height: `${filteredItems.length * 120}px` }">
               <!-- Virtual Scrolling for Mobile - Only render visible items -->
               <div 
                 v-for="item in mobileVisibleItems" 
                 :key="item.id"
-                class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 virtual-row"
-                :style="{ transform: `translateY(${item.virtualIndex * 120}px)` }"
+                class="absolute left-0 right-0 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 virtual-row"
+                :style="{ 
+                  height: '120px',
+                  top: `${item.virtualIndex * 120}px`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }"
                 @click="showItemDetails(item)"
               >
                 <!-- Main Row -->
@@ -2380,8 +2393,6 @@ img {
 /* Virtual scrolling specific optimizations */
 tbody {
   position: relative;
-  height: calc(var(--total-rows) * 80px);
-  contain: strict;
 }
 
 /* Optimize animations */
@@ -2656,5 +2667,52 @@ td {
 .fixed.inset-0 {
   will-change: transform;
   backface-visibility: hidden;
+}
+
+/* Table row display for virtual scrolling */
+tbody tr {
+  display: table-row;
+}
+
+@media (min-width: 1024px) {
+  tbody tr {
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Ensure proper table cell display */
+td {
+  display: table-cell;
+}
+
+@media (min-width: 1024px) {
+  td {
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Fix virtual scrolling table layout */
+.virtual-scroll-container table {
+  display: block;
+}
+
+.virtual-scroll-container thead,
+.virtual-scroll-container tbody {
+  display: block;
+}
+
+/* Ensure proper column widths */
+th, td {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Fix for table responsiveness */
+@media (max-width: 1024px) {
+  .lg\:hidden .virtual-scroll-container table {
+    display: table;
+  }
 }
 </style>
