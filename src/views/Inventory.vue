@@ -1039,6 +1039,7 @@ export default {
     const isFetchingMore = computed(() => store.state.pagination.isFetching);
     const totalLoaded = computed(() => store.state.pagination.totalLoaded);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
+    const allUsers = computed(() => store.state.allUsers || []);
     
     // Current user info
     const currentUserInfo = computed(() => {
@@ -1113,21 +1114,23 @@ export default {
       return count;
     });
     
-    // Enhanced search function
+    // Enhanced search function that works with store structure
     const performEnhancedSearch = (items, searchTerm) => {
       if (!searchTerm || searchTerm.length < 3) return items;
       
       const term = searchTerm.toLowerCase().trim();
       
       return items.filter(item => {
-        // Search across all fields
+        // Search across all fields (matching store's data structure)
         const fieldsToSearch = [
           item.name,
           item.code,
           item.color,
           item.supplier,
           item.item_location,
-          item.warehouse_name,
+          // Warehouse name from cache
+          store.getters.getWarehouseLabel(item.warehouse_id),
+          // Numeric fields as strings
           String(item.remaining_quantity),
           String(item.cartons_count),
           String(item.per_carton_count),
@@ -1210,16 +1213,50 @@ export default {
       return englishDigits;
     };
     
+    // Use store's getWarehouseLabel getter
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
-      const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
-      return warehouse ? warehouse.name_ar : warehouseId;
+      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
     };
     
-    // Fetch warehouse name for item
-    const getItemWarehouseName = (item) => {
-      if (!item) return 'غير معروف';
-      return getWarehouseLabel(item.warehouse_id);
+    // Get user name from allUsers or return userId
+    const getUserName = (userId) => {
+      if (!userId) return 'نظام';
+      if (userId === currentUser.value?.uid) return currentUserInfo.value;
+      
+      const user = allUsers.value.find(u => u.id === userId);
+      if (user) return user.name || user.email || userId;
+      
+      return userId;
+    };
+    
+    // Get action user for item
+    const getActionUser = (item) => {
+      if (!item) return currentUserInfo.value;
+      
+      // Try to get updated by user first
+      if (item.updated_by) {
+        const userName = getUserName(item.updated_by);
+        if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+          return userName;
+        }
+      }
+      
+      // Then try created by user
+      if (item.created_by) {
+        const userName = getUserName(item.created_by);
+        if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+          return userName;
+        }
+      }
+      
+      // Fallback to current user
+      return currentUserInfo.value;
+    };
+    
+    // Get user display name (for item details)
+    const getLastActionUser = (item) => {
+      return getActionUser(item);
     };
     
     const getStatusLabel = (status) => {
@@ -1253,10 +1290,22 @@ export default {
       return colorMap[colorName] || '#6b7280';
     };
     
-    const formatDate = (date) => {
-      if (!date) return '-';
+    // Handle Firestore timestamps
+    const formatDate = (timestamp) => {
+      if (!timestamp) return '-';
       try {
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
+        let dateObj;
+        if (timestamp.toDate) {
+          // Firestore timestamp
+          dateObj = timestamp.toDate();
+        } else if (timestamp instanceof Date) {
+          // JavaScript Date object
+          dateObj = timestamp;
+        } else {
+          // String or number
+          dateObj = new Date(timestamp);
+        }
+        
         if (isNaN(dateObj.getTime())) return '-';
         
         return dateObj.toLocaleDateString('ar-EG', {
@@ -1271,10 +1320,20 @@ export default {
       }
     };
     
-    const formatRelativeTime = (date) => {
-      if (!date) return '-';
+    const formatRelativeTime = (timestamp) => {
+      if (!timestamp) return '-';
       try {
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
+        let dateObj;
+        if (timestamp.toDate) {
+          dateObj = timestamp.toDate();
+        } else if (timestamp instanceof Date) {
+          dateObj = timestamp;
+        } else {
+          dateObj = new Date(timestamp);
+        }
+        
+        if (isNaN(dateObj.getTime())) return '-';
+        
         const now = new Date();
         const diffMs = now - dateObj;
         const diffMins = Math.floor(diffMs / 60000);
@@ -1287,7 +1346,7 @@ export default {
         if (diffDays === 1) return 'أمس';
         if (diffDays < 7) return `قبل ${diffDays} أيام`;
         
-        return formatDate(date);
+        return formatDate(timestamp);
       } catch (e) {
         return '-';
       }
@@ -1317,24 +1376,6 @@ export default {
     const handleImageError = (event) => {
       event.target.src = getPlaceholderImage();
       event.target.onerror = null;
-    };
-    
-    // Enhanced user action tracking
-    const getActionUser = (item) => {
-      if (!item) return currentUserInfo.value;
-      
-      // Try to get updated by user first
-      if (item.updated_by_name && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.updated_by_name;
-      }
-      
-      // Then try created by user
-      if (item.created_by_name && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.created_by_name;
-      }
-      
-      // Fallback to current user
-      return currentUserInfo.value;
     };
     
     // Cache Management
@@ -1391,7 +1432,7 @@ export default {
           visibleStartIndex.value = newStartIndex;
         }
         
-        // Load more when near bottom
+        // Load more when near bottom (loads 100 items per batch)
         if (!useLiveSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
           if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
@@ -1430,7 +1471,7 @@ export default {
       });
     };
     
-    // Enhanced live search with 3-letter minimum
+    // Enhanced live search with 3-letter minimum using store's searchItemsForTransactions
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
@@ -1453,8 +1494,11 @@ export default {
       useLiveSearch.value = true;
       
       try {
-        // Use enhanced search across all items
-        const searchResults = performEnhancedSearch(inventory.value, term);
+        // Use store's searchItemsForTransactions action
+        const searchResults = await store.dispatch('searchItemsForTransactions', {
+          searchTerm: term,
+          limitResults: 200
+        });
         
         // Apply additional filters if any
         let filteredResults = searchResults;
@@ -1516,6 +1560,7 @@ export default {
       }
     };
     
+    // Use store's getItemsFromWarehouse action
     const loadItemsFromSelectedWarehouse = async () => {
       if (!selectedWarehouse.value) {
         resetToNormalView();
@@ -1526,7 +1571,10 @@ export default {
       useLiveSearch.value = true;
       
       try {
-        const results = inventory.value.filter(item => item.warehouse_id === selectedWarehouse.value);
+        const results = await store.dispatch('getItemsFromWarehouse', {
+          warehouseId: selectedWarehouse.value,
+          limitResults: 500
+        });
         
         let filteredResults = results;
         
@@ -1602,7 +1650,7 @@ export default {
       }
     };
     
-    // Excel Export - IMPROVED with multiple sheets by warehouse
+    // Excel Export - Enhanced with user and warehouse info
     const exportToExcel = async () => {
       if (filteredItems.value.length === 0) {
         store.dispatch('showNotification', {
@@ -1628,6 +1676,10 @@ export default {
             itemsByWarehouse[warehouseId] = [];
           }
           
+          // Get user names for created_by and updated_by
+          const createdByName = item.created_by_name || getUserName(item.created_by) || 'غير معروف';
+          const updatedByName = item.updated_by_name || getUserName(item.updated_by) || createdByName || 'غير معروف';
+          
           itemsByWarehouse[warehouseId].push({
             'الكود': item.code || '',
             'اسم الصنف': item.name || '',
@@ -1641,8 +1693,8 @@ export default {
             'الكمية الإجمالية المضافة': item.total_added || 0,
             'الكمية المتبقية': item.remaining_quantity || 0,
             'الحالة': getStockStatus(item.remaining_quantity || 0),
-            'أنشئ بواسطة': item.created_by_name || 'غير معروف',
-            'تم التحديث بواسطة': item.updated_by_name || item.created_by_name || 'غير معروف',
+            'أنشئ بواسطة': createdByName,
+            'تم التحديث بواسطة': updatedByName,
             'تاريخ الإنشاء': formatDate(item.created_at),
             'آخر تحديث': formatDate(item.updated_at)
           });
@@ -1731,7 +1783,7 @@ export default {
       }
     };
     
-    // Data refresh
+    // Data refresh using store's refreshAllData
     const refreshData = async () => {
       try {
         refreshing.value = true;
@@ -1756,7 +1808,7 @@ export default {
       }
     };
     
-    // Load more items - loads 100 items per batch
+    // Load more items - loads 100 items per batch using store's loadMoreInventory
     const loadMoreItems = async () => {
       if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
@@ -1788,8 +1840,8 @@ export default {
       selectedItem.value = {
         ...item,
         warehouse_name: getWarehouseLabel(item.warehouse_id),
-        created_by_name: item.created_by_name || getActionUser(item),
-        updated_by_name: item.updated_by_name || getActionUser(item)
+        created_by_name: item.created_by_name || getUserName(item.created_by),
+        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
       };
       showDetailsModal.value = true;
       showActionMenu.value = null;
@@ -1856,8 +1908,8 @@ export default {
       itemToDelete.value = {
         ...item,
         warehouse_name: getWarehouseLabel(item.warehouse_id),
-        created_by_name: item.created_by_name || getActionUser(item),
-        updated_by_name: item.updated_by_name || getActionUser(item)
+        created_by_name: item.created_by_name || getUserName(item.created_by),
+        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
       };
       showDeleteConfirm.value = true;
       showActionMenu.value = null;
@@ -1935,10 +1987,6 @@ export default {
       });
     };
     
-    const getLastActionUser = (item) => {
-      return getActionUser(item);
-    };
-    
     // Lifecycle
     onMounted(() => {
       // Load from cache first
@@ -1947,15 +1995,25 @@ export default {
       if (!inventoryLoaded.value || fromCache) {
         loading.value = true;
         
-        // Load fresh data in background
+        // Load fresh data in background using store's loadAllInventory
         store.dispatch('loadAllInventory').then(() => {
           isDataFresh.value = true;
           lastUpdate.value = Date.now();
           saveToCache();
           
+          // Setup real-time updates using store's method
+          if (store.state.realtimeMode) {
+            store.dispatch('setupRealtimeUpdatesForInventory');
+          }
+          
           // Reset scroll positions after load
           visibleStartIndex.value = 0;
           mobileVisibleStartIndex.value = 0;
+          
+          // Load users for user name display
+          if (userRole.value === 'superadmin') {
+            store.dispatch('loadAllUsers');
+          }
           
         }).catch(error => {
           console.error('❌ Error loading inventory:', error);
@@ -2004,6 +2062,9 @@ export default {
       if (scrollThrottle.value) {
         cancelAnimationFrame(scrollThrottle.value);
       }
+      
+      // Clean up store's real-time listeners
+      store.commit('CLEAR_REALTIME_LISTENERS');
     });
     
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
@@ -2085,7 +2146,6 @@ export default {
       // Helper Methods
       formatNumber,
       getWarehouseLabel,
-      getItemWarehouseName,
       getStatusLabel,
       getStockStatus,
       getStockStatusClass,
@@ -2096,7 +2156,6 @@ export default {
       formatTime,
       getPlaceholderImage,
       handleImageError,
-      getActionUser,
       getLastActionUser,
       
       // Excel Export
