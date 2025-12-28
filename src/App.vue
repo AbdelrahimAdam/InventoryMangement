@@ -78,78 +78,106 @@
 
       <!-- Authenticated layout -->
       <template v-else>
-        <!-- Mobile Layout -->
-        <div v-if="isMobile" class="lg:hidden h-full flex flex-col">
-          <!-- Mobile Header -->
-          <MobileHeader @toggle-menu="toggleMobileMenu" />
+        <!-- Check if user has dashboard access -->
+        <template v-if="hasDashboardAccess">
+          <!-- Mobile Layout -->
+          <div v-if="isMobile" class="lg:hidden h-full flex flex-col">
+            <!-- Mobile Header -->
+            <MobileHeader @toggle-menu="toggleMobileMenu" />
 
-          <!-- Mobile Sidebar Overlay -->
-          <transition name="fade">
-            <div 
-              v-if="mobileMenuOpen"
-              class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-              @click="mobileMenuOpen = false"
-            ></div>
-          </transition>
+            <!-- Mobile Sidebar Overlay -->
+            <transition name="fade">
+              <div 
+                v-if="mobileMenuOpen"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                @click="mobileMenuOpen = false"
+              ></div>
+            </transition>
 
-          <!-- Mobile Sidebar -->
-          <transition name="slide">
-            <MobileSidebar v-if="mobileMenuOpen" @close="mobileMenuOpen = false" />
-          </transition>
+            <!-- Mobile Sidebar -->
+            <transition name="slide">
+              <MobileSidebar v-if="mobileMenuOpen" @close="mobileMenuOpen = false" />
+            </transition>
 
-          <!-- Mobile Main Content -->
-          <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-            <div class="max-w-full mx-auto">
-              <router-view />
-            </div>
-          </main>
-
-          <!-- Mobile Bottom Navigation -->
-          <MobileBottomNav />
-        </div>
-
-        <!-- Desktop Layout -->
-        <div v-else class="hidden lg:flex h-full">
-          <!-- Desktop Sidebar -->
-          <DesktopSidebar :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
-
-          <!-- Main Content Area -->
-          <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-            <!-- Desktop Header -->
-            <DesktopHeader @toggle-sidebar="toggleSidebar" />
-
-            <!-- Main Content -->
-            <main class="flex-1 overflow-y-auto p-4">
+            <!-- Mobile Main Content -->
+            <main class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
               <div class="max-w-full mx-auto">
-                <!-- Preload Indicator (Only show briefly) -->
-                <div v-if="showPreloadIndicator && !initialDataLoaded" class="mb-4">
-                  <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center gap-3">
-                      <div class="animate-pulse w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">جاري تحميل المخزون...</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-500">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
-                      </div>
-                    </div>
-                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
-                        class="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
-                        :style="{ width: `${preloadedProgress}%` }"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Router View -->
                 <router-view />
               </div>
             </main>
+
+            <!-- Mobile Bottom Navigation -->
+            <MobileBottomNav />
           </div>
-        </div>
+
+          <!-- Desktop Layout -->
+          <div v-else class="hidden lg:flex h-full">
+            <!-- Desktop Sidebar -->
+            <DesktopSidebar :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+              <!-- Desktop Header -->
+              <DesktopHeader @toggle-sidebar="toggleSidebar" />
+
+              <!-- Main Content -->
+              <main class="flex-1 overflow-y-auto p-4">
+                <div class="max-w-full mx-auto">
+                  <!-- Preload Indicator (Only show briefly) -->
+                  <div v-if="showPreloadIndicator && !initialDataLoaded" class="mb-4">
+                    <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                      <div class="flex items-center gap-3">
+                        <div class="animate-pulse w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">جاري تحميل المخزون...</p>
+                          <p class="text-xs text-gray-500 dark:text-gray-500">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
+                        </div>
+                      </div>
+                      <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div 
+                          class="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+                          :style="{ width: `${preloadedProgress}%` }"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Router View -->
+                  <router-view />
+                </div>
+              </main>
+            </div>
+          </div>
+        </template>
+
+        <!-- No Dashboard Access Message -->
+        <template v-else>
+          <div class="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+            <div class="text-center p-8">
+              <div class="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+              </div>
+              <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">غير مصرح بالوصول</h2>
+              <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+                عذراً، ليس لديك صلاحية للوصول إلى لوحة التحكم. يرجى التواصل مع المشرف.
+              </p>
+              <div class="space-x-4">
+                <button 
+                  @click="logout"
+                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  تسجيل الخروج
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
       </template>
     </div>
   </div>
@@ -158,7 +186,7 @@
 <script>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import MobileHeader from '@/components/layout/MobileHeader.vue';
 import MobileSidebar from '@/components/layout/MobileSidebar.vue';
 import MobileBottomNav from '@/components/layout/MobileBottomNav.vue';
@@ -177,6 +205,7 @@ export default {
   setup() {
     const store = useStore();
     const route = useRoute();
+    const router = useRouter();
     
     // Refs
     const initializing = ref(true);
@@ -192,10 +221,13 @@ export default {
     const notifications = computed(() => store.state.notifications || []);
     const isAuthenticated = computed(() => store.getters.isAuthenticated);
     const userProfile = computed(() => store.state.userProfile);
+    const userRole = computed(() => store.getters.userRole);
+    const allowedWarehouses = computed(() => store.getters.allowedWarehouses);
+    const warehousesLoaded = computed(() => store.state.warehousesLoaded);
     
     // Computed properties
     const isPublicRoute = computed(() => {
-      const publicRoutes = ['Login', 'Unauthorized', 'NotFound'];
+      const publicRoutes = ['Login', 'Unauthorized', 'NotFound', 'ForgotPassword', 'ResetPassword'];
       return publicRoutes.includes(route.name);
     });
 
@@ -205,6 +237,27 @@ export default {
 
     const preloadedProgress = computed(() => {
       return Math.min(100, Math.round((preloadedItems.value / preloadedTarget.value) * 100));
+    });
+
+    // ✅ Check if user has dashboard access based on role and permissions
+    const hasDashboardAccess = computed(() => {
+      if (!isAuthenticated.value) return false;
+      
+      const role = userRole.value;
+      const allowed = allowedWarehouses.value;
+      
+      // Superadmin and company managers always have access
+      if (role === 'superadmin' || role === 'company_manager') {
+        return true;
+      }
+      
+      // Warehouse managers need to have at least one warehouse assigned
+      if (role === 'warehouse_manager') {
+        return allowed && allowed.length > 0;
+      }
+      
+      // Other roles (like view_only) might have limited access
+      return ['superadmin', 'company_manager', 'warehouse_manager'].includes(role);
     });
 
     // Methods
@@ -221,41 +274,32 @@ export default {
       mobileMenuOpen.value = !mobileMenuOpen.value;
     };
 
+    const logout = async () => {
+      try {
+        await store.dispatch('logout');
+        router.push('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    };
+
     // ✅ CRITICAL: Preload essential data for instant display
     const preloadEssentialData = async () => {
       try {
         const { db } = await import('@/firebase/config');
         const { collection, query, orderBy, limit, getDocs, where } = await import('firebase/firestore');
         
-        // 1. Preload warehouses (small, essential data)
-        const warehousesQuery = query(
-          collection(db, 'warehouses'),
-          limit(10)
-        );
-        
-        const warehousesSnapshot = await getDocs(warehousesQuery);
-        const warehouses = warehousesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Store warehouses immediately using store action
-        store.dispatch('loadWarehouses');
+        // 1. Load warehouses using store action
+        await store.dispatch('loadWarehouses');
         
         // 2. If user is authenticated, preload minimal inventory
         if (isAuthenticated.value && userProfile.value) {
-          let accessibleWarehouses = [];
+          let accessibleWarehouses = store.getters.accessibleWarehouses;
           
-          if (userProfile.value.role === 'superadmin' || userProfile.value.role === 'company_manager') {
-            // Superadmins and company managers can access all warehouses
-            accessibleWarehouses = warehouses;
-          } else if (userProfile.value.role === 'warehouse_manager') {
-            const allowedWarehouses = userProfile.value.allowed_warehouses || [];
-            if (allowedWarehouses.includes('all')) {
-              accessibleWarehouses = warehouses;
-            } else {
-              accessibleWarehouses = warehouses.filter(w => allowedWarehouses.includes(w.id));
-            }
+          if (accessibleWarehouses.length === 0) {
+            console.log('⚠️ User has no accessible warehouses');
+            initialDataLoaded.value = true;
+            return;
           }
           
           const warehouseIds = accessibleWarehouses.map(w => w.id);
@@ -314,6 +358,7 @@ export default {
       } catch (error) {
         console.warn('Preload warning (non-critical):', error.message);
         // Continue anyway - this is just preloading
+        initialDataLoaded.value = true;
       }
     };
 
@@ -326,8 +371,18 @@ export default {
         // 2. Load recent transactions using store action
         store.dispatch('getRecentTransactions');
         
-        // 3. Load destinations if needed
-        store.dispatch('loadDestinations');
+        // 3. Load invoices if user has permission
+        if (store.getters.canManageInvoices) {
+          store.dispatch('loadAllInvoices');
+        }
+        
+        // 4. Load users if superadmin
+        if (userRole.value === 'superadmin') {
+          store.dispatch('loadAllUsers');
+        }
+        
+        // 5. Refresh dashboard counts
+        store.dispatch('refreshDashboardCounts');
         
       } catch (error) {
         console.error('Background load error:', error);
@@ -341,6 +396,12 @@ export default {
         // Initialize auth using store action
         await store.dispatch('initializeAuth');
         
+        // If not authenticated, hide loading immediately
+        if (!isAuthenticated.value) {
+          initializing.value = false;
+          return;
+        }
+        
         // Start preloading immediately after auth
         const preloadPromise = preloadEssentialData();
         
@@ -350,16 +411,26 @@ export default {
           new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds wait
         ]);
         
-        // Show welcome notification only once
-        if (isAuthenticated.value && !localStorage.getItem('welcomeShown')) {
-          setTimeout(() => {
-            store.dispatch('showNotification', {
-              type: 'success',
-              message: 'مرحباً بك في نظام المخزون!',
-              duration: 3000
-            });
-            localStorage.setItem('welcomeShown', 'true');
-          }, 500);
+        // Check if user has access to dashboard
+        if (!hasDashboardAccess.value) {
+          console.warn('⚠️ User does not have dashboard access');
+          store.dispatch('showNotification', {
+            type: 'warning',
+            message: 'ليس لديك صلاحية للوصول إلى لوحة التحكم. يرجى التواصل مع المشرف.',
+            duration: 5000
+          });
+        } else {
+          // Show welcome notification only once
+          if (isAuthenticated.value && !localStorage.getItem('welcomeShown')) {
+            setTimeout(() => {
+              store.dispatch('showNotification', {
+                type: 'success',
+                message: `مرحباً ${userProfile.value.name || userProfile.value.email}!`,
+                duration: 3000
+              });
+              localStorage.setItem('welcomeShown', 'true');
+            }, 500);
+          }
         }
         
         // Initialize theme
@@ -485,11 +556,14 @@ export default {
       isMobileRoute,
       notifications,
       preloadedProgress,
+      hasDashboardAccess,
+      userRole,
       
       // Methods
       removeNotification,
       toggleSidebar,
-      toggleMobileMenu
+      toggleMobileMenu,
+      logout
     };
   }
 };
