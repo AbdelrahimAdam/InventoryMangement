@@ -97,7 +97,7 @@ const invoiceSystemRoutes = {
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
-  component: lazyLoad('Invoices'),
+  component: lazyLoad('Dispatch'),
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
