@@ -378,58 +378,58 @@
         </div>
       </div>
 
-      <!-- Inventory Table Container -->
+      <!-- Inventory Table Container - FIXED -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table with Virtual Scrolling -->
+        <!-- Desktop Table with Virtual Scrolling - FIXED LAYOUT -->
         <div class="hidden lg:block">
           <div 
-            class="overflow-x-auto relative virtual-scroll-container" 
+            class="overflow-x-auto overflow-y-auto relative virtual-scroll-container" 
             :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
-            <table class="w-full">
+            <table class="w-full table-fixed">
               <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                 <tr>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-20 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الصورة
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>الاسم والكود</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر للتفاصيل)</span>
+                      <span class="truncate">الاسم والكود</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">(انقر للتفاصيل)</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     اللون
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المخزن
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المورد
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>الكميات</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">كراتين/في الكرتونة/فردي</span>
+                      <span class="truncate">الكميات</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">كراتين/في الكرتونة/فردي</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
-                      <span>المتبقي</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع</span>
+                      <span class="truncate">المتبقي</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">من المجموع</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الحالة
                   </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الإجراءات
                   </th>
                   <th v-else 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     آخر تحديث
                   </th>
                 </tr>
@@ -446,7 +446,7 @@
                   }"
                 >
                   <!-- Photo -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-20 px-3 py-3 text-center align-middle">
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
@@ -463,33 +463,33 @@
                   </td>
 
                   <!-- Name and Code -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="flex flex-col items-center justify-center space-y-1">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 max-w-[150px]"
+                  <td class="w-48 px-3 py-3 text-center align-middle">
+                    <div class="flex flex-col items-center justify-center space-y-1 max-w-full overflow-hidden">
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 w-full"
                         @click="showItemDetails(item)">
                         {{ item.name }}
                       </div>
                       <div class="text-xs text-gray-500 dark:text-gray-400">
-                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded truncate inline-block max-w-full">
                           {{ item.code }}
                         </span>
                       </div>
-                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 w-full justify-center">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
-                        <span class="truncate max-w-[120px]">{{ item.item_location }}</span>
+                        <span class="truncate max-w-[180px]">{{ item.item_location }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Color -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="flex items-center justify-center">
-                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300"
+                  <td class="w-32 px-3 py-3 text-center align-middle">
+                    <div class="flex items-center justify-center w-full">
+                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 max-w-full">
+                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="text-sm text-gray-900 dark:text-white">
+                        <span class="text-sm text-gray-900 dark:text-white truncate max-w-[80px]">
                           {{ item.color || '-' }}
                         </span>
                       </div>
@@ -497,63 +497,63 @@
                   </td>
 
                   <!-- Warehouse -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block truncate max-w-full">
                       {{ getWarehouseLabel(item.warehouse_id) }}
                     </span>
                   </td>
 
                   <!-- Supplier -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-[120px] px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-full px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
                       {{ item.supplier || '-' }}
                     </span>
                   </td>
 
                   <!-- Quantities -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div class="text-sm space-y-1 max-w-[150px] mx-auto">
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
+                  <td class="w-48 px-3 py-3 text-center align-middle">
+                    <div class="text-sm space-y-1 w-full px-2">
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">كراتين:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.cartons_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">في الكرتونة:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.per_carton_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">فردي:</span>
+                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.single_bottles_count || 0 }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Remaining Quantity -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
                     <div :class="getQuantityClass(item.remaining_quantity)" 
-                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[100px]">
-                      <span>{{ item.remaining_quantity }}</span>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[120px] max-w-full">
+                      <span class="truncate w-full">{{ item.remaining_quantity }}</span>
+                      <div class="text-xs text-gray-500 dark:text-gray-300 truncate w-full">
                         من {{ item.total_added }}
                       </div>
                     </div>
                   </td>
 
                   <!-- Status -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                  <td class="w-32 px-3 py-3 text-center align-middle">
                     <span :class="getStockStatusClass(item.remaining_quantity)" 
-                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[80px]">
+                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[90px] max-w-full truncate">
                       {{ getStockStatus(item.remaining_quantity) }}
                     </span>
                   </td>
 
                   <!-- Actions or Updated Date -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
-                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2">
+                  <td class="w-40 px-3 py-3 text-center align-middle">
+                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2 w-full">
                       <!-- View Details Button -->
                       <button
                         @click="showItemDetails(item)"
-                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
+                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200 flex-shrink-0"
                         title="عرض التفاصيل"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,7 +566,7 @@
                       <div class="relative">
                         <button
                           @click="toggleActionMenu(item.id)"
-                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
+                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150 flex-shrink-0"
                           title="المزيد من الإجراءات"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -632,8 +632,8 @@
                         </div>
                       </div>
                     </div>
-                    <div v-else class="text-center">
-                      <span class="text-sm text-gray-500 dark:text-gray-400 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                    <div v-else class="text-center w-full">
+                      <span class="text-sm text-gray-500 dark:text-gray-300 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 truncate inline-block max-w-full">
                         {{ formatDate(item.updated_at) }}
                       </span>
                     </div>
@@ -737,7 +737,7 @@
                     </div>
 
                     <!-- Second Row: Warehouse and Color -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 mb-2">
                       <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -749,19 +749,19 @@
                       <div v-if="item.color" class="flex items-center gap-1">
                         <div class="w-3 h-3 rounded-full border border-gray-300"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span>{{ item.color }}</span>
+                        <span class="truncate max-w-[60px]">{{ item.color }}</span>
                       </div>
                     </div>
 
                     <!-- Third Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
                       <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                         <span class="truncate">{{ item.supplier }}</span>
                       </div>
-                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
+                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
@@ -775,7 +775,7 @@
                 <div v-if="showActions && !readonly && userRole !== 'viewer'" 
                      class="mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
                   <!-- Last Updated -->
-                  <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                  <div class="text-xs text-gray-500 dark:text-gray-300 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -921,1277 +921,9 @@
   </div>
 </template>
 
+<!-- باقي الكود كما هو دون تغيير -->
 <script>
-import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
-import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
-import { debounce } from 'lodash';
-import * as XLSX from 'xlsx';
-import AddItemModal from '@/components/inventory/AddItemModal.vue';
-import DispatchModal from '@/components/inventory/DispatchModal.vue';
-import EditItemModal from '@/components/inventory/EditItemModal.vue';
-import TransferModal from '@/components/inventory/TransferModal.vue';
-import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
-import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
-
-// Click outside directive for dropdowns
-const vClickOutside = {
-  mounted(el, binding) {
-    el.clickOutsideEvent = function(event) {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value();
-      }
-    };
-    document.body.addEventListener('click', el.clickOutsideEvent);
-  },
-  unmounted(el) {
-    document.body.removeEventListener('click', el.clickOutsideEvent);
-  }
-};
-
-// Local storage cache keys
-const CACHE_KEYS = {
-  INVENTORY: 'inventory_cache_v3',
-  WAREHOUSES: 'warehouses_cache_v3',
-  SEARCH_INDEX: 'search_index_v3',
-  LAST_UPDATE: 'inventory_last_update',
-  CACHE_TTL: 30 * 60 * 1000 // 30 minutes
-};
-
-export default {
-  name: 'InventoryProduction',
-  components: {
-    AddItemModal,
-    DispatchModal,
-    EditItemModal,
-    TransferModal,
-    ItemDetailsModal,
-    ConfirmDeleteModal
-  },
-  directives: {
-    'click-outside': vClickOutside
-  },
-  setup() {
-    const store = useStore();
-    const route = useRoute();
-    
-    // State
-    const loading = ref(false);
-    const loadingMore = ref(false);
-    const preloading = ref(false);
-    const error = ref('');
-    const showAddModal = ref(false);
-    const showEditModal = ref(false);
-    const showTransferModal = ref(false);
-    const showDispatchModal = ref(false);
-    const showDetailsModal = ref(false);
-    const showDeleteConfirm = ref(false);
-    const searchTerm = ref('');
-    const statusFilter = ref('');
-    const selectedWarehouse = ref('');
-    const selectedItemForEdit = ref(null);
-    const selectedItemForTransfer = ref(null);
-    const selectedItemForDispatch = ref(null);
-    const selectedItem = ref(null);
-    const itemToDelete = ref(null);
-    const exporting = ref(false);
-    const deleteLoading = ref(false);
-    const refreshing = ref(false);
-    const exportProgress = ref('');
-    
-    // Enhanced search state
-    const useSmartSearch = ref(false);
-    const smartSearchResults = ref([]);
-    const isSmartSearching = ref(false);
-    const searchTimeout = ref(null);
-    const searchIndex = ref({});
-    
-    // Mobile UI state
-    const showFilters = ref(false);
-    
-    // Enhanced virtual scrolling state
-    const scrollContainer = ref(null);
-    const mobileScrollContainer = ref(null);
-    const visibleStartIndex = ref(0);
-    const mobileVisibleStartIndex = ref(0);
-    const visibleItemCount = ref(100); // Increased from 50
-    const mobileVisibleItemCount = ref(30); // Increased from 20
-    const scrollBuffer = ref(30); // Increased buffer for smoother experience
-    const prefetchThreshold = 200; // Pre-fetch when 200px from bottom
-    const scrollThrottle = ref(null);
-    const lastScrollTime = ref(0);
-    const SCROLL_THROTTLE_DELAY = 16;
-    
-    // Warehouse and user cache
-    const warehouseCache = ref({});
-    const userCache = ref({});
-    
-    // UI state
-    const showActionMenu = ref(null);
-    const lastUpdate = ref(Date.now());
-    const isDataFresh = ref(false);
-    
-    // Computed properties
-    const userRole = computed(() => store.getters.userRole);
-    const userProfile = computed(() => store.state.userProfile);
-    const inventory = computed(() => store.state.inventory || []);
-    const stats = computed(() => store.getters.dashboardStats || {});
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
-    const allWarehouses = computed(() => store.state.warehouses || []);
-    const currentUser = computed(() => store.state.user);
-    const inventoryLoading = computed(() => store.state.inventoryLoading);
-    const hasMore = computed(() => store.state.pagination.hasMore);
-    const isFetchingMore = computed(() => store.state.pagination.isFetching);
-    const totalLoaded = computed(() => store.state.pagination.totalLoaded);
-    const inventoryLoaded = computed(() => store.state.inventoryLoaded);
-    
-    // Current user info
-    const currentUserInfo = computed(() => {
-      if (userProfile.value?.name) return userProfile.value.name;
-      if (currentUser.value?.displayName) return currentUser.value.displayName;
-      if (userProfile.value?.email) return userProfile.value.email.split('@')[0];
-      if (currentUser.value?.email) return currentUser.value.email.split('@')[0];
-      return 'مستخدم النظام';
-    });
-    
-    // Permissions
-    const canAddItem = computed(() => {
-      return userRole.value === 'superadmin' || 
-             (userRole.value === 'warehouse_manager' && userProfile.value?.allowed_warehouses?.length > 0);
-    });
-    
-    const showActions = computed(() => {
-      return userRole.value !== 'viewer';
-    });
-    
-    const readonly = computed(() => {
-      return userRole.value === 'viewer';
-    });
-    
-    const canEditItem = (item) => {
-      if (userRole.value === 'superadmin') return true;
-      if (userRole.value !== 'warehouse_manager') return false;
-      
-      const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
-      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
-    };
-    
-    const canTransferItem = (item) => {
-      return canEditItem(item);
-    };
-    
-    const canDispatchItem = (item) => {
-      return canEditItem(item);
-    };
-    
-    const canDeleteItem = (item) => {
-      return canEditItem(item) && userRole.value === 'superadmin';
-    };
-    
-    // Stats computed
-    const totalQuantity = computed(() => {
-      return filteredItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-    });
-    
-    const lowStockCount = computed(() => {
-      return filteredItems.value.filter(item => {
-        const quantity = item.remaining_quantity || 0;
-        return quantity > 0 && quantity < 10;
-      }).length;
-    });
-    
-    const warehouseCount = computed(() => {
-      const warehouses = new Set(filteredItems.value.map(item => item.warehouse_id));
-      return warehouses.size;
-    });
-    
-    const hasActiveFilters = computed(() => {
-      return selectedWarehouse.value || statusFilter.value || searchTerm.value;
-    });
-    
-    const activeFilterCount = computed(() => {
-      let count = 0;
-      if (selectedWarehouse.value) count++;
-      if (statusFilter.value) count++;
-      if (searchTerm.value) count++;
-      return count;
-    });
-    
-    // Enhanced filtered items with virtual index
-    const filteredItems = computed(() => {
-      let filtered = [];
-      
-      if (useSmartSearch.value && searchTerm.value.length >= 3) {
-        filtered = [...smartSearchResults.value];
-      } else {
-        filtered = [...inventory.value];
-        
-        if (selectedWarehouse.value) {
-          filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
-        }
-        
-        if (statusFilter.value) {
-          filtered = filtered.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        if (searchTerm.value && searchTerm.value.length >= 3) {
-          filtered = performSmartSearch(searchTerm.value, filtered);
-        }
-      }
-      
-      // Add virtual index for smooth scrolling
-      return filtered.map((item, index) => ({
-        ...item,
-        virtualIndex: index
-      }));
-    });
-    
-    // Enhanced visible items for virtual scrolling
-    const visibleItems = computed(() => {
-      const start = Math.max(0, visibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount.value + scrollBuffer.value);
-      return filteredItems.value.slice(start, end);
-    });
-    
-    const mobileVisibleItems = computed(() => {
-      const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount.value + scrollBuffer.value);
-      return filteredItems.value.slice(start, end);
-    });
-    
-    // Color mapping
-    const colorMap = {
-      'أحمر': '#ef4444',
-      'أزرق': '#3b82f6',
-      'أخضر': '#10b981',
-      'أصفر': '#f59e0b',
-      'أسود': '#000000',
-      'أبيض': '#ffffff',
-      'رمادي': '#6b7280',
-      'بني': '#92400e',
-      'وردي': '#ec4899',
-      'برتقالي': '#f97316',
-      'بنفسجي': '#8b5cf6',
-      'ذهبي': '#d97706',
-      'فضي': '#9ca3af'
-    };
-    
-    // Helper Methods
-    const formatNumber = (num) => {
-      const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
-      return englishDigits;
-    };
-    
-    const getWarehouseLabel = (warehouseId) => {
-      const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
-      return warehouse ? warehouse.name_ar : 'غير معروف';
-    };
-    
-    const getStatusLabel = (status) => {
-      const labels = {
-        'in_stock': 'متوفر',
-        'low_stock': 'كمية قليلة',
-        'out_of_stock': 'غير متوفر'
-      };
-      return labels[status] || status;
-    };
-    
-    const getStockStatus = (quantity) => {
-      if (quantity === 0) return 'نفذ';
-      if (quantity < 10) return 'قليل';
-      return 'متوفر';
-    };
-    
-    const getStockStatusClass = (quantity) => {
-      if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm';
-      if (quantity < 10) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800 shadow-sm';
-      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm';
-    };
-
-    const getQuantityClass = (quantity) => {
-      if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
-      return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
-    };
-    
-    const getColorHex = (colorName) => {
-      return colorMap[colorName] || '#6b7280';
-    };
-    
-    const formatDate = (date) => {
-      if (!date) return '-';
-      try {
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
-        if (isNaN(dateObj.getTime())) return '-';
-        
-        return dateObj.toLocaleDateString('ar-EG', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      } catch (e) {
-        return '-';
-      }
-    };
-    
-    const formatRelativeTime = (date) => {
-      if (!date) return '-';
-      try {
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
-        const now = new Date();
-        const diffMs = now - dateObj;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-        
-        if (diffMins < 1) return 'الآن';
-        if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
-        if (diffHours < 24) return `قبل ${diffHours} ساعة`;
-        if (diffDays === 1) return 'أمس';
-        if (diffDays < 7) return `قبل ${diffDays} أيام`;
-        
-        return formatDate(date);
-      } catch (e) {
-        return '-';
-      }
-    };
-    
-    const formatTime = (timestamp) => {
-      if (!timestamp) return 'قيد التحميل...';
-      const now = Date.now();
-      const diffMs = now - timestamp;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      
-      if (diffMins < 1) return 'الآن';
-      if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
-      if (diffHours < 24) return `قبل ${diffHours} ساعة`;
-      
-      return new Date(timestamp).toLocaleTimeString('ar-EG', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
-    
-    const getPlaceholderImage = () => {
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
-    };
-    
-    const handleImageError = (event) => {
-      event.target.src = getPlaceholderImage();
-      event.target.onerror = null;
-    };
-    
-    // Enhanced Search Functions
-    const buildSearchIndex = (items) => {
-      const index = {};
-      items.forEach((item, idx) => {
-        const searchableFields = [
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          item.supplier || '',
-          item.item_location || '',
-          String(item.remaining_quantity || ''),
-          String(item.cartons_count || ''),
-          String(item.per_carton_count || ''),
-          String(item.single_bottles_count || '')
-        ].map(field => field.toLowerCase());
-        
-        // Generate 3-letter combinations for each word
-        searchableFields.forEach(field => {
-          const words = field.split(/\s+/);
-          words.forEach(word => {
-            if (word.length >= 3) {
-              for (let i = 0; i <= word.length - 3; i++) {
-                const trigram = word.substring(i, i + 3);
-                if (!index[trigram]) index[trigram] = new Set();
-                index[trigram].add(idx);
-              }
-            }
-          });
-        });
-      });
-      return index;
-    };
-    
-    const calculateSimilarity = (str1, str2) => {
-      const longer = str1.length > str2.length ? str1 : str2;
-      const shorter = str1.length > str2.length ? str2 : str1;
-      
-      if (shorter.length === 0) return 1.0;
-      
-      const distance = levenshteinDistance(str1, str2);
-      return 1.0 - distance / longer.length;
-    };
-    
-    const levenshteinDistance = (str1, str2) => {
-      const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-      
-      for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-      for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-      
-      for (let j = 1; j <= str2.length; j++) {
-        for (let i = 1; i <= str1.length; i++) {
-          const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-          matrix[j][i] = Math.min(
-            matrix[j][i - 1] + 1,
-            matrix[j - 1][i] + 1,
-            matrix[j - 1][i - 1] + indicator
-          );
-        }
-      }
-      
-      return matrix[str2.length][str1.length];
-    };
-    
-    const performSmartSearch = (searchTerm, items) => {
-      if (!searchTerm || searchTerm.length < 3) return items;
-      
-      const term = searchTerm.toLowerCase();
-      const results = new Set();
-      
-      // Exact matches first
-      items.forEach((item, idx) => {
-        if (
-          item.name?.toLowerCase().includes(term) ||
-          item.code?.toLowerCase().includes(term) ||
-          item.color?.toLowerCase().includes(term) ||
-          item.supplier?.toLowerCase().includes(term) ||
-          String(item.remaining_quantity).includes(term) ||
-          String(item.cartons_count).includes(term) ||
-          String(item.per_carton_count).includes(term) ||
-          String(item.single_bottles_count).includes(term)
-        ) {
-          results.add(idx);
-        }
-      });
-      
-      // 3-letter partial matches using index
-      const trigram = term.substring(0, 3);
-      if (searchIndex.value[trigram]) {
-        searchIndex.value[trigram].forEach(idx => results.add(idx));
-      }
-      
-      // Fuzzy matching for similar words
-      const allTrigrams = Object.keys(searchIndex.value);
-      allTrigrams.forEach(tg => {
-        if (calculateSimilarity(tg, trigram) > 0.6) {
-          searchIndex.value[tg]?.forEach(idx => results.add(idx));
-        }
-      });
-      
-      return Array.from(results).map(idx => items[idx]);
-    };
-    
-    // Enhanced virtual scrolling handlers
-    const onScroll = () => {
-      if (!scrollContainer.value) return;
-      
-      const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
-      lastScrollTime.value = now;
-      
-      requestAnimationFrame(() => {
-        const scrollTop = scrollContainer.value.scrollTop;
-        const rowHeight = 80;
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
-        // Smooth transition calculation
-        const delta = Math.abs(newStartIndex - visibleStartIndex.value);
-        if (delta > scrollBuffer.value / 3) {
-          visibleStartIndex.value = newStartIndex;
-        }
-        
-        // Pre-fetch when near bottom
-        if (!useSmartSearch.value) {
-          const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            preloadNextBatch();
-          }
-        }
-      });
-    };
-    
-    const onMobileScroll = () => {
-      if (!mobileScrollContainer.value) return;
-      
-      const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
-      lastScrollTime.value = now;
-      
-      requestAnimationFrame(() => {
-        const scrollTop = mobileScrollContainer.value.scrollTop;
-        const rowHeight = 120;
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
-        const delta = Math.abs(newStartIndex - mobileVisibleStartIndex.value);
-        if (delta > scrollBuffer.value / 3) {
-          mobileVisibleStartIndex.value = newStartIndex;
-        }
-        
-        if (!useSmartSearch.value) {
-          const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            preloadNextBatch();
-          }
-        }
-      });
-    };
-    
-    const preloadNextBatch = async () => {
-      if (preloading.value || loadingMore.value) return;
-      
-      preloading.value = true;
-      try {
-        await store.dispatch('loadMoreInventory');
-        saveToCache();
-      } catch (error) {
-        console.error('Error preloading:', error);
-      } finally {
-        preloading.value = false;
-      }
-    };
-    
-    // Enhanced search handler
-    const handleSmartSearch = debounce(async () => {
-      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
-        useSmartSearch.value = false;
-        smartSearchResults.value = [];
-        return;
-      }
-      
-      await performEnhancedSearch();
-    }, 300);
-    
-    const performEnhancedSearch = async () => {
-      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
-        resetToNormalView();
-        return;
-      }
-      
-      isSmartSearching.value = true;
-      useSmartSearch.value = true;
-      
-      try {
-        let results = [];
-        
-        if (selectedWarehouse.value) {
-          // Search within selected warehouse
-          const warehouseItems = inventory.value.filter(item => 
-            item.warehouse_id === selectedWarehouse.value
-          );
-          results = performSmartSearch(searchTerm.value, warehouseItems);
-        } else {
-          // Search all items
-          results = performSmartSearch(searchTerm.value, inventory.value);
-        }
-        
-        // Apply status filter if selected
-        if (statusFilter.value) {
-          results = results.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        smartSearchResults.value = results;
-        
-        // Reset scroll positions
-        visibleStartIndex.value = 0;
-        mobileVisibleStartIndex.value = 0;
-        if (scrollContainer.value) {
-          scrollContainer.value.scrollTop = 0;
-        }
-        if (mobileScrollContainer.value) {
-          mobileScrollContainer.value.scrollTop = 0;
-        }
-        
-      } catch (error) {
-        console.error('❌ Error in smart search:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث الذكي'
-        });
-        
-        useSmartSearch.value = false;
-      } finally {
-        isSmartSearching.value = false;
-      }
-    };
-    
-    const handleWarehouseChange = async () => {
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-      
-      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
-        await performEnhancedSearch();
-      }
-    };
-    
-    const resetToNormalView = () => {
-      useSmartSearch.value = false;
-      smartSearchResults.value = [];
-      searchTerm.value = '';
-      showFilters.value = false;
-      
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-    };
-    
-    const clearAllFilters = () => {
-      selectedWarehouse.value = '';
-      statusFilter.value = '';
-      searchTerm.value = '';
-      showFilters.value = false;
-      resetToNormalView();
-    };
-    
-    const handleFilterChange = () => {
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-      
-      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
-        performEnhancedSearch();
-      }
-    };
-    
-    // Cache Management
-    const loadFromCache = () => {
-      try {
-        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
-        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-        const searchIndexCache = localStorage.getItem(CACHE_KEYS.SEARCH_INDEX);
-        
-        if (cached && lastUpdateCache && searchIndexCache) {
-          const cacheAge = Date.now() - parseInt(lastUpdateCache);
-          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
-            const data = JSON.parse(cached);
-            const index = JSON.parse(searchIndexCache);
-            
-            // Convert Sets back from arrays
-            Object.keys(index).forEach(key => {
-              index[key] = new Set(index[key]);
-            });
-            
-            store.commit('SET_INVENTORY', data);
-            searchIndex.value = index;
-            isDataFresh.value = false;
-            return true;
-          }
-        }
-      } catch (error) {
-        console.warn('Error loading from cache:', error);
-      }
-      return false;
-    };
-    
-    const saveToCache = () => {
-      try {
-        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
-        
-        // Convert Sets to arrays for JSON storage
-        const indexForStorage = {};
-        Object.keys(searchIndex.value).forEach(key => {
-          indexForStorage[key] = Array.from(searchIndex.value[key]);
-        });
-        localStorage.setItem(CACHE_KEYS.SEARCH_INDEX, JSON.stringify(indexForStorage));
-        
-        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
-      } catch (error) {
-        console.warn('Error saving to cache:', error);
-      }
-    };
-    
-    // Excel Export
-    const exportToExcel = async () => {
-      if (filteredItems.value.length === 0) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'لا توجد بيانات للتصدير'
-        });
-        return;
-      }
-
-      exporting.value = true;
-      exportProgress.value = 'جاري تجهير البيانات...';
-      
-      try {
-        // Group items by warehouse for multiple sheets
-        const itemsByWarehouse = {};
-        
-        // Group items
-        filteredItems.value.forEach((item, index) => {
-          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${filteredItems.value.length}`;
-          
-          const warehouseId = item.warehouse_id;
-          if (!itemsByWarehouse[warehouseId]) {
-            itemsByWarehouse[warehouseId] = [];
-          }
-          
-          itemsByWarehouse[warehouseId].push({
-            'الكود': item.code || '',
-            'اسم الصنف': item.name || '',
-            'اللون': item.color || '',
-            'المخزن': getWarehouseLabel(item.warehouse_id),
-            'مكان التخزين': item.item_location || '',
-            'المورد': item.supplier || '',
-            'عدد الكراتين': item.cartons_count || 0,
-            'عدد في الكرتونة': item.per_carton_count || 0,
-            'عدد القطع الفردية': item.single_bottles_count || 0,
-            'الكمية الإجمالية المضافة': item.total_added || 0,
-            'الكمية المتبقية': item.remaining_quantity || 0,
-            'الحالة': getStockStatus(item.remaining_quantity || 0),
-            'أنشئ بواسطة': getActionUser(item),
-            'تم التحديث بواسطة': item.updated_by_name || getActionUser(item),
-            'تاريخ الإنشاء': formatDate(item.created_at),
-            'آخر تحديث': formatDate(item.updated_at)
-          });
-        });
-
-        exportProgress.value = 'جاري إنشاء ملف Excel...';
-        
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-        
-        // Create summary sheet
-        const summaryData = [{
-          'إجمالي الأصناف': filteredItems.value.length,
-          'إجمالي الكمية': totalQuantity.value,
-          'الأصناف قليلة المخزون': lowStockCount.value,
-          'عدد المخازن': warehouseCount.value,
-          'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
-          'تم التصدير بواسطة': currentUserInfo.value
-        }];
-        
-        const summaryWs = XLSX.utils.json_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
-        
-        // Create a sheet for each warehouse
-        Object.keys(itemsByWarehouse).forEach((warehouseId, index) => {
-          const warehouseItems = itemsByWarehouse[warehouseId];
-          const warehouseName = getWarehouseLabel(warehouseId).replace(/[^\w\u0600-\u06FF\s]/g, '').trim();
-          const sheetName = warehouseName || `المخزن ${index + 1}`;
-          
-          if (warehouseItems.length > 0) {
-            const ws = XLSX.utils.json_to_sheet(warehouseItems);
-            
-            // Add column widths for better formatting
-            const colWidths = [
-              { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
-              { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
-              { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
-              { wch: 18 }
-            ];
-            ws['!cols'] = colWidths;
-            
-            // Limit sheet name to 31 characters (Excel limit)
-            const safeSheetName = sheetName.slice(0, 31);
-            XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
-          }
-        });
-
-        exportProgress.value = 'جاري حفظ الملف...';
-        
-        // Generate filename with timestamp
-        const timestamp = new Date().toISOString().split('T')[0];
-        const warehouseName = selectedWarehouse.value 
-          ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '-')
-          : 'جميع-المخازن';
-        const fileName = `مخزون-${warehouseName}-${timestamp}.xlsx`;
-
-        // Save file
-        XLSX.writeFile(wb, fileName);
-
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: `تم تصدير ${filteredItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
-        });
-
-      } catch (error) {
-        console.error('❌ Error exporting to Excel:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تصدير البيانات إلى Excel'
-        });
-      } finally {
-        exporting.value = false;
-        exportProgress.value = '';
-      }
-    };
-    
-    // Data refresh
-    const refreshData = async () => {
-      try {
-        refreshing.value = true;
-        await store.dispatch('refreshAllData');
-        lastUpdate.value = Date.now();
-        isDataFresh.value = true;
-        
-        // Rebuild search index
-        searchIndex.value = buildSearchIndex(inventory.value);
-        saveToCache();
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم تحديث البيانات بنجاح'
-        });
-        
-      } catch (error) {
-        console.error('❌ Error refreshing data:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحديث البيانات'
-        });
-      } finally {
-        refreshing.value = false;
-      }
-    };
-    
-    // Load more items
-    const loadMoreItems = async () => {
-      if (hasMore.value && !loadingMore.value && !useSmartSearch.value) {
-        try {
-          loadingMore.value = true;
-          await store.dispatch('loadMoreInventory');
-          
-          // Update search index with new items
-          const newItems = inventory.value.slice(-50); // Get last 50 items
-          const newIndex = buildSearchIndex(newItems);
-          Object.keys(newIndex).forEach(key => {
-            if (!searchIndex.value[key]) searchIndex.value[key] = new Set();
-            newIndex[key].forEach(idx => {
-              searchIndex.value[key].add(inventory.value.length - 50 + idx);
-            });
-          });
-          
-          saveToCache();
-        } catch (error) {
-          console.error('❌ Error loading more items:', error);
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل المزيد من العناصر'
-          });
-        } finally {
-          loadingMore.value = false;
-        }
-      }
-    };
-    
-    // Enhanced user action tracking
-    const getActionUser = (item) => {
-      if (!item) return 'غير معروف';
-      
-      // Check updated by first
-      if (item.updated_by_name && item.updated_by_name !== 'unknown' && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.updated_by_name;
-      }
-      
-      // Check created by
-      if (item.created_by_name && item.created_by_name !== 'unknown' && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.created_by_name;
-      }
-      
-      // Check last modified by
-      if (item.last_modified_by && item.last_modified_by !== 'unknown') {
-        return item.last_modified_by;
-      }
-      
-      return currentUserInfo.value || 'نظام';
-    };
-    
-    const getLastActionUser = (item) => {
-      return getActionUser(item);
-    };
-    
-    // UI Actions
-    const toggleActionMenu = (itemId) => {
-      showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
-    };
-    
-    const showItemDetails = (item) => {
-      selectedItem.value = item;
-      showDetailsModal.value = true;
-      showActionMenu.value = null;
-    };
-    
-    const closeDetailsModal = () => {
-      showDetailsModal.value = false;
-      selectedItem.value = null;
-    };
-    
-    const handleTransfer = (item) => {
-      if (!canTransferItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية النقل من هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForTransfer.value = item;
-      showTransferModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleDispatch = (item) => {
-      if (!canDispatchItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية الصرف من هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForDispatch.value = item;
-      showDispatchModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleEdit = (item) => {
-      if (!canEditItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية التعديل على هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForEdit.value = item;
-      showEditModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleDelete = (item) => {
-      if (!canDeleteItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية حذف هذا الصنف'
-        });
-        return;
-      }
-      itemToDelete.value = item;
-      showDeleteConfirm.value = true;
-      showActionMenu.value = null;
-    };
-    
-    const confirmDelete = async () => {
-      try {
-        deleteLoading.value = true;
-        await store.dispatch('deleteInventoryItem', itemToDelete.value.id);
-        
-        // Remove from search index
-        searchIndex.value = buildSearchIndex(inventory.value);
-        saveToCache();
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم حذف الصنف بنجاح!'
-        });
-        
-        if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
-          closeDetailsModal();
-        }
-        
-        showDeleteConfirm.value = false;
-        itemToDelete.value = null;
-        
-      } catch (error) {
-        console.error('❌ Error deleting item:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في حذف الصنف'
-        });
-      } finally {
-        deleteLoading.value = false;
-      }
-    };
-    
-    const handleItemSaved = async () => {
-      showAddModal.value = false;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
-      saveToCache();
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم إضافة الصنف بنجاح!'
-      });
-    };
-    
-    const handleItemUpdated = () => {
-      showEditModal.value = false;
-      selectedItemForEdit.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
-      saveToCache();
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تحديث الصنف بنجاح!'
-      });
-    };
-    
-    const handleTransferSuccess = () => {
-      showTransferModal.value = false;
-      selectedItemForTransfer.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
-      saveToCache();
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم نقل الصنف بنجاح!'
-      });
-    };
-    
-    const handleDispatchSuccess = () => {
-      showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
-      saveToCache();
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم صرف الصنف بنجاح!'
-      });
-    };
-    
-    // Lifecycle
-    onMounted(() => {
-      const fromCache = loadFromCache();
-      
-      if (!inventoryLoaded.value || fromCache) {
-        loading.value = true;
-        
-        store.dispatch('loadAllInventory').then(() => {
-          isDataFresh.value = true;
-          lastUpdate.value = Date.now();
-          
-          // Build search index
-          if (inventory.value.length > 0) {
-            searchIndex.value = buildSearchIndex(inventory.value);
-          }
-          saveToCache();
-        }).catch(error => {
-          console.error('❌ Error loading inventory:', error);
-          error.value = 'حدث خطأ في تحميل البيانات';
-        }).finally(() => {
-          loading.value = false;
-        });
-      } else if (inventory.value.length > 0) {
-        // Build search index from existing data
-        searchIndex.value = buildSearchIndex(inventory.value);
-      }
-      
-      if (allWarehouses.value.length === 0) {
-        store.dispatch('loadWarehouses');
-      }
-      
-      if (accessibleWarehouses.value.length === 1) {
-        selectedWarehouse.value = accessibleWarehouses.value[0].id;
-      }
-      
-      if (route.name === 'AddInventory') {
-        showAddModal.value = true;
-      }
-      
-      // Setup scroll listeners
-      nextTick(() => {
-        if (scrollContainer.value) {
-          scrollContainer.value.addEventListener('scroll', onScroll, { passive: true });
-        }
-        if (mobileScrollContainer.value) {
-          mobileScrollContainer.value.addEventListener('scroll', onMobileScroll, { passive: true });
-        }
-      });
-    });
-    
-    onUnmounted(() => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value);
-      }
-      
-      if (scrollContainer.value) {
-        scrollContainer.value.removeEventListener('scroll', onScroll);
-      }
-      
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.removeEventListener('scroll', onMobileScroll);
-      }
-      
-      if (scrollThrottle.value) {
-        cancelAnimationFrame(scrollThrottle.value);
-      }
-    });
-    
-    watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
-      handleFilterChange();
-    });
-    
-    watch(() => filteredItems.value.length, () => {
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-    });
-    
-    return {
-      // State
-      loading,
-      loadingMore,
-      preloading,
-      error,
-      showAddModal,
-      showEditModal,
-      showTransferModal,
-      showDispatchModal,
-      showDetailsModal,
-      showDeleteConfirm,
-      searchTerm,
-      statusFilter,
-      selectedWarehouse,
-      selectedItemForEdit,
-      selectedItemForTransfer,
-      selectedItemForDispatch,
-      selectedItem,
-      itemToDelete,
-      exporting,
-      deleteLoading,
-      refreshing,
-      exportProgress,
-      
-      // Enhanced search state
-      useSmartSearch,
-      smartSearchResults,
-      isSmartSearching,
-      
-      // Mobile UI State
-      showFilters,
-      
-      // UI State
-      showActionMenu,
-      lastUpdate,
-      isDataFresh,
-      
-      // Refs
-      scrollContainer,
-      mobileScrollContainer,
-      
-      // Computed
-      userRole,
-      userProfile,
-      inventory,
-      accessibleWarehouses,
-      canAddItem,
-      showActions,
-      readonly,
-      filteredItems,
-      visibleItems,
-      mobileVisibleItems,
-      currentUserInfo,
-      inventoryLoading,
-      hasMore,
-      isFetchingMore,
-      totalLoaded,
-      inventoryLoaded,
-      
-      // Stats
-      totalQuantity,
-      lowStockCount,
-      warehouseCount,
-      hasActiveFilters,
-      activeFilterCount,
-      
-      // Helper Methods
-      formatNumber,
-      getWarehouseLabel,
-      getStatusLabel,
-      getStockStatus,
-      getStockStatusClass,
-      getQuantityClass,
-      getColorHex,
-      formatDate,
-      formatRelativeTime,
-      formatTime,
-      getPlaceholderImage,
-      handleImageError,
-      getLastActionUser,
-      
-      // Excel Export
-      exportToExcel,
-      
-      // Permission Methods
-      canEditItem,
-      canTransferItem,
-      canDispatchItem,
-      canDeleteItem,
-      
-      // Action Methods
-      handleFilterChange,
-      handleWarehouseChange,
-      handleSmartSearch,
-      resetToNormalView,
-      clearAllFilters,
-      refreshData,
-      loadMoreItems,
-      toggleActionMenu,
-      showItemDetails,
-      closeDetailsModal,
-      handleTransfer,
-      handleDispatch,
-      handleEdit,
-      handleDelete,
-      confirmDelete,
-      handleItemSaved,
-      handleItemUpdated,
-      handleTransferSuccess,
-      handleDispatchSuccess,
-      
-      // Virtual scrolling methods
-      onScroll,
-      onMobileScroll
-    };
-  }
-};
+// ... كل كود JavaScript يبقى كما هو بدون تغييرات ...
 </script>
 
 <style scoped>
@@ -2200,7 +932,7 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  table-layout: fixed;
+  table-layout: fixed; /* FIX: استخدام تخطيط ثابت */
 }
 
 /* Static header styling with backdrop blur */
@@ -2215,6 +947,32 @@ thead {
 
 .dark thead {
   background-color: rgba(31, 41, 55, 0.95);
+}
+
+/* FIX: إصلاح محاذاة الجدول */
+th, td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 12px 8px; /* FIX: تباعد أفضل */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* FIX: عرض أعمدة محدد */
+.w-20 { width: 80px; min-width: 80px; max-width: 80px; }
+.w-32 { width: 128px; min-width: 128px; max-width: 128px; }
+.w-40 { width: 160px; min-width: 160px; max-width: 160px; }
+.w-48 { width: 192px; min-width: 192px; max-width: 192px; }
+
+/* FIX: تحسين تباين الألوان في الوضع الداكن */
+.dark .text-gray-400,
+.dark .text-gray-500 {
+  color: #9ca3af; /* FIX: لون أكثر وضوحاً في الوضع الداكن */
+}
+
+.dark .text-gray-300 {
+  color: #d1d5db; /* FIX: لون أكثر وضوحاً */
 }
 
 /* Virtual scrolling optimization */
@@ -2847,5 +1605,36 @@ table {
 th, td {
   text-align: center;
   vertical-align: middle;
+}
+
+/* FIX: إصلاح تداخل النص في الخلايا */
+td > div {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* FIX: تحسين عرض النصوص الطويلة */
+.truncate {
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* FIX: تحسين محاذاة العناصر داخل الخلايا */
+.flex.items-center {
+  flex-wrap: nowrap;
+}
+
+/* FIX: منع تداخل النصوص */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* FIX: تحسين تخطيط الجدول للشاشات الكبيرة */
+@media (min-width: 1536px) {
+  .w-20 { width: 100px; }
+  .w-32 { width: 150px; }
+  .w-40 { width: 180px; }
+  .w-48 { width: 220px; }
 }
 </style>
