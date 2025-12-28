@@ -54,7 +54,7 @@
                 </span>
               </span>
               <span class="text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">
-                {{ (filteredItems || []).length }} عنصر • {{ formatTime(lastUpdate) }}
+                {{ filteredItems.length }} عنصر • {{ formatTime(lastUpdate) }}
               </span>
             </div>
             
@@ -71,7 +71,7 @@
         <div class="flex flex-wrap gap-2 sm:gap-3">
           <!-- Export to Excel Button -->
           <button
-            v-if="(filteredItems || []).length > 0"
+            v-if="filteredItems.length > 0"
             @click="exportToExcel"
             :disabled="exporting"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -102,7 +102,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useSmartSearch && (filteredItems || []).length > 0"
+            v-if="hasMore && !loading && !useLiveSearch && filteredItems.length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -141,7 +141,7 @@
             </div>
             <div class="flex-1 text-right mr-1 sm:mr-2">
               <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">الأصناف</p>
-              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber((filteredItems || []).length) }}</p>
+              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(filteredItems.length) }}</p>
             </div>
           </div>
         </div>
@@ -220,7 +220,7 @@
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
               <!-- Warehouse Filter -->
-              <div v-if="(accessibleWarehouses || []).length > 0" class="order-1">
+              <div v-if="accessibleWarehouses.length > 0" class="order-1">
                 <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
                 <select
                   v-model="selectedWarehouse"
@@ -228,7 +228,7 @@
                   class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                 >
                   <option value="">جميع المخازن</option>
-                  <option v-for="warehouse in (accessibleWarehouses || [])" :key="warehouse.id" :value="warehouse.id">
+                  <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
                     {{ warehouse.name_ar }}
                   </option>
                 </select>
@@ -256,8 +256,8 @@
                   <input
                     type="text"
                     v-model="searchTerm"
-                    @input="handleSmartSearch"
-                    placeholder="ابحث بأي حقل - اكتب 3 أحرف على الأقل..."
+                    @input="handleLiveSearch"
+                    placeholder="ابحث بأي حقل (3 أحرف على الأقل)..."
                     class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                   />
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -275,6 +275,10 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                   </button>
+                  <!-- Search Info -->
+                  <div v-if="searchTerm.length > 0 && searchTerm.length < 3" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
+                    ⓘ اكتب 3 أحرف على الأقل للبحث
+                  </div>
                 </div>
               </div>
             </div>
@@ -322,13 +326,13 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useSmartSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="useLiveSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث الذكي: {{ (smartSearchResults || []).length }}</span>
+                <span class="text-sm">نتائج البحث: {{ liveSearchResults.length }}</span>
               </div>
               <button 
                 @click="resetToNormalView"
@@ -355,7 +359,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading && (!filteredItems || filteredItems.length === 0)" class="text-center py-8 sm:py-12">
+      <div v-if="loading && !filteredItems.length" class="text-center py-8 sm:py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
         <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
         <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
@@ -378,75 +382,71 @@
         </div>
       </div>
 
-      <!-- Inventory Table Container - FIXED -->
+      <!-- Inventory Table Container -->
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table with Virtual Scrolling - FIXED LAYOUT -->
+        <!-- Desktop Table with Virtual Scrolling -->
         <div class="hidden lg:block">
           <div 
-            class="overflow-x-auto overflow-y-auto relative virtual-scroll-container" 
+            class="overflow-x-auto relative" 
             :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
-            <table class="w-full table-fixed">
+            <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                 <tr>
-                  <th class="w-20 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     الصورة
                   </th>
-                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     <div class="flex flex-col items-center justify-center">
-                      <span class="truncate">الاسم والكود</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">(انقر للتفاصيل)</span>
+                      <span>الاسم والكود</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر للتفاصيل)</span>
                     </div>
                   </th>
-                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     اللون
                   </th>
-                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     المخزن
                   </th>
-                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     المورد
                   </th>
-                  <th class="w-48 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     <div class="flex flex-col items-center justify-center">
-                      <span class="truncate">الكميات</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">كراتين/في الكرتونة/فردي</span>
+                      <span>الكميات</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">كراتين/في الكرتونة/فردي</span>
                     </div>
                   </th>
-                  <th class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     <div class="flex flex-col items-center justify-center">
-                      <span class="truncate">المتبقي</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-300 font-normal">من المجموع</span>
+                      <span>المتبقي</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع</span>
                     </div>
                   </th>
-                  <th class="w-32 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     الحالة
                   </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
-                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     الإجراءات
                   </th>
                   <th v-else 
-                      class="w-40 px-3 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
+                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     آخر تحديث
                   </th>
                 </tr>
               </thead>
-              <tbody :style="{ height: `${(filteredItems || []).length * 80}px`, position: 'relative' }">
+              <tbody>
                 <!-- Virtual Scrolling - Only render visible rows -->
-                <tr 
-                  v-for="item in visibleItems" 
-                  :key="item.id"
-                  class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 absolute left-0 right-0"
-                  :style="{ 
-                    height: '80px',
-                    top: `${item.virtualIndex * 80}px`
-                  }"
+                <tr v-for="item in visibleItems" 
+                    :key="item.id"
+                    class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    :style="{ transform: 'translateY(0)' }"
                 >
                   <!-- Photo -->
-                  <td class="w-20 px-3 py-3 text-center align-middle">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
@@ -463,33 +463,33 @@
                   </td>
 
                   <!-- Name and Code -->
-                  <td class="w-48 px-3 py-3 text-center align-middle">
-                    <div class="flex flex-col items-center justify-center space-y-1 max-w-full overflow-hidden">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 w-full"
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="min-w-0 max-w-xs">
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
                         @click="showItemDetails(item)">
                         {{ item.name }}
                       </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">
-                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded truncate inline-block max-w-full">
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                           {{ item.code }}
                         </span>
                       </div>
-                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 w-full justify-center">
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
-                        <span class="truncate max-w-[180px]">{{ item.item_location }}</span>
+                        <span class="truncate">{{ item.item_location }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Color -->
-                  <td class="w-32 px-3 py-3 text-center align-middle">
-                    <div class="flex items-center justify-center w-full">
-                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 max-w-full">
-                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="flex items-center justify-center">
+                      <div class="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="text-sm text-gray-900 dark:text-white truncate max-w-[80px]">
+                        <span class="text-xs sm:text-sm text-gray-900 dark:text-white">
                           {{ item.color || '-' }}
                         </span>
                       </div>
@@ -497,66 +497,74 @@
                   </td>
 
                   <!-- Warehouse -->
-                  <td class="w-40 px-3 py-3 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block truncate max-w-full">
-                      {{ getWarehouseLabel(item.warehouse_id) }}
-                    </span>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="text-center">
+                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        {{ getWarehouseLabel(item.warehouse_id) }}
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Supplier -->
-                  <td class="w-40 px-3 py-3 text-center align-middle">
-                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-full px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
-                      {{ item.supplier || '-' }}
-                    </span>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="max-w-[120px] sm:max-w-[150px] mx-auto">
+                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white truncate block px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        {{ item.supplier || '-' }}
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Quantities -->
-                  <td class="w-48 px-3 py-3 text-center align-middle">
-                    <div class="text-sm space-y-1 w-full px-2">
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">كراتين:</span>
-                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.cartons_count || 0 }}</span>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="text-xs sm:text-sm space-y-1 max-w-[120px] sm:max-w-[150px] mx-auto">
+                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">في الكرتونة:</span>
-                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.per_carton_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 w-full">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs truncate">فردي:</span>
-                        <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ item.single_bottles_count || 0 }}</span>
+                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
+                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Remaining Quantity -->
-                  <td class="w-40 px-3 py-3 text-center align-middle">
-                    <div :class="getQuantityClass(item.remaining_quantity)" 
-                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[120px] max-w-full">
-                      <span class="truncate w-full">{{ item.remaining_quantity }}</span>
-                      <div class="text-xs text-gray-500 dark:text-gray-300 truncate w-full">
-                        من {{ item.total_added }}
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="text-center">
+                      <div :class="getQuantityClass(item.remaining_quantity)" 
+                           class="text-base sm:text-lg font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-full inline-flex flex-col items-center gap-1">
+                        <span>{{ item.remaining_quantity }}</span>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                          من {{ item.total_added }}
+                        </div>
                       </div>
                     </div>
                   </td>
 
                   <!-- Status -->
-                  <td class="w-32 px-3 py-3 text-center align-middle">
-                    <span :class="getStockStatusClass(item.remaining_quantity)" 
-                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[90px] max-w-full truncate">
-                      {{ getStockStatus(item.remaining_quantity) }}
-                    </span>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="flex justify-center">
+                      <span :class="getStockStatusClass(item.remaining_quantity)" 
+                            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm">
+                        {{ getStockStatus(item.remaining_quantity) }}
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Actions or Updated Date -->
-                  <td class="w-40 px-3 py-3 text-center align-middle">
-                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2 w-full">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-1 sm:gap-2">
                       <!-- View Details Button -->
                       <button
                         @click="showItemDetails(item)"
-                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200 flex-shrink-0"
+                        class="p-1.5 sm:p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
                         title="عرض التفاصيل"
                       >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                         </svg>
@@ -566,10 +574,10 @@
                       <div class="relative">
                         <button
                           @click="toggleActionMenu(item.id)"
-                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150 flex-shrink-0"
+                          class="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
                           title="المزيد من الإجراءات"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
                           </svg>
                         </button>
@@ -632,8 +640,8 @@
                         </div>
                       </div>
                     </div>
-                    <div v-else class="text-center w-full">
-                      <span class="text-sm text-gray-500 dark:text-gray-300 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 truncate inline-block max-w-full">
+                    <div v-else class="text-center">
+                      <span class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         {{ formatDate(item.updated_at) }}
                       </span>
                     </div>
@@ -641,10 +649,9 @@
                 </tr>
 
                 <!-- Empty State -->
-                <tr v-if="(visibleItems || []).length === 0 && !loading" 
-                    class="absolute inset-0">
+                <tr v-if="visibleItems.length === 0 && !loading">
                   <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    <div class="flex flex-col items-center justify-center h-full">
+                    <div class="flex flex-col items-center">
                       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
                       </svg>
@@ -664,20 +671,20 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && (filteredItems || []).length > 0 && !useSmartSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm">تم عرض جميع العناصر ({{ (filteredItems || []).length }} عنصر)</p>
+          <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
           </div>
         </div>
 
         <!-- Mobile Cards with Virtual Scrolling -->
         <div class="lg:hidden">
           <div 
-            class="overflow-y-auto virtual-scroll-container"
-            :style="{ maxHeight: 'calc(100vh - 320px)', height: `${(filteredItems || []).length * 120}px` }"
+            class="overflow-y-auto"
+            :style="{ maxHeight: 'calc(100vh - 320px)' }"
             @scroll="onMobileScroll"
             ref="mobileScrollContainer"
           >
-            <div v-if="(mobileVisibleItems || []).length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
+            <div v-if="mobileVisibleItems.length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
               <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
@@ -685,20 +692,16 @@
               <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
             </div>
 
-            <div v-else class="relative" :style="{ height: `${(filteredItems || []).length * 120}px` }">
+            <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
               <!-- Virtual Scrolling for Mobile - Only render visible items -->
               <div 
                 v-for="item in mobileVisibleItems" 
                 :key="item.id"
-                class="absolute left-0 right-0 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200 dark:border-gray-700"
-                :style="{ 
-                  height: '120px',
-                  top: `${item.virtualIndex * 120}px`
-                }"
+                class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
                 @click="showItemDetails(item)"
               >
                 <!-- Main Row -->
-                <div class="flex gap-3 h-full">
+                <div class="flex gap-3">
                   <!-- Photo -->
                   <div class="flex-shrink-0">
                     <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
@@ -737,7 +740,7 @@
                     </div>
 
                     <!-- Second Row: Warehouse and Color -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 mb-2">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                       <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -749,19 +752,19 @@
                       <div v-if="item.color" class="flex items-center gap-1">
                         <div class="w-3 h-3 rounded-full border border-gray-300"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="truncate max-w-[60px]">{{ item.color }}</span>
+                        <span>{{ item.color }}</span>
                       </div>
                     </div>
 
                     <!-- Third Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                       <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                         <span class="truncate">{{ item.supplier }}</span>
                       </div>
-                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
@@ -773,9 +776,9 @@
 
                 <!-- Quick Actions Bar -->
                 <div v-if="showActions && !readonly && userRole !== 'viewer'" 
-                     class="mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
+                     class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
                   <!-- Last Updated -->
-                  <div class="text-xs text-gray-500 dark:text-gray-300 flex items-center gap-1">
+                  <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -822,7 +825,7 @@
             </div>
 
             <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !useSmartSearch && (mobileVisibleItems || []).length > 0" class="p-4 text-center">
+            <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
@@ -839,7 +842,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && (filteredItems || []).length > 0 && !useSmartSearch && (mobileVisibleItems || []).length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -951,9 +954,8 @@ const vClickOutside = {
 
 // Local storage cache keys
 const CACHE_KEYS = {
-  INVENTORY: 'inventory_cache_v3',
-  WAREHOUSES: 'warehouses_cache_v3',
-  SEARCH_INDEX: 'search_index_v3',
+  INVENTORY: 'inventory_cache_v2',
+  WAREHOUSES: 'warehouses_cache_v2',
   LAST_UPDATE: 'inventory_last_update',
   CACHE_TTL: 30 * 60 * 1000 // 30 minutes
 };
@@ -978,7 +980,6 @@ export default {
     // State
     const loading = ref(false);
     const loadingMore = ref(false);
-    const preloading = ref(false);
     const error = ref('');
     const showAddModal = ref(false);
     const showEditModal = ref(false);
@@ -999,32 +1000,26 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
-    // Enhanced search state
-    const useSmartSearch = ref(false);
-    const smartSearchResults = ref([]);
-    const isSmartSearching = ref(false);
+    // Live search state
+    const useLiveSearch = ref(false);
+    const liveSearchResults = ref([]);
+    const isLiveSearching = ref(false);
     const searchTimeout = ref(null);
-    const searchIndex = ref({});
     
     // Mobile UI state
-    const showFilters = ref(false);
+    const showFilters = ref(false); // For collapsible filters on mobile
     
-    // Enhanced virtual scrolling state
+    // Virtual scrolling state
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
     const mobileVisibleStartIndex = ref(0);
-    const visibleItemCount = ref(100);
-    const mobileVisibleItemCount = ref(30);
-    const scrollBuffer = ref(30);
-    const prefetchThreshold = 200;
+    const visibleItemCount = 50;
+    const mobileVisibleItemCount = 20;
+    const scrollBuffer = 20;
     const scrollThrottle = ref(null);
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
-    
-    // Warehouse and user cache
-    const warehouseCache = ref({});
-    const userCache = ref({});
     
     // UI state
     const showActionMenu = ref(null);
@@ -1090,18 +1085,18 @@ export default {
     
     // Stats computed
     const totalQuantity = computed(() => {
-      return (filteredItems.value || []).reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return filteredItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
-      return (filteredItems.value || []).filter(item => {
+      return filteredItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
       }).length;
     });
     
     const warehouseCount = computed(() => {
-      const warehouses = new Set((filteredItems.value || []).map(item => item.warehouse_id));
+      const warehouses = new Set(filteredItems.value.map(item => item.warehouse_id));
       return warehouses.size;
     });
     
@@ -1109,6 +1104,7 @@ export default {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
     
+    // Count active filters for mobile badge
     const activeFilterCount = computed(() => {
       let count = 0;
       if (selectedWarehouse.value) count++;
@@ -1117,15 +1113,39 @@ export default {
       return count;
     });
     
-    // FIXED: Enhanced filtered items with virtual index
-    const filteredItems = computed(() => {
-      let filtered = [];
+    // Enhanced search function
+    const performEnhancedSearch = (items, searchTerm) => {
+      if (!searchTerm || searchTerm.length < 3) return items;
       
-      if (useSmartSearch.value && searchTerm.value && searchTerm.value.length >= 3) {
-        filtered = [...(smartSearchResults.value || [])];
+      const term = searchTerm.toLowerCase().trim();
+      
+      return items.filter(item => {
+        // Search across all fields
+        const fieldsToSearch = [
+          item.name,
+          item.code,
+          item.color,
+          item.supplier,
+          item.item_location,
+          item.warehouse_name,
+          String(item.remaining_quantity),
+          String(item.cartons_count),
+          String(item.per_carton_count),
+          String(item.single_bottles_count),
+          String(item.total_added)
+        ].filter(Boolean).map(field => field.toString().toLowerCase());
+        
+        // Check if search term appears in any field
+        return fieldsToSearch.some(field => field.includes(term));
+      });
+    };
+    
+    // Filtered items - switch between normal view and live search
+    const filteredItems = computed(() => {
+      if (useLiveSearch.value) {
+        return liveSearchResults.value;
       } else {
-        // FIX: استخدام قيمة افتراضية فارغة إذا كانت undefined
-        filtered = [...(inventory.value || [])];
+        let filtered = [...inventory.value];
         
         if (selectedWarehouse.value) {
           filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
@@ -1141,31 +1161,30 @@ export default {
           });
         }
         
+        // Use enhanced search
         if (searchTerm.value && searchTerm.value.length >= 3) {
-          filtered = performSmartSearch(searchTerm.value, filtered);
+          filtered = performEnhancedSearch(filtered, searchTerm.value);
         }
+        
+        return filtered.sort((a, b) => {
+          const nameA = a.name?.toLowerCase() || '';
+          const nameB = b.name?.toLowerCase() || '';
+          return nameA.localeCompare(nameB, 'ar');
+        });
       }
-      
-      // Add virtual index for smooth scrolling
-      return filtered.map((item, index) => ({
-        ...item,
-        virtualIndex: index
-      }));
     });
     
-    // FIXED: Enhanced visible items for virtual scrolling
+    // Visible items for virtual scrolling
     const visibleItems = computed(() => {
-      const items = filteredItems.value || [];
-      const start = Math.max(0, visibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(items.length, visibleStartIndex.value + visibleItemCount.value + scrollBuffer.value);
-      return items.slice(start, end);
+      const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
+      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      return filteredItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
-      const items = filteredItems.value || [];
-      const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer.value);
-      const end = Math.min(items.length, mobileVisibleStartIndex.value + mobileVisibleItemCount.value + scrollBuffer.value);
-      return items.slice(start, end);
+      const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
+      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      return filteredItems.value.slice(start, end);
     });
     
     // Color mapping
@@ -1192,8 +1211,15 @@ export default {
     };
     
     const getWarehouseLabel = (warehouseId) => {
-      const warehouse = (allWarehouses.value || []).find(w => w.id === warehouseId);
-      return warehouse ? warehouse.name_ar : 'غير معروف';
+      if (!warehouseId) return 'غير معروف';
+      const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
+      return warehouse ? warehouse.name_ar : warehouseId;
+    };
+    
+    // Fetch warehouse name for item
+    const getItemWarehouseName = (item) => {
+      if (!item) return 'غير معروف';
+      return getWarehouseLabel(item.warehouse_id);
     };
     
     const getStatusLabel = (status) => {
@@ -1293,113 +1319,52 @@ export default {
       event.target.onerror = null;
     };
     
-    // FIXED: Enhanced Search Functions
-    const buildSearchIndex = (items) => {
-      // FIX: التحقق من وجود items
-      if (!items || items.length === 0) return {};
+    // Enhanced user action tracking
+    const getActionUser = (item) => {
+      if (!item) return currentUserInfo.value;
       
-      const index = {};
-      items.forEach((item, idx) => {
-        const searchableFields = [
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          item.supplier || '',
-          item.item_location || '',
-          String(item.remaining_quantity || ''),
-          String(item.cartons_count || ''),
-          String(item.per_carton_count || ''),
-          String(item.single_bottles_count || '')
-        ].map(field => field.toLowerCase());
+      // Try to get updated by user first
+      if (item.updated_by_name && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.updated_by_name;
+      }
+      
+      // Then try created by user
+      if (item.created_by_name && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
+        return item.created_by_name;
+      }
+      
+      // Fallback to current user
+      return currentUserInfo.value;
+    };
+    
+    // Cache Management
+    const loadFromCache = () => {
+      try {
+        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
+        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
         
-        // Generate 3-letter combinations for each word
-        searchableFields.forEach(field => {
-          const words = field.split(/\s+/);
-          words.forEach(word => {
-            if (word.length >= 3) {
-              for (let i = 0; i <= word.length - 3; i++) {
-                const trigram = word.substring(i, i + 3);
-                if (!index[trigram]) index[trigram] = new Set();
-                index[trigram].add(idx);
-              }
-            }
-          });
-        });
-      });
-      return index;
-    };
-    
-    const calculateSimilarity = (str1, str2) => {
-      const longer = str1.length > str2.length ? str1 : str2;
-      const shorter = str1.length > str2.length ? str2 : str1;
-      
-      if (shorter.length === 0) return 1.0;
-      
-      const distance = levenshteinDistance(str1, str2);
-      return 1.0 - distance / longer.length;
-    };
-    
-    const levenshteinDistance = (str1, str2) => {
-      const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-      
-      for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-      for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-      
-      for (let j = 1; j <= str2.length; j++) {
-        for (let i = 1; i <= str1.length; i++) {
-          const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-          matrix[j][i] = Math.min(
-            matrix[j][i - 1] + 1,
-            matrix[j - 1][i] + 1,
-            matrix[j - 1][i - 1] + indicator
-          );
+        if (cached && lastUpdateCache) {
+          const cacheAge = Date.now() - parseInt(lastUpdateCache);
+          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
+            const data = JSON.parse(cached);
+            store.commit('SET_INVENTORY', data);
+            isDataFresh.value = false;
+            return true;
+          }
         }
+      } catch (error) {
+        console.warn('Error loading from cache:', error);
       }
-      
-      return matrix[str2.length][str1.length];
+      return false;
     };
     
-    // FIXED: performSmartSearch function
-    const performSmartSearch = (searchTerm, items) => {
-      if (!searchTerm || searchTerm.length < 3) return items || [];
-      
-      // FIX: التحقق من وجود items
-      if (!items || items.length === 0) return [];
-      
-      const term = searchTerm.toLowerCase();
-      const results = new Set();
-      
-      // Exact matches first
-      items.forEach((item, idx) => {
-        if (
-          item.name?.toLowerCase().includes(term) ||
-          item.code?.toLowerCase().includes(term) ||
-          item.color?.toLowerCase().includes(term) ||
-          item.supplier?.toLowerCase().includes(term) ||
-          String(item.remaining_quantity || '').includes(term) ||
-          String(item.cartons_count || '').includes(term) ||
-          String(item.per_carton_count || '').includes(term) ||
-          String(item.single_bottles_count || '').includes(term)
-        ) {
-          results.add(idx);
-        }
-      });
-      
-      // 3-letter partial matches using index
-      const trigram = term.substring(0, 3);
-      if (searchIndex.value[trigram]) {
-        searchIndex.value[trigram].forEach(idx => results.add(idx));
+    const saveToCache = () => {
+      try {
+        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
+        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
+      } catch (error) {
+        console.warn('Error saving to cache:', error);
       }
-      
-      // Fuzzy matching for similar words
-      const allTrigrams = Object.keys(searchIndex.value);
-      allTrigrams.forEach(tg => {
-        if (calculateSimilarity(tg, trigram) > 0.6) {
-          searchIndex.value[tg]?.forEach(idx => results.add(idx));
-        }
-      });
-      
-      return Array.from(results).map(idx => items[idx]);
     };
     
     // Enhanced virtual scrolling handlers
@@ -1413,22 +1378,24 @@ export default {
       
       lastScrollTime.value = now;
       
-      requestAnimationFrame(() => {
+      if (scrollThrottle.value) {
+        cancelAnimationFrame(scrollThrottle.value);
+      }
+      
+      scrollThrottle.value = requestAnimationFrame(() => {
         const scrollTop = scrollContainer.value.scrollTop;
         const rowHeight = 80;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
         
-        // Smooth transition calculation
-        const delta = Math.abs(newStartIndex - visibleStartIndex.value);
-        if (delta > scrollBuffer.value / 3) {
+        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
           visibleStartIndex.value = newStartIndex;
         }
         
-        // Pre-fetch when near bottom
-        if (!useSmartSearch.value) {
+        // Load more when near bottom
+        if (!useLiveSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            preloadNextBatch();
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            loadMoreItems();
           }
         }
       });
@@ -1449,71 +1416,55 @@ export default {
         const rowHeight = 120;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
         
-        const delta = Math.abs(newStartIndex - mobileVisibleStartIndex.value);
-        if (delta > scrollBuffer.value / 3) {
+        if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
           mobileVisibleStartIndex.value = newStartIndex;
         }
         
-        if (!useSmartSearch.value) {
+        // Load more when near bottom
+        if (!useLiveSearch.value) {
           const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < prefetchThreshold && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            preloadNextBatch();
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            loadMoreItems();
           }
         }
       });
     };
     
-    const preloadNextBatch = async () => {
-      if (preloading.value || loadingMore.value) return;
+    // Enhanced live search with 3-letter minimum
+    const handleLiveSearch = debounce(async () => {
+      const term = searchTerm.value.trim();
       
-      preloading.value = true;
-      try {
-        await store.dispatch('loadMoreInventory');
-        saveToCache();
-      } catch (error) {
-        console.error('Error preloading:', error);
-      } finally {
-        preloading.value = false;
-      }
-    };
-    
-    // Enhanced search handler
-    const handleSmartSearch = debounce(async () => {
-      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
-        useSmartSearch.value = false;
-        smartSearchResults.value = [];
-        return;
-      }
-      
-      await performEnhancedSearch();
-    }, 300);
-    
-    const performEnhancedSearch = async () => {
-      if (!searchTerm.value.trim() || searchTerm.value.length < 3) {
+      if (term.length === 0) {
         resetToNormalView();
         return;
       }
       
-      isSmartSearching.value = true;
-      useSmartSearch.value = true;
+      // Only search if we have at least 3 characters
+      if (term.length < 3) {
+        useLiveSearch.value = false;
+        return;
+      }
+      
+      await performEnhancedLiveSearch(term);
+    }, 300);
+    
+    const performEnhancedLiveSearch = async (term) => {
+      isLiveSearching.value = true;
+      useLiveSearch.value = true;
       
       try {
-        let results = [];
+        // Use enhanced search across all items
+        const searchResults = performEnhancedSearch(inventory.value, term);
+        
+        // Apply additional filters if any
+        let filteredResults = searchResults;
         
         if (selectedWarehouse.value) {
-          // Search within selected warehouse
-          const warehouseItems = (inventory.value || []).filter(item => 
-            item.warehouse_id === selectedWarehouse.value
-          );
-          results = performSmartSearch(searchTerm.value, warehouseItems);
-        } else {
-          // Search all items
-          results = performSmartSearch(searchTerm.value, inventory.value || []);
+          filteredResults = filteredResults.filter(item => item.warehouse_id === selectedWarehouse.value);
         }
         
-        // Apply status filter if selected
         if (statusFilter.value) {
-          results = results.filter(item => {
+          filteredResults = filteredResults.filter(item => {
             const quantity = item.remaining_quantity || 0;
             if (statusFilter.value === 'in_stock') return quantity >= 10;
             if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
@@ -1522,7 +1473,7 @@ export default {
           });
         }
         
-        smartSearchResults.value = results;
+        liveSearchResults.value = filteredResults;
         
         // Reset scroll positions
         visibleStartIndex.value = 0;
@@ -1535,19 +1486,20 @@ export default {
         }
         
       } catch (error) {
-        console.error('❌ Error in smart search:', error);
+        console.error('❌ Error in enhanced live search:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في البحث الذكي'
+          message: 'خطأ في البحث الفوري'
         });
         
-        useSmartSearch.value = false;
+        useLiveSearch.value = false;
       } finally {
-        isSmartSearching.value = false;
+        isLiveSearching.value = false;
       }
     };
     
     const handleWarehouseChange = async () => {
+      // Reset scroll positions
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
       if (scrollContainer.value) {
@@ -1557,14 +1509,59 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
-        await performEnhancedSearch();
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        await performEnhancedLiveSearch(searchTerm.value.trim());
+      } else if (selectedWarehouse.value) {
+        await loadItemsFromSelectedWarehouse();
+      }
+    };
+    
+    const loadItemsFromSelectedWarehouse = async () => {
+      if (!selectedWarehouse.value) {
+        resetToNormalView();
+        return;
+      }
+      
+      isLiveSearching.value = true;
+      useLiveSearch.value = true;
+      
+      try {
+        const results = inventory.value.filter(item => item.warehouse_id === selectedWarehouse.value);
+        
+        let filteredResults = results;
+        
+        if (statusFilter.value) {
+          filteredResults = results.filter(item => {
+            const quantity = item.remaining_quantity || 0;
+            if (statusFilter.value === 'in_stock') return quantity >= 10;
+            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+            if (statusFilter.value === 'out_of_stock') return quantity === 0;
+            return true;
+          });
+        }
+        
+        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 3) {
+          filteredResults = performEnhancedSearch(filteredResults, searchTerm.value.trim());
+        }
+        
+        liveSearchResults.value = filteredResults;
+        
+      } catch (error) {
+        console.error('❌ Error loading items from warehouse:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل الأصناف من المخزن'
+        });
+        
+        useLiveSearch.value = false;
+      } finally {
+        isLiveSearching.value = false;
       }
     };
     
     const resetToNormalView = () => {
-      useSmartSearch.value = false;
-      smartSearchResults.value = [];
+      useLiveSearch.value = false;
+      liveSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
       
@@ -1596,61 +1593,18 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      if (searchTerm.value.trim() && searchTerm.value.length >= 3) {
-        performEnhancedSearch();
-      }
-    };
-    
-    // Cache Management
-    const loadFromCache = () => {
-      try {
-        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
-        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-        const searchIndexCache = localStorage.getItem(CACHE_KEYS.SEARCH_INDEX);
-        
-        if (cached && lastUpdateCache && searchIndexCache) {
-          const cacheAge = Date.now() - parseInt(lastUpdateCache);
-          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
-            const data = JSON.parse(cached);
-            const index = JSON.parse(searchIndexCache);
-            
-            // Convert Sets back from arrays
-            Object.keys(index).forEach(key => {
-              index[key] = new Set(index[key]);
-            });
-            
-            store.commit('SET_INVENTORY', data);
-            searchIndex.value = index;
-            isDataFresh.value = false;
-            return true;
-          }
+      if (useLiveSearch.value) {
+        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 3) {
+          performEnhancedLiveSearch(searchTerm.value.trim());
+        } else if (selectedWarehouse.value) {
+          loadItemsFromSelectedWarehouse();
         }
-      } catch (error) {
-        console.warn('Error loading from cache:', error);
-      }
-      return false;
-    };
-    
-    const saveToCache = () => {
-      try {
-        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
-        
-        // Convert Sets to arrays for JSON storage
-        const indexForStorage = {};
-        Object.keys(searchIndex.value).forEach(key => {
-          indexForStorage[key] = Array.from(searchIndex.value[key]);
-        });
-        localStorage.setItem(CACHE_KEYS.SEARCH_INDEX, JSON.stringify(indexForStorage));
-        
-        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
-      } catch (error) {
-        console.warn('Error saving to cache:', error);
       }
     };
     
-    // Excel Export
+    // Excel Export - IMPROVED with multiple sheets by warehouse
     const exportToExcel = async () => {
-      if (!filteredItems.value || filteredItems.value.length === 0) {
+      if (filteredItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1687,8 +1641,8 @@ export default {
             'الكمية الإجمالية المضافة': item.total_added || 0,
             'الكمية المتبقية': item.remaining_quantity || 0,
             'الحالة': getStockStatus(item.remaining_quantity || 0),
-            'أنشئ بواسطة': getActionUser(item),
-            'تم التحديث بواسطة': item.updated_by_name || getActionUser(item),
+            'أنشئ بواسطة': item.created_by_name || 'غير معروف',
+            'تم التحديث بواسطة': item.updated_by_name || item.created_by_name || 'غير معروف',
             'تاريخ الإنشاء': formatDate(item.created_at),
             'آخر تحديث': formatDate(item.updated_at)
           });
@@ -1723,10 +1677,22 @@ export default {
             
             // Add column widths for better formatting
             const colWidths = [
-              { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
-              { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
-              { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
-              { wch: 18 }
+              { wch: 12 }, // الكود
+              { wch: 20 }, // اسم الصنف
+              { wch: 12 }, // اللون
+              { wch: 15 }, // المخزن
+              { wch: 15 }, // مكان التخزين
+              { wch: 15 }, // المورد
+              { wch: 12 }, // عدد الكراتين
+              { wch: 12 }, // عدد في الكرتونة
+              { wch: 12 }, // عدد القطع الفردية
+              { wch: 15 }, // الكمية الإجمالية المضافة
+              { wch: 12 }, // الكمية المتبقية
+              { wch: 10 }, // الحالة
+              { wch: 15 }, // أنشئ بواسطة
+              { wch: 15 }, // تم التحديث بواسطة
+              { wch: 18 }, // تاريخ الإنشاء
+              { wch: 18 }, // آخر تحديث
             ];
             ws['!cols'] = colWidths;
             
@@ -1772,9 +1738,6 @@ export default {
         await store.dispatch('refreshAllData');
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
-        
-        // Rebuild search index
-        searchIndex.value = buildSearchIndex(inventory.value);
         saveToCache();
         
         store.dispatch('showNotification', {
@@ -1793,24 +1756,17 @@ export default {
       }
     };
     
-    // Load more items
+    // Load more items - loads 100 items per batch
     const loadMoreItems = async () => {
-      if (hasMore.value && !loadingMore.value && !useSmartSearch.value) {
+      if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
           loadingMore.value = true;
           await store.dispatch('loadMoreInventory');
-          
-          // Update search index with new items
-          const newItems = (inventory.value || []).slice(-50);
-          const newIndex = buildSearchIndex(newItems);
-          Object.keys(newIndex).forEach(key => {
-            if (!searchIndex.value[key]) searchIndex.value[key] = new Set();
-            newIndex[key].forEach(idx => {
-              searchIndex.value[key].add((inventory.value || []).length - 50 + idx);
-            });
-          });
-          
           saveToCache();
+          
+          // After loading, ensure virtual scrolling updates
+          await nextTick();
+          
         } catch (error) {
           console.error('❌ Error loading more items:', error);
           store.dispatch('showNotification', {
@@ -1823,39 +1779,18 @@ export default {
       }
     };
     
-    // Enhanced user action tracking
-    const getActionUser = (item) => {
-      if (!item) return 'غير معروف';
-      
-      // Check updated by first
-      if (item.updated_by_name && item.updated_by_name !== 'unknown' && item.updated_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.updated_by_name;
-      }
-      
-      // Check created by
-      if (item.created_by_name && item.created_by_name !== 'unknown' && item.created_by_name !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-        return item.created_by_name;
-      }
-      
-      // Check last modified by
-      if (item.last_modified_by && item.last_modified_by !== 'unknown') {
-        return item.last_modified_by;
-      }
-      
-      return currentUserInfo.value || 'نظام';
-    };
-    
-    const getLastActionUser = (item) => {
-      return getActionUser(item);
-    };
-    
     // UI Actions
     const toggleActionMenu = (itemId) => {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
     };
     
     const showItemDetails = (item) => {
-      selectedItem.value = item;
+      selectedItem.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id),
+        created_by_name: item.created_by_name || getActionUser(item),
+        updated_by_name: item.updated_by_name || getActionUser(item)
+      };
       showDetailsModal.value = true;
       showActionMenu.value = null;
     };
@@ -1901,7 +1836,10 @@ export default {
         });
         return;
       }
-      selectedItemForEdit.value = item;
+      selectedItemForEdit.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id)
+      };
       showEditModal.value = true;
       showDetailsModal.value = false;
       showActionMenu.value = null;
@@ -1915,7 +1853,12 @@ export default {
         });
         return;
       }
-      itemToDelete.value = item;
+      itemToDelete.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id),
+        created_by_name: item.created_by_name || getActionUser(item),
+        updated_by_name: item.updated_by_name || getActionUser(item)
+      };
       showDeleteConfirm.value = true;
       showActionMenu.value = null;
     };
@@ -1925,15 +1868,12 @@ export default {
         deleteLoading.value = true;
         await store.dispatch('deleteInventoryItem', itemToDelete.value.id);
         
-        // Remove from search index
-        searchIndex.value = buildSearchIndex(inventory.value);
-        saveToCache();
-        
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم حذف الصنف بنجاح!'
         });
         
+        // Close details modal if open
         if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
           closeDetailsModal();
         }
@@ -1954,9 +1894,6 @@ export default {
     
     const handleItemSaved = async () => {
       showAddModal.value = false;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1968,9 +1905,6 @@ export default {
     const handleItemUpdated = () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1982,9 +1916,6 @@ export default {
     const handleTransferSuccess = () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -1996,9 +1927,6 @@ export default {
     const handleDispatchSuccess = () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
-      
-      // Rebuild search index
-      searchIndex.value = buildSearchIndex(inventory.value);
       saveToCache();
       
       store.dispatch('showNotification', {
@@ -2007,38 +1935,41 @@ export default {
       });
     };
     
+    const getLastActionUser = (item) => {
+      return getActionUser(item);
+    };
+    
     // Lifecycle
     onMounted(() => {
+      // Load from cache first
       const fromCache = loadFromCache();
       
       if (!inventoryLoaded.value || fromCache) {
         loading.value = true;
         
+        // Load fresh data in background
         store.dispatch('loadAllInventory').then(() => {
           isDataFresh.value = true;
           lastUpdate.value = Date.now();
-          
-          // Build search index
-          if (inventory.value && inventory.value.length > 0) {
-            searchIndex.value = buildSearchIndex(inventory.value);
-          }
           saveToCache();
+          
+          // Reset scroll positions after load
+          visibleStartIndex.value = 0;
+          mobileVisibleStartIndex.value = 0;
+          
         }).catch(error => {
           console.error('❌ Error loading inventory:', error);
           error.value = 'حدث خطأ في تحميل البيانات';
         }).finally(() => {
           loading.value = false;
         });
-      } else if (inventory.value && inventory.value.length > 0) {
-        // Build search index from existing data
-        searchIndex.value = buildSearchIndex(inventory.value);
       }
       
-      if ((allWarehouses.value || []).length === 0) {
+      if (allWarehouses.value.length === 0) {
         store.dispatch('loadWarehouses');
       }
       
-      if ((accessibleWarehouses.value || []).length === 1) {
+      if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
       }
       
@@ -2079,7 +2010,8 @@ export default {
       handleFilterChange();
     });
     
-    watch(() => (filteredItems.value || []).length, () => {
+    watch(() => filteredItems.value.length, () => {
+      // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
     });
@@ -2088,7 +2020,6 @@ export default {
       // State
       loading,
       loadingMore,
-      preloading,
       error,
       showAddModal,
       showEditModal,
@@ -2109,10 +2040,10 @@ export default {
       refreshing,
       exportProgress,
       
-      // Enhanced search state
-      useSmartSearch,
-      smartSearchResults,
-      isSmartSearching,
+      // Live search state
+      useLiveSearch,
+      liveSearchResults,
+      isLiveSearching,
       
       // Mobile UI State
       showFilters,
@@ -2154,6 +2085,7 @@ export default {
       // Helper Methods
       formatNumber,
       getWarehouseLabel,
+      getItemWarehouseName,
       getStatusLabel,
       getStockStatus,
       getStockStatusClass,
@@ -2164,6 +2096,7 @@ export default {
       formatTime,
       getPlaceholderImage,
       handleImageError,
+      getActionUser,
       getLastActionUser,
       
       // Excel Export
@@ -2178,7 +2111,7 @@ export default {
       // Action Methods
       handleFilterChange,
       handleWarehouseChange,
-      handleSmartSearch,
+      handleLiveSearch,
       resetToNormalView,
       clearAllFilters,
       refreshData,
@@ -2205,120 +2138,83 @@ export default {
 </script>
 
 <style scoped>
-/* Enhanced performance optimized styles */
+/* Performance optimized styles */
 table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  table-layout: fixed; /* FIX: استخدام تخطيط ثابت */
 }
 
-/* Static header styling with backdrop blur */
+/* Static header styling */
 thead {
   position: sticky;
   top: 0;
   z-index: 20;
   background-color: #f9fafb;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .dark thead {
-  background-color: rgba(31, 41, 55, 0.95);
+  background-color: rgba(55, 65, 81, 0.95);
 }
 
-/* FIX: إصلاح محاذاة الجدول */
-th, td {
-  text-align: center;
-  vertical-align: middle;
-  padding: 12px 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* FIX: عرض أعمدة محدد */
-.w-20 { width: 80px; min-width: 80px; max-width: 80px; }
-.w-32 { width: 128px; min-width: 128px; max-width: 128px; }
-.w-40 { width: 160px; min-width: 160px; max-width: 160px; }
-.w-48 { width: 192px; min-width: 192px; max-width: 192px; }
-
-/* FIX: تحسين تباين الألوان في الوضع الداكن */
-.dark .text-gray-400,
-.dark .text-gray-500 {
-  color: #9ca3af;
-}
-
-.dark .text-gray-300 {
-  color: #d1d5db;
-}
-
-/* Virtual scrolling optimization */
-.virtual-scroll-container {
-  will-change: transform;
-  contain: strict;
-  content-visibility: auto;
-}
-
-/* Enhanced transitions */
+/* Reduced animations */
 .transition-colors {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
 }
 
 .transition-all {
   transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
 }
 
 /* Optimized hover states */
 .hover\:bg-gray-50:hover {
-  background-color: rgba(249, 250, 251, 0.9);
+  background-color: #f9fafb;
 }
 
 .dark .hover\:bg-gray-700\/50:hover {
   background-color: rgba(55, 65, 81, 0.5);
 }
 
-/* Enhanced scrollbar optimization */
+/* Scrollbar optimization */
 .overflow-x-auto {
   scrollbar-width: thin;
-  scrollbar-color: #94a3b8 #f1f5f9;
+  scrollbar-color: #cbd5e1 #f1f5f9;
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
 }
 
 .overflow-x-auto::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #94a3b8;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #374151;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #4b5563;
 }
 
 .dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #6b7280;
 }
 
 /* Image optimization */
@@ -2326,45 +2222,59 @@ img {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   content-visibility: auto;
-  loading: lazy;
 }
 
-/* Mobile touch targets optimization */
+/* Mobile touch targets */
 @media (max-width: 768px) {
   button {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 40px;
   }
   
   input, select, textarea {
-    font-size: 16px;
+    font-size: 16px; /* Prevent iOS zoom */
   }
   
-  /* Virtual scrolling optimization for mobile */
-  .lg\:hidden > div {
-    will-change: transform;
+  /* Make sure text doesn't overflow */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
-  /* Better virtual scrolling performance */
-  .virtual-scroll-container {
+  /* Better virtual scrolling performance on mobile */
+  .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+  
+  /* Compact mobile layout */
+  .grid-cols-2 > * {
+    padding: 0.5rem;
   }
   
   /* Responsive text sizes */
   .text-xs {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
   
   .text-sm {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
   }
   
-  /* Enhanced touch feedback */
-  .active\:scale-95:active {
-    transform: scale(0.95);
+  /* Adjust spacing for mobile */
+  .gap-2 {
+    gap: 0.5rem;
   }
   
+  .gap-3 {
+    gap: 0.75rem;
+  }
+  
+  .p-3 {
+    padding: 0.75rem;
+  }
+  
+  /* Better touch feedback */
   .active\:bg-gray-100:active {
     background-color: #f3f4f6;
   }
@@ -2387,32 +2297,38 @@ img {
   }
 }
 
-/* Table cell optimization */
+/* Table cell alignment fix */
 .whitespace-nowrap {
   white-space: nowrap;
 }
 
+/* Ensure text doesn't overflow in table cells */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Ensure smooth scrolling */
-.min-h-screen {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Modal z-index fix */
+.fixed {
+  isolation: isolate;
 }
 
-/* Virtual scrolling specific optimizations */
-tbody {
-  position: relative;
+/* Virtual scrolling optimization */
+.virtual-scroll-container {
+  will-change: transform;
+  contain: content;
 }
 
-/* Optimize animations */
+/* Optimize paint and composite layers */
+tbody tr {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* Loading animation */
 .animate-spin {
   animation: spin 1s linear infinite;
-  animation-timing-function: linear;
 }
 
 @keyframes spin {
@@ -2424,6 +2340,7 @@ tbody {
   }
 }
 
+/* Pulse animation */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -2437,6 +2354,36 @@ tbody {
   }
 }
 
+/* Ensure smooth scrolling on the entire page */
+.min-h-screen {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Better touch feedback for mobile */
+@media (max-width: 768px) {
+  .active\:scale-95:active {
+    transform: scale(0.95);
+  }
+  
+  .hover\:scale-110:hover {
+    transform: scale(1.1);
+  }
+  
+  /* Compact card layout */
+  .max-w-\[100px\] {
+    max-width: 100px;
+  }
+  
+  .max-w-\[120px\] {
+    max-width: 120px;
+  }
+  
+  .max-w-\[180px\] {
+    max-width: 180px;
+  }
+}
+
 /* Dark mode optimizations */
 .dark .border-gray-200 {
   border-color: #374151;
@@ -2446,19 +2393,22 @@ tbody {
   background-color: rgba(17, 24, 39, 0.5);
 }
 
-/* Clickable optimization */
+/* Clickable cursor */
 .cursor-pointer {
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth transitions for hover effects */
+.group-hover\:scale-105 {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Memory optimization */
 * {
   -webkit-tap-highlight-color: transparent;
-  box-sizing: border-box;
 }
 
-/* Print styles optimization */
+/* Print styles */
 @media print {
   .no-print {
     display: none !important;
@@ -2470,52 +2420,31 @@ tbody {
   
   th, td {
     border: 1px solid #ddd;
-    page-break-inside: avoid;
   }
 }
 
-/* Accessibility focus states */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-  ring-width: 2px;
+/* Optimize for low-end devices */
+@media (max-width: 768px) and (max-device-width: 1024px) {
+  /* Add active state for mobile buttons */
+  .active\:scale-95:active {
+    transform: scale(0.95);
+  }
+  
+  /* Reduce animations on mobile */
+  .transition-colors {
+    transition-duration: 150ms;
+  }
+  
+  /* Optimize images for mobile */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
-/* Rotate transition optimization */
-.rotate-180 {
-  transform: rotate(180deg);
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Loading state optimization */
-.text-center {
-  text-align: center;
-}
-
-.inline-block {
-  display: inline-block;
-}
-
-/* Responsive grid optimization */
-.grid-cols-2 > * {
-  min-width: 0;
-}
-
-/* Smooth transform optimization */
-.transform {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-/* Virtual scrolling height calculation */
-[style*="max-height: calc(100vh - 320px)"] {
-  max-height: calc(100vh - 300px) !important;
-}
-
-/* Optimize modal scrolling on mobile */
+/* Fix modal scrolling on mobile */
 @media (max-width: 768px) {
+  /* Prevent body scroll when modal is open */
   body.modal-open {
     overflow: hidden;
     position: fixed;
@@ -2523,35 +2452,47 @@ select:focus-visible {
     height: 100%;
   }
   
-  /* Improve virtual scrolling container */
-  .virtual-scroll-container {
+  /* Improve virtual scrolling container height */
+  [style*="max-height: calc(100vh - 320px)"] {
     max-height: calc(100vh - 280px) !important;
   }
 }
 
-/* Performance warnings */
-.performance-warning {
-  display: none;
+/* Ensure proper spacing in mobile cards */
+.space-y-1 > * + * {
+  margin-top: 0.25rem;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+/* Performance warning for large datasets */
+@media (max-width: 768px) {
+  .performance-warning {
+    display: none; /* Hide on mobile if needed */
+  }
 }
 
 /* Optimize dropdown menus */
 .absolute {
   z-index: 9999;
+}
+
+/* Better focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Improve virtual scrolling performance */
+[style*="transform: translateY"] {
   will-change: transform;
 }
 
-/* Better table layout */
-table {
-  table-layout: auto;
-}
-
-@media (min-width: 1024px) {
-  table {
-    table-layout: fixed;
-  }
-}
-
-/* Compact mobile optimization */
+/* Responsive utility classes */
 @media (max-width: 640px) {
   .hidden.xs\:inline {
     display: none;
@@ -2564,381 +2505,69 @@ table {
   .block.sm\:hidden {
     display: block;
   }
-  
-  /* Compact spacing */
-  .gap-2 {
-    gap: 0.5rem;
+}
+
+/* Rotate transition for filters */
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+/* Compact mobile filters */
+@media (max-width: 768px) {
+  .order-1 {
+    order: 1;
   }
   
-  .gap-3 {
-    gap: 0.75rem;
+  .order-2 {
+    order: 2;
   }
   
-  .p-3 {
-    padding: 0.75rem;
+  .order-3 {
+    order: 3;
+  }
+  
+  /* Adjust filter select height */
+  select {
+    min-height: 42px;
+  }
+  
+  /* Compact buttons */
+  button {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 }
 
-/* Optimize filter select */
-select {
-  min-height: 42px;
-  cursor: pointer;
+/* Virtual scrolling specific styles */
+[style*="transform: translateY"] {
+  will-change: transform;
+  contain: layout style paint;
 }
 
-/* Virtual scrolling performance enhancements */
+/* Optimize virtual scrolling rows */
 tbody tr {
   contain-intrinsic-size: 80px;
   content-visibility: auto;
 }
 
-@media (max-width: 1024px) {
-  tbody tr {
-    contain-intrinsic-size: 120px;
-  }
+/* Mobile card virtualization */
+.lg\:hidden > div > div > div {
+  contain-intrinsic-size: 120px;
+  content-visibility: auto;
 }
 
 /* Smooth scroll behavior */
 .overflow-y-auto {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
-/* Optimize fixed button */
-.fixed {
-  isolation: isolate;
-  z-index: 40;
+/* Search info styling */
+.text-yellow-600 {
+  color: #d97706;
 }
 
-/* Loading spinner optimization */
-.inline-block.animate-spin {
-  animation: spin 1s linear infinite;
-  will-change: transform;
-}
-
-/* Ensure proper text rendering */
-.text-gray-900 {
-  color: #111827;
-}
-
-.dark .text-white {
-  color: #ffffff;
-}
-
-/* Optimize table cell padding */
-.px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-.py-3 {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-/* Mobile card optimization */
-@media (max-width: 768px) {
-  .max-w-\[100px\] {
-    max-width: 100px;
-  }
-  
-  .max-w-\[120px\] {
-    max-width: 120px;
-  }
-  
-  .max-w-\[150px\] {
-    max-width: 150px;
-  }
-  
-  /* Better card layout */
-  .flex-col {
-    flex-direction: column;
-  }
-  
-  .space-y-1 > * + * {
-    margin-top: 0.25rem;
-  }
-  
-  .space-y-2 > * + * {
-    margin-top: 0.5rem;
-  }
-}
-
-/* Virtual row positioning */
-[style*="transform: translateY"] {
-  position: absolute;
-  width: 100%;
-  left: 0;
-  right: 0;
-}
-
-/* Ensure table cells don't overflow */
-td {
-  overflow: hidden;
-}
-
-/* Optimize modal performance */
-.fixed.inset-0 {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-/* Table row display for virtual scrolling */
-tbody tr {
-  display: table-row;
-}
-
-/* Ensure proper table cell display */
-td {
-  display: table-cell;
-  text-align: center;
-  vertical-align: middle;
-}
-
-/* Fix virtual scrolling table layout */
-.virtual-scroll-container table {
-  display: table;
-}
-
-.virtual-scroll-container thead,
-.virtual-scroll-container tbody {
-  display: table-row-group;
-}
-
-/* Ensure proper column widths */
-th, td {
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* Table cell alignment fixes */
-.align-middle {
-  vertical-align: middle !important;
-}
-
-.text-center {
-  text-align: center !important;
-}
-
-/* Fix for absolute positioned rows in virtual scrolling */
-tbody tr.absolute {
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-tbody tr.absolute td {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-/* Responsive table adjustments */
-@media (min-width: 1024px) {
-  th, td {
-    text-align: center;
-    vertical-align: middle;
-  }
-  
-  /* Ensure all table cells have consistent padding */
-  .px-4 {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-  
-  .py-3 {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-  }
-}
-
-/* Fix table header alignment */
-thead tr th {
-  text-align: center;
-  vertical-align: middle;
-}
-
-/* Ensure table cells are properly sized */
-table {
-  width: 100%;
-  table-layout: auto;
-}
-
-@media (min-width: 1024px) {
-  table {
-    table-layout: fixed;
-  }
-  
-  /* Set specific column widths for better alignment */
-  th:nth-child(1), td:nth-child(1) { width: 80px; } /* الصورة */
-  th:nth-child(2), td:nth-child(2) { width: 180px; } /* الاسم والكود */
-  th:nth-child(3), td:nth-child(3) { width: 100px; } /* اللون */
-  th:nth-child(4), td:nth-child(4) { width: 120px; } /* المخزن */
-  th:nth-child(5), td:nth-child(5) { width: 120px; } /* المورد */
-  th:nth-child(6), td:nth-child(6) { width: 150px; } /* الكميات */
-  th:nth-child(7), td:nth-child(7) { width: 120px; } /* المتبقي */
-  th:nth-child(8), td:nth-child(8) { width: 100px; } /* الحالة */
-  th:nth-child(9), td:nth-child(9) { width: 120px; } /* الإجراءات/آخر تحديث */
-}
-
-/* Center content in table cells */
-td > div,
-td > span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-/* Fix for text alignment in table cells */
-td .text-sm,
-td .text-xs {
-  text-align: center;
-  width: 100%;
-}
-
-/* Ensure buttons in table cells are centered */
-td .flex {
-  justify-content: center;
-}
-
-/* Fix for virtual scrolling absolute positioning */
-tbody {
-  position: relative;
-  display: block;
-}
-
-tbody tr.absolute {
-  display: table-row;
-  position: absolute;
-  left: 0;
-  right: 0;
-}
-
-tbody tr.absolute td {
-  display: table-cell;
-  vertical-align: middle;
-}
-
-/* Fix for table responsiveness */
-@media (max-width: 1024px) {
-  .lg\:hidden .virtual-scroll-container table {
-    display: table;
-    width: 100%;
-  }
-}
-
-/* Improve table header visibility */
-thead th {
-  background-color: #f9fafb;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.dark thead th {
-  background-color: rgba(31, 41, 55, 0.95);
-}
-
-/* Fix table border and spacing */
-table {
-  border-collapse: collapse;
-}
-
-th, td {
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.dark th, .dark td {
-  border-bottom: 1px solid #374151;
-}
-
-/* Ensure consistent row height */
-tbody tr {
-  height: 80px;
-}
-
-/* Fix for mobile virtual scrolling */
-.lg\:hidden .virtual-scroll-container {
-  position: relative;
-}
-
-.lg\:hidden .virtual-scroll-container > div {
-  position: relative;
-}
-
-/* Improve table readability */
-td {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Center align all table content */
-table {
-  text-align: center;
-}
-
-th, td {
-  text-align: center;
-  vertical-align: middle;
-}
-
-/* FIX: إصلاح تداخل النص في الخلايا */
-td > div {
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* FIX: تحسين عرض النصوص الطويلة */
-.truncate {
-  max-width: 100%;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-/* FIX: تحسين محاذاة العناصر داخل الخلايا */
-.flex.items-center {
-  flex-wrap: nowrap;
-}
-
-/* FIX: منع تداخل النصوص */
-.min-w-0 {
-  min-width: 0;
-}
-
-/* FIX: تحسين تخطيط الجدول للشاشات الكبيرة */
-@media (min-width: 1536px) {
-  .w-20 { width: 100px; }
-  .w-32 { width: 150px; }
-  .w-40 { width: 180px; }
-  .w-48 { width: 220px; }
-}
-
-/* FIX: تحسين أداء العرض على الجوال */
-@media (max-width: 1024px) {
-  .virtual-scroll-container {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-  
-  /* تحسين عرض النصوص على الجوال */
-  .text-xs {
-    font-size: 0.7rem;
-  }
-  
-  .text-sm {
-    font-size: 0.8rem;
-  }
-}
-
-/* FIX: منع حدوث scrollbar غير ضروري */
-.overflow-x-auto {
-  overflow-y: hidden;
-}
-
-.overflow-y-auto {
-  overflow-x: hidden;
+.dark .text-yellow-400 {
+  color: #fbbf24;
 }
 </style>
