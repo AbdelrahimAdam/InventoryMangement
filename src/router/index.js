@@ -1,6 +1,5 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
-import store from '@/store';
 
 // تحميل المكونات بشكل كسول مع معالجة الأخطاء
 const lazyLoad = (componentName) => {
@@ -146,8 +145,8 @@ const routes = [
     component: lazyLoad('Dashboard'),
     meta: { 
       requiresAuth: true,
-      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager']
-      // ✅ REMOVED: requiredPermissions: ['view_dashboard']
+      allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
+      requiredPermissions: ['view_dashboard']
     }
   },
   {
@@ -322,7 +321,7 @@ const router = createRouter({
   }
 });
 
-// ✅ UPDATED: دالة للتحقق من صلاحية الوصول للمسار
+// ✅ FIXED: دالة للتحقق من صلاحية الوصول للمسار
 const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   if (!routeMeta.allowedRoles) return true;
 
@@ -331,9 +330,9 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
     return false;
   }
 
-  // ✅ FIXED: Only check permissions if they are required
+  // ✅ FIXED: Get default permissions if user has none
   if (routeMeta.requiredPermissions) {
-    // If user has no permissions, give default permissions based on role
+    // If user has no permissions, use store getters to get effective permissions
     const effectivePermissions = userPermissions && userPermissions.length > 0 
       ? userPermissions 
       : getDefaultPermissionsForRole(userRole);
@@ -351,7 +350,7 @@ const canAccessRoute = (userRole, userPermissions, routeMeta) => {
   return true;
 };
 
-// ✅ NEW: Get default permissions for roles
+// ✅ FIXED: Get default permissions for roles (matches store logic)
 const getDefaultPermissionsForRole = (role) => {
   const defaultPermissions = {
     superadmin: [
@@ -378,14 +377,13 @@ const getDefaultPermissionsForRole = (role) => {
   return defaultPermissions[role] || ['view_dashboard', 'view_items', 'view_transactions', 'view_profile'];
 };
 
-// ✅ UPDATED: التحقق من صلاحية مدير المخزن
+// ✅ FIXED: التحقق من صلاحية مدير المخزن
 const canWarehouseManagerAccess = (userProfile, routeName, routeMeta) => {
   if (userProfile?.role !== 'warehouse_manager') return true;
 
   const allowedWarehouses = userProfile?.allowed_warehouses || [];
 
   // Warehouse managers can access inventory even with no warehouses
-  // They'll just see empty results
   if (routeName?.includes('Inventory') && allowedWarehouses.length === 0) {
     console.log(`⚠️ مدير المخزن ليس لديه مخازن مسموحة، لكن يمكنه الوصول: ${routeName}`);
     return true;
@@ -416,112 +414,107 @@ const canAccessRouteCached = (userRole, userPermissions, routeMeta, userProfile)
 // متغير لمنع تكرار التحقق
 let isCheckingRoute = false;
 
-// ✅ UPDATED: حارس التنقل
-router.beforeEach((to, from, next) => {
-  if (isCheckingRoute) {
-    next();
-    return;
-  }
-
-  isCheckingRoute = true;
-
-  try {
-    // استخدام مخزن البيانات مباشرة
-    const user = store?.state?.user;
-    const userProfile = store?.state?.userProfile;
-    const userRole = store?.getters?.userRole || userProfile?.role || '';
-    const userPermissions = store?.getters?.userPermissions || userProfile?.permissions || [];
-
-    console.log('🔍 التحقق من التنقل:', {
-      from: from.name,
-      to: to.name,
-      user: !!user,
-      userRole,
-      requiresAuth: to.meta.requiresAuth
-    });
-
-    // التحقق من صفحات الزوار (تسجيل الدخول)
-    if (to.meta.requiresGuest) {
-      if (user) {
-        console.log('📱 المستخدم مسجل دخول بالفعل - إعادة التوجيه');
-        next('/');
-      } else {
-        next();
-      }
+// ✅ FIXED: حارس التنقل باستخدام store بشكل صحيح
+const setupRouterGuard = (store) => {
+  router.beforeEach((to, from, next) => {
+    if (isCheckingRoute) {
+      next();
       return;
     }
 
-    // التحقق من المصادقة
-    if (to.meta.requiresAuth) {
-      if (!user) {
-        console.log('🔒 الصفحة تتطلب تسجيل دخول');
-        next('/login');
+    isCheckingRoute = true;
+
+    try {
+      // استخدام مخزن البيانات مباشرة
+      const user = store?.state?.user;
+      const userProfile = store?.state?.userProfile;
+      const userRole = userProfile?.role || '';
+      const userPermissions = userProfile?.permissions || [];
+
+      console.log('🔍 التحقق من التنقل:', {
+        from: from.name,
+        to: to.name,
+        user: !!user,
+        userRole,
+        requiresAuth: to.meta.requiresAuth
+      });
+
+      // التحقق من صفحات الزوار (تسجيل الدخول)
+      if (to.meta.requiresGuest) {
+        if (user) {
+          console.log('📱 المستخدم مسجل دخول بالفعل - إعادة التوجيه');
+          next('/');
+        } else {
+          next();
+        }
         return;
       }
 
-      // Check if user profile is loaded
-      if (!userProfile) {
-        console.log('⏳ جاري تحميل بيانات المستخدم...');
-        // Give time for user profile to load
-        setTimeout(() => {
-          const refreshedProfile = store?.state?.userProfile;
-          if (refreshedProfile) {
-            console.log('✅ بيانات المستخدم محملة الآن');
-            // Retry navigation
+      // التحقق من المصادقة
+      if (to.meta.requiresAuth) {
+        if (!user) {
+          console.log('🔒 الصفحة تتطلب تسجيل دخول');
+          next('/login');
+          return;
+        }
+
+        // Check if user profile is loaded
+        if (!userProfile) {
+          console.log('⏳ جاري تحميل بيانات المستخدم...');
+          // Give time for user profile to load
+          setTimeout(() => {
+            isCheckingRoute = false;
             router.replace(to.path);
-          } else {
-            console.log('❌ فشل تحميل بيانات المستخدم');
-            next('/unauthorized');
-          }
-        }, 1000);
-        return;
+          }, 1000);
+          return;
+        }
+
+        // Check if user is active
+        if (userProfile.is_active === false) {
+          console.log('⛔ الحساب غير نشط');
+          store.dispatch('logout');
+          next('/login');
+          return;
+        }
+
+        // Check if user has a role
+        if (!userRole) {
+          console.log('❌ المستخدم ليس لديه دور محدد');
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'حسابك يحتاج إلى تفعيل. يرجى التواصل مع المشرف.'
+          });
+          next('/unauthorized');
+          return;
+        }
+
+        // ✅ FIXED: Check route access with proper permission handling
+        if (!canAccessRouteCached(userRole, userPermissions, to.meta, userProfile)) {
+          console.log('⛔ المستخدم ليس لديه صلاحية الوصول');
+          next('/unauthorized');
+          return;
+        }
+
+        // Check warehouse manager access
+        if (!canWarehouseManagerAccess(userProfile, to.name, to.meta)) {
+          console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول');
+          next('/unauthorized');
+          return;
+        }
       }
 
-      // Check if user is active
-      if (userProfile.is_active === false) {
-        console.log('⛔ الحساب غير نشط');
-        store.dispatch('logout');
-        next('/login');
-        return;
-      }
-
-      // Check if user has a role
-      if (!userRole) {
-        console.log('❌ المستخدم ليس لديه دور محدد');
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حسابك يحتاج إلى تفعيل. يرجى التواصل مع المشرف.'
-        });
-        next('/unauthorized');
-        return;
-      }
-
-      // ✅ FIXED: Check route access with proper permission handling
-      if (!canAccessRouteCached(userRole, userPermissions, to.meta, userProfile)) {
-        console.log('⛔ المستخدم ليس لديه صلاحية الوصول');
-        next('/unauthorized');
-        return;
-      }
-
-      // Check warehouse manager access
-      if (!canWarehouseManagerAccess(userProfile, to.name, to.meta)) {
-        console.log('⛔ مدير المخزن ليس لديه صلاحية الوصول');
-        next('/unauthorized');
-        return;
-      }
+      next();
+    } catch (error) {
+      console.error('❌ خطأ في حارس التنقل:', error);
+      // On error, allow navigation to prevent blocking
+      next();
+    } finally {
+      setTimeout(() => {
+        isCheckingRoute = false;
+      }, 100);
     }
-
-    next();
-  } catch (error) {
-    console.error('❌ خطأ في حارس التنقل:', error);
-    // On error, allow navigation to prevent blocking
-    next();
-  } finally {
-    setTimeout(() => {
-      isCheckingRoute = false;
-    }, 100);
-  }
-});
+  });
+};
 
 // معالج أخطاء التنقل
 router.onError((error, to) => {
@@ -699,14 +692,10 @@ router.isReady().then(() => {
     console.log(`- ${route.name || 'غير معروف'}: ${route.path} ${route.meta?.requiresAuth ? '(تتطلب تسجيل دخول)' : ''}`);
   });
   
-  const userRole = store.getters.userRole;
-  const userPermissions = store.getters.userPermissions;
-  console.log('🔐 صلاحيات المستخدم الحالي:');
-  console.log(`  • الدور: ${userRole}`);
-  console.log(`  • الصلاحيات: ${userPermissions?.join(', ') || 'لا توجد صلاحيات'}`);
-  
 }).catch(error => {
   console.error('❌ خطأ في تحميل الموجه:', error);
 });
 
+// ✅ FIXED: تصدير setuptRouterGuard بدلاً من store مباشرة
+export { setupRouterGuard };
 export default router;
