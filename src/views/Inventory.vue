@@ -384,52 +384,52 @@
         <div class="hidden lg:block">
           <div 
             class="overflow-x-auto relative virtual-scroll-container" 
-            :style="{ maxHeight: 'calc(100vh - 400px)', height: `${filteredItems.length * 80}px` }"
+            :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
           >
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                 <tr>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الصورة
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
                       <span>الاسم والكود</span>
                       <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر للتفاصيل)</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     اللون
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المخزن
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     المورد
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
                       <span>الكميات</span>
                       <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">كراتين/في الكرتونة/فردي</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     <div class="flex flex-col items-center justify-center">
                       <span>المتبقي</span>
                       <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع</span>
                     </div>
                   </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الحالة
                   </th>
                   <th v-if="showActions && !readonly && userRole !== 'viewer'" 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     الإجراءات
                   </th>
                   <th v-else 
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
+                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500">
                     آخر تحديث
                   </th>
                 </tr>
@@ -439,16 +439,14 @@
                 <tr 
                   v-for="item in visibleItems" 
                   :key="item.id"
-                  class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 virtual-row absolute left-0 right-0"
+                  class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 absolute left-0 right-0"
                   :style="{ 
                     height: '80px',
-                    top: `${item.virtualIndex * 80}px`,
-                    display: 'flex',
-                    alignItems: 'center'
+                    top: `${item.virtualIndex * 80}px`
                   }"
                 >
                   <!-- Photo -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
@@ -465,33 +463,33 @@
                   </td>
 
                   <!-- Name and Code -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-1 min-w-0">
-                    <div class="min-w-0 max-w-xs">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <div class="flex flex-col items-center justify-center space-y-1">
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 max-w-[150px]"
                         @click="showItemDetails(item)">
                         {{ item.name }}
                       </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
                         <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                           {{ item.code }}
                         </span>
                       </div>
-                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
-                        <span class="truncate">{{ item.item_location }}</span>
+                        <span class="truncate max-w-[120px]">{{ item.item_location }}</span>
                       </div>
                     </div>
                   </td>
 
                   <!-- Color -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
                     <div class="flex items-center justify-center">
-                      <div class="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300"
+                      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                        <div v-if="item.color" class="w-4 h-4 rounded-full border border-gray-300"
                           :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="text-xs sm:text-sm text-gray-900 dark:text-white">
+                        <span class="text-sm text-gray-900 dark:text-white">
                           {{ item.color || '-' }}
                         </span>
                       </div>
@@ -499,35 +497,31 @@
                   </td>
 
                   <!-- Warehouse -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div class="text-center">
-                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        {{ getWarehouseLabel(item.warehouse_id) }}
-                      </span>
-                    </div>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                      {{ getWarehouseLabel(item.warehouse_id) }}
+                    </span>
                   </td>
 
                   <!-- Supplier -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div class="max-w-[120px] sm:max-w-[150px] mx-auto">
-                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white truncate block px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        {{ item.supplier || '-' }}
-                      </span>
-                    </div>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <span class="text-sm text-gray-900 dark:text-white truncate max-w-[120px] px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700 inline-block">
+                      {{ item.supplier || '-' }}
+                    </span>
                   </td>
 
                   <!-- Quantities -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div class="text-xs sm:text-sm space-y-1 max-w-[120px] sm:max-w-[150px] mx-auto">
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <div class="text-sm space-y-1 max-w-[150px] mx-auto">
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
                         <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
                         <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
                       </div>
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                      <div class="flex items-center justify-between px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
                         <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
                       </div>
@@ -535,38 +529,34 @@
                   </td>
 
                   <!-- Remaining Quantity -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div class="text-center">
-                      <div :class="getQuantityClass(item.remaining_quantity)" 
-                           class="text-base sm:text-lg font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-full inline-flex flex-col items-center gap-1">
-                        <span>{{ item.remaining_quantity }}</span>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                          من {{ item.total_added }}
-                        </div>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <div :class="getQuantityClass(item.remaining_quantity)" 
+                         class="text-lg font-bold px-4 py-2.5 rounded-full inline-flex flex-col items-center justify-center gap-1 min-w-[100px]">
+                      <span>{{ item.remaining_quantity }}</span>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        من {{ item.total_added }}
                       </div>
                     </div>
                   </td>
 
                   <!-- Status -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div class="flex justify-center">
-                      <span :class="getStockStatusClass(item.remaining_quantity)" 
-                            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm">
-                        {{ getStockStatus(item.remaining_quantity) }}
-                      </span>
-                    </div>
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <span :class="getStockStatusClass(item.remaining_quantity)" 
+                          class="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold shadow-sm min-w-[80px]">
+                      {{ getStockStatus(item.remaining_quantity) }}
+                    </span>
                   </td>
 
                   <!-- Actions or Updated Date -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4 flex-none">
-                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-1 sm:gap-2">
+                  <td class="px-4 sm:px-6 py-3 sm:py-4 text-center align-middle">
+                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-2">
                       <!-- View Details Button -->
                       <button
                         @click="showItemDetails(item)"
-                        class="p-1.5 sm:p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
+                        class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
                         title="عرض التفاصيل"
                       >
-                        <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                         </svg>
@@ -576,10 +566,10 @@
                       <div class="relative">
                         <button
                           @click="toggleActionMenu(item.id)"
-                          class="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
+                          class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
                           title="المزيد من الإجراءات"
                         >
-                          <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
                           </svg>
                         </button>
@@ -643,7 +633,7 @@
                       </div>
                     </div>
                     <div v-else class="text-center">
-                      <span class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
+                      <span class="text-sm text-gray-500 dark:text-gray-400 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
                         {{ formatDate(item.updated_at) }}
                       </span>
                     </div>
@@ -652,9 +642,9 @@
 
                 <!-- Empty State -->
                 <tr v-if="visibleItems.length === 0 && !loading" 
-                    class="absolute inset-0 flex items-center justify-center">
+                    class="absolute inset-0">
                   <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center justify-center h-full">
                       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
                       </svg>
@@ -700,18 +690,15 @@
               <div 
                 v-for="item in mobileVisibleItems" 
                 :key="item.id"
-                class="absolute left-0 right-0 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 virtual-row"
+                class="absolute left-0 right-0 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200 dark:border-gray-700"
                 :style="{ 
                   height: '120px',
-                  top: `${item.virtualIndex * 120}px`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
+                  top: `${item.virtualIndex * 120}px`
                 }"
                 @click="showItemDetails(item)"
               >
                 <!-- Main Row -->
-                <div class="flex gap-3">
+                <div class="flex gap-3 h-full">
                   <!-- Photo -->
                   <div class="flex-shrink-0">
                     <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
@@ -786,7 +773,7 @@
 
                 <!-- Quick Actions Bar -->
                 <div v-if="showActions && !readonly && userRole !== 'viewer'" 
-                     class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
+                     class="mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
                   <!-- Last Updated -->
                   <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2237,14 +2224,6 @@ thead {
   content-visibility: auto;
 }
 
-.virtual-row {
-  position: absolute;
-  width: 100%;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
 /* Enhanced transitions */
 .transition-colors {
   transition-property: background-color, border-color, color, fill, stroke;
@@ -2328,7 +2307,6 @@ img {
   /* Virtual scrolling optimization for mobile */
   .lg\:hidden > div {
     will-change: transform;
-    contain: strict;
   }
   
   /* Better virtual scrolling performance */
@@ -2674,33 +2652,21 @@ tbody tr {
   display: table-row;
 }
 
-@media (min-width: 1024px) {
-  tbody tr {
-    display: flex;
-    align-items: center;
-  }
-}
-
 /* Ensure proper table cell display */
 td {
   display: table-cell;
-}
-
-@media (min-width: 1024px) {
-  td {
-    display: flex;
-    align-items: center;
-  }
+  text-align: center;
+  vertical-align: middle;
 }
 
 /* Fix virtual scrolling table layout */
 .virtual-scroll-container table {
-  display: block;
+  display: table;
 }
 
 .virtual-scroll-container thead,
 .virtual-scroll-container tbody {
-  display: block;
+  display: table-row-group;
 }
 
 /* Ensure proper column widths */
@@ -2709,10 +2675,177 @@ th, td {
   max-width: 100%;
 }
 
+/* Table cell alignment fixes */
+.align-middle {
+  vertical-align: middle !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+/* Fix for absolute positioned rows in virtual scrolling */
+tbody tr.absolute {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+tbody tr.absolute td {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Responsive table adjustments */
+@media (min-width: 1024px) {
+  th, td {
+    text-align: center;
+    vertical-align: middle;
+  }
+  
+  /* Ensure all table cells have consistent padding */
+  .px-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .py-3 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+/* Fix table header alignment */
+thead tr th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Ensure table cells are properly sized */
+table {
+  width: 100%;
+  table-layout: auto;
+}
+
+@media (min-width: 1024px) {
+  table {
+    table-layout: fixed;
+  }
+  
+  /* Set specific column widths for better alignment */
+  th:nth-child(1), td:nth-child(1) { width: 80px; } /* الصورة */
+  th:nth-child(2), td:nth-child(2) { width: 180px; } /* الاسم والكود */
+  th:nth-child(3), td:nth-child(3) { width: 100px; } /* اللون */
+  th:nth-child(4), td:nth-child(4) { width: 120px; } /* المخزن */
+  th:nth-child(5), td:nth-child(5) { width: 120px; } /* المورد */
+  th:nth-child(6), td:nth-child(6) { width: 150px; } /* الكميات */
+  th:nth-child(7), td:nth-child(7) { width: 120px; } /* المتبقي */
+  th:nth-child(8), td:nth-child(8) { width: 100px; } /* الحالة */
+  th:nth-child(9), td:nth-child(9) { width: 120px; } /* الإجراءات/آخر تحديث */
+}
+
+/* Center content in table cells */
+td > div,
+td > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Fix for text alignment in table cells */
+td .text-sm,
+td .text-xs {
+  text-align: center;
+  width: 100%;
+}
+
+/* Ensure buttons in table cells are centered */
+td .flex {
+  justify-content: center;
+}
+
+/* Fix for virtual scrolling absolute positioning */
+tbody {
+  position: relative;
+  display: block;
+}
+
+tbody tr.absolute {
+  display: table-row;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+tbody tr.absolute td {
+  display: table-cell;
+  vertical-align: middle;
+}
+
 /* Fix for table responsiveness */
 @media (max-width: 1024px) {
   .lg\:hidden .virtual-scroll-container table {
     display: table;
+    width: 100%;
   }
+}
+
+/* Improve table header visibility */
+thead th {
+  background-color: #f9fafb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dark thead th {
+  background-color: rgba(31, 41, 55, 0.95);
+}
+
+/* Fix table border and spacing */
+table {
+  border-collapse: collapse;
+}
+
+th, td {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark th, .dark td {
+  border-bottom: 1px solid #374151;
+}
+
+/* Ensure consistent row height */
+tbody tr {
+  height: 80px;
+}
+
+/* Fix for mobile virtual scrolling */
+.lg\:hidden .virtual-scroll-container {
+  position: relative;
+}
+
+.lg\:hidden .virtual-scroll-container > div {
+  position: relative;
+}
+
+/* Improve table readability */
+td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Center align all table content */
+table {
+  text-align: center;
+}
+
+th, td {
+  text-align: center;
+  vertical-align: middle;
 }
 </style>
