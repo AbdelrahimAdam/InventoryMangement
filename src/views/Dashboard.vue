@@ -283,7 +283,7 @@
         </div>
       </div>
 
-      <!-- QUICK ACTIONS SECTION (MOVED HERE) -->
+      <!-- QUICK ACTIONS SECTION -->
       <div class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
@@ -450,7 +450,7 @@
             </div>
 
             <!-- Load More Button -->
-            <div v-if="hasMoreItems && !inventoryLoading" class="mt-6 text-center">
+            <div v-if="false" class="mt-6 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loadMoreLoading"
@@ -462,9 +462,6 @@
                 </svg>
                 <span v-else>⬇️ تحميل المزيد</span>
               </button>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                تم تحميل {{ totalLoadedItems }} من أصل {{ totalItemsCount }} صنف
-              </p>
             </div>
           </div>
         </div>
@@ -499,7 +496,6 @@
                 v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
                 :key="transaction.id"
                 class="group p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer fade-in"
-                @click="openTransactionModal?.(transaction)"
               >
                 <div class="flex items-center gap-3">
                   <!-- Transaction Icon -->
@@ -572,7 +568,7 @@
         </div>
       </div>
 
-      <!-- WAREHOUSE STATISTICS SECTION (MOVED TO BOTTOM) -->
+      <!-- WAREHOUSE STATISTICS SECTION -->
       <div v-if="selectedWarehouse === 'all'" class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
@@ -670,324 +666,7 @@
                   </td>
                 </tr>
               </tbody>
-              <tfoot class="bg-gray-50 dark:bg-gray-800/50">
-                <tr>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">المجموع الكلي</div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(allWarehouseStats.totalItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(allWarehouseStats.totalQuantity) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-orange-600 dark:text-orange-400">
-                      {{ formatEnglishNumber(allWarehouseStats.lowStockItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-red-600 dark:text-red-400">
-                      {{ formatEnglishNumber(allWarehouseStats.outOfStockItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center gap-2">
-                      <div class="flex-1">
-                        <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            :class="stockHealthColor"
-                            class="h-full rounded-full"
-                            :style="{ width: stockHealthPercentage + '%' }"
-                          ></div>
-                        </div>
-                      </div>
-                      <span class="text-sm font-bold" :class="getHealthTextClass(stockHealthPercentage)">
-                        {{ stockHealthPercentage }}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
             </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Item Details Modal -->
-    <div v-if="showItemModal" class="fixed inset-0 z-50 overflow-y-auto modal-backdrop">
-      <!-- Backdrop -->
-      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeItemModal"></div>
-
-      <!-- Modal Container -->
-      <div class="flex min-h-full items-center justify-center p-4">
-        <!-- Modal Content -->
-        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden transition-all duration-300 transform scale-100 slide-in">
-          <!-- Modal Header -->
-          <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-xl font-bold text-gray-900 dark:text-white">تفاصيل الصنف</h2>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">المعلومات الكاملة عن الصنف المحدد</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-3">
-                <!-- Edit Button -->
-                <button 
-                  v-if="canModifyItems"
-                  @click="editItem"
-                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                  </svg>
-                  تعديل
-                </button>
-                <!-- Close Button -->
-                <button 
-                  @click="closeItemModal"
-                  class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)] custom-scrollbar">
-            <div v-if="modalLoading" class="py-20 text-center">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600 dark:text-gray-400">جاري تحميل تفاصيل الصنف...</p>
-            </div>
-
-            <div v-else-if="selectedItem" class="space-y-6">
-              <!-- Item Header -->
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Item Image -->
-                <div class="lg:col-span-1">
-                  <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 h-full flex flex-col items-center justify-center">
-                    <div class="relative w-48 h-48 rounded-xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg mb-4">
-                      <img 
-                        v-if="selectedItem.photo_url" 
-                        :src="selectedItem.photo_url" 
-                        :alt="selectedItem.name"
-                        class="w-full h-full object-cover lazy-image"
-                        loading="lazy"
-                        @error="handleModalImageError"
-                      >
-                      <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-600">
-                        <svg class="h-20 w-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                      </div>
-                      <div :class="[
-                        'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold',
-                        selectedItem.remaining_quantity === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                        selectedItem.remaining_quantity < 10 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
-                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      ]">
-                        {{ selectedItem.remaining_quantity === 0 ? 'منتهي' : 
-                           selectedItem.remaining_quantity < 10 ? 'قليل' : 'متوفر' }}
-                      </div>
-                    </div>
-                    <div class="text-center">
-                      <div class="text-4xl font-bold mb-2" :class="getQuantityClass(selectedItem.remaining_quantity)">
-                        {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
-                      </div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400">الكمية المتاحة</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Item Info -->
-                <div class="lg:col-span-2">
-                  <div class="space-y-6">
-                    <!-- Basic Info -->
-                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">المعلومات الأساسية</h3>
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اسم الصنف</label>
-                          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedItem.name }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الكود</label>
-                          <p class="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">{{ selectedItem.code }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اللون</label>
-                          <div class="flex items-center gap-2">
-                            <div 
-                              v-if="selectedItem.color" 
-                              class="h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600"
-                              :style="{ backgroundColor: selectedItem.color }"
-                            ></div>
-                            <span class="text-gray-900 dark:text-white">{{ selectedItem.color || 'بدون لون' }}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحجم</label>
-                          <p class="text-gray-900 dark:text-white">{{ selectedItem.size || 'غير محدد' }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">المخزن</label>
-                          <div class="flex items-center gap-2">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                            </svg>
-                            <span class="text-gray-900 dark:text-white">{{ getWarehouseLabel(selectedItem.warehouse_id) }}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">آخر تحديث</label>
-                          <div class="flex items-center gap-2">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span class="text-gray-900 dark:text-white">{{ formatRelativeTime(selectedItem.updated_at || selectedItem.created_at) }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Quantity Details -->
-                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">تفاصيل الكمية</h3>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.cartons_count || 0) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الكراتين</p>
-                          <div class="text-xs text-gray-400 mt-1">
-                            × {{ selectedItem.per_carton_count || 12 }} لكل كرتون
-                          </div>
-                        </div>
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.single_bottles_count || 0) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الفردي</p>
-                        </div>
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">المجموع الكلي</p>
-                          <div class="text-xs text-gray-400 mt-1">
-                            {{ calculateTotalQuantity(selectedItem) }} وحدة
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Additional Info -->
-                    <div v-if="selectedItem.description || selectedItem.notes" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">معلومات إضافية</h3>
-                      <div class="space-y-4">
-                        <div v-if="selectedItem.description">
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الوصف</label>
-                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.description }}</p>
-                        </div>
-                        <div v-if="selectedItem.notes">
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ملاحظات</label>
-                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.notes }}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Recent Transactions for this item -->
-              <div v-if="itemTransactions.length > 0" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">آخر الحركات لهذا الصنف</h3>
-                <div class="space-y-3">
-                  <div 
-                    v-for="trans in itemTransactions.slice(0, 5)" 
-                    :key="trans.id"
-                    class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 fade-in"
-                  >
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-3">
-                        <div :class="[
-                          'h-8 w-8 rounded-lg flex items-center justify-center',
-                          trans.type === 'ADD' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
-                          trans.type === 'TRANSFER' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' :
-                          'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
-                        ]">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path v-if="trans.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            <path v-if="trans.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                            <path v-if="trans.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getTransactionTypeLabel(trans.type) }}</span>
-                          <p class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ formatDetailedTime(trans.timestamp) }} 
-                            ({{ formatRelativeTime(trans.timestamp) }})
-                          </p>
-                        </div>
-                      </div>
-                      <div class="text-right">
-                        <span :class="[
-                          'font-bold',
-                          trans.type === 'ADD' ? 'text-green-600 dark:text-green-400' :
-                          'text-red-600 dark:text-red-400'
-                        ]">
-                          {{ trans.type === 'ADD' ? '+' : '' }}{{ formatEnglishNumber(trans.total_delta || 0) }}
-                        </span>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                          {{ trans.created_by || 'نظام' }}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ selectedItem ? `معرف الصنف: ${selectedItem.id}` : '' }}
-              </div>
-              <div class="flex items-center gap-3">
-                <button
-                  @click="closeItemModal"
-                  class="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  إغلاق
-                </button>
-                <router-link 
-                  v-if="selectedItem"
-                  :to="`/inventory/${selectedItem.id}`"
-                  class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  عرض كامل التفاصيل
-                </router-link>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -996,7 +675,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
@@ -1044,46 +723,24 @@ export default {
     // Warehouse-specific stats
     const allWarehousesStats = ref({});
 
-    // Cache for stats calculation
-    const statsCache = ref({});
-    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
-
-    // ========== OPTIMIZED COMPUTED PROPERTIES ==========
+    // ========== COMPUTED PROPERTIES ==========
     
-    const userRole = computed(() => store.getters.userRole || '');
+    const userRole = computed(() => store.state.userProfile?.role || '');
     
     const warehouses = computed(() => {
-      try {
-        return store.getters.warehouses || [];
-      } catch {
-        return [];
-      }
+      return store.state.warehouses || [];
     });
     
     const inventoryItems = computed(() => {
-      try {
-        const inventory = store.getters.inventoryItems || [];
-        return Array.isArray(inventory) ? inventory : [];
-      } catch {
-        return [];
-      }
+      return store.state.inventory || [];
     });
     
     const recentStoreTransactions = computed(() => {
-      try {
-        const items = store.getters.recentTransactions || [];
-        return Array.isArray(items) ? items : [];
-      } catch {
-        return [];
-      }
+      return store.state.recentTransactions || [];
     });
     
-    // Pagination getters
-    const hasMoreItems = computed(() => store.getters.hasMore || false);
-    const totalLoadedItems = computed(() => store.getters.totalLoaded || 0);
-    const isFetchingMore = computed(() => store.getters.isFetchingMore || false);
-    const inventoryLoading = computed(() => store.getters.inventoryLoading || false);
-    const recentTransactionsLoading = computed(() => store.getters.recentTransactionsLoading || false);
+    const inventoryLoading = computed(() => store.state.inventoryLoading || false);
+    const recentTransactionsLoading = computed(() => store.state.recentTransactionsLoading || false);
     
     const canModifyItems = computed(() => {
       try {
@@ -1107,13 +764,10 @@ export default {
       }
     });
 
-    // Get total items count (cached)
     const totalItemsCount = computed(() => {
-      const stats = store.getters.dashboardRealStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
-      return stats.totalItems || 0;
+      return dashboardStats.value.totalItems || 0;
     });
     
-    // Today's transactions with caching
     const todayTransactions = computed(() => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1130,7 +784,6 @@ export default {
       });
     });
 
-    // Pre-calculate these to avoid recomputation
     const todayAddCount = computed(() => 
       todayTransactions.value.filter(t => t.type === 'ADD').length
     );
@@ -1161,7 +814,6 @@ export default {
       return formatRelativeTime(transactions[0]?.timestamp);
     });
 
-    // Filter inventory based on selected warehouse
     const filteredInventory = computed(() => {
       if (selectedWarehouse.value === 'all') {
         return inventoryItems.value;
@@ -1169,7 +821,6 @@ export default {
       return inventoryItems.value.filter(item => item.warehouse_id === selectedWarehouse.value);
     });
 
-    // Recent inventory (last 8 items)
     const filteredRecentInventory = computed(() => {
       const items = filteredInventory.value;
       if (!Array.isArray(items) || items.length === 0) return [];
@@ -1197,7 +848,6 @@ export default {
       return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
-    // Filter transactions based on selected warehouse
     const filteredRecentTransactions = computed(() => {
       if (selectedWarehouse.value === 'all') {
         return recentStoreTransactions.value;
@@ -1209,9 +859,6 @@ export default {
       );
     });
 
-    // ========== OPTIMIZED CALCULATIONS ==========
-    
-    // Memoized calculations for better performance
     const calculatedTotals = computed(() => {
       const inventory = filteredInventory.value;
       
@@ -1298,7 +945,9 @@ export default {
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return '';
       try {
-        return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
+        const warehouses = store.state.warehouses || [];
+        const warehouse = warehouses.find(w => w.id === warehouseId);
+        return warehouse ? (warehouse.name_ar || warehouse.name) : warehouseId;
       } catch {
         return warehouseId;
       }
@@ -1363,12 +1012,9 @@ export default {
       modalLoading.value = true;
       showItemModal.value = true;
       
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
       
-      // Load item transactions
       try {
-        // Filter transactions for this specific item
         itemTransactions.value = recentStoreTransactions.value.filter(trans => 
           trans.item_id === item.id || trans.item_code === item.code
         ).slice(0, 10);
@@ -1383,8 +1029,6 @@ export default {
       showItemModal.value = false;
       selectedItem.value = null;
       itemTransactions.value = [];
-      
-      // Restore body scroll
       document.body.style.overflow = '';
     };
 
@@ -1411,16 +1055,9 @@ export default {
       });
     };
 
-    // ========== OPTIMIZED STATS LOADING ==========
+    // ========== STATS LOADING ==========
     
     const loadWarehouseStats = async (warehouseId) => {
-      // Check cache first
-      const cacheKey = `warehouse_${warehouseId}_${lastUpdated.value.getTime()}`;
-      if (statsCache.value[cacheKey] && 
-          Date.now() - statsCache.value[cacheKey].timestamp < CACHE_TTL) {
-        return statsCache.value[cacheKey].data;
-      }
-
       try {
         const inventory = inventoryItems.value;
         const warehouseInventory = warehouseId === 'all' 
@@ -1461,12 +1098,6 @@ export default {
           lastUpdated: new Date()
         };
         
-        // Cache the result
-        statsCache.value[cacheKey] = {
-          data: result,
-          timestamp: Date.now()
-        };
-        
         return result;
       } catch {
         return {
@@ -1486,12 +1117,9 @@ export default {
         const warehousesList = warehouses.value;
         const stats = {};
         
-        // Use Promise.all for parallel loading
-        const promises = warehousesList.map(async (warehouse) => {
+        for (const warehouse of warehousesList) {
           stats[warehouse.id] = await loadWarehouseStats(warehouse.id);
-        });
-        
-        await Promise.all(promises);
+        }
         
         allWarehousesStats.value = stats;
       } catch {
@@ -1501,68 +1129,85 @@ export default {
       }
     };
 
-    // Optimized dashboard stats loading
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
-        // Use store getter for real stats (cached)
-        const realStats = store.getters.dashboardRealStats(warehouseId);
-        
-        dashboardStats.value = {
-          totalItems: realStats.totalItems,
-          totalQuantity: realStats.totalQuantity,
-          lowStockItems: realStats.lowStockItems,
-          outOfStockItems: 0,
-          lastUpdated: realStats.lastUpdated || new Date()
-        };
-        
-        // Calculate out of stock items
         const filteredItems = warehouseId === 'all' 
           ? inventoryItems.value 
           : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
         
-        let outOfStockCount = 0;
+        let totalQuantity = 0;
+        let lowStockItems = 0;
+        let outOfStockItems = 0;
+        
         for (let i = 0; i < filteredItems.length; i++) {
-          if ((filteredItems[i].remaining_quantity || 0) === 0) {
-            outOfStockCount++;
+          const item = filteredItems[i];
+          const cartons = item.cartons_count || 0;
+          const perCarton = item.per_carton_count || 12;
+          const singles = item.single_bottles_count || 0;
+          const remaining = item.remaining_quantity || 0;
+          
+          totalQuantity += (cartons * perCarton) + singles;
+          
+          if (remaining === 0) {
+            outOfStockItems++;
+          } else if (remaining < 10) {
+            lowStockItems++;
           }
         }
-        dashboardStats.value.outOfStockItems = outOfStockCount;
         
-        // Load "all" stats for comparison (cached)
-        const allStats = store.getters.dashboardRealStats('all');
-        allWarehouseStats.value = {
-          totalItems: allStats.totalItems,
-          totalQuantity: allStats.totalQuantity,
-          lowStockItems: allStats.lowStockItems,
-          outOfStockItems: 0 // We'll calculate this on demand
+        dashboardStats.value = {
+          totalItems: filteredItems.length,
+          totalQuantity: totalQuantity,
+          lowStockItems: lowStockItems,
+          outOfStockItems: outOfStockItems,
+          lastUpdated: new Date()
         };
         
-        // Calculate all out of stock items
-        let allOutOfStockCount = 0;
-        for (let i = 0; i < inventoryItems.value.length; i++) {
-          if ((inventoryItems.value[i].remaining_quantity || 0) === 0) {
-            allOutOfStockCount++;
+        // Load "all" stats for comparison
+        const allInventory = inventoryItems.value;
+        
+        let allTotalQuantity = 0;
+        let allLowStockItems = 0;
+        let allOutOfStockItems = 0;
+        
+        for (let i = 0; i < allInventory.length; i++) {
+          const item = allInventory[i];
+          const cartons = item.cartons_count || 0;
+          const perCarton = item.per_carton_count || 12;
+          const singles = item.single_bottles_count || 0;
+          const remaining = item.remaining_quantity || 0;
+          
+          allTotalQuantity += (cartons * perCarton) + singles;
+          
+          if (remaining === 0) {
+            allOutOfStockItems++;
+          } else if (remaining < 10) {
+            allLowStockItems++;
           }
         }
-        allWarehouseStats.value.outOfStockItems = allOutOfStockCount;
         
-        // Load stats for all warehouses if "all" is selected (deferred)
+        allWarehouseStats.value = {
+          totalItems: allInventory.length,
+          totalQuantity: allTotalQuantity,
+          lowStockItems: allLowStockItems,
+          outOfStockItems: allOutOfStockItems
+        };
+        
+        // Load stats for all warehouses if "all" is selected
         if (warehouseId === 'all') {
-          // Load in background for better UX
           setTimeout(() => {
             loadAllWarehousesStats();
           }, 100);
         }
         
         console.log('✅ Dashboard stats loaded:', dashboardStats.value);
-        
         lastUpdated.value = new Date();
         
       } catch {
-        // Fallback to calculated stats
+        // Fallback
         const inventory = filteredInventory.value;
         
         let totalQuantity = 0;
@@ -1592,38 +1237,6 @@ export default {
           outOfStockItems: outOfStockItems,
           lastUpdated: new Date()
         };
-        
-        // For "all" comparison
-        if (warehouseId !== 'all') {
-          const allInventory = inventoryItems.value;
-          
-          let allTotalQuantity = 0;
-          let allLowStockItems = 0;
-          let allOutOfStockItems = 0;
-          
-          for (let i = 0; i < allInventory.length; i++) {
-            const item = allInventory[i];
-            const cartons = item.cartons_count || 0;
-            const perCarton = item.per_carton_count || 12;
-            const singles = item.single_bottles_count || 0;
-            const remaining = item.remaining_quantity || 0;
-            
-            allTotalQuantity += (cartons * perCarton) + singles;
-            
-            if (remaining === 0) {
-              allOutOfStockItems++;
-            } else if (remaining < 10) {
-              allLowStockItems++;
-            }
-          }
-          
-          allWarehouseStats.value = {
-            totalItems: allInventory.length,
-            totalQuantity: allTotalQuantity,
-            lowStockItems: allLowStockItems,
-            outOfStockItems: allOutOfStockItems
-          };
-        }
       } finally {
         statsLoading.value = false;
       }
@@ -1632,20 +1245,12 @@ export default {
     // ========== ACTIONS ==========
     
     const loadMoreItems = async () => {
-      if (loadMoreLoading.value || isFetchingMore.value) return;
+      if (loadMoreLoading.value) return;
       
       loadMoreLoading.value = true;
       try {
         console.log('📥 Loading more items...');
-        
-        // Use the store's loadMoreInventory action
-        const newItems = await store.dispatch('loadMoreInventory');
-        
-        console.log(`✅ Loaded: ${newItems.length} items`);
-        
-        // Refresh dashboard stats after loading more items
         await loadDashboardStats(selectedWarehouse.value);
-        
       } catch {
         console.error('❌ Error loading more items');
       } finally {
@@ -1656,20 +1261,13 @@ export default {
     const refreshDashboard = async () => {
       loading.value = true;
       try {
-        // Clear cache
-        statsCache.value = {};
-        
-        // Refresh all data in parallel
-        const [inventoryPromise, transactionsPromise] = await Promise.allSettled([
+        await Promise.allSettled([
           store.dispatch('loadAllInventory', { forceRefresh: true }),
           store.dispatch('getRecentTransactions')
         ]);
         
-        // Refresh dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
-        
         console.log('🔄 Dashboard refreshed successfully');
-        
       } catch {
         console.error('Error refreshing dashboard');
       } finally {
@@ -1681,13 +1279,7 @@ export default {
       loading.value = true;
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
-        
-        // Load dashboard stats
         await loadDashboardStats(selectedWarehouse.value);
-        
-        console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
-        console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
-        
       } catch {
         console.error('Error changing warehouse');
       } finally {
@@ -1702,24 +1294,19 @@ export default {
       console.log('🚀 Loading dashboard data...');
       
       try {
-        // Check if user is authenticated
-        const isAuthenticated = store.getters.isAuthenticated;
+        const isAuthenticated = store.state.user;
         if (!isAuthenticated) {
           console.log('⚠️ User not authenticated, redirecting to login...');
           await router.push('/login');
           return;
         }
         
-        // Load initial data in parallel for faster loading
-        const [warehousesData, inventoryData, transactionsData] = await Promise.allSettled([
-          !warehouses.value || warehouses.value.length === 0 
-            ? store.dispatch('loadWarehouses')
-            : Promise.resolve(),
+        await Promise.allSettled([
+          store.dispatch('loadWarehouses'),
           store.dispatch('loadAllInventory', { forceRefresh: true }),
           store.dispatch('getRecentTransactions')
         ]);
         
-        // Load dashboard stats
         console.log('📈 Loading dashboard stats...');
         await loadDashboardStats(selectedWarehouse.value);
         
@@ -1728,7 +1315,6 @@ export default {
       } catch (error) {
         console.error('❌ Error loading dashboard data:', error);
         
-        // Check if error is authentication-related
         if (error.message?.includes('not authenticated') || error.message?.includes('permission-denied')) {
           console.log('🔒 Authentication error detected, redirecting to login...');
           await router.push('/login');
@@ -1753,15 +1339,12 @@ export default {
     onMounted(async () => {
       console.log('🚀 Dashboard mounted');
       
-      // Start time update
       updateTime();
       const timeInterval = setInterval(updateTime, 60000);
       
-      // Add event listener for escape key
       document.addEventListener('keydown', handleEscapeKey);
       
       try {
-        // Load dashboard data
         await loadDashboardData();
       } catch {
         console.error('❌ Error in dashboard mounted');
@@ -1772,8 +1355,6 @@ export default {
       onUnmounted(() => {
         clearInterval(timeInterval);
         document.removeEventListener('keydown', handleEscapeKey);
-        
-        // Ensure body scroll is restored
         document.body.style.overflow = '';
       });
     });
@@ -1787,7 +1368,6 @@ export default {
       }
     });
 
-    // Debounced inventory watch to prevent too many updates
     let inventoryWatchTimeout;
     watch(inventoryItems, async () => {
       if (!loading.value && !statsLoading.value) {
@@ -1795,13 +1375,9 @@ export default {
         inventoryWatchTimeout = setTimeout(async () => {
           console.log('🔄 Inventory changed, updating stats...');
           await loadDashboardStats(selectedWarehouse.value);
-        }, 500); // Debounce by 500ms
+        }, 500);
       }
     }, { deep: true });
-
-    watch(totalLoadedItems, (newCount) => {
-      console.log(`📦 Total loaded items updated: ${newCount}`);
-    });
 
     return {
       // State
@@ -1845,10 +1421,6 @@ export default {
       outOfStockItems,
       stockHealthPercentage,
       stockHealthColor,
-      hasMoreItems,
-      totalLoadedItems,
-      totalItemsCount,
-      isFetchingMore,
       inventoryLoading,
       recentTransactionsLoading,
       
