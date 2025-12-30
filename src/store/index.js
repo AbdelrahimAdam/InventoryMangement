@@ -35,13 +35,26 @@ import {
 } from '@/services/inventoryService';
 import * as XLSX from 'xlsx';
 
-// Performance configuration - UPDATED for Spark Plan
+// Enhanced Performance configuration
 const PERFORMANCE_CONFIG = {
   INITIAL_LOAD: 50,
   SCROLL_LOAD: 20,
-  SEARCH_LIMIT: 50,
-  CACHE_DURATION: 30 * 60 * 1000,
-  INVOICE_LOAD_LIMIT: 100
+  SEARCH_LIMIT: 25,
+  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+  INVOICE_LOAD_LIMIT: 100,
+  SEARCH_DEBOUNCE: 300, // ms
+  MAX_SEARCH_CACHE: 100, // entries
+  MIN_SEARCH_CHARS: 2,
+  MAX_REALTIME_LISTENERS: 50,
+  BATCH_SIZE: 10
+};
+
+// Search configuration
+const SEARCH_CONFIG = {
+  FIELDS: ['name', 'code', 'color', 'supplier', 'item_location', 'warehouse_id'],
+  FUZZY_THRESHOLD: 0.7,
+  MAX_RESULTS: 25,
+  CACHE_KEY: 'inventory_search_cache'
 };
 
 // Notification configuration
@@ -128,7 +141,23 @@ export default createStore({
     isFetchingInventory: false,
     isRefreshingSilently: false,
     recentTransactionsLoading: false,
-    activeItemListeners: new Set(), // Track item listeners
+    activeItemListeners: new Set(),
+    
+    // Enhanced Search State
+    search: {
+      query: '',
+      results: [],
+      loading: false,
+      error: null,
+      source: 'none', // 'firebase' | 'cache' | 'local'
+      timestamp: null,
+      lastQuery: '',
+      suggestions: [],
+      debounceTimer: null,
+      activeRequests: new Set()
+    },
+    warehouseFilter: '',
+    searchCache: new Map(),
     
     // Invoice System State
     invoices: [],
@@ -297,10 +326,11 @@ export default createStore({
       state.realtimeMode = mode;
     },
     ADD_REALTIME_LISTENER(state, listener) {
-      state.realtimeListeners.push(listener);
+      if (typeof listener === 'function') {
+        state.realtimeListeners.push(listener);
+      }
     },
     CLEAR_REALTIME_LISTENERS(state) {
-      // Clean up all active listeners
       state.realtimeListeners.forEach(unsubscribe => {
         try {
           if (typeof unsubscribe === 'function') {
@@ -311,8 +341,6 @@ export default createStore({
         }
       });
       state.realtimeListeners = [];
-      
-      // Clean up tracked item listeners
       state.activeItemListeners.clear();
     },
     SET_OPERATION_LOADING(state, loading) {
@@ -374,6 +402,72 @@ export default createStore({
     },
     CLEAR_ITEM_LISTENERS(state) {
       state.activeItemListeners.clear();
+    },
+    
+    // Enhanced Search Mutations
+    SET_SEARCH_QUERY(state, query) {
+      state.search.query = query;
+    },
+    SET_SEARCH_RESULTS(state, { results, source, query }) {
+      state.search.results = results;
+      state.search.source = source;
+      state.search.lastQuery = query;
+      state.search.timestamp = new Date();
+      state.search.loading = false;
+      
+      if (source === 'firebase' && query) {
+        state.searchCache.set(query, {
+          results,
+          timestamp: Date.now(),
+          warehouse: state.warehouseFilter
+        });
+      }
+    },
+    SET_SEARCH_LOADING(state, loading) {
+      state.search.loading = loading;
+    },
+    SET_SEARCH_ERROR(state, error) {
+      state.search.error = error;
+    },
+    CLEAR_SEARCH(state) {
+      state.search.results = [];
+      state.search.query = '';
+      state.search.loading = false;
+      state.search.error = null;
+      state.search.source = 'none';
+    },
+    SET_WAREHOUSE_FILTER(state, warehouseId) {
+      state.warehouseFilter = warehouseId;
+      state.filters.warehouse = warehouseId;
+    },
+    ADD_SEARCH_SUGGESTION(state, suggestion) {
+      if (suggestion && !state.search.suggestions.includes(suggestion)) {
+        state.search.suggestions.push(suggestion);
+        if (state.search.suggestions.length > 10) {
+          state.search.suggestions.shift();
+        }
+      }
+    },
+    CLEAR_SEARCH_SUGGESTIONS(state) {
+      state.search.suggestions = [];
+    },
+    ADD_TO_SEARCH_CACHE(state, { key, value }) {
+      if (state.searchCache.size >= PERFORMANCE_CONFIG.MAX_SEARCH_CACHE) {
+        const firstKey = state.searchCache.keys().next().value;
+        state.searchCache.delete(firstKey);
+      }
+      state.searchCache.set(key, {
+        ...value,
+        timestamp: Date.now()
+      });
+    },
+    CLEAR_EXPIRED_CACHE(state) {
+      const now = Date.now();
+      for (const [key, value] of state.searchCache.entries()) {
+        if (now - value.timestamp > PERFORMANCE_CONFIG.CACHE_DURATION) {
+          state.searchCache.delete(key);
+        }
+      }
     },
     
     // Invoice System Mutations
@@ -487,6 +581,20 @@ export default createStore({
           lastUpdated: null
         }
       };
+      state.search = {
+        query: '',
+        results: [],
+        loading: false,
+        error: null,
+        source: 'none',
+        timestamp: null,
+        lastQuery: '',
+        suggestions: [],
+        debounceTimer: null,
+        activeRequests: new Set()
+      };
+      state.warehouseFilter = '';
+      state.searchCache.clear();
       state.invoices = [];
       state.invoicesLoaded = false;
       state.invoiceFilters = {
@@ -504,7 +612,6 @@ export default createStore({
         lastUpdated: null
       };
       
-      // Clean up all listeners
       state.realtimeListeners.forEach(unsubscribe => {
         try {
           if (typeof unsubscribe === 'function') {
@@ -520,7 +627,647 @@ export default createStore({
   },
 
   actions: {
-    // ✅ FIXED: Get REAL total item count (Spark Plan optimized)
+    // Enhanced Search Actions
+    async searchInventoryEnhanced({ commit, state, getters, dispatch }, { 
+      query, 
+      warehouseId = null,
+      fields = SEARCH_CONFIG.FIELDS,
+      limit = SEARCH_CONFIG.MAX_RESULTS,
+      useCache = true 
+    }) {
+      if (state.search.debounceTimer) {
+        clearTimeout(state.search.debounceTimer);
+      }
+      
+      return new Promise((resolve) => {
+        state.search.debounceTimer = setTimeout(async () => {
+          try {
+            if (!query || query.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+              commit('SET_SEARCH_RESULTS', { 
+                results: [], 
+                source: 'none', 
+                query: '' 
+              });
+              resolve([]);
+              return;
+            }
+            
+            const searchTerm = query.trim().toLowerCase();
+            commit('SET_SEARCH_LOADING', true);
+            commit('SET_SEARCH_QUERY', searchTerm);
+            
+            const targetWarehouse = warehouseId || state.warehouseFilter;
+            
+            const cacheKey = `${searchTerm}_${targetWarehouse || 'all'}`;
+            if (useCache && state.searchCache.has(cacheKey)) {
+              const cached = state.searchCache.get(cacheKey);
+              if (Date.now() - cached.timestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
+                commit('SET_SEARCH_RESULTS', {
+                  results: cached.results,
+                  source: 'cache',
+                  query: searchTerm
+                });
+                resolve(cached.results);
+                return;
+              }
+            }
+            
+            const localResults = await dispatch('searchLocalInventory', {
+              query: searchTerm,
+              warehouseId: targetWarehouse,
+              fields,
+              limit
+            });
+            
+            if (localResults.length > 0) {
+              commit('SET_SEARCH_RESULTS', {
+                results: localResults,
+                source: 'local',
+                query: searchTerm
+              });
+              
+              commit('ADD_TO_SEARCH_CACHE', {
+                key: cacheKey,
+                value: { results: localResults }
+              });
+              
+              resolve(localResults);
+              
+              dispatch('searchFirebaseInventory', {
+                query: searchTerm,
+                warehouseId: targetWarehouse,
+                fields,
+                limit
+              }).then(firebaseResults => {
+                if (firebaseResults.length > 0) {
+                  commit('SET_SEARCH_RESULTS', {
+                    results: firebaseResults,
+                    source: 'firebase',
+                    query: searchTerm
+                  });
+                }
+              });
+              
+              return;
+            }
+            
+            const firebaseResults = await dispatch('searchFirebaseInventory', {
+              query: searchTerm,
+              warehouseId: targetWarehouse,
+              fields,
+              limit
+            });
+            
+            commit('SET_SEARCH_RESULTS', {
+              results: firebaseResults,
+              source: 'firebase',
+              query: searchTerm
+            });
+            
+            resolve(firebaseResults);
+            
+          } catch (error) {
+            console.error('❌ Search error:', error);
+            commit('SET_SEARCH_ERROR', error.message);
+            resolve([]);
+          } finally {
+            commit('SET_SEARCH_LOADING', false);
+          }
+        }, PERFORMANCE_CONFIG.SEARCH_DEBOUNCE);
+      });
+    },
+    
+    async searchLocalInventory({ state }, { query, warehouseId, fields, limit }) {
+      let results = state.inventory;
+      
+      if (warehouseId && warehouseId !== 'all') {
+        results = results.filter(item => item.warehouse_id === warehouseId);
+      }
+      
+      if (query && query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        const searchTerm = query.toLowerCase();
+        results = results.filter(item => {
+          return fields.some(field => {
+            const value = item[field];
+            if (!value) return false;
+            
+            const fieldValue = String(value).toLowerCase();
+            
+            if (fieldValue === searchTerm) return true;
+            if (fieldValue.startsWith(searchTerm)) return true;
+            if (fieldValue.includes(searchTerm)) return true;
+            
+            const itemWords = fieldValue.split(/\s+/);
+            const searchWords = searchTerm.split(/\s+/);
+            
+            return searchWords.some(searchWord =>
+              itemWords.some(itemWord => itemWord.includes(searchWord))
+            );
+          });
+        });
+      }
+      
+      results.sort((a, b) => {
+        if (a.code?.toLowerCase() === query) return -1;
+        if (b.code?.toLowerCase() === query) return 1;
+        
+        if (a.name?.toLowerCase() === query) return -1;
+        if (b.name?.toLowerCase() === query) return 1;
+        
+        const aStarts = a.name?.toLowerCase().startsWith(query) || a.code?.toLowerCase().startsWith(query);
+        const bStarts = b.name?.toLowerCase().startsWith(query) || b.code?.toLowerCase().startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        const aNameDiff = Math.abs((a.name?.length || 0) - query.length);
+        const bNameDiff = Math.abs((b.name?.length || 0) - query.length);
+        return aNameDiff - bNameDiff;
+      });
+      
+      return results.slice(0, limit);
+    },
+    
+    async searchFirebaseInventory({ state, getters, commit }, { query, warehouseId, fields, limit }) {
+      try {
+        const requestKey = `${query}_${warehouseId}`;
+        if (state.search.activeRequests.has(requestKey)) {
+          return [];
+        }
+        
+        state.search.activeRequests.add(requestKey);
+        
+        const searchTerm = query.toLowerCase();
+        const itemsRef = collection(db, 'items');
+        
+        const accessibleWarehouses = getters.accessibleWarehouses.map(w => w.id);
+        
+        const conditions = [];
+        
+        if (warehouseId && warehouseId !== 'all') {
+          if (accessibleWarehouses.includes('all') || accessibleWarehouses.includes(warehouseId)) {
+            conditions.push(where('warehouse_id', '==', warehouseId));
+          }
+        } else if (accessibleWarehouses.length > 0 && !accessibleWarehouses.includes('all')) {
+          const allowedWarehouses = accessibleWarehouses.slice(0, 10);
+          conditions.push(where('warehouse_id', 'in', allowedWarehouses));
+        }
+        
+        const searchPromises = [];
+        
+        searchPromises.push(
+          getDocs(query(
+            itemsRef,
+            ...conditions,
+            where('code', '==', searchTerm),
+            limit(5)
+          ))
+        );
+        
+        searchPromises.push(
+          getDocs(query(
+            itemsRef,
+            ...conditions,
+            where('code', '>=', searchTerm),
+            where('code', '<=', searchTerm + '\uf8ff'),
+            orderBy('code'),
+            limit(limit)
+          ))
+        );
+        
+        searchPromises.push(
+          getDocs(query(
+            itemsRef,
+            ...conditions,
+            where('name', '>=', searchTerm),
+            where('name', '<=', searchTerm + '\uf8ff'),
+            orderBy('name'),
+            limit(limit)
+          ))
+        );
+        
+        if (searchTerm.length >= 3) {
+          searchPromises.push(
+            getDocs(query(
+              itemsRef,
+              ...conditions,
+              where('color', '>=', searchTerm),
+              where('color', '<=', searchTerm + '\uf8ff'),
+              orderBy('color'),
+              limit(limit / 2)
+            ))
+          );
+          
+          searchPromises.push(
+            getDocs(query(
+              itemsRef,
+              ...conditions,
+              where('supplier', '>=', searchTerm),
+              where('supplier', '<=', searchTerm + '\uf8ff'),
+              orderBy('supplier'),
+              limit(limit / 2)
+            ))
+          );
+        }
+        
+        const results = await Promise.allSettled(searchPromises);
+        
+        const allItems = new Map();
+        
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled' && !result.value.empty) {
+            result.value.docs.forEach(doc => {
+              if (!allItems.has(doc.id)) {
+                const itemData = doc.data();
+                const convertedItem = InventoryService.convertForDisplay({
+                  id: doc.id,
+                  ...itemData
+                });
+                allItems.set(doc.id, convertedItem);
+                
+                if (index === 0) {
+                  commit('ADD_SEARCH_SUGGESTION', convertedItem.code);
+                } else if (index === 1 || index === 2) {
+                  commit('ADD_SEARCH_SUGGESTION', convertedItem.name);
+                }
+              }
+            });
+          }
+        });
+        
+        let firebaseResults = Array.from(allItems.values());
+        
+        firebaseResults.sort((a, b) => {
+          if (a.code?.toLowerCase() === searchTerm) return -1;
+          if (b.code?.toLowerCase() === searchTerm) return 1;
+          
+          const aCodeStarts = a.code?.toLowerCase().startsWith(searchTerm);
+          const bCodeStarts = b.code?.toLowerCase().startsWith(searchTerm);
+          if (aCodeStarts && !bCodeStarts) return -1;
+          if (!aCodeStarts && bCodeStarts) return 1;
+          
+          const aNameStarts = a.name?.toLowerCase().startsWith(searchTerm);
+          const bNameStarts = b.name?.toLowerCase().startsWith(searchTerm);
+          if (aNameStarts && !bNameStarts) return -1;
+          if (!aNameStarts && bNameStarts) return 1;
+          
+          const aContains = a.name?.toLowerCase().includes(searchTerm) || 
+                           a.code?.toLowerCase().includes(searchTerm);
+          const bContains = b.name?.toLowerCase().includes(searchTerm) || 
+                           b.code?.toLowerCase().includes(searchTerm);
+          if (aContains && !bContains) return -1;
+          if (!aContains && bContains) return 1;
+          
+          return (a.name?.length || 0) - (b.name?.length || 0);
+        });
+        
+        firebaseResults = firebaseResults.slice(0, limit);
+        
+        state.search.activeRequests.delete(requestKey);
+        
+        return firebaseResults;
+        
+      } catch (error) {
+        console.error('❌ Firebase search error:', error);
+        state.search.activeRequests.clear();
+        throw error;
+      }
+    },
+    
+    async getSearchSuggestions({ commit, state }, query) {
+      if (!query || query.length < 1) {
+        commit('CLEAR_SEARCH_SUGGESTIONS');
+        return [];
+      }
+      
+      const searchTerm = query.toLowerCase();
+      
+      const cachedSuggestions = state.search.suggestions.filter(s => 
+        s.toLowerCase().includes(searchTerm)
+      );
+      
+      if (cachedSuggestions.length > 0) {
+        return cachedSuggestions.slice(0, 5);
+      }
+      
+      const localSuggestions = state.inventory
+        .filter(item => 
+          item.name?.toLowerCase().includes(searchTerm) ||
+          item.code?.toLowerCase().includes(searchTerm)
+        )
+        .map(item => item.name || item.code)
+        .filter(Boolean)
+        .slice(0, 5);
+      
+      localSuggestions.forEach(suggestion => {
+        commit('ADD_SEARCH_SUGGESTION', suggestion);
+      });
+      
+      return localSuggestions;
+    },
+    
+    async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
+      commit('SET_WAREHOUSE_FILTER', warehouseId);
+      
+      if (state.search.query) {
+        await dispatch('searchInventoryEnhanced', {
+          query: state.search.query,
+          warehouseId
+        });
+      }
+    },
+    
+    async clearSearch({ commit }) {
+      commit('CLEAR_SEARCH');
+    },
+    
+    async preloadSearchCache({ commit, state }) {
+      try {
+        const itemsRef = collection(db, 'items');
+        const q = query(
+          itemsRef,
+          orderBy('remaining_quantity', 'desc'),
+          limit(50)
+        );
+        
+        const snapshot = await getDocs(q);
+        const items = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
+          });
+        });
+        
+        items.forEach(item => {
+          if (item.code) {
+            commit('ADD_TO_SEARCH_CACHE', {
+              key: `${item.code.toLowerCase()}_all`,
+              value: { results: [item] }
+            });
+          }
+          
+          if (item.name) {
+            const nameWords = item.name.toLowerCase().split(/\s+/);
+            nameWords.forEach(word => {
+              if (word.length >= 3) {
+                commit('ADD_TO_SEARCH_CACHE', {
+                  key: `${word}_all`,
+                  value: { results: [item] }
+                });
+              }
+            });
+          }
+        });
+        
+        console.log('✅ Search cache preloaded');
+      } catch (error) {
+        console.log('Preload cache failed:', error.message);
+      }
+    },
+    
+    async loadInventoryWithWarehouse({ commit, state, dispatch }, { 
+      warehouseId = null,
+      forceRefresh = false 
+    } = {}) {
+      commit('SET_INVENTORY_LOADING', true);
+      
+      try {
+        const targetWarehouse = warehouseId || state.warehouseFilter;
+        
+        if (targetWarehouse) {
+          commit('SET_WAREHOUSE_FILTER', targetWarehouse);
+        }
+        
+        let itemsQuery;
+        const itemsRef = collection(db, 'items');
+        
+        if (targetWarehouse && targetWarehouse !== 'all') {
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', '==', targetWarehouse),
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          );
+        } else {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          );
+        }
+        
+        const snapshot = await getDocs(itemsQuery);
+        const inventory = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...data
+          });
+        });
+        
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        commit('SET_PAGINATION', {
+          lastDoc,
+          hasMore: snapshot.size === PERFORMANCE_CONFIG.INITIAL_LOAD,
+          totalLoaded: inventory.length
+        });
+        
+        commit('SET_INVENTORY', inventory);
+        commit('SET_INVENTORY_LOADED', true);
+        
+        if (state.realtimeMode) {
+          await dispatch('setupOptimizedRealtimeUpdates', inventory.map(item => item.id));
+        }
+        
+        return inventory;
+        
+      } catch (error) {
+        console.error('❌ Error loading inventory with warehouse filter:', error);
+        commit('SET_INVENTORY_ERROR', error.message);
+        throw error;
+      } finally {
+        commit('SET_INVENTORY_LOADING', false);
+      }
+    },
+    
+    async setupOptimizedRealtimeUpdates({ commit, state }, itemIds) {
+      if (!state.realtimeMode || !itemIds || itemIds.length === 0) return;
+      
+      try {
+        console.log(`🔴 Setting up optimized real-time for ${itemIds.length} items`);
+        
+        state.realtimeListeners = state.realtimeListeners.filter(listener => {
+          const hasOverlap = listener.itemIds?.some(id => itemIds.includes(id));
+          if (hasOverlap && typeof listener.unsubscribe === 'function') {
+            listener.unsubscribe();
+          }
+          return !hasOverlap;
+        });
+        
+        if (itemIds.length <= PERFORMANCE_CONFIG.BATCH_SIZE) {
+          const itemsRef = collection(db, 'items');
+          const q = query(
+            itemsRef,
+            where('__name__', 'in', itemIds.slice(0, PERFORMANCE_CONFIG.BATCH_SIZE))
+          );
+          
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+              if (change.type === 'modified' || change.type === 'added') {
+                const data = change.doc.data();
+                const updatedItem = InventoryService.convertForDisplay({
+                  id: change.doc.id,
+                  ...data
+                });
+                
+                commit('UPDATE_INVENTORY_ITEM', updatedItem);
+                commit('CACHE_ITEM_DETAIL', {
+                  itemId: change.doc.id,
+                  itemData: updatedItem
+                });
+              } else if (change.type === 'removed') {
+                commit('REMOVE_INVENTORY_ITEM', change.doc.id);
+                commit('CLEAR_ITEM_CACHE', change.doc.id);
+              }
+            });
+          });
+          
+          commit('ADD_REALTIME_LISTENER', unsubscribe);
+          
+        } else {
+          const listeners = itemIds.map(itemId => {
+            const itemRef = doc(db, 'items', itemId);
+            
+            const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
+              if (docSnapshot.exists()) {
+                const data = docSnapshot.data();
+                const updatedItem = InventoryService.convertForDisplay({
+                  id: docSnapshot.id,
+                  ...data
+                });
+                
+                commit('UPDATE_INVENTORY_ITEM', updatedItem);
+                commit('CACHE_ITEM_DETAIL', {
+                  itemId: docSnapshot.id,
+                  itemData: updatedItem
+                });
+              } else {
+                commit('REMOVE_INVENTORY_ITEM', itemId);
+                commit('CLEAR_ITEM_CACHE', itemId);
+              }
+            });
+            
+            return unsubscribe;
+          });
+          
+          listeners.forEach(listener => commit('ADD_REALTIME_LISTENER', listener));
+        }
+        
+        console.log(`✅ Optimized real-time updates set up`);
+        
+      } catch (error) {
+        console.error('❌ Error setting up optimized real-time updates:', error);
+      }
+    },
+    
+    async loadWarehousesEnhanced({ commit, dispatch }) {
+      try {
+        console.log('🔄 Loading warehouses with enhanced filtering...');
+        
+        const warehousesRef = collection(db, 'warehouses');
+        const q = query(warehousesRef, orderBy('name_ar'));
+        const snapshot = await getDocs(q);
+        
+        const warehouses = snapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .filter(warehouse => {
+            return warehouse.type !== 'dispatch';
+          });
+        
+        commit('SET_WAREHOUSES', warehouses);
+        console.log(`✅ Warehouses loaded: ${warehouses.length} (dispatch warehouses excluded)`);
+        
+        return warehouses;
+        
+      } catch (error) {
+        console.error('❌ Error loading warehouses:', error);
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل المخازن'
+        });
+        return [];
+      }
+    },
+    
+    async getDispatchWarehouses({ dispatch }) {
+      try {
+        const warehousesRef = collection(db, 'warehouses');
+        const q = query(
+          warehousesRef,
+          where('type', '==', 'dispatch')
+        );
+        
+        const snapshot = await getDocs(q);
+        const dispatchWarehouses = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
+        return dispatchWarehouses;
+        
+      } catch (error) {
+        console.error('❌ Error loading dispatch warehouses:', error);
+        return [];
+      }
+    },
+    
+    async searchItemsForTransactionsEnhanced({ state, dispatch }, { 
+      searchTerm, 
+      limitResults = 20,
+      warehouseId = null 
+    }) {
+      try {
+        console.log('🔍 Enhanced transaction search:', { searchTerm, warehouseId });
+        
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          return [];
+        }
+        
+        const term = searchTerm.trim().toLowerCase();
+        const targetWarehouse = warehouseId || state.warehouseFilter;
+        
+        const results = await dispatch('searchInventoryEnhanced', {
+          query: term,
+          warehouseId: targetWarehouse,
+          limit: limitResults
+        });
+        
+        console.log(`✅ Found ${results.length} items for transactions`);
+        return results;
+        
+      } catch (error) {
+        console.error('❌ Error in enhanced transaction search:', error);
+        
+        const term = searchTerm?.trim().toLowerCase() || '';
+        const fallbackResults = state.inventory.filter(item => {
+          if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+            return false;
+          }
+          
+          return item.name?.toLowerCase().includes(term) ||
+                 item.code?.toLowerCase().includes(term) ||
+                 item.color?.toLowerCase().includes(term);
+        }).slice(0, 10);
+        
+        return fallbackResults;
+      }
+    },
+    
+    // ✅ Original Dashboard Count Actions
     async getTotalItemCount({ state }, warehouseId = 'all') {
       try {
         console.log(`📊 Getting total item count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
@@ -528,12 +1275,10 @@ export default createStore({
         const itemsRef = collection(db, 'items');
 
         if (warehouseId === 'all') {
-          // Count ALL items - NO limit(0)!
           const q = query(itemsRef);
           const snapshot = await getCountFromServer(q);
           return snapshot.data().count;
         } else {
-          // Count items in specific warehouse - NO limit(0)!
           const q = query(
             itemsRef,
             where('warehouse_id', '==', warehouseId)
@@ -551,7 +1296,6 @@ export default createStore({
       }
     },
 
-    // ✅ FIXED: Get low stock count
     async getLowStockCount({ state }, warehouseId = 'all') {
       try {
         console.log(`📊 Getting low stock count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
@@ -586,7 +1330,6 @@ export default createStore({
       }
     },
 
-    // ✅ FIXED: Get out of stock count
     async getOutOfStockCount({ state }, warehouseId = 'all') {
       try {
         const itemsRef = collection(db, 'items');
@@ -617,7 +1360,6 @@ export default createStore({
       }
     },
 
-    // ✅ FIXED: Get total quantity sum
     async getTotalQuantitySum({ state }, warehouseId = 'all') {
       try {
         console.log(`📊 Getting total quantity sum for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
@@ -640,7 +1382,6 @@ export default createStore({
       }
     },
 
-    // ✅ FIXED: Refresh dashboard counts
     async refreshDashboardCounts({ commit, state, dispatch }, warehouseId = 'all') {
       try {
         console.log('🔄 Refreshing dashboard counts...');
@@ -728,7 +1469,8 @@ export default createStore({
       }
     },
 
-    async searchItemsForTransactions({ state }, { searchTerm, limitResults = 20 }) {
+    // ✅ Original searchItemsForTransactions (kept for compatibility)
+    async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults = 20 }) {
       try {
         console.log('🔍 REAL-TIME SEARCH:', searchTerm);
         if (!searchTerm || searchTerm.trim().length < 2) {
@@ -1083,7 +1825,7 @@ export default createStore({
         commit('SET_INVENTORY_LOADED', true);
 
         if (state.realtimeMode) {
-          await dispatch('setupRealtimeUpdatesForInventory');
+          await dispatch('setupOptimizedRealtimeUpdates', inventory.map(item => item.id));
         }
 
         console.log(`🎉 Inventory loaded successfully: ${inventory.length} items`);
@@ -1179,7 +1921,7 @@ export default createStore({
         });
 
         if (state.realtimeMode) {
-          await dispatch('setupRealtimeUpdatesForItems', newItems.map(item => item.id));
+          await dispatch('setupOptimizedRealtimeUpdates', newItems.map(item => item.id));
         }
 
         return newItems;
@@ -1344,7 +2086,6 @@ export default createStore({
       commit('RESET_PAGINATION');
     },
 
-    // ✅ FIXED: Get warehouse items count
     async getWarehouseItemsCount({ state }, warehouseId) {
       try {
         const itemsRef = collection(db, 'items');
@@ -1361,19 +2102,15 @@ export default createStore({
       }
     },
 
-    // 🔥 Setup real-time updates with zombie prevention
     async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       if (!state.realtimeMode || state.inventory.length === 0) return;
 
       try {
         console.log('🔴 Setting up real-time updates for inventory...');
 
-        // Clean up existing listeners first
         commit('CLEAR_REALTIME_LISTENERS');
 
-        // Setup listeners with proper cleanup tracking
         const listeners = state.inventory.map(item => {
-          // Check if already listening to this item
           if (state.activeItemListeners.has(item.id)) {
             console.log(`⚠️ Already listening to item ${item.id}, skipping...`);
             return null;
@@ -1404,12 +2141,10 @@ export default createStore({
             commit('REMOVE_ITEM_LISTENER', item.id);
           });
 
-          // Track this listener
           commit('ADD_ITEM_LISTENER', item.id);
           return unsubscribe;
-        }).filter(Boolean); // Remove null entries
+        }).filter(Boolean);
 
-        // Store valid listeners
         listeners.forEach(listener => commit('ADD_REALTIME_LISTENER', listener));
 
         console.log(`✅ Real-time updates set up for ${listeners.length} items`);
@@ -1426,7 +2161,6 @@ export default createStore({
         console.log(`🔴 Setting up real-time for ${itemIds.length} items`);
 
         const listeners = itemIds.map(itemId => {
-          // Skip if already listening
           if (state.activeItemListeners.has(itemId)) {
             return null;
           }
@@ -2206,7 +2940,7 @@ export default createStore({
       }
     },
 
-    async loadWarehouses({ commit, dispatch }) {
+    async loadWarehouses({ dispatch }) {
       try {
         console.log('🔄 Loading warehouses...');
 
@@ -2218,9 +2952,6 @@ export default createStore({
           id: doc.id,
           ...doc.data()
         }));
-
-        commit('SET_WAREHOUSES', warehouses);
-        console.log(`✅ Warehouses loaded: ${warehouses.length}`);
 
         return warehouses;
 
@@ -2317,7 +3048,7 @@ export default createStore({
 
                 commit('SET_USER_PROFILE', userProfile);
 
-                await dispatch('loadWarehouses');
+                await dispatch('loadWarehousesEnhanced');
                 await dispatch('loadAllInventory');
                 await dispatch('fetchTransactions');
                 dispatch('getRecentTransactions');
@@ -2973,7 +3704,6 @@ export default createStore({
           throw new Error('User not authenticated');
         }
 
-        // Check user permissions based on Firebase rules
         if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
           throw new Error('ليس لديك صلاحية لعرض الفواتير');
         }
@@ -3047,9 +3777,7 @@ export default createStore({
         const invoicesRef = collection(db, 'invoices');
         let invoicesQuery;
 
-        // Start with base query
         if (search && search.length >= 2) {
-          // Search by invoice number or customer name
           invoicesQuery = query(
             invoicesRef,
             orderBy('invoiceNumber'),
@@ -3066,7 +3794,6 @@ export default createStore({
         const snapshot = await getDocs(invoicesQuery);
         console.log(`🔍 Invoice search found: ${snapshot.size} invoices`);
 
-        // Apply filters locally
         let invoices = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -3076,7 +3803,6 @@ export default createStore({
           };
         });
 
-        // Apply search filter
         if (search && search.length >= 2) {
           const searchLower = search.toLowerCase();
           invoices = invoices.filter(invoice => 
@@ -3086,17 +3812,14 @@ export default createStore({
           );
         }
 
-        // Apply status filter
         if (status) {
           invoices = invoices.filter(invoice => invoice.status === status);
         }
 
-        // Apply type filter
         if (type) {
           invoices = invoices.filter(invoice => invoice.type === type);
         }
 
-        // Apply date filters
         if (dateFrom) {
           const fromDate = new Date(dateFrom);
           invoices = invoices.filter(invoice => {
@@ -3151,12 +3874,10 @@ export default createStore({
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Check user permissions based on Firebase rules
         if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
           throw new Error('ليس لديك صلاحية لإنشاء فواتير');
         }
 
-        // Validate required fields
         if (!invoiceData.customer?.name?.trim() || !invoiceData.customer?.phone?.trim()) {
           throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (اسم العميل، الهاتف)');
         }
@@ -3169,18 +3890,15 @@ export default createStore({
           throw new Error('يجب تحديد المخزن');
         }
 
-        // Validate phone number
         const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
         if (!phoneRegex.test(invoiceData.customer.phone)) {
           throw new Error('يرجى إدخال رقم هاتف صحيح (مثال: 01012345678)');
         }
 
-        // Validate tax ID for B2B invoices
         if (invoiceData.type === 'B2B' && (!invoiceData.customer.taxId || invoiceData.customer.taxId.length < 9)) {
           throw new Error('يرجى إدخال رقم ضريبي صالح (9 أرقام على الأقل) للفواتير الضريبية');
         }
 
-        // Calculate totals
         const subtotal = invoiceData.items.reduce((sum, item) => {
           const price = item.unitPrice || 0;
           const quantity = item.quantity || 0;
@@ -3197,12 +3915,10 @@ export default createStore({
         const tax = (invoiceData.type === 'B2B' || invoiceData.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
         const total = subtotal - discount + tax;
 
-        // Generate invoice number
         const lastInvoice = state.invoices[0];
         const lastNumber = lastInvoice ? lastInvoice.invoiceNumber : 0;
         const invoiceNumber = lastNumber + 1;
 
-        // Prepare invoice data for Firestore
         const cleanInvoiceData = {
           invoiceNumber,
           type: invoiceData.type,
@@ -3236,10 +3952,8 @@ export default createStore({
           updatedAt: Timestamp.now()
         };
 
-        // Create invoice document
         const docRef = await addDoc(collection(db, 'invoices'), cleanInvoiceData);
 
-        // Update inventory quantities
         const batch = writeBatch(db);
         
         for (const item of invoiceData.items) {
@@ -3253,7 +3967,6 @@ export default createStore({
 
         await batch.commit();
 
-        // Create transaction record for inventory update
         const transactionData = {
           type: 'INVOICE',
           item_id: invoiceData.items[0]?.id || 'multiple',
@@ -3265,7 +3978,7 @@ export default createStore({
           per_carton_updated: 0,
           single_delta: 0,
           total_delta: -invoiceData.items.reduce((sum, item) => sum + (item.quantity || 0), 0),
-          new_remaining: 0, // Will be updated by real-time listeners
+          new_remaining: 0,
           user_id: state.user.uid,
           timestamp: Timestamp.now(),
           notes: `فاتورة مبيعات #${invoiceNumber} - ${invoiceData.customer.name}`,
@@ -3314,12 +4027,10 @@ export default createStore({
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Check user permissions based on Firebase rules
         if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
           throw new Error('ليس لديك صلاحية لتعديل الفواتير');
         }
 
-        // Get existing invoice
         const invoiceRef = doc(db, 'invoices', invoiceId);
         const invoiceDoc = await getDoc(invoiceRef);
 
@@ -3329,12 +4040,10 @@ export default createStore({
 
         const existingInvoice = invoiceDoc.data();
 
-        // Only allow updates to draft invoices
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن تعديل فاتورة غير مسودة');
         }
 
-        // Validate required fields
         if (!invoiceData.customer?.name?.trim() || !invoiceData.customer?.phone?.trim()) {
           throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (اسم العميل، الهاتف)');
         }
@@ -3347,7 +4056,6 @@ export default createStore({
           throw new Error('يجب تحديد المخزن');
         }
 
-        // Calculate new totals
         const subtotal = invoiceData.items.reduce((sum, item) => {
           const price = item.unitPrice || 0;
           const quantity = item.quantity || 0;
@@ -3364,7 +4072,6 @@ export default createStore({
         const tax = (invoiceData.type === 'B2B' || invoiceData.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
         const total = subtotal - discount + tax;
 
-        // Prepare update data
         const updateData = {
           type: invoiceData.type,
           paymentMethod: invoiceData.paymentMethod,
@@ -3435,12 +4142,10 @@ export default createStore({
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Check user permissions based on Firebase rules
         if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
           throw new Error('ليس لديك صلاحية لحذف الفواتير');
         }
 
-        // Get existing invoice
         const invoiceRef = doc(db, 'invoices', invoiceId);
         const invoiceDoc = await getDoc(invoiceRef);
 
@@ -3450,7 +4155,6 @@ export default createStore({
 
         const existingInvoice = invoiceDoc.data();
 
-        // Only allow deletion of draft invoices
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن حذف فاتورة غير مسودة');
         }
@@ -3460,7 +4164,6 @@ export default createStore({
           return { success: false, message: 'تم إلغاء العملية' };
         }
 
-        // First, restore inventory quantities
         if (existingInvoice.items && Array.isArray(existingInvoice.items)) {
           const batch = writeBatch(db);
           
@@ -3476,7 +4179,6 @@ export default createStore({
           await batch.commit();
         }
 
-        // Delete the invoice
         await deleteDoc(invoiceRef);
 
         commit('REMOVE_INVOICE', invoiceId);
@@ -3513,7 +4215,6 @@ export default createStore({
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // Check user permissions based on Firebase rules
         if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
           throw new Error('ليس لديك صلاحية لتغيير حالة الفواتير');
         }
@@ -3570,7 +4271,7 @@ export default createStore({
       }
     },
 
-    async getInvoiceById({ commit, state, dispatch }, invoiceId) {
+    async getInvoiceById({ state, dispatch }, invoiceId) {
       try {
         if (!state.userProfile) {
           throw new Error('يجب تسجيل الدخول أولاً');
@@ -3615,10 +4316,8 @@ export default createStore({
           throw new Error('ليس لديك صلاحية لتصدير الفواتير');
         }
 
-        // Get filtered invoices
         let invoicesToExport = state.invoices;
 
-        // Apply filters if provided
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           invoicesToExport = invoicesToExport.filter(invoice => 
@@ -3661,7 +4360,6 @@ export default createStore({
           return;
         }
 
-        // Prepare data for Excel
         const exportData = invoicesToExport.map(invoice => {
           const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
           
@@ -3683,36 +4381,31 @@ export default createStore({
           };
         });
 
-        // Create workbook
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(exportData);
 
-        // Set column widths
         const wscols = [
-          { wch: 12 }, // رقم الفاتورة
-          { wch: 12 }, // التاريخ
-          { wch: 15 }, // نوع الفاتورة
-          { wch: 12 }, // حالة الفاتورة
-          { wch: 20 }, // اسم العميل
-          { wch: 15 }, // هاتف العميل
-          { wch: 15 }, // الرقم الضريبي
-          { wch: 10 }, // عدد الأصناف
-          { wch: 15 }, // المجموع
-          { wch: 15 }, // الخصم
-          { wch: 15 }, // الضريبة
-          { wch: 15 }, // الإجمالي
-          { wch: 10 }, // طريقة الدفع
-          { wch: 30 }  // ملاحظات
+          { wch: 12 },
+          { wch: 12 },
+          { wch: 15 },
+          { wch: 12 },
+          { wch: 20 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 10 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 10 },
+          { wch: 30 }
         ];
         ws['!cols'] = wscols;
 
-        // Add worksheet to workbook
         XLSX.utils.book_append_sheet(wb, ws, 'الفواتير');
 
-        // Generate filename with current date
         const filename = `الفواتير_${new Date().toISOString().split('T')[0]}.xlsx`;
 
-        // Download file
         XLSX.writeFile(wb, filename);
 
         dispatch('showNotification', {
@@ -3783,6 +4476,73 @@ export default createStore({
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
     
+    // Enhanced Search Getters
+    searchQuery: state => state.search.query,
+    searchResults: state => state.search.results,
+    searchLoading: state => state.search.loading,
+    searchError: state => state.search.error,
+    searchSource: state => state.search.source,
+    searchSuggestions: state => state.search.suggestions,
+    warehouseFilter: state => state.warehouseFilter,
+    
+    // Enhanced Filtered Inventory
+    filteredInventoryEnhanced: (state, getters) => {
+      let inventory = state.inventory;
+      
+      if (state.warehouseFilter && state.warehouseFilter !== 'all') {
+        inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
+      }
+      
+      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        if (state.search.results.length > 0 && 
+            state.search.source !== 'none' &&
+            Date.now() - new Date(state.search.timestamp).getTime() < 10000) {
+          return state.search.results;
+        }
+        
+        const searchTerm = state.search.query.toLowerCase();
+        inventory = inventory.filter(item => 
+          item.name?.toLowerCase().includes(searchTerm) ||
+          item.code?.toLowerCase().includes(searchTerm) ||
+          item.color?.toLowerCase().includes(searchTerm) ||
+          item.supplier?.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      return inventory;
+    },
+    
+    // Warehouse-aware statistics
+    warehouseStats: (state) => (warehouseId) => {
+      const inventory = warehouseId === 'all' 
+        ? state.inventory 
+        : state.inventory.filter(item => item.warehouse_id === warehouseId);
+      
+      const totalItems = inventory.length;
+      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
+      
+      return {
+        totalItems,
+        totalQuantity,
+        lowStockItems,
+        outOfStockItems,
+        lastUpdated: new Date()
+      };
+    },
+    
+    // Enhanced warehouse filtering
+    primaryWarehousesFiltered: (state, getters) => {
+      return getters.accessibleWarehouses.filter(w => 
+        w.type === 'primary' || !w.type
+      );
+    },
+    
+    dispatchWarehousesFiltered: (state, getters) => {
+      return getters.accessibleWarehouses.filter(w => w.type === 'dispatch');
+    },
+    
     // Invoice System Getters
     invoices: state => state.invoices,
     invoicesItems: state => Array.isArray(state.invoices) ? state.invoices : [],
@@ -3794,7 +4554,6 @@ export default createStore({
     filteredInvoices: (state) => {
       let filtered = [...state.invoices];
 
-      // Apply search filter
       if (state.invoiceFilters.search) {
         const searchLower = state.invoiceFilters.search.toLowerCase();
         filtered = filtered.filter(invoice => 
@@ -3804,17 +4563,14 @@ export default createStore({
         );
       }
 
-      // Apply status filter
       if (state.invoiceFilters.status) {
         filtered = filtered.filter(invoice => invoice.status === state.invoiceFilters.status);
       }
 
-      // Apply type filter
       if (state.invoiceFilters.type) {
         filtered = filtered.filter(invoice => invoice.type === state.invoiceFilters.type);
       }
 
-      // Apply date filters
       if (state.invoiceFilters.dateFrom) {
         const fromDate = new Date(state.invoiceFilters.dateFrom);
         filtered = filtered.filter(invoice => {
@@ -4298,4 +5054,4 @@ function getPaymentMethodLabel(method) {
     'credit': 'آجل'
   };
   return labels[method] || method;
-}                                     
+}
