@@ -166,19 +166,16 @@
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
               {{ filteredItems.length }} صنف متاح
-              <span v-if="searchSource" class="text-blue-600 dark:text-blue-400">
-                (من {{ getSearchSourceLabel(searchSource) }})
-              </span>
             </div>
           </div>
 
-          <!-- Search Input with Live Search Indicator -->
+          <!-- Search Input -->
           <div class="relative mb-4">
             <input
               v-model="searchTerm"
               @input="handleSearch"
               type="text"
-              placeholder="ابحث عن صنف بالاسم أو الكود..."
+              placeholder="ابحث عن صنف بالاسم، الكود، اللون، المورد، أو المكان..."
               class="w-full pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               :disabled="loading || !form.sourceWarehouse || (!isSuperadmin && !canViewDispatch)"
             >
@@ -187,9 +184,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>
-            <!-- Live Search Indicator -->
-            <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+            <!-- Loading Indicator -->
+            <div v-if="isSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div class="w-4 h-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
             </div>
           </div>
 
@@ -210,23 +207,18 @@
                 :key="item.id"
                 :class="[
                   'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
-                  selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
-                  item.searchSource === 'firebase' ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                  selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : ''
                 ]"
               >
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
-                  <div class="font-medium text-sm text-gray-900 dark:text-white flex items-center">
+                  <div class="font-medium text-sm text-gray-900 dark:text-white">
                     {{ item.name }}
-                    <!-- Search Source Badge -->
-                    <span v-if="item.searchSource === 'firebase'" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
-                      🔍
-                    </span>
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
-                    <span v-if="item.searchSource" class="text-blue-600 dark:text-blue-400">تم العثور عبر {{ getSearchSourceLabel(item.searchSource) }}</span>
+                    <span v-if="item.item_location" class="text-gray-400 dark:text-gray-500">مكان: {{ item.item_location }}</span>
                   </div>
                 </div>
 
@@ -264,14 +256,14 @@
                 </div>
               </div>
 
-              <!-- Live Search Loading State -->
-              <div v-if="isLiveSearching && filteredItems.length === 0" class="p-8 text-center">
+              <!-- Loading State -->
+              <div v-if="isSearching && filteredItems.length === 0" class="p-8 text-center">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
               </div>
 
               <!-- Empty State -->
-              <div v-if="filteredItems.length === 0 && !isLiveSearching" class="p-8 text-center">
+              <div v-if="filteredItems.length === 0 && !isSearching" class="p-8 text-center">
                 <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
                 </svg>
@@ -287,18 +279,13 @@
         <div v-if="selectedItem" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
           <div class="flex items-center justify-between mb-3">
             <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
-            <div class="flex items-center gap-2">
-              <span v-if="selectedItem.searchSource === 'firebase'" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
-                تم العثور عبر البحث المباشر
-              </span>
-              <button
-                @click="clearSelection"
-                class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                :disabled="loading || (!isSuperadmin && !canPerformDispatch)"
-              >
-                إلغاء التحديد
-              </button>
-            </div>
+            <button
+              @click="clearSelection"
+              class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              :disabled="loading || (!isSuperadmin && !canPerformDispatch)"
+            >
+              إلغاء التحديد
+            </button>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -308,6 +295,14 @@
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكود</div>
               <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">اللون</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.color || '---' }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">المورد</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.supplier || '---' }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">المخزن الحالي</div>
@@ -506,10 +501,8 @@ export default {
     const searchTerm = ref('')
     const dispatchWarehouses = ref([])
     
-    // Enhanced Search State
-    const isLiveSearching = ref(false)
-    const searchSource = ref('') // 'local' | 'cache' | 'firebase' | 'none'
-    const searchResults = ref([])
+    // Search State
+    const isSearching = ref(false)
     const searchTimeout = ref(null)
 
     // Form
@@ -521,7 +514,7 @@ export default {
       priority: 'normal'
     })
 
-    // Priority options with dark mode classes
+    // Priority options
     const priorityOptions = [
       { 
         value: 'normal', 
@@ -552,11 +545,15 @@ export default {
       }
     ]
 
+    // Search configuration - EXACTLY matches store's SEARCH_CONFIG.FIELDS
+    const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location', 'warehouse_id']
+    const MIN_SEARCH_CHARS = 2
+    const SEARCH_DEBOUNCE = 300
+
     // Computed properties
     const userProfile = computed(() => store.state.userProfile)
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
-    const searchState = computed(() => store.state.search || {})
     
     // Get source warehouses that the user can dispatch FROM
     const accessibleSourceWarehouses = computed(() => {
@@ -610,7 +607,7 @@ export default {
       }
     })
     
-    // Get dispatch destinations from loaded dispatch warehouses
+    // Get dispatch destinations
     const dispatchDestinations = computed(() => {
       try {
         return dispatchWarehouses.value
@@ -669,7 +666,6 @@ export default {
     const canPerformDispatch = computed(() => {
       if (!userProfile.value) return false
       
-      // SUPERADMIN BYPASS - FULL ACCESS
       if (isSuperadmin.value) return true
       
       // Warehouse managers need permission
@@ -686,13 +682,10 @@ export default {
       return false
     })
     
-    const canDispatch = computed(() => canPerformDispatch.value)
-    
     // Check if user has access to selected warehouse for dispatch
     const hasAccessToSelectedWarehouse = computed(() => {
       if (!userProfile.value || !form.sourceWarehouse) return false
       
-      // SUPERADMIN BYPASS - FULL ACCESS
       if (isSuperadmin.value) return true
       
       // Warehouse managers can only dispatch from allowed warehouses
@@ -721,36 +714,82 @@ export default {
       )
     })
 
-    // Combined items (local + search results)
-    const filteredItems = computed(() => {
-      let combined = [...availableItems.value]
-      
-      // Add search results that aren't already in local inventory
-      searchResults.value.forEach(searchItem => {
-        if (!combined.some(item => item.id === searchItem.id)) {
-          // Only include items from the selected warehouse or if no warehouse is selected
-          if (!form.sourceWarehouse || searchItem.warehouse_id === form.sourceWarehouse) {
-            combined.push(searchItem)
-          }
-        }
-      })
-      
-      // Filter by search term if provided
-      if (!searchTerm.value.trim()) {
-        return combined
+    // **COMPREHENSIVE SEARCH FUNCTION - MATCHES STORE'S LOGIC**
+    const searchLocalInventory = () => {
+      if (!searchTerm.value || searchTerm.value.trim().length < MIN_SEARCH_CHARS) {
+        return availableItems.value
       }
       
-      const term = searchTerm.value.toLowerCase().trim()
-      return combined.filter(item => {
-        const name = (item.name || '').toLowerCase()
-        const code = (item.code || '').toLowerCase()
-        const color = (item.color || '').toLowerCase()
-        const supplier = (item.supplier || '').toLowerCase()
+      const searchTermLower = searchTerm.value.toLowerCase().trim()
+      
+      // Search across ALL fields exactly like the store does
+      return availableItems.value.filter(item => {
+        return SEARCH_FIELDS.some(field => {
+          const value = item[field]
+          if (!value) return false
+          
+          const fieldValue = String(value).toLowerCase()
+          
+          // Exact match
+          if (fieldValue === searchTermLower) return true
+          
+          // Starts with
+          if (fieldValue.startsWith(searchTermLower)) return true
+          
+          // Contains
+          if (fieldValue.includes(searchTermLower)) return true
+          
+          // Multi-word fuzzy matching (like store does)
+          const itemWords = fieldValue.split(/\s+/)
+          const searchWords = searchTermLower.split(/\s+/)
+          
+          return searchWords.some(searchWord =>
+            itemWords.some(itemWord => itemWord.includes(searchWord))
+          )
+        })
+      })
+    }
+
+    // Filtered items with comprehensive search
+    const filteredItems = computed(() => {
+      const results = searchLocalInventory()
+      
+      // Sort by relevance - EXACTLY like store's logic
+      return results.sort((a, b) => {
+        const searchTermLower = searchTerm.value?.toLowerCase() || ''
         
-        return name.includes(term) || 
-               code.includes(term) || 
-               color.includes(term) ||
-               supplier.includes(term)
+        // 1. Exact code match gets highest priority
+        if (a.code?.toLowerCase() === searchTermLower) return -1
+        if (b.code?.toLowerCase() === searchTermLower) return 1
+        
+        // 2. Exact name match
+        if (a.name?.toLowerCase() === searchTermLower) return -1
+        if (b.name?.toLowerCase() === searchTermLower) return 1
+        
+        // 3. Code starts with search term
+        const aCodeStarts = a.code?.toLowerCase().startsWith(searchTermLower)
+        const bCodeStarts = b.code?.toLowerCase().startsWith(searchTermLower)
+        if (aCodeStarts && !bCodeStarts) return -1
+        if (!aCodeStarts && bCodeStarts) return 1
+        
+        // 4. Name starts with search term
+        const aNameStarts = a.name?.toLowerCase().startsWith(searchTermLower)
+        const bNameStarts = b.name?.toLowerCase().startsWith(searchTermLower)
+        if (aNameStarts && !bNameStarts) return -1
+        if (!aNameStarts && bNameStarts) return 1
+        
+        // 5. Other fields match
+        const aOtherMatch = a.color?.toLowerCase().includes(searchTermLower) || 
+                           a.supplier?.toLowerCase().includes(searchTermLower) ||
+                           a.item_location?.toLowerCase().includes(searchTermLower)
+        const bOtherMatch = b.color?.toLowerCase().includes(searchTermLower) || 
+                           b.supplier?.toLowerCase().includes(searchTermLower) ||
+                           b.item_location?.toLowerCase().includes(searchTermLower)
+        if (aOtherMatch && !bOtherMatch) return -1
+        if (!aOtherMatch && bOtherMatch) return 1
+        
+        // 6. Sort by remaining quantity (higher first)
+        return (b.remaining_quantity || 0) - (a.remaining_quantity || 0)
       })
     })
 
@@ -758,7 +797,6 @@ export default {
     const isSubmitDisabled = computed(() => {
       if (loading.value) return true
       
-      // SUPERADMIN CAN SUBMIT WITH MINIMAL VALIDATION
       if (isSuperadmin.value) {
         return !selectedItem.value || 
                !form.destinationBranch || 
@@ -766,7 +804,6 @@ export default {
                form.quantity <= 0
       }
       
-      // Regular users have stricter checks
       return !selectedItem.value || 
              !form.destinationBranch || 
              !form.sourceWarehouse || 
@@ -780,6 +817,21 @@ export default {
     const getWarehouseName = (warehouseId) => {
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
       return warehouse ? warehouse.name_ar : warehouseId
+    }
+    
+    const getWarehouseIcon = (warehouse) => {
+      const nameLower = warehouse.name_ar?.toLowerCase() || warehouse.name?.toLowerCase() || ''
+      const idLower = warehouse.id?.toLowerCase() || ''
+      
+      if (nameLower.includes('مصنع') || idLower.includes('factory')) return '🏭'
+      if (nameLower.includes('مخزن') || idLower.includes('warehouse')) return '🏪'
+      if (nameLower.includes('فرع') || idLower.includes('branch')) return '🏬'
+      if (nameLower.includes('محل') || idLower.includes('shop')) return '🏪'
+      if (nameLower.includes('مكتب') || idLower.includes('office')) return '🏢'
+      if (nameLower.includes('سوبرماركت') || nameLower.includes('هايبر')) return '🛒'
+      if (nameLower.includes('عميل') || nameLower.includes('customer')) return '👤'
+      if (nameLower.includes('شركة') || nameLower.includes('company')) return '🏢'
+      return '📍'
     }
     
     const getWarehouseType = (warehouseId) => {
@@ -802,22 +854,10 @@ export default {
       return 'text-green-600 dark:text-green-400'
     }
     
-    const getSearchSourceLabel = (source) => {
-      const labels = {
-        'local': 'البحث المحلي',
-        'cache': 'الذاكرة المؤقتة',
-        'firebase': 'البحث المباشر',
-        'local-fallback': 'البحث المحلي (استرجاع)',
-        'none': 'لا يوجد بحث'
-      }
-      return labels[source] || source
-    }
-    
     // Check if warehouse is accessible for dispatch
     const isWarehouseAccessible = (warehouseId) => {
       if (!userProfile.value) return false
       
-      // SUPERADMIN BYPASS - ACCESS TO ALL WAREHOUSES
       if (isSuperadmin.value) return true
       
       // Warehouse managers can only access allowed warehouses
@@ -834,65 +874,10 @@ export default {
       return false
     }
 
-    // Use store's searchInventoryEnhanced action
-    const performEnhancedSearch = async (searchTermValue) => {
-      if (!searchTermValue || searchTermValue.trim().length < 2) {
-        searchResults.value = []
-        isLiveSearching.value = false
-        searchSource.value = 'none'
-        return
-      }
-      
-      isLiveSearching.value = true
-      
-      try {
-        console.log('🔍 Using store search for dispatch:', searchTermValue, 'warehouse:', form.sourceWarehouse)
-        
-        // Use the store's enhanced search action
-        const results = await store.dispatch('searchInventoryEnhanced', {
-          query: searchTermValue,
-          warehouseId: form.sourceWarehouse,
-          limit: 25,
-          useCache: true
-        })
-        
-        // Get search source from store state
-        searchSource.value = store.state.search.source || 'local'
-        
-        // Update search results
-        searchResults.value = results || []
-        
-        console.log('✅ Store search results:', searchResults.value.length, 'items from', searchSource.value)
-        
-      } catch (error) {
-        console.error('❌ Error in store search:', error)
-        searchSource.value = 'none'
-        searchResults.value = []
-        
-        // Fallback to local search
-        const term = searchTermValue.toLowerCase()
-        const localResults = availableItems.value.filter(item => {
-          const name = (item.name || '').toLowerCase()
-          const code = (item.code || '').toLowerCase()
-          return name.includes(term) || code.includes(term)
-        })
-        
-        searchResults.value = localResults
-        searchSource.value = 'local-fallback'
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث عن الأصناف، تم استخدام البحث المحلي'
-        })
-      } finally {
-        isLiveSearching.value = false
-      }
-    }
-    
-    // Debounced search
-    const debouncedSearch = debounce((term) => {
-      performEnhancedSearch(term)
-    }, 300)
+    // Debounced search handler
+    const debouncedSearch = debounce(() => {
+      isSearching.value = false
+    }, SEARCH_DEBOUNCE)
     
     // Handle search input
     const handleSearch = () => {
@@ -901,65 +886,28 @@ export default {
         clearTimeout(searchTimeout.value)
       }
       
+      isSearching.value = true
+      
       // Debounce the search
       searchTimeout.value = setTimeout(() => {
-        if (searchTerm.value && searchTerm.value.trim().length >= 2) {
-          debouncedSearch(searchTerm.value.trim())
-        } else {
-          // Clear search results if search term is too short
-          searchResults.value = []
-          isLiveSearching.value = false
-          searchSource.value = 'none'
-        }
-      }, 300)
+        isSearching.value = false
+      }, SEARCH_DEBOUNCE)
     }
 
     // Load dispatch warehouses directly from Firestore
     const loadDispatchWarehouses = async () => {
       try {
-        console.log('🔄 Loading dispatch warehouses directly...')
+        console.log('🔄 Loading dispatch warehouses...')
         
-        // Method 1: Try the store action first
-        try {
-          const warehouses = await store.dispatch('getDispatchWarehouses')
-          if (warehouses && warehouses.length > 0) {
-            dispatchWarehouses.value = warehouses
-            console.log('✅ Dispatch warehouses loaded from store action:', warehouses.length)
-            return
-          }
-        } catch (storeError) {
-          console.log('Store action failed, trying direct query...', storeError.message)
+        // Use store action
+        const warehouses = await store.dispatch('getDispatchWarehouses')
+        if (warehouses && warehouses.length > 0) {
+          dispatchWarehouses.value = warehouses
+          console.log('✅ Dispatch warehouses loaded:', warehouses.length)
+          return
         }
         
-        // Method 2: Direct Firestore query if store action fails
-        const { collection, query, where, getDocs } = await import('firebase/firestore')
-        const { db } = await import('@/firebase/config')
-        
-        const warehousesRef = collection(db, 'warehouses')
-        const q = query(
-          warehousesRef,
-          where('type', '==', 'dispatch')
-        )
-        
-        const snapshot = await getDocs(q)
-        const warehouses = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        
-        dispatchWarehouses.value = warehouses
-        console.log('✅ Dispatch warehouses loaded directly from Firestore:', warehouses.length)
-        
-        // Also update store for future use
-        if (warehouses.length > 0) {
-          // Create a custom mutation to update dispatch warehouses
-          store.commit('SET_DISPATCH_WAREHOUSES', warehouses)
-        }
-        
-      } catch (error) {
-        console.error('❌ Error loading dispatch warehouses:', error)
-        
-        // Method 3: Fallback - filter from all warehouses
+        // Fallback
         const allWarehouses = warehouses.value
         const dispatchWarehousesFiltered = allWarehouses.filter(w => 
           w.type === 'dispatch' && w.status !== 'inactive'
@@ -967,6 +915,14 @@ export default {
         
         dispatchWarehouses.value = dispatchWarehousesFiltered
         console.log('⚠️ Using fallback dispatch warehouses:', dispatchWarehousesFiltered.length)
+        
+      } catch (error) {
+        console.error('❌ Error loading dispatch warehouses:', error)
+        const allWarehouses = warehouses.value
+        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
+          w.type === 'dispatch' && w.status !== 'inactive'
+        )
+        dispatchWarehouses.value = dispatchWarehousesFiltered
       }
     }
 
@@ -983,9 +939,7 @@ export default {
       error.value = ''
       successMessage.value = ''
       searchTerm.value = ''
-      searchResults.value = []
-      isLiveSearching.value = false
-      searchSource.value = ''
+      isSearching.value = false
     }
 
     const closeModal = () => {
@@ -1016,13 +970,7 @@ export default {
     const onWarehouseChange = () => {
       selectedItem.value = null
       searchTerm.value = ''
-      searchResults.value = []
-      isLiveSearching.value = false
-      searchSource.value = ''
       error.value = ''
-      
-      // Clear store search when warehouse changes
-      store.commit('CLEAR_SEARCH')
     }
 
     const increaseQuantity = () => {
@@ -1091,15 +1039,6 @@ export default {
         } else if (newQuantity < 1) {
           form.quantity = 1
         }
-      }
-    })
-    
-    // Watch search term changes to clear results when cleared
-    watch(searchTerm, (newValue) => {
-      if (!newValue || newValue.trim().length < 2) {
-        searchResults.value = []
-        isLiveSearching.value = false
-        searchSource.value = 'none'
       }
     })
 
@@ -1268,9 +1207,7 @@ export default {
       dispatchWarehouses,
       
       // Search State
-      isLiveSearching,
-      searchSource,
-      searchResults,
+      isSearching,
       
       // Computed
       userProfile,
@@ -1283,7 +1220,6 @@ export default {
       filteredItems,
       canViewDispatch,
       canPerformDispatch,
-      canDispatch,
       hasAccessToSelectedWarehouse,
       isSubmitDisabled,
       
@@ -1298,7 +1234,6 @@ export default {
       getWarehouseType,
       getDestinationName,
       getStockClass,
-      getSearchSourceLabel,
       isWarehouseAccessible,
       handleSearch,
       handleSubmit,
@@ -1374,17 +1309,17 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Live search indicator animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+/* Loading indicator animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    opacity: 0.5;
+  to {
+    transform: rotate(360deg);
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 </style>
