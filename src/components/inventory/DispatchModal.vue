@@ -61,7 +61,7 @@
           >
             <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن المصدر</option>
             <option 
-              v-for="warehouse in sourceWarehouses" 
+              v-for="warehouse in accessibleSourceWarehouses" 
               :key="warehouse.id" 
               :value="warehouse.id"
               :disabled="!isWarehouseAccessible(warehouse.id)"
@@ -166,8 +166,8 @@
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
               {{ filteredItems.length }} صنف متاح
-              <span v-if="enhancedSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
-                ({{ enhancedSearchResults.length }} من البحث المباشر)
+              <span v-if="searchSource" class="text-blue-600 dark:text-blue-400">
+                (من {{ getSearchSourceLabel(searchSource) }})
               </span>
             </div>
           </div>
@@ -211,23 +211,22 @@
                 :class="[
                   'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
                   selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
-                  item.isEnhancedSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                  item.searchSource === 'firebase' ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
                 ]"
               >
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
                   <div class="font-medium text-sm text-gray-900 dark:text-white flex items-center">
                     {{ item.name }}
-                    <!-- Enhanced Search Badge -->
-                    <span v-if="item.isEnhancedSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
+                    <!-- Search Source Badge -->
+                    <span v-if="item.searchSource === 'firebase'" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
                       🔍
                     </span>
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
-                    <span v-if="item.isEnhancedSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
-                    <span v-if="item.searchSource" class="text-gray-500 dark:text-gray-500">({{ getSearchSourceLabel(item.searchSource) }})</span>
+                    <span v-if="item.searchSource" class="text-blue-600 dark:text-blue-400">تم العثور عبر {{ getSearchSourceLabel(item.searchSource) }}</span>
                   </div>
                 </div>
 
@@ -289,7 +288,7 @@
           <div class="flex items-center justify-between mb-3">
             <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
             <div class="flex items-center gap-2">
-              <span v-if="selectedItem.isEnhancedSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
+              <span v-if="selectedItem.searchSource === 'firebase'" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
                 تم العثور عبر البحث المباشر
               </span>
               <button
@@ -505,13 +504,13 @@ export default {
     const successMessage = ref('')
     const selectedItem = ref(null)
     const searchTerm = ref('')
-    const dispatchWarehouses = ref([]) // Store dispatch warehouses separately
+    const dispatchWarehouses = ref([])
     
     // Enhanced Search State
     const isLiveSearching = ref(false)
-    const enhancedSearchResults = reactive([])
+    const searchSource = ref('') // 'local' | 'cache' | 'firebase' | 'none'
+    const searchResults = ref([])
     const searchTimeout = ref(null)
-    const searchSource = ref('') // 'local' | 'cache' | 'firebase'
 
     // Form
     const form = reactive({
@@ -557,100 +556,56 @@ export default {
     const userProfile = computed(() => store.state.userProfile)
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
+    const searchState = computed(() => store.state.search || {})
     
-    // Get ALL dispatch warehouses directly from Firestore (not filtered by user access)
-    const loadDispatchWarehouses = async () => {
+    // Get source warehouses that the user can dispatch FROM
+    const accessibleSourceWarehouses = computed(() => {
       try {
-        console.log('🔄 Loading dispatch warehouses directly...')
-        
-        // Method 1: Try the store action first
-        try {
-          const warehouses = await store.dispatch('getDispatchWarehouses')
-          if (warehouses && warehouses.length > 0) {
-            dispatchWarehouses.value = warehouses
-            console.log('✅ Dispatch warehouses loaded from store action:', warehouses.length)
-            return
-          }
-        } catch (storeError) {
-          console.log('Store action failed, trying direct query...', storeError.message)
-        }
-        
-        // Method 2: Direct Firestore query if store action fails
-        const { collection, query, where, getDocs } = await import('firebase/firestore')
-        const { db } = await import('@/firebase/config')
-        
-        const warehousesRef = collection(db, 'warehouses')
-        const q = query(
-          warehousesRef,
-          where('type', '==', 'dispatch')
-        )
-        
-        const snapshot = await getDocs(q)
-        const warehouses = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        
-        dispatchWarehouses.value = warehouses
-        console.log('✅ Dispatch warehouses loaded directly from Firestore:', warehouses.length)
-        
-        // Also update store for future use
-        if (warehouses.length > 0) {
-          // Create a custom mutation to update dispatch warehouses
-          store.commit('SET_DISPATCH_WAREHOUSES', warehouses)
-        }
-        
-      } catch (error) {
-        console.error('❌ Error loading dispatch warehouses:', error)
-        
-        // Method 3: Fallback - filter from all warehouses
         const allWarehouses = warehouses.value
-        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
-          w.type === 'dispatch' && w.status !== 'inactive'
-        )
         
-        dispatchWarehouses.value = dispatchWarehousesFiltered
-        console.log('⚠️ Using fallback dispatch warehouses:', dispatchWarehousesFiltered.length)
-      }
-    }
-    
-    // Get source warehouses from store getters (primary warehouses only)
-    const sourceWarehouses = computed(() => {
-      try {
-        // For dispatch, users should be able to dispatch from any primary warehouse they have access to
-        if (userProfile.value?.role === 'superadmin') {
-          // Superadmin sees all active primary warehouses
-          return warehouses.value.filter(w => 
+        if (!userProfile.value) return []
+        
+        // SUPERADMIN: Can dispatch from any primary warehouse
+        if (isSuperadmin.value) {
+          return allWarehouses.filter(w => 
             w.status === 'active' && 
-            (w.type === 'primary' || !w.type) // Include primary type or no type specified
+            (w.type === 'primary' || !w.type)
           )
-        } else if (userProfile.value?.role === 'warehouse_manager') {
-          // Warehouse managers see only allowed primary warehouses
+        }
+        
+        // WAREHOUSE MANAGER: Can dispatch only from allowed warehouses
+        if (userProfile.value.role === 'warehouse_manager') {
           const allowedWarehouses = userProfile.value.allowed_warehouses || []
           
           if (allowedWarehouses.length === 0) return []
           
+          // If manager has "all" access
           if (allowedWarehouses.includes('all')) {
-            return warehouses.value.filter(w => 
+            return allWarehouses.filter(w => 
               w.status === 'active' && 
               (w.type === 'primary' || !w.type)
             )
           }
           
-          return warehouses.value.filter(w => 
+          // Filter by allowed warehouses
+          return allWarehouses.filter(w => 
             w.status === 'active' && 
             (w.type === 'primary' || !w.type) &&
             allowedWarehouses.includes(w.id)
           )
-        } else {
-          // Other users (company_manager, etc.) see all active primary warehouses
-          return warehouses.value.filter(w => 
+        }
+        
+        // COMPANY MANAGER and others: Can dispatch from all active primary warehouses
+        if (['company_manager', 'superadmin'].includes(userProfile.value.role)) {
+          return allWarehouses.filter(w => 
             w.status === 'active' && 
             (w.type === 'primary' || !w.type)
           )
         }
+        
+        return []
       } catch (err) {
-        console.error('Error getting source warehouses:', err)
+        console.error('Error getting accessible source warehouses:', err)
         return []
       }
     })
@@ -723,29 +678,35 @@ export default {
                userProfile.value.permissions?.includes('full_access')
       }
       
+      // Company managers can also dispatch
+      if (userProfile.value.role === 'company_manager') {
+        return true
+      }
+      
       return false
     })
     
     const canDispatch = computed(() => canPerformDispatch.value)
     
-    const allowedWarehousesCount = computed(() => {
-      return userProfile.value?.allowed_warehouses?.length || 0
-    })
-    
-    // SUPERADMIN BYPASSES ACCESS CHECKS!
+    // Check if user has access to selected warehouse for dispatch
     const hasAccessToSelectedWarehouse = computed(() => {
       if (!userProfile.value || !form.sourceWarehouse) return false
       
       // SUPERADMIN BYPASS - FULL ACCESS
       if (isSuperadmin.value) return true
       
+      // Warehouse managers can only dispatch from allowed warehouses
       if (userProfile.value.role === 'warehouse_manager') {
         const allowedWarehouses = userProfile.value.allowed_warehouses || []
         return allowedWarehouses.includes('all') || allowedWarehouses.includes(form.sourceWarehouse)
       }
       
-      // Other users can view but not dispatch
-      return true
+      // Company managers can dispatch from all warehouses
+      if (userProfile.value.role === 'company_manager') {
+        return true
+      }
+      
+      return false
     })
 
     // Available items in selected warehouse
@@ -760,66 +721,16 @@ export default {
       )
     })
 
-    // Enhanced search with warehouse filtering
-    const performEnhancedSearch = async (searchTermValue) => {
-      if (!searchTermValue || searchTermValue.trim().length < 2) {
-        enhancedSearchResults.length = 0 // Clear results
-        isLiveSearching.value = false
-        searchSource.value = ''
-        return
-      }
-      
-      isLiveSearching.value = true
-      
-      try {
-        console.log('🔍 Performing enhanced search in dispatch for:', searchTermValue, 'warehouse:', form.sourceWarehouse)
-        
-        // Use the enhanced store action with warehouse filtering
-        const searchResults = await store.dispatch('searchInventoryEnhanced', {
-          query: searchTermValue,
-          warehouseId: form.sourceWarehouse, // Pass selected warehouse
-          limit: 25,
-          useCache: true
-        })
-        
-        console.log('✅ Enhanced search results in dispatch:', searchResults.length, 'items')
-        
-        // Get search source from store state
-        searchSource.value = store.state.search.source || 'firebase'
-        
-        // Update enhanced search results
-        enhancedSearchResults.length = 0 // Clear previous results
-        
-        // Mark results as enhanced search and add source info
-        searchResults.forEach(item => {
-          enhancedSearchResults.push({
-            ...item,
-            isEnhancedSearchResult: true,
-            searchSource: searchSource.value
-          })
-        })
-        
-      } catch (error) {
-        console.error('❌ Error in enhanced search:', error)
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث عن الأصناف'
-        })
-      } finally {
-        isLiveSearching.value = false
-      }
-    }
-    
-    // Combined items (local + enhanced search results)
+    // Combined items (local + search results)
     const filteredItems = computed(() => {
-      const combined = [...availableItems.value]
+      let combined = [...availableItems.value]
       
-      // Add enhanced search results that aren't already in local inventory
-      enhancedSearchResults.forEach(enhancedItem => {
-        if (!combined.some(item => item.id === enhancedItem.id)) {
+      // Add search results that aren't already in local inventory
+      searchResults.value.forEach(searchItem => {
+        if (!combined.some(item => item.id === searchItem.id)) {
           // Only include items from the selected warehouse or if no warehouse is selected
-          if (!form.sourceWarehouse || enhancedItem.warehouse_id === form.sourceWarehouse) {
-            combined.push(enhancedItem)
+          if (!form.sourceWarehouse || searchItem.warehouse_id === form.sourceWarehouse) {
+            combined.push(searchItem)
           }
         }
       })
@@ -893,35 +804,97 @@ export default {
     
     const getSearchSourceLabel = (source) => {
       const labels = {
-        'local': 'محلي',
-        'cache': 'ذاكرة مؤقتة',
-        'firebase': 'مباشر'
+        'local': 'البحث المحلي',
+        'cache': 'الذاكرة المؤقتة',
+        'firebase': 'البحث المباشر',
+        'local-fallback': 'البحث المحلي (استرجاع)',
+        'none': 'لا يوجد بحث'
       }
       return labels[source] || source
     }
     
-    // SUPERADMIN BYPASSES WAREHOUSE ACCESS CHECKS!
+    // Check if warehouse is accessible for dispatch
     const isWarehouseAccessible = (warehouseId) => {
       if (!userProfile.value) return false
       
       // SUPERADMIN BYPASS - ACCESS TO ALL WAREHOUSES
       if (isSuperadmin.value) return true
       
+      // Warehouse managers can only access allowed warehouses
       if (userProfile.value.role === 'warehouse_manager') {
         const allowedWarehouses = userProfile.value.allowed_warehouses || []
         return allowedWarehouses.includes('all') || allowedWarehouses.includes(warehouseId)
       }
       
-      // Other users can view but not access for dispatch
-      return userProfile.value.is_active === true
+      // Company managers can access all warehouses
+      if (userProfile.value.role === 'company_manager') {
+        return true
+      }
+      
+      return false
     }
 
+    // Use store's searchInventoryEnhanced action
+    const performEnhancedSearch = async (searchTermValue) => {
+      if (!searchTermValue || searchTermValue.trim().length < 2) {
+        searchResults.value = []
+        isLiveSearching.value = false
+        searchSource.value = 'none'
+        return
+      }
+      
+      isLiveSearching.value = true
+      
+      try {
+        console.log('🔍 Using store search for dispatch:', searchTermValue, 'warehouse:', form.sourceWarehouse)
+        
+        // Use the store's enhanced search action
+        const results = await store.dispatch('searchInventoryEnhanced', {
+          query: searchTermValue,
+          warehouseId: form.sourceWarehouse,
+          limit: 25,
+          useCache: true
+        })
+        
+        // Get search source from store state
+        searchSource.value = store.state.search.source || 'local'
+        
+        // Update search results
+        searchResults.value = results || []
+        
+        console.log('✅ Store search results:', searchResults.value.length, 'items from', searchSource.value)
+        
+      } catch (error) {
+        console.error('❌ Error in store search:', error)
+        searchSource.value = 'none'
+        searchResults.value = []
+        
+        // Fallback to local search
+        const term = searchTermValue.toLowerCase()
+        const localResults = availableItems.value.filter(item => {
+          const name = (item.name || '').toLowerCase()
+          const code = (item.code || '').toLowerCase()
+          return name.includes(term) || code.includes(term)
+        })
+        
+        searchResults.value = localResults
+        searchSource.value = 'local-fallback'
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث عن الأصناف، تم استخدام البحث المحلي'
+        })
+      } finally {
+        isLiveSearching.value = false
+      }
+    }
+    
     // Debounced search
     const debouncedSearch = debounce((term) => {
       performEnhancedSearch(term)
-    }, 300) // Match store's SEARCH_DEBOUNCE
+    }, 300)
     
-    // Handle search input with enhanced search
+    // Handle search input
     const handleSearch = () => {
       // Clear any existing timeout
       if (searchTimeout.value) {
@@ -934,11 +907,67 @@ export default {
           debouncedSearch(searchTerm.value.trim())
         } else {
           // Clear search results if search term is too short
-          enhancedSearchResults.length = 0
+          searchResults.value = []
           isLiveSearching.value = false
-          searchSource.value = ''
+          searchSource.value = 'none'
         }
       }, 300)
+    }
+
+    // Load dispatch warehouses directly from Firestore
+    const loadDispatchWarehouses = async () => {
+      try {
+        console.log('🔄 Loading dispatch warehouses directly...')
+        
+        // Method 1: Try the store action first
+        try {
+          const warehouses = await store.dispatch('getDispatchWarehouses')
+          if (warehouses && warehouses.length > 0) {
+            dispatchWarehouses.value = warehouses
+            console.log('✅ Dispatch warehouses loaded from store action:', warehouses.length)
+            return
+          }
+        } catch (storeError) {
+          console.log('Store action failed, trying direct query...', storeError.message)
+        }
+        
+        // Method 2: Direct Firestore query if store action fails
+        const { collection, query, where, getDocs } = await import('firebase/firestore')
+        const { db } = await import('@/firebase/config')
+        
+        const warehousesRef = collection(db, 'warehouses')
+        const q = query(
+          warehousesRef,
+          where('type', '==', 'dispatch')
+        )
+        
+        const snapshot = await getDocs(q)
+        const warehouses = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        
+        dispatchWarehouses.value = warehouses
+        console.log('✅ Dispatch warehouses loaded directly from Firestore:', warehouses.length)
+        
+        // Also update store for future use
+        if (warehouses.length > 0) {
+          // Create a custom mutation to update dispatch warehouses
+          store.commit('SET_DISPATCH_WAREHOUSES', warehouses)
+        }
+        
+      } catch (error) {
+        console.error('❌ Error loading dispatch warehouses:', error)
+        
+        // Method 3: Fallback - filter from all warehouses
+        const allWarehouses = warehouses.value
+        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
+          w.type === 'dispatch' && w.status !== 'inactive'
+        )
+        
+        dispatchWarehouses.value = dispatchWarehousesFiltered
+        console.log('⚠️ Using fallback dispatch warehouses:', dispatchWarehousesFiltered.length)
+      }
     }
 
     // Methods
@@ -954,7 +983,7 @@ export default {
       error.value = ''
       successMessage.value = ''
       searchTerm.value = ''
-      enhancedSearchResults.length = 0
+      searchResults.value = []
       isLiveSearching.value = false
       searchSource.value = ''
     }
@@ -976,7 +1005,7 @@ export default {
         selectedItem.value = null
       } else {
         selectedItem.value = item
-        form.quantity = 1
+        form.quantity = Math.min(1, item.remaining_quantity || 1)
       }
     }
 
@@ -987,10 +1016,13 @@ export default {
     const onWarehouseChange = () => {
       selectedItem.value = null
       searchTerm.value = ''
-      enhancedSearchResults.length = 0
+      searchResults.value = []
       isLiveSearching.value = false
       searchSource.value = ''
       error.value = ''
+      
+      // Clear store search when warehouse changes
+      store.commit('CLEAR_SEARCH')
     }
 
     const increaseQuantity = () => {
@@ -1036,11 +1068,9 @@ export default {
           loadDispatchWarehouses()
         }
         
-        if (props.item) {
-          if (isSuperadmin.value || canPerformDispatch.value) {
-            selectItem(props.item)
-            form.sourceWarehouse = props.item.warehouse_id
-          }
+        if (props.item && (isSuperadmin.value || canPerformDispatch.value)) {
+          selectItem(props.item)
+          form.sourceWarehouse = props.item.warehouse_id
         }
       }
     })
@@ -1064,12 +1094,12 @@ export default {
       }
     })
     
-    // Watch search term changes to clear enhanced search results when cleared
+    // Watch search term changes to clear results when cleared
     watch(searchTerm, (newValue) => {
       if (!newValue || newValue.trim().length < 2) {
-        enhancedSearchResults.length = 0
+        searchResults.value = []
         isLiveSearching.value = false
-        searchSource.value = ''
+        searchSource.value = 'none'
       }
     })
 
@@ -1081,6 +1111,12 @@ export default {
       // Check if user can perform dispatch
       if (!isSuperadmin.value && !canPerformDispatch.value) {
         error.value = 'ليس لديك صلاحية لصرف الأصناف'
+        return
+      }
+      
+      // Check if user has access to selected warehouse
+      if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
+        error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
         return
       }
 
@@ -1109,20 +1145,12 @@ export default {
         errors.push('يرجى إدخال كمية صحيحة')
       }
       
-      // SUPERADMIN BYPASSES QUANTITY LIMIT CHECKS!
+      // Check quantity limit for non-superadmin users
       if (!isSuperadmin.value) {
         const maxQuantity = selectedItem.value?.remaining_quantity || 0
         if (form.quantity > maxQuantity) {
           errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
         }
-      }
-      
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        errors.push('ليس لديك صلاحية لصرف الأصناف')
-      }
-      
-      if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
-        errors.push('ليس لديك صلاحية للصرف من هذا المخزن')
       }
       
       if (errors.length > 0) {
@@ -1137,7 +1165,7 @@ export default {
         const destination = dispatchDestinations.value.find(d => d.id === form.destinationBranch)
         const destinationName = destination ? destination.name_ar : form.destinationBranch
 
-        // Send EXACTLY what the store expects
+        // Prepare dispatch data
         const dispatchData = {
           item_id: selectedItem.value.id,
           from_warehouse_id: form.sourceWarehouse,
@@ -1165,7 +1193,7 @@ export default {
           user_name: userProfile.value?.name
         }
 
-        console.log('📦 DEBUG - Dispatch data being sent:', {
+        console.log('📦 Dispatching item:', {
           item_id: dispatchData.item_id,
           from_warehouse_id: dispatchData.from_warehouse_id,
           destination: dispatchData.destination,
@@ -1197,6 +1225,8 @@ export default {
         // More detailed error message
         if (err.message.includes('غير مكتملة')) {
           error.value = 'بيانات الإرسال غير مكتملة. يرجى التحقق من جميع الحويد المطلوبة.'
+        } else if (err.message.includes('صلاحية')) {
+          error.value = 'ليس لديك الصلاحية لإجراء هذه العملية'
         }
       } finally {
         loading.value = false
@@ -1211,13 +1241,9 @@ export default {
         
         console.log('Dispatch Modal mounted', {
           dispatchWarehousesCount: dispatchWarehouses.value.length,
-          allWarehousesCount: warehouses.value.length,
-          dispatchWarehouses: dispatchWarehouses.value.map(w => ({
-            id: w.id,
-            name: w.name_ar,
-            type: w.type,
-            status: w.status
-          }))
+          accessibleSourceWarehousesCount: accessibleSourceWarehouses.value.length,
+          userRole: userProfile.value?.role,
+          canPerformDispatch: canPerformDispatch.value
         })
       } catch (error) {
         console.log('Could not load dispatch warehouses:', error.message)
@@ -1241,20 +1267,20 @@ export default {
       searchTerm,
       dispatchWarehouses,
       
-      // Enhanced Search State
+      // Search State
       isLiveSearching,
-      enhancedSearchResults,
+      searchSource,
+      searchResults,
       
       // Computed
       userProfile,
       warehouses,
       isSuperadmin,
       dispatchDestinations,
-      sourceWarehouses,
+      accessibleSourceWarehouses,
       priorityOptions,
       availableItems,
       filteredItems,
-      allowedWarehousesCount,
       canViewDispatch,
       canPerformDispatch,
       canDispatch,
@@ -1281,6 +1307,7 @@ export default {
   }
 }
 </script>
+
 <style scoped>
 .rtl {
   direction: rtl;
