@@ -15,7 +15,7 @@
                 إدارة وتتبع جميع الأصناف في النظام
               </p>
             </div>
-            
+
             <!-- User and Warehouse Info - Mobile Optimized -->
             <div class="flex flex-col items-end gap-1">
               <!-- Current User -->
@@ -27,7 +27,7 @@
                   {{ currentUserInfo }}
                 </span>
               </div>
-              
+
               <!-- Warehouse Info -->
               <div v-if="selectedWarehouse" class="flex items-center gap-1">
                 <svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,10 +54,15 @@
                 </span>
               </span>
               <span class="text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">
-                {{ filteredItems.length }} عنصر • {{ formatTime(lastUpdate) }}
+                {{ displayedItems.length }} عنصر • {{ formatTime(lastUpdate) }}
+              </span>
+              <!-- Live Search Indicator -->
+              <span v-if="isLiveSearching && searchTerm.length >= 3" class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                بحث مباشر...
               </span>
             </div>
-            
+
             <!-- Mobile Description -->
             <p class="text-xs text-gray-600 dark:text-gray-400 block sm:hidden">
               إدارة المخزون
@@ -71,7 +76,7 @@
         <div class="flex flex-wrap gap-2 sm:gap-3">
           <!-- Export to Excel Button -->
           <button
-            v-if="filteredItems.length > 0"
+            v-if="displayedItems.length > 0"
             @click="exportToExcel"
             :disabled="exporting"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -102,7 +107,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch && filteredItems.length > 0"
+            v-if="hasMore && !loading && !useLiveSearch && displayedItems.length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -141,7 +146,7 @@
             </div>
             <div class="flex-1 text-right mr-1 sm:mr-2">
               <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">الأصناف</p>
-              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(filteredItems.length) }}</p>
+              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(displayedItems.length) }}</p>
             </div>
           </div>
         </div>
@@ -257,7 +262,7 @@
                     type="text"
                     v-model="searchTerm"
                     @input="handleLiveSearch"
-                    placeholder="ابحث بأي حقل (3 أحرف على الأقل)..."
+                    placeholder="ابحث بأي حقل (كتابة تبدأ البحث)..."
                     class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                   />
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -276,8 +281,17 @@
                     </svg>
                   </button>
                   <!-- Search Info -->
-                  <div v-if="searchTerm.length > 0 && searchTerm.length < 3" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
-                    ⓘ اكتب 3 أحرف على الأقل للبحث
+                  <div v-if="isLiveSearching" class="absolute left-0 right-0 -bottom-6 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                    <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    جاري البحث...
+                  </div>
+                  <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
+                    ⓘ اكتب حرفين على الأقل للبحث
+                  </div>
+                  <div v-else-if="useLiveSearch && liveSearchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                    ✓ تم العثور على {{ liveSearchResults.length }} نتيجة
                   </div>
                 </div>
               </div>
@@ -326,13 +340,13 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="useLiveSearch && liveSearchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث: {{ liveSearchResults.length }}</span>
+                <span class="text-sm">نتائج البحث المباشر: {{ liveSearchResults.length }} عنصر</span>
               </div>
               <button 
                 @click="resetToNormalView"
@@ -359,7 +373,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading && !filteredItems.length" class="text-center py-8 sm:py-12">
+      <div v-if="loading && !displayedItems.length" class="text-center py-8 sm:py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
         <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
         <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
@@ -671,8 +685,8 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm">تم عرض جميع العناصر ({{ filteredItems.length }} عنصر)</p>
+          <div v-if="!hasMore && displayedItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm">تم عرض جميع العناصر ({{ displayedItems.length }} عنصر)</p>
           </div>
         </div>
 
@@ -784,7 +798,7 @@
                     </svg>
                     <span>{{ formatRelativeTime(item.updated_at) }}</span>
                   </div>
-                  
+
                   <!-- Quick Action Buttons -->
                   <div class="flex items-center gap-1">
                     <button 
@@ -797,7 +811,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                       </svg>
                     </button>
-                    
+
                     <button 
                       v-if="canTransferItem(item)"
                       @click.stop="handleTransfer(item)"
@@ -808,7 +822,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                       </svg>
                     </button>
-                    
+
                     <button 
                       v-if="canDeleteItem(item)"
                       @click.stop="handleDelete(item)"
@@ -842,7 +856,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && filteredItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && displayedItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -937,6 +951,19 @@ import TransferModal from '@/components/inventory/TransferModal.vue';
 import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
 import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
 
+// Firebase imports
+import { db } from '@/firebase/config';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs,
+  limit,
+  startAt,
+  endAt
+} from 'firebase/firestore';
+
 // Click outside directive for dropdowns
 const vClickOutside = {
   mounted(el, binding) {
@@ -1000,7 +1027,7 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
-    // Live search state
+    // Enhanced Live Search State
     const useLiveSearch = ref(false);
     const liveSearchResults = ref([]);
     const isLiveSearching = ref(false);
@@ -1084,20 +1111,25 @@ export default {
       return canEditItem(item) && userRole.value === 'superadmin';
     };
     
+    // Displayed items (either from live search or filtered inventory)
+    const displayedItems = computed(() => {
+      return useLiveSearch.value ? liveSearchResults.value : filteredItems.value;
+    });
+    
     // Stats computed
     const totalQuantity = computed(() => {
-      return filteredItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
-      return filteredItems.value.filter(item => {
+      return displayedItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
       }).length;
     });
     
     const warehouseCount = computed(() => {
-      const warehouses = new Set(filteredItems.value.map(item => item.warehouse_id));
+      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id));
       return warehouses.size;
     });
     
@@ -1116,7 +1148,7 @@ export default {
     
     // Enhanced search function that works with store structure
     const performEnhancedSearch = (items, searchTerm) => {
-      if (!searchTerm || searchTerm.length < 3) return items;
+      if (!searchTerm || searchTerm.length < 2) return items;
       
       const term = searchTerm.toLowerCase().trim();
       
@@ -1138,56 +1170,66 @@ export default {
           String(item.total_added)
         ].filter(Boolean).map(field => field.toString().toLowerCase());
         
-        // Check if search term appears in any field
-        return fieldsToSearch.some(field => field.includes(term));
+        // Check if search term appears in any field with fuzzy matching
+        return fieldsToSearch.some(field => {
+          // Exact match
+          if (field.includes(term)) return true;
+          
+          // Partial match for longer terms
+          if (term.length > 2) {
+            // Check for similar words
+            const words = term.split(' ');
+            return words.some(word => 
+              word.length > 1 && field.includes(word)
+            );
+          }
+          
+          return false;
+        });
       });
     };
     
-    // Filtered items - switch between normal view and live search
+    // Filtered items - normal view (cached data)
     const filteredItems = computed(() => {
-      if (useLiveSearch.value) {
-        return liveSearchResults.value;
-      } else {
-        let filtered = [...inventory.value];
-        
-        if (selectedWarehouse.value) {
-          filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
-        }
-        
-        if (statusFilter.value) {
-          filtered = filtered.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        // Use enhanced search
-        if (searchTerm.value && searchTerm.value.length >= 3) {
-          filtered = performEnhancedSearch(filtered, searchTerm.value);
-        }
-        
-        return filtered.sort((a, b) => {
-          const nameA = a.name?.toLowerCase() || '';
-          const nameB = b.name?.toLowerCase() || '';
-          return nameA.localeCompare(nameB, 'ar');
+      let filtered = [...inventory.value];
+      
+      if (selectedWarehouse.value) {
+        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      if (statusFilter.value) {
+        filtered = filtered.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          if (statusFilter.value === 'in_stock') return quantity >= 10;
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'out_of_stock') return quantity === 0;
+          return true;
         });
       }
+      
+      // Use enhanced search on cached data
+      if (searchTerm.value && searchTerm.value.length >= 2) {
+        filtered = performEnhancedSearch(filtered, searchTerm.value);
+      }
+      
+      return filtered.sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB, 'ar');
+      });
     });
     
     // Visible items for virtual scrolling
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
-      const end = Math.min(filteredItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
-      return filteredItems.value.slice(start, end);
+      const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      return displayedItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
-      const end = Math.min(filteredItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
-      return filteredItems.value.slice(start, end);
+      const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      return displayedItems.value.slice(start, end);
     });
     
     // Color mapping
@@ -1471,7 +1513,7 @@ export default {
       });
     };
     
-    // Enhanced live search with 3-letter minimum using store's searchItemsForTransactions
+    // ENHANCED LIVE SEARCH WITH FIREBASE AND CACHED DATA
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
@@ -1480,44 +1522,38 @@ export default {
         return;
       }
       
-      // Only search if we have at least 3 characters
-      if (term.length < 3) {
+      // Only search if we have at least 2 characters (reduced from 3 for faster results)
+      if (term.length < 2) {
         useLiveSearch.value = false;
+        isLiveSearching.value = false;
         return;
       }
       
-      await performEnhancedLiveSearch(term);
-    }, 300);
-    
-    const performEnhancedLiveSearch = async (term) => {
+      // Start live search
       isLiveSearching.value = true;
       useLiveSearch.value = true;
       
       try {
-        // Use store's searchItemsForTransactions action
-        const searchResults = await store.dispatch('searchItemsForTransactions', {
-          searchTerm: term,
-          limitResults: 200
-        });
+        // Search in Firebase first (live data)
+        const firebaseResults = await searchInFirebase(term);
         
-        // Apply additional filters if any
-        let filteredResults = searchResults;
-        
-        if (selectedWarehouse.value) {
-          filteredResults = filteredResults.filter(item => item.warehouse_id === selectedWarehouse.value);
+        // If we have results from Firebase, use them
+        if (firebaseResults.length > 0) {
+          liveSearchResults.value = applyAdditionalFilters(firebaseResults);
+          isDataFresh.value = true;
+        } else {
+          // Fallback to cached data search
+          const cachedResults = searchInCachedData(term);
+          liveSearchResults.value = applyAdditionalFilters(cachedResults);
+          isDataFresh.value = false;
+          
+          if (cachedResults.length === 0) {
+            store.dispatch('showNotification', {
+              type: 'info',
+              message: 'لم يتم العثور على نتائج في البيانات المباشرة أو المخزنة'
+            });
+          }
         }
-        
-        if (statusFilter.value) {
-          filteredResults = filteredResults.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        liveSearchResults.value = filteredResults;
         
         // Reset scroll positions
         visibleStartIndex.value = 0;
@@ -1529,17 +1565,164 @@ export default {
           mobileScrollContainer.value.scrollTop = 0;
         }
         
+        // Show notification for live search results
+        if (liveSearchResults.value.length > 0) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم العثور على ${liveSearchResults.value.length} نتيجة للبحث: "${term}"`
+          });
+        }
+        
       } catch (error) {
-        console.error('❌ Error in enhanced live search:', error);
+        console.error('❌ Error in live search:', error);
+        
+        // Fallback to cached search on error
+        const cachedResults = searchInCachedData(term);
+        liveSearchResults.value = applyAdditionalFilters(cachedResults);
+        isDataFresh.value = false;
+        
         store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث الفوري'
+          type: 'warning',
+          message: 'تم استخدام البيانات المخزنة للبحث بسبب مشكلة في الاتصال'
         });
         
-        useLiveSearch.value = false;
       } finally {
         isLiveSearching.value = false;
       }
+    }, 300);
+    
+    // Search in Firebase (live data)
+    const searchInFirebase = async (searchTerm) => {
+      try {
+        const inventoryRef = collection(db, 'inventory');
+        const searchTermLower = searchTerm.toLowerCase();
+        
+        // Create multiple queries for different fields
+        const queries = [
+          // Search by name
+          query(
+            inventoryRef,
+            where('name', '>=', searchTerm),
+            where('name', '<=', searchTerm + '\uf8ff'),
+            orderBy('name'),
+            limit(100)
+          ),
+          // Search by code
+          query(
+            inventoryRef,
+            where('code', '>=', searchTerm),
+            where('code', '<=', searchTerm + '\uf8ff'),
+            orderBy('code'),
+            limit(100)
+          ),
+          // Search by color
+          query(
+            inventoryRef,
+            where('color', '>=', searchTerm),
+            where('color', '<=', searchTerm + '\uf8ff'),
+            orderBy('color'),
+            limit(100)
+          ),
+          // Search by supplier
+          query(
+            inventoryRef,
+            where('supplier', '>=', searchTerm),
+            where('supplier', '<=', searchTerm + '\uf8ff'),
+            orderBy('supplier'),
+            limit(100)
+          ),
+          // Search by location
+          query(
+            inventoryRef,
+            where('item_location', '>=', searchTerm),
+            where('item_location', '<=', searchTerm + '\uf8ff'),
+            orderBy('item_location'),
+            limit(100)
+          )
+        ];
+        
+        // Execute all queries in parallel
+        const queryPromises = queries.map(q => getDocs(q));
+        const querySnapshots = await Promise.all(queryPromises);
+        
+        // Combine and deduplicate results
+        const resultsMap = new Map();
+        
+        querySnapshots.forEach(snapshot => {
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const item = {
+              id: doc.id,
+              ...data,
+              // Ensure all required fields exist
+              remaining_quantity: data.remaining_quantity || 0,
+              cartons_count: data.cartons_count || 0,
+              per_carton_count: data.per_carton_count || 0,
+              single_bottles_count: data.single_bottles_count || 0,
+              total_added: data.total_added || 0
+            };
+            
+            // Fuzzy matching: check if search term appears in any relevant field
+            const searchFields = [
+              item.name?.toLowerCase(),
+              item.code?.toLowerCase(),
+              item.color?.toLowerCase(),
+              item.supplier?.toLowerCase(),
+              item.item_location?.toLowerCase(),
+              item.warehouse_id?.toLowerCase()
+            ].filter(Boolean);
+            
+            // Check for matches (exact or partial)
+            const hasMatch = searchFields.some(field => 
+              field.includes(searchTermLower) || 
+              (searchTermLower.length > 2 && 
+               searchTermLower.split(' ').some(word => 
+                 word.length > 1 && field.includes(word)
+               ))
+            );
+            
+            if (hasMatch && !resultsMap.has(item.id)) {
+              resultsMap.set(item.id, item);
+            }
+          });
+        });
+        
+        return Array.from(resultsMap.values());
+        
+      } catch (error) {
+        console.error('❌ Error searching in Firebase:', error);
+        return [];
+      }
+    };
+    
+    // Search in cached data
+    const searchInCachedData = (searchTerm) => {
+      return performEnhancedSearch(inventory.value, searchTerm);
+    };
+    
+    // Apply additional filters (warehouse, status) to search results
+    const applyAdditionalFilters = (items) => {
+      let filtered = [...items];
+      
+      if (selectedWarehouse.value) {
+        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      if (statusFilter.value) {
+        filtered = filtered.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          if (statusFilter.value === 'in_stock') return quantity >= 10;
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'out_of_stock') return quantity === 0;
+          return true;
+        });
+      }
+      
+      return filtered.sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB, 'ar');
+      });
     };
     
     const handleWarehouseChange = async () => {
@@ -1553,57 +1736,9 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
+      // If we're in live search mode, re-run search with new warehouse filter
       if (useLiveSearch.value && searchTerm.value.trim()) {
-        await performEnhancedLiveSearch(searchTerm.value.trim());
-      } else if (selectedWarehouse.value) {
-        await loadItemsFromSelectedWarehouse();
-      }
-    };
-    
-    // Use store's getItemsFromWarehouse action
-    const loadItemsFromSelectedWarehouse = async () => {
-      if (!selectedWarehouse.value) {
-        resetToNormalView();
-        return;
-      }
-      
-      isLiveSearching.value = true;
-      useLiveSearch.value = true;
-      
-      try {
-        const results = await store.dispatch('getItemsFromWarehouse', {
-          warehouseId: selectedWarehouse.value,
-          limitResults: 500
-        });
-        
-        let filteredResults = results;
-        
-        if (statusFilter.value) {
-          filteredResults = results.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            if (statusFilter.value === 'in_stock') return quantity >= 10;
-            if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-            if (statusFilter.value === 'out_of_stock') return quantity === 0;
-            return true;
-          });
-        }
-        
-        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 3) {
-          filteredResults = performEnhancedSearch(filteredResults, searchTerm.value.trim());
-        }
-        
-        liveSearchResults.value = filteredResults;
-        
-      } catch (error) {
-        console.error('❌ Error loading items from warehouse:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل الأصناف من المخزن'
-        });
-        
-        useLiveSearch.value = false;
-      } finally {
-        isLiveSearching.value = false;
+        await handleLiveSearch();
       }
     };
     
@@ -1612,6 +1747,7 @@ export default {
       liveSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
+      isLiveSearching.value = false;
       
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
@@ -1641,18 +1777,15 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      if (useLiveSearch.value) {
-        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 3) {
-          performEnhancedLiveSearch(searchTerm.value.trim());
-        } else if (selectedWarehouse.value) {
-          loadItemsFromSelectedWarehouse();
-        }
+      // If we're in live search mode, re-run search with new filters
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        handleLiveSearch();
       }
     };
     
     // Excel Export - Enhanced with user and warehouse info
     const exportToExcel = async () => {
-      if (filteredItems.value.length === 0) {
+      if (displayedItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1668,8 +1801,8 @@ export default {
         const itemsByWarehouse = {};
         
         // Group items
-        filteredItems.value.forEach((item, index) => {
-          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${filteredItems.value.length}`;
+        displayedItems.value.forEach((item, index) => {
+          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
           
           const warehouseId = item.warehouse_id;
           if (!itemsByWarehouse[warehouseId]) {
@@ -1707,12 +1840,13 @@ export default {
         
         // Create summary sheet
         const summaryData = [{
-          'إجمالي الأصناف': filteredItems.value.length,
+          'إجمالي الأصناف': displayedItems.value.length,
           'إجمالي الكمية': totalQuantity.value,
           'الأصناف قليلة المخزون': lowStockCount.value,
           'عدد المخازن': warehouseCount.value,
           'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
-          'تم التصدير بواسطة': currentUserInfo.value
+          'تم التصدير بواسطة': currentUserInfo.value,
+          'مصدر البيانات': useLiveSearch.value ? 'بحث مباشر' : 'بيانات مخزنة'
         }];
         
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
@@ -1761,14 +1895,15 @@ export default {
         const warehouseName = selectedWarehouse.value 
           ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '-')
           : 'جميع-المخازن';
-        const fileName = `مخزون-${warehouseName}-${timestamp}.xlsx`;
+        const searchInfo = searchTerm.value ? `-بحث-${searchTerm.value.substring(0, 10)}` : '';
+        const fileName = `مخزون-${warehouseName}${searchInfo}-${timestamp}.xlsx`;
 
         // Save file
         XLSX.writeFile(wb, fileName);
 
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${filteredItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
+          message: `تم تصدير ${displayedItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
         });
 
       } catch (error) {
@@ -1791,6 +1926,11 @@ export default {
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         saveToCache();
+        
+        // If in live search mode, refresh search results
+        if (useLiveSearch.value && searchTerm.value.trim()) {
+          await handleLiveSearch();
+        }
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1930,6 +2070,11 @@ export default {
           closeDetailsModal();
         }
         
+        // Refresh live search results if active
+        if (useLiveSearch.value && searchTerm.value.trim()) {
+          await handleLiveSearch();
+        }
+        
         showDeleteConfirm.value = false;
         itemToDelete.value = null;
         
@@ -1948,16 +2093,26 @@ export default {
       showAddModal.value = false;
       saveToCache();
       
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
+      
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم إضافة الصنف بنجاح!'
       });
     };
     
-    const handleItemUpdated = () => {
+    const handleItemUpdated = async () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
       saveToCache();
+      
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1965,10 +2120,15 @@ export default {
       });
     };
     
-    const handleTransferSuccess = () => {
+    const handleTransferSuccess = async () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
       saveToCache();
+      
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1976,10 +2136,15 @@ export default {
       });
     };
     
-    const handleDispatchSuccess = () => {
+    const handleDispatchSuccess = async () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
       saveToCache();
+      
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -2071,7 +2236,7 @@ export default {
       handleFilterChange();
     });
     
-    watch(() => filteredItems.value.length, () => {
+    watch(() => displayedItems.value.length, () => {
       // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
@@ -2127,6 +2292,7 @@ export default {
       showActions,
       readonly,
       filteredItems,
+      displayedItems,
       visibleItems,
       mobileVisibleItems,
       currentUserInfo,
@@ -2628,5 +2794,14 @@ tbody tr {
 
 .dark .text-yellow-400 {
   color: #fbbf24;
+}
+
+/* Live search indicator */
+.text-blue-600 {
+  color: #2563eb;
+}
+
+.dark .text-blue-400 {
+  color: #60a5fa;
 }
 </style>
