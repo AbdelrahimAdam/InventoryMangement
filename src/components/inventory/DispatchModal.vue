@@ -505,6 +505,7 @@ export default {
     const successMessage = ref('')
     const selectedItem = ref(null)
     const searchTerm = ref('')
+    const dispatchWarehouses = ref([]) // Store dispatch warehouses separately
     
     // Enhanced Search State
     const isLiveSearching = ref(false)
@@ -557,18 +558,107 @@ export default {
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
     
+    // Get ALL dispatch warehouses directly from Firestore (not filtered by user access)
+    const loadDispatchWarehouses = async () => {
+      try {
+        console.log('🔄 Loading dispatch warehouses directly...')
+        
+        // Method 1: Try the store action first
+        try {
+          const warehouses = await store.dispatch('getDispatchWarehouses')
+          if (warehouses && warehouses.length > 0) {
+            dispatchWarehouses.value = warehouses
+            console.log('✅ Dispatch warehouses loaded from store action:', warehouses.length)
+            return
+          }
+        } catch (storeError) {
+          console.log('Store action failed, trying direct query...', storeError.message)
+        }
+        
+        // Method 2: Direct Firestore query if store action fails
+        const { collection, query, where, getDocs } = await import('firebase/firestore')
+        const { db } = await import('@/firebase/config')
+        
+        const warehousesRef = collection(db, 'warehouses')
+        const q = query(
+          warehousesRef,
+          where('type', '==', 'dispatch')
+        )
+        
+        const snapshot = await getDocs(q)
+        const warehouses = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        
+        dispatchWarehouses.value = warehouses
+        console.log('✅ Dispatch warehouses loaded directly from Firestore:', warehouses.length)
+        
+        // Also update store for future use
+        if (warehouses.length > 0) {
+          // Create a custom mutation to update dispatch warehouses
+          store.commit('SET_DISPATCH_WAREHOUSES', warehouses)
+        }
+        
+      } catch (error) {
+        console.error('❌ Error loading dispatch warehouses:', error)
+        
+        // Method 3: Fallback - filter from all warehouses
+        const allWarehouses = warehouses.value
+        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
+          w.type === 'dispatch' && w.status !== 'inactive'
+        )
+        
+        dispatchWarehouses.value = dispatchWarehousesFiltered
+        console.log('⚠️ Using fallback dispatch warehouses:', dispatchWarehousesFiltered.length)
+      }
+    }
+    
     // Get source warehouses from store getters (primary warehouses only)
     const sourceWarehouses = computed(() => {
-      return store.getters.primaryWarehousesFiltered || []
+      try {
+        // For dispatch, users should be able to dispatch from any primary warehouse they have access to
+        if (userProfile.value?.role === 'superadmin') {
+          // Superadmin sees all active primary warehouses
+          return warehouses.value.filter(w => 
+            w.status === 'active' && 
+            (w.type === 'primary' || !w.type) // Include primary type or no type specified
+          )
+        } else if (userProfile.value?.role === 'warehouse_manager') {
+          // Warehouse managers see only allowed primary warehouses
+          const allowedWarehouses = userProfile.value.allowed_warehouses || []
+          
+          if (allowedWarehouses.length === 0) return []
+          
+          if (allowedWarehouses.includes('all')) {
+            return warehouses.value.filter(w => 
+              w.status === 'active' && 
+              (w.type === 'primary' || !w.type)
+            )
+          }
+          
+          return warehouses.value.filter(w => 
+            w.status === 'active' && 
+            (w.type === 'primary' || !w.type) &&
+            allowedWarehouses.includes(w.id)
+          )
+        } else {
+          // Other users (company_manager, etc.) see all active primary warehouses
+          return warehouses.value.filter(w => 
+            w.status === 'active' && 
+            (w.type === 'primary' || !w.type)
+          )
+        }
+      } catch (err) {
+        console.error('Error getting source warehouses:', err)
+        return []
+      }
     })
     
-    // Get dispatch destinations from store getters
+    // Get dispatch destinations from loaded dispatch warehouses
     const dispatchDestinations = computed(() => {
       try {
-        // Get dispatch warehouses from store
-        const dispatchWarehouses = store.getters.dispatchWarehousesFiltered || []
-        
-        return dispatchWarehouses
+        return dispatchWarehouses.value
           .filter(w => w.status !== 'inactive')
           .map(w => {
             // Choose icon based on name or ID
@@ -940,6 +1030,12 @@ export default {
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
         resetForm()
+        
+        // Load dispatch warehouses when modal opens
+        if (dispatchWarehouses.value.length === 0) {
+          loadDispatchWarehouses()
+        }
+        
         if (props.item) {
           if (isSuperadmin.value || canPerformDispatch.value) {
             selectItem(props.item)
@@ -1110,10 +1206,19 @@ export default {
     // Load dispatch warehouses when component is mounted
     onMounted(async () => {
       try {
-        // Load dispatch warehouses from store if not already loaded
-        if (dispatchDestinations.value.length === 0) {
-          await store.dispatch('getDispatchWarehouses')
-        }
+        // Load dispatch warehouses
+        await loadDispatchWarehouses()
+        
+        console.log('Dispatch Modal mounted', {
+          dispatchWarehousesCount: dispatchWarehouses.value.length,
+          allWarehousesCount: warehouses.value.length,
+          dispatchWarehouses: dispatchWarehouses.value.map(w => ({
+            id: w.id,
+            name: w.name_ar,
+            type: w.type,
+            status: w.status
+          }))
+        })
       } catch (error) {
         console.log('Could not load dispatch warehouses:', error.message)
       }
@@ -1134,6 +1239,7 @@ export default {
       successMessage,
       selectedItem,
       searchTerm,
+      dispatchWarehouses,
       
       // Enhanced Search State
       isLiveSearching,
@@ -1175,7 +1281,6 @@ export default {
   }
 }
 </script>
-
 <style scoped>
 .rtl {
   direction: rtl;
