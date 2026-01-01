@@ -15,7 +15,6 @@
                 إدارة وتتبع جميع الأصناف في النظام
               </p>
             </div>
-
             <!-- User and Warehouse Info - Mobile Optimized -->
             <div class="flex flex-col items-end gap-1">
               <!-- Current User -->
@@ -27,7 +26,6 @@
                   {{ currentUserInfo }}
                 </span>
               </div>
-
               <!-- Warehouse Info -->
               <div v-if="selectedWarehouse" class="flex items-center gap-1">
                 <svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +37,6 @@
               </div>
             </div>
           </div>
-
           <!-- Performance Indicator -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -54,7 +51,7 @@
                 </span>
               </span>
               <span class="text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">
-                {{ displayedItems.length }} عنصر • {{ formatTime(lastUpdate) }}
+                {{ (displayedItems || []).length }} عنصر • {{ formatTime(lastUpdate) }}
               </span>
               <!-- Live Search Indicator -->
               <span v-if="isLiveSearching && searchTerm.length >= 3" class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
@@ -62,7 +59,6 @@
                 بحث مباشر...
               </span>
             </div>
-
             <!-- Mobile Description -->
             <p class="text-xs text-gray-600 dark:text-gray-400 block sm:hidden">
               إدارة المخزون
@@ -76,7 +72,7 @@
         <div class="flex flex-wrap gap-2 sm:gap-3">
           <!-- Export to Excel Button -->
           <button
-            v-if="displayedItems.length > 0"
+            v-if="(displayedItems || []).length > 0"
             @click="exportToExcel"
             :disabled="exporting"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -107,7 +103,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch && displayedItems.length > 0"
+            v-if="hasMore && !loading && !useLiveSearch && (displayedItems || []).length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -122,7 +118,7 @@
           </button>
 
           <!-- Add Item Button -->
-          <button 
+          <button
             v-if="canAddItem && showActions && !readonly"
             @click="showAddModal = true"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-colors duration-200 text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -146,11 +142,10 @@
             </div>
             <div class="flex-1 text-right mr-1 sm:mr-2">
               <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">الأصناف</p>
-              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(displayedItems.length) }}</p>
+              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber((displayedItems || []).length) }}</p>
             </div>
           </div>
         </div>
-
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center ml-2 sm:ml-3 flex-shrink-0">
@@ -164,7 +159,6 @@
             </div>
           </div>
         </div>
-
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center ml-2 sm:ml-3 flex-shrink-0">
@@ -178,7 +172,6 @@
             </div>
           </div>
         </div>
-
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
             <div class="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center ml-2 sm:ml-3 flex-shrink-0">
@@ -198,7 +191,7 @@
       <div class="mb-4 sm:mb-6">
         <!-- Collapsible Header for Mobile -->
         <div class="lg:hidden mb-3">
-          <button 
+          <button
             @click="showFilters = !showFilters"
             class="w-full flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
@@ -225,7 +218,7 @@
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
               <!-- Warehouse Filter -->
-              <div v-if="accessibleWarehouses.length > 0" class="order-1">
+              <div v-if="(accessibleWarehouses || []).length > 0" class="order-1">
                 <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
                 <select
                   v-model="selectedWarehouse"
@@ -271,7 +264,7 @@
                     </svg>
                   </div>
                   <!-- Clear Search Button -->
-                  <button 
+                  <button
                     v-if="searchTerm"
                     @click="searchTerm = ''; resetToNormalView()"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -290,8 +283,8 @@
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
-                  <div v-else-if="useLiveSearch && liveSearchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
-                    ✓ تم العثور على {{ liveSearchResults.length }} نتيجة
+                  <div v-else-if="useLiveSearch && (liveSearchResults || []).length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                    ✓ تم العثور على {{ (liveSearchResults || []).length }} نتيجة
                   </div>
                 </div>
               </div>
@@ -299,7 +292,7 @@
 
             <!-- Active Filters -->
             <div v-if="hasActiveFilters" class="mt-3 sm:mt-4 flex flex-wrap gap-1 sm:gap-2">
-              <span v-if="selectedWarehouse" 
+              <span v-if="selectedWarehouse"
                     class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
                 <span class="hidden xs:inline">المخزن:</span>
                 <span class="font-medium truncate max-w-[80px]">{{ getWarehouseLabel(selectedWarehouse) }}</span>
@@ -309,7 +302,7 @@
                   </svg>
                 </button>
               </span>
-              <span v-if="statusFilter" 
+              <span v-if="statusFilter"
                     class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">
                 <span class="hidden xs:inline">الحالة:</span>
                 <span class="font-medium">{{ getStatusLabel(statusFilter) }}</span>
@@ -319,7 +312,7 @@
                   </svg>
                 </button>
               </span>
-              <span v-if="searchTerm" 
+              <span v-if="searchTerm"
                     class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
                 <span class="hidden xs:inline">البحث:</span>
                 <span class="font-medium truncate max-w-[60px]">{{ searchTerm }}</span>
@@ -329,8 +322,8 @@
                   </svg>
                 </button>
               </span>
-              <button 
-                v-if="hasActiveFilters" 
+              <button
+                v-if="hasActiveFilters"
                 @click="clearAllFilters"
                 class="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline"
               >
@@ -340,15 +333,15 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch && liveSearchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="useLiveSearch && (liveSearchResults || []).length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث المباشر: {{ liveSearchResults.length }} عنصر</span>
+                <span class="text-sm">نتائج البحث المباشر: {{ (liveSearchResults || []).length }} عنصر</span>
               </div>
-              <button 
+              <button
                 @click="resetToNormalView"
                 class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
               >
@@ -400,8 +393,8 @@
       <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Desktop Table with Virtual Scrolling -->
         <div class="hidden lg:block">
-          <div 
-            class="overflow-x-auto relative" 
+          <div
+            class="overflow-x-auto relative"
             :style="{ maxHeight: 'calc(100vh - 400px)' }"
             @scroll="onScroll"
             ref="scrollContainer"
@@ -442,11 +435,11 @@
                   <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     الحالة
                   </th>
-                  <th v-if="showActions && !readonly && userRole !== 'viewer'" 
+                  <th v-if="showActions && !readonly && userRole !== 'viewer'"
                       class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     الإجراءات
                   </th>
-                  <th v-else 
+                  <th v-else
                       class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
                     آخر تحديث
                   </th>
@@ -454,7 +447,7 @@
               </thead>
               <tbody>
                 <!-- Virtual Scrolling - Only render visible rows -->
-                <tr v-for="item in visibleItems" 
+                <tr v-for="item in visibleItems"
                     :key="item.id"
                     class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200"
                     :style="{ transform: 'translateY(0)' }"
@@ -464,8 +457,8 @@
                     <div class="flex justify-center">
                       <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
                         @click="showItemDetails(item)">
-                        <img 
-                          :src="item.photo_url || getPlaceholderImage()" 
+                        <img
+                          :src="item.photo_url || getPlaceholderImage()"
                           :alt="item.name"
                           class="w-full h-full object-cover"
                           @error="handleImageError"
@@ -549,7 +542,7 @@
                   <!-- Remaining Quantity -->
                   <td class="px-4 sm:px-6 py-3 sm:py-4">
                     <div class="text-center">
-                      <div :class="getQuantityClass(item.remaining_quantity)" 
+                      <div :class="getQuantityClass(item.remaining_quantity)"
                            class="text-base sm:text-lg font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-full inline-flex flex-col items-center gap-1">
                         <span>{{ item.remaining_quantity }}</span>
                         <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -562,7 +555,7 @@
                   <!-- Status -->
                   <td class="px-4 sm:px-6 py-3 sm:py-4">
                     <div class="flex justify-center">
-                      <span :class="getStockStatusClass(item.remaining_quantity)" 
+                      <span :class="getStockStatusClass(item.remaining_quantity)"
                             class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm">
                         {{ getStockStatus(item.remaining_quantity) }}
                       </span>
@@ -597,10 +590,9 @@
                         </button>
 
                         <!-- Action Dropdown Menu -->
-                        <div v-if="showActionMenu === item.id" 
+                        <div v-if="showActionMenu === item.id"
                           class="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-30"
                           v-click-outside="() => showActionMenu = null">
-
                           <!-- Edit Option -->
                           <button
                             v-if="canEditItem(item)"
@@ -685,14 +677,14 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && displayedItems.length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm">تم عرض جميع العناصر ({{ displayedItems.length }} عنصر)</p>
+          <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm">تم عرض جميع العناصر ({{ (displayedItems || []).length }} عنصر)</p>
           </div>
         </div>
 
         <!-- Mobile Cards with Virtual Scrolling -->
         <div class="lg:hidden">
-          <div 
+          <div
             class="overflow-y-auto"
             :style="{ maxHeight: 'calc(100vh - 320px)' }"
             @scroll="onMobileScroll"
@@ -705,11 +697,10 @@
               <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
               <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
             </div>
-
             <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
               <!-- Virtual Scrolling for Mobile - Only render visible items -->
-              <div 
-                v-for="item in mobileVisibleItems" 
+              <div
+                v-for="item in mobileVisibleItems"
                 :key="item.id"
                 class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
                 @click="showItemDetails(item)"
@@ -719,8 +710,8 @@
                   <!-- Photo -->
                   <div class="flex-shrink-0">
                     <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                      <img 
-                        :src="item.photo_url || getPlaceholderImage()" 
+                      <img
+                        :src="item.photo_url || getPlaceholderImage()"
                         :alt="item.name"
                         class="w-full h-full object-cover"
                         @error="handleImageError"
@@ -741,13 +732,13 @@
                           <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
                             {{ item.code }}
                           </span>
-                          <span :class="getStockStatusClass(item.remaining_quantity)" 
+                          <span :class="getStockStatusClass(item.remaining_quantity)"
                                 class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
                             {{ getStockStatus(item.remaining_quantity) }}
                           </span>
                         </div>
                       </div>
-                      <div :class="getQuantityClass(item.remaining_quantity)" 
+                      <div :class="getQuantityClass(item.remaining_quantity)"
                            class="text-lg font-bold px-3 py-1.5 rounded-lg">
                         {{ item.remaining_quantity }}
                       </div>
@@ -789,7 +780,7 @@
                 </div>
 
                 <!-- Quick Actions Bar -->
-                <div v-if="showActions && !readonly && userRole !== 'viewer'" 
+                <div v-if="showActions && !readonly && userRole !== 'viewer'"
                      class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
                   <!-- Last Updated -->
                   <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
@@ -801,7 +792,7 @@
 
                   <!-- Quick Action Buttons -->
                   <div class="flex items-center gap-1">
-                    <button 
+                    <button
                       v-if="canEditItem(item)"
                       @click.stop="handleEdit(item)"
                       class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors"
@@ -811,8 +802,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                       </svg>
                     </button>
-
-                    <button 
+                    <button
                       v-if="canTransferItem(item)"
                       @click.stop="handleTransfer(item)"
                       class="p-1.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/20 transition-colors"
@@ -822,8 +812,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                       </svg>
                     </button>
-
-                    <button 
+                    <button
                       v-if="canDeleteItem(item)"
                       @click.stop="handleDelete(item)"
                       class="p-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-lg hover:bg-red-100 dark:hover:bg-red-800/20 transition-colors"
@@ -856,7 +845,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && displayedItems.length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -865,7 +854,7 @@
     </div>
 
     <!-- Add Button for Mobile -->
-    <button 
+    <button
       v-if="canAddItem && showActions && !readonly"
       @click="showAddModal = true"
       class="fixed bottom-6 left-6 z-40 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-purple-600 hover:scale-110 active:scale-95 transition-all duration-200 lg:hidden"
@@ -877,37 +866,33 @@
     </button>
 
     <!-- Modals -->
-    <AddItemModal 
+    <AddItemModal
       v-if="showAddModal"
       :isOpen="showAddModal"
       @close="showAddModal = false"
       @success="handleItemSaved"
     />
-
-    <DispatchModal 
+    <DispatchModal
       v-if="showDispatchModal"
       :isOpen="showDispatchModal"
       :item="selectedItemForDispatch"
       @close="showDispatchModal = false"
       @success="handleDispatchSuccess"
     />
-
-    <EditItemModal 
+    <EditItemModal
       v-if="showEditModal"
       :isOpen="showEditModal"
       :item="selectedItemForEdit"
       @close="showEditModal = false"
       @success="handleItemUpdated"
     />
-
-    <TransferModal 
+    <TransferModal
       v-if="showTransferModal"
       :isOpen="showTransferModal"
       :item="selectedItemForTransfer"
       @close="showTransferModal = false"
       @success="handleTransferSuccess"
     />
-
     <!-- Item Details Modal -->
     <ItemDetailsModal
       v-if="showDetailsModal"
@@ -923,7 +908,6 @@
       :canDispatchItem="canDispatchItem"
       :canDeleteItem="canDeleteItem"
     />
-
     <!-- Delete Confirmation Modal -->
     <ConfirmDeleteModal
       v-if="showDeleteConfirm"
@@ -990,7 +974,7 @@ export default {
   setup() {
     const store = useStore();
     const route = useRoute();
-    
+   
     // State
     const loading = ref(false);
     const loadingMore = ref(false);
@@ -1013,16 +997,16 @@ export default {
     const deleteLoading = ref(false);
     const refreshing = ref(false);
     const exportProgress = ref('');
-    
+   
     // Enhanced Live Search State - Now using store's smart search
     const useLiveSearch = ref(false);
     const liveSearchResults = ref([]);
     const isLiveSearching = ref(false);
     const searchTimeout = ref(null);
-    
+   
     // Mobile UI state
     const showFilters = ref(false);
-    
+   
     // Virtual scrolling state
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
@@ -1034,17 +1018,37 @@ export default {
     const scrollThrottle = ref(null);
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
-    
+   
     // UI state
     const showActionMenu = ref(null);
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
-    
+   
     // Computed properties - Updated to use store getters
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
     const inventory = computed(() => store.getters.allInventory || []);
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
+    
+    // الحماية المطلوبة للـ accessibleWarehouses
+    const accessibleWarehouses = computed(() => {
+      const role = store.state.userProfile?.role || '';
+      const allowed = store.state.userProfile?.allowed_warehouses || [];
+      const all = store.getters.warehouses || [];
+
+      if (role === 'superadmin' || role === 'company_manager') {
+        return all;
+      }
+
+      if (role === 'warehouse_manager' && Array.isArray(allowed)) {
+        if (allowed.includes('all')) {
+          return all;
+        }
+        return all.filter(w => allowed.includes(w.id));
+      }
+
+      return [];
+    });
+    
     const allWarehouses = computed(() => store.getters.warehouses || []);
     const currentUser = computed(() => store.state.user);
     const inventoryLoading = computed(() => store.state.inventoryLoading);
@@ -1053,7 +1057,7 @@ export default {
     const totalLoaded = computed(() => store.getters.totalLoaded);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     const allUsers = computed(() => store.getters.allUsers || []);
-    
+   
     // Current user info
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
@@ -1062,67 +1066,67 @@ export default {
       if (currentUser.value?.email) return currentUser.value.email.split('@')[0];
       return 'مستخدم النظام';
     });
-    
+   
     // Permissions - Using store getters
     const canAddItem = computed(() => {
-      return userRole.value === 'superadmin' || 
+      return userRole.value === 'superadmin' ||
              (userRole.value === 'warehouse_manager' && userProfile.value?.allowed_warehouses?.length > 0);
     });
-    
+   
     const showActions = computed(() => {
       return userRole.value !== 'viewer';
     });
-    
+   
     const readonly = computed(() => {
       return userRole.value === 'viewer';
     });
-    
+   
     const canEditItem = (item) => {
       if (userRole.value === 'superadmin') return true;
       if (userRole.value !== 'warehouse_manager') return false;
-      
+     
       const allowedWarehouses = userProfile.value?.allowed_warehouses || [];
       return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
     };
-    
+   
     const canTransferItem = (item) => {
       return canEditItem(item);
     };
-    
+   
     const canDispatchItem = (item) => {
       return canEditItem(item);
     };
-    
+   
     const canDeleteItem = (item) => {
       return canEditItem(item) && userRole.value === 'superadmin';
     };
-    
+   
     // Displayed items - Updated to use store's filtered inventory
     const displayedItems = computed(() => {
       return useLiveSearch.value ? liveSearchResults.value : filteredItems.value;
     });
-    
+   
     // Stats computed - Using store data
     const totalQuantity = computed(() => {
-      return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return (displayedItems.value || []).reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
-    
+   
     const lowStockCount = computed(() => {
-      return displayedItems.value.filter(item => {
+      return (displayedItems.value || []).filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
       }).length;
     });
-    
+   
     const warehouseCount = computed(() => {
-      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id));
+      const warehouses = new Set((displayedItems.value || []).map(item => item.warehouse_id));
       return warehouses.size;
     });
-    
+   
     const hasActiveFilters = computed(() => {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
-    
+   
     const activeFilterCount = computed(() => {
       let count = 0;
       if (selectedWarehouse.value) count++;
@@ -1130,15 +1134,15 @@ export default {
       if (searchTerm.value) count++;
       return count;
     });
-    
+   
     // Filtered items using store's inventory
     const filteredItems = computed(() => {
-      let filtered = [...inventory.value];
-      
+      let filtered = [...(inventory.value || [])];
+     
       if (selectedWarehouse.value) {
         filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
       }
-      
+     
       if (statusFilter.value) {
         filtered = filtered.filter(item => {
           const quantity = item.remaining_quantity || 0;
@@ -1148,20 +1152,20 @@ export default {
           return true;
         });
       }
-      
+     
       // Use store's smart search for better Arabic support
       if (searchTerm.value && searchTerm.value.length >= 2) {
         // Use the store's search logic for cached data
         filtered = performEnhancedSearch(filtered, searchTerm.value);
       }
-      
+     
       return filtered.sort((a, b) => {
         const nameA = a.name?.toLowerCase() || '';
         const nameB = b.name?.toLowerCase() || '';
         return nameA.localeCompare(nameB, 'ar');
       });
     });
-    
+   
     // Helper function to normalize Arabic text
     const normalizeArabicText = (text) => {
       if (!text || typeof text !== 'string') return '';
@@ -1175,13 +1179,13 @@ export default {
         .trim()
         .toLowerCase();
     };
-    
+   
     // Enhanced search function
     const performEnhancedSearch = (items, searchTerm) => {
       if (!searchTerm || searchTerm.length < 2) return items;
-      
+     
       const term = normalizeArabicText(searchTerm);
-      
+     
       return items.filter(item => {
         const fieldsToSearch = [
           item.name,
@@ -1196,33 +1200,33 @@ export default {
           String(item.single_bottles_count),
           String(item.total_added)
         ].filter(Boolean).map(field => normalizeArabicText(field.toString()));
-        
+       
         return fieldsToSearch.some(field => {
           if (field.includes(term)) return true;
-          
+         
           if (term.length > 2) {
             const words = term.split(' ');
             return words.some(word => word.length > 1 && field.includes(word));
           }
-          
+         
           return false;
         });
       });
     };
-    
+   
     // Visible items for virtual scrolling
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
-      const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
-      return displayedItems.value.slice(start, end);
+      const end = Math.min((displayedItems.value || []).length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      return (displayedItems.value || []).slice(start, end);
     });
-    
+   
     const mobileVisibleItems = computed(() => {
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
-      const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
-      return displayedItems.value.slice(start, end);
+      const end = Math.min((displayedItems.value || []).length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      return (displayedItems.value || []).slice(start, end);
     });
-    
+   
     // Color mapping
     const colorMap = {
       'أحمر': '#ef4444',
@@ -1239,52 +1243,52 @@ export default {
       'ذهبي': '#d97706',
       'فضي': '#9ca3af'
     };
-    
+   
     // Helper Methods - Using store getters
     const formatNumber = (num) => {
       const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
       return englishDigits;
     };
-    
+   
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
       return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
     };
-    
+   
     const getUserName = (userId) => {
       if (!userId) return 'نظام';
       if (userId === currentUser.value?.uid) return currentUserInfo.value;
-      
-      const user = allUsers.value.find(u => u.id === userId);
+     
+      const user = (allUsers.value || []).find(u => u.id === userId);
       if (user) return user.name || user.email || userId;
-      
+     
       return userId;
     };
-    
+   
     const getActionUser = (item) => {
       if (!item) return currentUserInfo.value;
-      
+     
       if (item.updated_by) {
         const userName = getUserName(item.updated_by);
         if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
           return userName;
         }
       }
-      
+     
       if (item.created_by) {
         const userName = getUserName(item.created_by);
         if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
           return userName;
         }
       }
-      
+     
       return currentUserInfo.value;
     };
-    
+   
     const getLastActionUser = (item) => {
       return getActionUser(item);
     };
-    
+   
     const getStatusLabel = (status) => {
       const labels = {
         'in_stock': 'متوفر',
@@ -1293,29 +1297,29 @@ export default {
       };
       return labels[status] || status;
     };
-    
+   
     const getStockStatus = (quantity) => {
       if (quantity === 0) return 'نفذ';
       if (quantity < 10) return 'قليل';
       return 'متوفر';
     };
-    
+   
     const getStockStatusClass = (quantity) => {
       if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm';
       if (quantity < 10) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800 shadow-sm';
       return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm';
     };
-
+    
     const getQuantityClass = (quantity) => {
       if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
       if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
       return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
     };
-    
+   
     const getColorHex = (colorName) => {
       return colorMap[colorName] || '#6b7280';
     };
-    
+   
     const formatDate = (timestamp) => {
       if (!timestamp) return '-';
       try {
@@ -1327,9 +1331,9 @@ export default {
         } else {
           dateObj = new Date(timestamp);
         }
-        
+       
         if (isNaN(dateObj.getTime())) return '-';
-        
+       
         return dateObj.toLocaleDateString('ar-EG', {
           year: 'numeric',
           month: '2-digit',
@@ -1341,7 +1345,7 @@ export default {
         return '-';
       }
     };
-    
+   
     const formatRelativeTime = (timestamp) => {
       if (!timestamp) return '-';
       try {
@@ -1353,59 +1357,59 @@ export default {
         } else {
           dateObj = new Date(timestamp);
         }
-        
+       
         if (isNaN(dateObj.getTime())) return '-';
-        
+       
         const now = new Date();
         const diffMs = now - dateObj;
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
-        
+       
         if (diffMins < 1) return 'الآن';
         if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
         if (diffHours < 24) return `قبل ${diffHours} ساعة`;
         if (diffDays === 1) return 'أمس';
         if (diffDays < 7) return `قبل ${diffDays} أيام`;
-        
+       
         return formatDate(timestamp);
       } catch (e) {
         return '-';
       }
     };
-    
+   
     const formatTime = (timestamp) => {
       if (!timestamp) return 'قيد التحميل...';
       const now = Date.now();
       const diffMs = now - timestamp;
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
-      
+     
       if (diffMins < 1) return 'الآن';
       if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
       if (diffHours < 24) return `قبل ${diffHours} ساعة`;
-      
+     
       return new Date(timestamp).toLocaleTimeString('ar-EG', {
         hour: '2-digit',
         minute: '2-digit'
       });
     };
-    
+   
     const getPlaceholderImage = () => {
       return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
     };
-    
+   
     const handleImageError = (event) => {
       event.target.src = getPlaceholderImage();
       event.target.onerror = null;
     };
-    
+   
     // Cache Management
     const loadFromCache = () => {
       try {
         const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
         const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-        
+       
         if (cached && lastUpdateCache) {
           const cacheAge = Date.now() - parseInt(lastUpdateCache);
           if (cacheAge < CACHE_KEYS.CACHE_TTL) {
@@ -1420,7 +1424,7 @@ export default {
       }
       return false;
     };
-    
+   
     const saveToCache = () => {
       try {
         localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(inventory.value));
@@ -1429,31 +1433,31 @@ export default {
         console.warn('Error saving to cache:', error);
       }
     };
-    
+   
     // Virtual scrolling handlers
     const onScroll = () => {
       if (!scrollContainer.value) return;
-      
+     
       const now = Date.now();
       if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
         return;
       }
-      
+     
       lastScrollTime.value = now;
-      
+     
       if (scrollThrottle.value) {
         cancelAnimationFrame(scrollThrottle.value);
       }
-      
+     
       scrollThrottle.value = requestAnimationFrame(() => {
         const scrollTop = scrollContainer.value.scrollTop;
         const rowHeight = 80;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
+       
         if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
           visibleStartIndex.value = newStartIndex;
         }
-        
+       
         // Load more when near bottom
         if (!useLiveSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
@@ -1463,26 +1467,26 @@ export default {
         }
       });
     };
-    
+   
     const onMobileScroll = () => {
       if (!mobileScrollContainer.value) return;
-      
+     
       const now = Date.now();
       if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
         return;
       }
-      
+     
       lastScrollTime.value = now;
-      
+     
       requestAnimationFrame(() => {
         const scrollTop = mobileScrollContainer.value.scrollTop;
         const rowHeight = 120;
         const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
+       
         if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
           mobileVisibleStartIndex.value = newStartIndex;
         }
-        
+       
         // Load more when near bottom
         if (!useLiveSearch.value) {
           const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
@@ -1492,27 +1496,27 @@ export default {
         }
       });
     };
-    
+   
     // ENHANCED LIVE SEARCH USING STORE'S SMART SEARCH
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
-      
+     
       if (term.length === 0) {
         resetToNormalView();
         return;
       }
-      
+     
       // Only search if we have at least 2 characters
       if (term.length < 2) {
         useLiveSearch.value = false;
         isLiveSearching.value = false;
         return;
       }
-      
+     
       // Start live search
       isLiveSearching.value = true;
       useLiveSearch.value = true;
-      
+     
       try {
         // Use store's smart search action
         const results = await store.dispatch('smartSearchInventory', {
@@ -1520,10 +1524,10 @@ export default {
           warehouseId: selectedWarehouse.value || undefined,
           limit: 50
         });
-        
-        liveSearchResults.value = results;
+       
+        liveSearchResults.value = results || [];
         isDataFresh.value = true;
-        
+       
         // Reset scroll positions
         visibleStartIndex.value = 0;
         mobileVisibleStartIndex.value = 0;
@@ -1533,9 +1537,9 @@ export default {
         if (mobileScrollContainer.value) {
           mobileScrollContainer.value.scrollTop = 0;
         }
-        
+       
         // Show notification for live search results
-        if (results.length > 0) {
+        if (results && results.length > 0) {
           store.dispatch('showNotification', {
             type: 'success',
             message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
@@ -1546,25 +1550,25 @@ export default {
             message: 'لم يتم العثور على نتائج للبحث'
           });
         }
-        
+       
       } catch (error) {
         console.error('❌ Error in live search:', error);
-        
+       
         // Fallback to local search on error
-        const cachedResults = performEnhancedSearch(inventory.value, term);
-        liveSearchResults.value = cachedResults;
+        const cachedResults = performEnhancedSearch(inventory.value || [], term);
+        liveSearchResults.value = cachedResults || [];
         isDataFresh.value = false;
-        
+       
         store.dispatch('showNotification', {
           type: 'warning',
           message: 'تم استخدام البيانات المخزنة للبحث بسبب مشكلة في الاتصال'
         });
-        
+       
       } finally {
         isLiveSearching.value = false;
       }
     }, 300);
-    
+   
     const handleWarehouseChange = async () => {
       // Reset scroll positions
       visibleStartIndex.value = 0;
@@ -1575,25 +1579,25 @@ export default {
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
       }
-      
+     
       // Update store's warehouse filter
       if (selectedWarehouse.value) {
         store.commit('SET_WAREHOUSE_FILTER', selectedWarehouse.value);
       }
-      
+     
       // If we're in live search mode, re-run search with new warehouse filter
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
     };
-    
+   
     const resetToNormalView = () => {
       useLiveSearch.value = false;
       liveSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
       isLiveSearching.value = false;
-      
+     
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
       if (scrollContainer.value) {
@@ -1602,23 +1606,23 @@ export default {
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
       }
-      
+     
       // Clear store search
       store.commit('CLEAR_SEARCH');
     };
-    
+   
     const clearAllFilters = () => {
       selectedWarehouse.value = '';
       statusFilter.value = '';
       searchTerm.value = '';
       showFilters.value = false;
       resetToNormalView();
-      
+     
       // Clear store filters
       store.commit('CLEAR_FILTERS');
       store.commit('SET_WAREHOUSE_FILTER', '');
     };
-    
+   
     const handleFilterChange = () => {
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
@@ -1628,43 +1632,42 @@ export default {
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
       }
-      
+     
       // If we're in live search mode, re-run search with new filters
       if (useLiveSearch.value && searchTerm.value.trim()) {
         handleLiveSearch();
       }
     };
-    
+   
     // Excel Export - Using store data
     const exportToExcel = async () => {
-      if (displayedItems.value.length === 0) {
+      if ((displayedItems.value || []).length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
         });
         return;
       }
-
       exporting.value = true;
       exportProgress.value = 'جاري تجهير البيانات...';
-      
+     
       try {
         // Group items by warehouse for multiple sheets
         const itemsByWarehouse = {};
-        
+       
         // Group items
-        displayedItems.value.forEach((item, index) => {
-          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
-          
+        (displayedItems.value || []).forEach((item, index) => {
+          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${(displayedItems.value || []).length}`;
+         
           const warehouseId = item.warehouse_id;
           if (!itemsByWarehouse[warehouseId]) {
             itemsByWarehouse[warehouseId] = [];
           }
-          
+         
           // Get user names for created_by and updated_by
           const createdByName = item.created_by_name || getUserName(item.created_by) || 'غير معروف';
           const updatedByName = item.updated_by_name || getUserName(item.updated_by) || createdByName || 'غير معروف';
-          
+         
           itemsByWarehouse[warehouseId].push({
             'الكود': item.code || '',
             'اسم الصنف': item.name || '',
@@ -1684,15 +1687,14 @@ export default {
             'آخر تحديث': formatDate(item.updated_at)
           });
         });
-
         exportProgress.value = 'جاري إنشاء ملف Excel...';
-        
+       
         // Create workbook
         const wb = XLSX.utils.book_new();
-        
+       
         // Create summary sheet
         const summaryData = [{
-          'إجمالي الأصناف': displayedItems.value.length,
+          'إجمالي الأصناف': (displayedItems.value || []).length,
           'إجمالي الكمية': totalQuantity.value,
           'الأصناف قليلة المخزون': lowStockCount.value,
           'عدد المخازن': warehouseCount.value,
@@ -1700,19 +1702,19 @@ export default {
           'تم التصدير بواسطة': currentUserInfo.value,
           'مصدر البيانات': useLiveSearch.value ? 'بحث مباشر' : 'بيانات مخزنة'
         }];
-        
+       
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
         XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
-        
+       
         // Create a sheet for each warehouse
         Object.keys(itemsByWarehouse).forEach((warehouseId, index) => {
           const warehouseItems = itemsByWarehouse[warehouseId];
           const warehouseName = getWarehouseLabel(warehouseId).replace(/[^\w\u0600-\u06FF\s]/g, '').trim();
           const sheetName = warehouseName || `المخزن ${index + 1}`;
-          
+         
           if (warehouseItems.length > 0) {
             const ws = XLSX.utils.json_to_sheet(warehouseItems);
-            
+           
             // Add column widths
             const colWidths = [
               { wch: 12 }, // الكود
@@ -1733,30 +1735,26 @@ export default {
               { wch: 18 }, // آخر تحديث
             ];
             ws['!cols'] = colWidths;
-            
+           
             const safeSheetName = sheetName.slice(0, 31);
             XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
           }
         });
-
         exportProgress.value = 'جاري حفظ الملف...';
-        
+       
         // Generate filename
         const timestamp = new Date().toISOString().split('T')[0];
-        const warehouseName = selectedWarehouse.value 
+        const warehouseName = selectedWarehouse.value
           ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '-')
           : 'جميع-المخازن';
         const searchInfo = searchTerm.value ? `-بحث-${searchTerm.value.substring(0, 10)}` : '';
         const fileName = `مخزون-${warehouseName}${searchInfo}-${timestamp}.xlsx`;
-
         // Save file
         XLSX.writeFile(wb, fileName);
-
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${displayedItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
+          message: `تم تصدير ${(displayedItems.value || []).length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
         });
-
       } catch (error) {
         console.error('❌ Error exporting to Excel:', error);
         store.dispatch('showNotification', {
@@ -1768,7 +1766,7 @@ export default {
         exportProgress.value = '';
       }
     };
-    
+   
     // Data refresh using store's refreshAllData
     const refreshData = async () => {
       try {
@@ -1777,17 +1775,17 @@ export default {
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         saveToCache();
-        
+       
         // If in live search mode, refresh search results
         if (useLiveSearch.value && searchTerm.value.trim()) {
           await handleLiveSearch();
         }
-        
+       
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم تحديث البيانات بنجاح'
         });
-        
+       
       } catch (error) {
         console.error('❌ Error refreshing data:', error);
         store.dispatch('showNotification', {
@@ -1798,7 +1796,7 @@ export default {
         refreshing.value = false;
       }
     };
-    
+   
     // Load more items - using store's loadMoreInventory
     const loadMoreItems = async () => {
       if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
@@ -1806,10 +1804,10 @@ export default {
           loadingMore.value = true;
           await store.dispatch('loadMoreInventory');
           saveToCache();
-          
+         
           // After loading, ensure virtual scrolling updates
           await nextTick();
-          
+         
         } catch (error) {
           console.error('❌ Error loading more items:', error);
           store.dispatch('showNotification', {
@@ -1821,12 +1819,12 @@ export default {
         }
       }
     };
-    
+   
     // UI Actions
     const toggleActionMenu = (itemId) => {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
     };
-    
+   
     const showItemDetails = (item) => {
       selectedItem.value = {
         ...item,
@@ -1837,12 +1835,12 @@ export default {
       showDetailsModal.value = true;
       showActionMenu.value = null;
     };
-    
+   
     const closeDetailsModal = () => {
       showDetailsModal.value = false;
       selectedItem.value = null;
     };
-    
+   
     const handleTransfer = (item) => {
       if (!canTransferItem(item)) {
         store.dispatch('showNotification', {
@@ -1856,7 +1854,7 @@ export default {
       showDetailsModal.value = false;
       showActionMenu.value = null;
     };
-    
+   
     const handleDispatch = (item) => {
       if (!canDispatchItem(item)) {
         store.dispatch('showNotification', {
@@ -1870,7 +1868,7 @@ export default {
       showDetailsModal.value = false;
       showActionMenu.value = null;
     };
-    
+   
     const handleEdit = (item) => {
       if (!canEditItem(item)) {
         store.dispatch('showNotification', {
@@ -1887,7 +1885,7 @@ export default {
       showDetailsModal.value = false;
       showActionMenu.value = null;
     };
-    
+   
     const handleDelete = (item) => {
       if (!canDeleteItem(item)) {
         store.dispatch('showNotification', {
@@ -1905,30 +1903,30 @@ export default {
       showDeleteConfirm.value = true;
       showActionMenu.value = null;
     };
-    
+   
     const confirmDelete = async () => {
       try {
         deleteLoading.value = true;
         await store.dispatch('deleteItem', itemToDelete.value.id);
-        
+       
         store.dispatch('showNotification', {
           type: 'success',
           message: 'تم حذف الصنف بنجاح!'
         });
-        
+       
         // Close details modal if open
         if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
           closeDetailsModal();
         }
-        
+       
         // Refresh live search results if active
         if (useLiveSearch.value && searchTerm.value.trim()) {
           await handleLiveSearch();
         }
-        
+       
         showDeleteConfirm.value = false;
         itemToDelete.value = null;
-        
+       
       } catch (error) {
         console.error('❌ Error deleting item:', error);
         store.dispatch('showNotification', {
@@ -1939,98 +1937,98 @@ export default {
         deleteLoading.value = false;
       }
     };
-    
+   
     const handleItemSaved = async () => {
       showAddModal.value = false;
       saveToCache();
-      
+     
       // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
-      
+     
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم إضافة الصنف بنجاح!'
       });
     };
-    
+   
     const handleItemUpdated = async () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
       saveToCache();
-      
+     
       // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
-      
+     
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم تحديث الصنف بنجاح!'
       });
     };
-    
+   
     const handleTransferSuccess = async () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
       saveToCache();
-      
+     
       // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
-      
+     
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم نقل الصنف بنجاح!'
       });
     };
-    
+   
     const handleDispatchSuccess = async () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
       saveToCache();
-      
+     
       // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
-      
+     
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم صرف الصنف بنجاح!'
       });
     };
-    
+   
     // Lifecycle
     onMounted(() => {
       // Load from cache first
       const fromCache = loadFromCache();
-      
+     
       if (!inventoryLoaded.value || fromCache) {
         loading.value = true;
-        
+       
         // Load fresh data in background using store's loadAllInventory
         store.dispatch('loadAllInventory').then(() => {
           isDataFresh.value = true;
           lastUpdate.value = Date.now();
           saveToCache();
-          
+         
           // Setup real-time updates using store's method
           if (store.state.realtimeMode) {
             store.dispatch('setupRealtimeUpdatesForInventory');
           }
-          
+         
           // Reset scroll positions after load
           visibleStartIndex.value = 0;
           mobileVisibleStartIndex.value = 0;
-          
+         
           // Load users for user name display
           if (userRole.value === 'superadmin') {
             store.dispatch('loadAllUsers');
           }
-          
+         
         }).catch(error => {
           console.error('❌ Error loading inventory:', error);
           error.value = 'حدث خطأ في تحميل البيانات';
@@ -2038,23 +2036,23 @@ export default {
           loading.value = false;
         });
       }
-      
+     
       // Load warehouses if not loaded
       if (allWarehouses.value.length === 0) {
         store.dispatch('loadWarehousesEnhanced');
       }
-      
+     
       // Auto-select warehouse if user has only one accessible warehouse
-      if (accessibleWarehouses.value.length === 1) {
+      if ((accessibleWarehouses.value || []).length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
         store.commit('SET_WAREHOUSE_FILTER', selectedWarehouse.value);
       }
-      
+     
       // Show add modal if route is AddInventory
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
-      
+     
       // Setup scroll listeners
       nextTick(() => {
         if (scrollContainer.value) {
@@ -2065,38 +2063,38 @@ export default {
         }
       });
     });
-    
+   
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
-      
+     
       if (scrollContainer.value) {
         scrollContainer.value.removeEventListener('scroll', onScroll);
       }
-      
+     
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.removeEventListener('scroll', onMobileScroll);
       }
-      
+     
       if (scrollThrottle.value) {
         cancelAnimationFrame(scrollThrottle.value);
       }
-      
+     
       // Clean up store's real-time listeners
       store.commit('CLEAR_REALTIME_LISTENERS');
     });
-    
+   
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
       handleFilterChange();
     });
-    
+   
     watch(() => displayedItems.value.length, () => {
       // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
     });
-    
+   
     return {
       // State
       loading,
@@ -2120,24 +2118,24 @@ export default {
       deleteLoading,
       refreshing,
       exportProgress,
-      
+     
       // Live search state
       useLiveSearch,
       liveSearchResults,
       isLiveSearching,
-      
+     
       // Mobile UI State
       showFilters,
-      
+     
       // UI State
       showActionMenu,
       lastUpdate,
       isDataFresh,
-      
+     
       // Refs
       scrollContainer,
       mobileScrollContainer,
-      
+     
       // Computed
       userRole,
       userProfile,
@@ -2156,14 +2154,14 @@ export default {
       isFetchingMore,
       totalLoaded,
       inventoryLoaded,
-      
+     
       // Stats
       totalQuantity,
       lowStockCount,
       warehouseCount,
       hasActiveFilters,
       activeFilterCount,
-      
+     
       // Helper Methods
       formatNumber,
       getWarehouseLabel,
@@ -2178,16 +2176,16 @@ export default {
       getPlaceholderImage,
       handleImageError,
       getLastActionUser,
-      
+     
       // Excel Export
       exportToExcel,
-      
+     
       // Permission Methods
       canEditItem,
       canTransferItem,
       canDispatchItem,
       canDeleteItem,
-      
+     
       // Action Methods
       handleFilterChange,
       handleWarehouseChange,
@@ -2208,7 +2206,7 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
-      
+     
       // Virtual scrolling methods
       onScroll,
       onMobileScroll
@@ -2224,7 +2222,6 @@ table {
   border-spacing: 0;
   width: 100%;
 }
-
 /* Static header styling */
 thead {
   position: sticky;
@@ -2234,136 +2231,120 @@ thead {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-
 .dark thead {
   background-color: rgba(55, 65, 81, 0.95);
 }
-
 /* Reduced animations */
 .transition-colors {
   transition-property: background-color, border-color, color;
   transition-duration: 200ms;
 }
-
 .transition-all {
   transition-property: all;
   transition-duration: 200ms;
 }
-
 /* Optimized hover states */
 .hover\:bg-gray-50:hover {
   background-color: #f9fafb;
 }
-
 .dark .hover\:bg-gray-700\/50:hover {
   background-color: rgba(55, 65, 81, 0.5);
 }
-
 /* Scrollbar optimization */
 .overflow-x-auto {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
   -webkit-overflow-scrolling: touch;
 }
-
 .overflow-x-auto::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 .overflow-x-auto::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 3px;
 }
-
 .overflow-x-auto::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
-
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
-
 .dark .overflow-x-auto::-webkit-scrollbar-track {
   background: #374151;
 }
-
 .dark .overflow-x-auto::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
-
 .dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
-
 /* Image optimization */
 img {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   content-visibility: auto;
 }
-
 /* Mobile touch targets */
 @media (max-width: 768px) {
   button {
     min-height: 40px;
   }
-  
+ 
   input, select, textarea {
     font-size: 16px; /* Prevent iOS zoom */
   }
-  
+ 
   /* Make sure text doesn't overflow */
   .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+ 
   /* Better virtual scrolling performance on mobile */
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
-  
+ 
   /* Compact mobile layout */
   .grid-cols-2 > * {
     padding: 0.5rem;
   }
-  
+ 
   /* Responsive text sizes */
   .text-xs {
     font-size: 0.7rem;
   }
-  
+ 
   .text-sm {
     font-size: 0.8rem;
   }
-  
+ 
   /* Adjust spacing for mobile */
   .gap-2 {
     gap: 0.5rem;
   }
-  
+ 
   .gap-3 {
     gap: 0.75rem;
   }
-  
+ 
   .p-3 {
     padding: 0.75rem;
   }
-  
+ 
   /* Better touch feedback */
   .active\:bg-gray-100:active {
     background-color: #f3f4f6;
   }
-  
+ 
   .dark .active\:bg-gray-700:active {
     background-color: #374151;
   }
 }
-
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .transition-colors,
@@ -2376,41 +2357,34 @@ img {
     transform: none !important;
   }
 }
-
 /* Table cell alignment fix */
 .whitespace-nowrap {
   white-space: nowrap;
 }
-
 /* Ensure text doesn't overflow in table cells */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 /* Modal z-index fix */
 .fixed {
   isolation: isolate;
 }
-
 /* Virtual scrolling optimization */
 .virtual-scroll-container {
   will-change: transform;
   contain: content;
 }
-
 /* Optimize paint and composite layers */
 tbody tr {
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
-
 /* Loading animation */
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -2419,12 +2393,10 @@ tbody tr {
     transform: rotate(360deg);
   }
 }
-
 /* Pulse animation */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -2433,95 +2405,85 @@ tbody tr {
     opacity: 0.5;
   }
 }
-
 /* Ensure smooth scrolling on the entire page */
 .min-h-screen {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 /* Better touch feedback for mobile */
 @media (max-width: 768px) {
   .active\:scale-95:active {
     transform: scale(0.95);
   }
-  
+ 
   .hover\:scale-110:hover {
     transform: scale(1.1);
   }
-  
+ 
   /* Compact card layout */
   .max-w-\[100px\] {
     max-width: 100px;
   }
-  
+ 
   .max-w-\[120px\] {
     max-width: 120px;
   }
-  
+ 
   .max-w-\[180px\] {
     max-width: 180px;
   }
 }
-
 /* Dark mode optimizations */
 .dark .border-gray-200 {
   border-color: #374151;
 }
-
 .dark .bg-gray-50 {
   background-color: rgba(17, 24, 39, 0.5);
 }
-
 /* Clickable cursor */
 .cursor-pointer {
   cursor: pointer;
 }
-
 /* Smooth transitions for hover effects */
 .group-hover\:scale-105 {
   transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 /* Memory optimization */
 * {
   -webkit-tap-highlight-color: transparent;
 }
-
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
   }
-  
+ 
   table {
     border-collapse: collapse;
   }
-  
+ 
   th, td {
     border: 1px solid #ddd;
   }
 }
-
 /* Optimize for low-end devices */
 @media (max-width: 768px) and (max-device-width: 1024px) {
   /* Add active state for mobile buttons */
   .active\:scale-95:active {
     transform: scale(0.95);
   }
-  
+ 
   /* Reduce animations on mobile */
   .transition-colors {
     transition-duration: 150ms;
   }
-  
+ 
   /* Optimize images for mobile */
   img {
     max-width: 100%;
     height: auto;
   }
 }
-
 /* Fix modal scrolling on mobile */
 @media (max-width: 768px) {
   /* Prevent body scroll when modal is open */
@@ -2531,34 +2493,29 @@ tbody tr {
     width: 100%;
     height: 100%;
   }
-  
+ 
   /* Improve virtual scrolling container height */
   [style*="max-height: calc(100vh - 320px)"] {
     max-height: calc(100vh - 280px) !important;
   }
 }
-
 /* Ensure proper spacing in mobile cards */
 .space-y-1 > * + * {
   margin-top: 0.25rem;
 }
-
 .space-y-2 > * + * {
   margin-top: 0.5rem;
 }
-
 /* Performance warning for large datasets */
 @media (max-width: 768px) {
   .performance-warning {
     display: none; /* Hide on mobile if needed */
   }
 }
-
 /* Optimize dropdown menus */
 .absolute {
   z-index: 9999;
 }
-
 /* Better focus states for accessibility */
 button:focus-visible,
 input:focus-visible,
@@ -2566,98 +2523,85 @@ select:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
-
 /* Improve virtual scrolling performance */
 [style*="transform: translateY"] {
   will-change: transform;
 }
-
 /* Responsive utility classes */
 @media (max-width: 640px) {
   .hidden.xs\:inline {
     display: none;
   }
-  
+ 
   .xs\:inline {
     display: inline;
   }
-  
+ 
   .block.sm\:hidden {
     display: block;
   }
 }
-
 /* Rotate transition for filters */
 .rotate-180 {
   transform: rotate(180deg);
 }
-
 /* Compact mobile filters */
 @media (max-width: 768px) {
   .order-1 {
     order: 1;
   }
-  
+ 
   .order-2 {
     order: 2;
   }
-  
+ 
   .order-3 {
     order: 3;
   }
-  
+ 
   /* Adjust filter select height */
   select {
     min-height: 42px;
   }
-  
+ 
   /* Compact buttons */
   button {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
 }
-
 /* Virtual scrolling specific styles */
 [style*="transform: translateY"] {
   will-change: transform;
   contain: layout style paint;
 }
-
 /* Optimize virtual scrolling rows */
 tbody tr {
   contain-intrinsic-size: 80px;
   content-visibility: auto;
 }
-
 /* Mobile card virtualization */
 .lg\:hidden > div > div > div {
   contain-intrinsic-size: 120px;
   content-visibility: auto;
 }
-
 /* Smooth scroll behavior */
 .overflow-y-auto {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
-
 /* Search info styling */
 .text-yellow-600 {
   color: #d97706;
 }
-
 .dark .text-yellow-400 {
   color: #fbbf24;
 }
-
 /* Live search indicator */
 .text-blue-600 {
   color: #2563eb;
 }
-
 .dark .text-blue-400 {
   color: #60a5fa;
 }
 </style>
-
