@@ -4249,7 +4249,7 @@ export default createStore({
     }
   },
 
-  getters: {
+    getters: {
     isAuthenticated: state => !!state.user,
     userRole: state => state.userProfile?.role || '',
     userName: state => state.userProfile?.name || '',
@@ -4593,17 +4593,10 @@ export default createStore({
         }
       };
     },
+    
+    // FIXED: Remove cache reference since state.cache doesn't exist
     dashboardRealStats: (state) => (warehouseId = 'all') => {
-      const cache = state.cache.dashboardCounts;
-      if (cache.lastUpdated && (Date.now() - new Date(cache.lastUpdated).getTime()) < 5 * 60 * 1000) {
-        return {
-          totalItems: cache.totalItems,
-          totalQuantity: cache.totalQuantity,
-          lowStockItems: cache.lowStockItems,
-          lastUpdated: cache.lastUpdated
-        };
-      }
-
+      // Calculate real-time stats without cache
       const inventory = state.inventory;
       const filteredInventory = warehouseId === 'all' 
         ? inventory 
@@ -4616,10 +4609,18 @@ export default createStore({
         lastUpdated: new Date()
       };
     },
+    
+    // FIXED: Get warehouse label from warehouses array, not from non-existent cache
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
-      return state.cache.warehouseLabels[warehouseId] || warehouseId;
+      
+      // Find warehouse in the warehouses array
+      const warehouse = state.warehouses.find(w => w.id === warehouseId);
+      
+      // Return Arabic name if available, otherwise return warehouseId
+      return warehouse?.name_ar || warehouse?.name || warehouseId;
     },
+    
     getDestinationLabel: () => (destinationId) => {
       return DESTINATION_LABELS[destinationId] || destinationId;
     },
@@ -4788,13 +4789,13 @@ export default createStore({
 
       return counts;
     },
+    
+    // FIXED: Remove cache reference for item details
     getCachedItem: (state) => (itemId) => {
-      const cached = state.cache.itemDetails[itemId];
-      if (cached && (Date.now() - cached.timestamp) < PERFORMANCE_CONFIG.CACHE_DURATION) {
-        return cached.data;
-      }
-      return null;
+      // Simply return the item from inventory if found
+      return state.inventory.find(item => item.id === itemId) || null;
     },
+    
     getAllWarehouses: (state) => {
       return state.warehouses.map(w => ({
         id: w.id,
@@ -4824,50 +4825,3 @@ export default createStore({
       };
       return labels[status] || status;
     }
-  }
-});
-
-function getAuthErrorMessage(errorCode) {
-  const errorMessages = {
-    'auth/invalid-email': 'البريد الإلكتروني غير صحيح',
-    'auth/user-disabled': 'هذا الحساب معطل',
-    'auth/user-not-found': 'لا يوجد حساب بهذا البريد الإلكتروني',
-    'auth/wrong-password': 'كلمة المرور غير صحيحة',
-    'auth/email-already-in-use': 'هذا البريد الإلكتروني مستخدم بالفعل',
-    'auth/weak-password': 'كلمة المرور ضعيفة',
-    'auth/network-request-failed': 'خطأ في الاتصال بالشبكة',
-    'auth/too-many-requests': 'محاولات تسجيل دخول كثيرة. يرجى المحاولة لاحقاً',
-    'auth/configuration-not-found': 'خطأ في إعدادات النظام'
-  };
-  return errorMessages[errorCode] || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى';
-}
-
-// Helper functions for invoice system
-function getInvoiceTypeLabel(type) {
-  const labels = {
-    'B2B': 'فاتورة ضريبية (B2B)',
-    'B2C': 'فاتورة ضريبية (B2C)',
-    'simplified': 'فاتورة مبسطة'
-  };
-  return labels[type] || type;
-}
-
-function getInvoiceStatusLabel(status) {
-  const labels = {
-    'draft': 'مسودة',
-    'issued': 'صادرة',
-    'paid': 'مدفوعة',
-    'cancelled': 'ملغية'
-  };
-  return labels[status] || status;
-}
-
-function getPaymentMethodLabel(method) {
-  const labels = {
-    'cash': 'نقدي',
-    'bank': 'تحويل بنكي',
-    'check': 'شيك',
-    'credit': 'آجل'
-  };
-  return labels[method] || method;
-}
