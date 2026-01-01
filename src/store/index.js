@@ -656,7 +656,7 @@ export default createStore({
     // ============================================
     // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
     // ============================================
-   async searchInventoryDirect({ commit, state }, {
+ async searchInventoryDirect({ commit, state }, {
   query,
   warehouseId = null,
   limit = SEARCH_CONFIG.MAX_RESULTS
@@ -694,7 +694,10 @@ export default createStore({
         if (allowedFromProfile.includes('all')) {
           canAccessAll = true;
         } else {
-          accessibleWarehouseIds = allowedFromProfile.filter(id => typeof id === 'string' && id.trim() !== '');
+          // Filter out any empty or invalid warehouse IDs
+          accessibleWarehouseIds = allowedFromProfile.filter(id => 
+            typeof id === 'string' && id.trim() !== '' && id !== 'all'
+          );
         }
       }
     }
@@ -713,6 +716,14 @@ export default createStore({
     } else if (accessibleWarehouseIds.length > 0) {
       // مخازن محددة (Firestore يدعم max 10 في 'in')
       const warehousesToQuery = accessibleWarehouseIds.slice(0, 10);
+      
+      // Ensure we have valid warehouse IDs to query
+      if (warehousesToQuery.length === 0) {
+        console.log('⚠️ No valid warehouse IDs to query → returning empty results');
+        commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
+        return [];
+      }
+      
       itemsQuery = query(
         itemsRef,
         where('warehouse_id', 'in', warehousesToQuery),
@@ -742,7 +753,7 @@ export default createStore({
     });
 
     let filteredItems = allItems;
-    if (targetWarehouse !== 'all') {
+    if (targetWarehouse && targetWarehouse !== 'all') {
       filteredItems = filteredItems.filter(item => item.warehouse_id === targetWarehouse);
     }
 
@@ -768,6 +779,14 @@ export default createStore({
 
   } catch (error) {
     console.error('❌ Direct Firebase search failed:', error);
+    
+    // Try to get more specific error information
+    if (error.message && error.message.includes('in') && error.message.includes('array')) {
+      console.error('Firebase "in" query error - likely empty or invalid array');
+    } else if (error.code === 'failed-precondition') {
+      console.error('Firestore index error - composite index might be needed');
+      commit('SET_REQUIRES_COMPOSITE_INDEX', true);
+    }
 
     // Fallback إلى البحث المحلي (يعمل بالفعل كما رأينا في الـ logs)
     try {
@@ -777,7 +796,7 @@ export default createStore({
 
       let localItems = [...state.inventory];
 
-      if (targetWarehouse !== 'all') {
+      if (targetWarehouse && targetWarehouse !== 'all') {
         localItems = localItems.filter(item => item.warehouse_id === targetWarehouse);
       }
 
@@ -797,6 +816,7 @@ export default createStore({
         query: searchTerm
       });
 
+      console.log(`✅ Local fallback found: ${localFinal.length} items`);
       return localFinal;
 
     } catch (fallbackError) {
@@ -809,7 +829,6 @@ export default createStore({
   }
 },
 
-// الـ actions الأخرى تبقى كما هي (لا تحتاج تعديل)
 async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
   try {
     console.log(`🔍 Firebase smart search for: "${query}"`);
@@ -827,7 +846,10 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       if (profileWarehouses.includes('all')) {
         canAccessAll = true;
       } else {
-        allowedWarehouseIds = profileWarehouses.filter(id => typeof id === 'string' && id.length > 0);
+        // Filter out invalid IDs including 'all' and empty strings
+        allowedWarehouseIds = profileWarehouses.filter(id => 
+          typeof id === 'string' && id.trim() !== '' && id !== 'all'
+        );
       }
     }
     // =========================================
@@ -842,9 +864,16 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
         limit(50)
       );
     } else if (allowedWarehouseIds.length > 0) {
+      // Check for valid warehouse IDs
+      const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
+      if (validWarehouseIds.length === 0) {
+        console.log('⚠️ No valid warehouse IDs to query');
+        return [];
+      }
+      
       itemsQuery = query(
         itemsRef,
-        where('warehouse_id', 'in', allowedWarehouseIds.slice(0, 10)),
+        where('warehouse_id', 'in', validWarehouseIds),
         orderBy('remaining_quantity', 'desc'),
         limit(50)
       );
@@ -913,6 +942,14 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
    
   } catch (error) {
     console.error('❌ Firebase search error:', error);
+    
+    // Log specific error for debugging
+    if (error.message && error.message.includes('in') && error.message.includes('array')) {
+      console.error('Firebase "in" query array error detected');
+    } else if (error.code === 'failed-precondition') {
+      console.error('Firestore index error - composite index might be needed');
+    }
+    
     return [];
   }
 },
@@ -931,7 +968,168 @@ async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
 async clearSearch({ commit }) {
   commit('CLEAR_SEARCH');
 },
+
+// ============================================
+// EXISTING ACTIONS (MINIMAL MODIFICATIONS)
+// ============================================
+
+async searchInventoryEnhanced({ dispatch }, params) {
+  return await dispatch('searchInventoryDirect', params);
+},
+
+async searchLocalInventory({ state, dispatch }, { query, warehouseId, fields, limit }) {
+  // For backward compatibility, use smart local search
+  return await dispatch('searchLocalInventorySmart', {
+    query,
+    warehouseId,
+    limit
+  });
+},
+
+async searchFirebaseInventory({ dispatch }, params) {
+  return await dispatch('searchFirebaseInventorySmart', params);
+},
+
+async searchLocalInventorySmart({ state }, { query, warehouseId, limit = SEARCH_CONFIG.MAX_RESULTS }) {
+  try {
+    if (!query || query.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      return [];
+    }
+
+    const searchTerm = query.trim();
+    const normalizedSearchTerm = normalizeArabicText(searchTerm.toLowerCase());
+
+    console.log(`🔍 Local smart search for: "${searchTerm}"`);
+
+    let localItems = [...state.inventory];
+
+    // Apply warehouse filter if specified
+    if (warehouseId && warehouseId !== 'all') {
+      localItems = localItems.filter(item => item.warehouse_id === warehouseId);
+    }
+
+    // Apply smart Arabic search filtering
+    const searchResults = localItems.filter(item => {
+      for (const field of SEARCH_CONFIG.FIELDS) {
+        const fieldValue = item[field];
+        if (fieldValue) {
+          const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+          
+          if (normalizedFieldValue.includes(normalizedSearchTerm)) {
+            return true;
+          }
+          
+          const fieldWords = normalizedFieldValue.split(/\s+/);
+          const searchWords = normalizedSearchTerm.split(/\s+/);
+          
+          if (searchWords.every(word =>
+            fieldWords.some(fieldWord => fieldWord.includes(word))
+          )) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+
+    // Sort by relevance
+    const finalResults = removeDuplicatesAndSortByRelevance(
+      searchResults,
+      searchTerm,
+      limit
+    );
+
+    console.log(`✅ Local smart search found: ${finalResults.length} items`);
+    return finalResults;
+
+  } catch (error) {
+    console.error('❌ Local smart search error:', error);
+    return [];
+  }
+},
+
+async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults = 20 }) {
+  try {
+    console.log('🔍 REAL-TIME SEARCH:', searchTerm);
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
     
+    return await dispatch('searchInventoryDirect', {
+      query: searchTerm,
+      limit: limitResults
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in real-time search:', error);
+    const term = searchTerm?.trim().toLowerCase() || '';
+    const fallbackResults = state.inventory.filter(item =>
+      matchArabicText(item, term, ['name', 'code', 'color'])
+    ).slice(0, 10);
+    
+    console.log('🔄 Fallback to local search due to error:', error.message);
+    return fallbackResults;
+  }
+},
+
+async searchItemsForTransactionsEnhanced({ state, dispatch }, { 
+  searchTerm, 
+  limitResults = 20,
+  warehouseId = null 
+}) {
+  try {
+    console.log('🔍 Enhanced transaction search:', { searchTerm, warehouseId });
+    
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
+    
+    const term = searchTerm.trim().toLowerCase();
+    const targetWarehouse = warehouseId || state.warehouseFilter;
+    
+    const results = await dispatch('searchInventoryDirect', {
+      query: term,
+      warehouseId: targetWarehouse,
+      limit: limitResults
+    });
+    
+    console.log(`✅ Found ${results.length} items for transactions`);
+    return results;
+    
+  } catch (error) {
+    console.error('❌ Error in enhanced transaction search:', error);
+    
+    const term = searchTerm?.trim().toLowerCase() || '';
+    const fallbackResults = state.inventory.filter(item => {
+      if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+        return false;
+      }
+      
+      return matchArabicText(item, term, ['name', 'code', 'color']);
+    }).slice(0, 10);
+    
+    return fallbackResults;
+  }
+},
+
+async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
+  try {
+    console.log('🔍 General search:', searchTerm);
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
+    
+    // Use direct search for better results
+    return await dispatch('searchInventoryDirect', {
+      query: searchTerm,
+      limit: limitResults
+    });
+  } catch (error) {
+    console.error('❌ Error searching items:', error);
+    // Don't dispatch notification here to avoid infinite loops
+    return [];
+  }
+},
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
     // ============================================
