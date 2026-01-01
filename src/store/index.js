@@ -657,23 +657,18 @@ export default createStore({
     // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
     // ============================================
     
-          async searchInventoryDirect({ commit, state, getters }, {
+           async searchInventoryDirect({ commit, state, getters }, {
       query,
       warehouseId = null,
       limit = SEARCH_CONFIG.MAX_RESULTS
     }) {
-      // نقل تعريف المتغيرات إلى الأعلى لتكون متاحة في كل الكتل
       let searchTerm = '';
       let targetWarehouse = 'all';
       let normalizedSearchTerm = '';
 
       try {
         if (!query || query.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'none',
-            query: ''
-          });
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
           return [];
         }
 
@@ -686,17 +681,28 @@ export default createStore({
 
         console.log(`🔍 Direct Firebase search for: "${searchTerm}"`);
 
-        // ============ تصحيح آمن للوصول إلى accessibleWarehouses ============
+        // ============ FINAL SAFE ACCESSIBLE WAREHOUSES HANDLING ============
         let accessibleWarehouseIds = [];
+
+        let accessible = null;
         try {
-          const accessible = getters.accessibleWarehouses || [];
-          if (Array.isArray(accessible)) {
-            accessibleWarehouseIds = accessible
-              .map(w => w?.id)
-              .filter(id => id && typeof id === 'string');
-          }
+          accessible = getters.accessibleWarehouses;
         } catch (err) {
-          console.warn('Failed to read accessibleWarehouses getter:', err);
+          console.warn('Getter accessibleWarehouses threw error:', err);
+        }
+
+        if (Array.isArray(accessible)) {
+          accessibleWarehouseIds = accessible
+            .map(w => w && w.id ? w.id : null)
+            .filter(id => id !== null);
+        } else {
+          console.warn('accessibleWarehouses is not an array:', accessible);
+
+          if (getters.userRole === 'superadmin') {
+            accessibleWarehouseIds = ['all'];
+          } else if (state.userProfile && Array.isArray(state.userProfile.allowed_warehouses)) {
+            accessibleWarehouseIds = state.userProfile.allowed_warehouses.filter(id => id);
+          }
         }
         // ===================================================================
 
@@ -710,7 +716,7 @@ export default createStore({
             limit(50)
           );
         } else if (accessibleWarehouseIds.length > 0) {
-          const warehousesToQuery = accessibleWarehouseIds.slice(0, 10); // Firestore limit
+          const warehousesToQuery = accessibleWarehouseIds.slice(0, 10);
           itemsQuery = query(
             itemsRef,
             where('warehouse_id', 'in', warehousesToQuery),
@@ -718,32 +724,21 @@ export default createStore({
             limit(50)
           );
         } else {
-          console.log('⚠️ No accessible warehouses for this user');
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'firebase',
-            query: searchTerm
-          });
+          console.log('⚠️ User has no warehouse access → returning empty');
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
           return [];
         }
 
         const snapshot = await getDocs(itemsQuery);
 
         if (snapshot.empty) {
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'firebase',
-            query: searchTerm
-          });
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
           return [];
         }
 
         const allItems = snapshot.docs.map(doc => {
           const itemData = doc.data();
-          return InventoryService.convertForDisplay({
-            id: doc.id,
-            ...itemData
-          });
+          return InventoryService.convertForDisplay({ id: doc.id, ...itemData });
         });
 
         let filteredItems = allItems;
@@ -774,11 +769,9 @@ export default createStore({
       } catch (error) {
         console.error('❌ Direct search error:', error);
 
-        // ============ Fallback آمن إلى البحث المحلي (مع استخدام المتغيرات المعرفة أعلى) ============
         try {
           console.log('🔄 Falling back to local inventory search...');
 
-          // إذا لم يكن normalizedSearchTerm معرفًا (نادر جدًا)، نعيد تعريفه
           if (!normalizedSearchTerm && searchTerm) {
             normalizedSearchTerm = normalizeArabicText(searchTerm.toLowerCase());
           }
@@ -810,22 +803,15 @@ export default createStore({
           return finalResults;
 
         } catch (fallbackError) {
-          console.error('❌ Fallback local search also failed:', fallbackError);
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'error',
-            query: searchTerm
-          });
-          commit('SET_SEARCH_ERROR', 'فشل البحث في Firebase والنسخة الاحتياطية');
+          console.error('❌ Fallback failed too:', fallbackError);
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
           return [];
         }
-        // =============================================================================================
 
       } finally {
         commit('SET_SEARCH_LOADING', false);
       }
     },
-    
     // For backward compatibility
     async smartSearchInventory({ dispatch }, params) {
       return await dispatch('searchInventoryDirect', params);
