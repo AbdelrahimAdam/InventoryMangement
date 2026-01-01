@@ -1,4 +1,6 @@
-import { createStore } from 'vuex';
+
+      
+       import { createStore } from 'vuex';
 import { auth, db } from '@/firebase/config';
 import {
   signInWithEmailAndPassword,
@@ -35,28 +37,22 @@ import {
 } from '@/services/inventoryService';
 import * as XLSX from 'xlsx';
 
-// Enhanced Performance configuration
+// Performance configuration (REMOVED ALL CACHE SETTINGS)
 const PERFORMANCE_CONFIG = {
   INITIAL_LOAD: 50,
   SCROLL_LOAD: 20,
   SEARCH_LIMIT: 25,
-  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
   INVOICE_LOAD_LIMIT: 100,
   SEARCH_DEBOUNCE: 300, // ms
-  MAX_SEARCH_CACHE: 100, // entries
   MIN_SEARCH_CHARS: 2,
-  MAX_REALTIME_LISTENERS: 50,
-  BATCH_SIZE: 10,
-  MAX_CACHE_SIZE_MB: 5,
-  MAX_ITEMS_PER_CACHE: 50
+  MAX_REALTIME_LISTENERS: 30,
+  BATCH_SIZE: 10
 };
 
-// Search configuration
+// Search configuration (NO CACHE)
 const SEARCH_CONFIG = {
   FIELDS: ['name', 'code', 'color', 'supplier', 'item_location', 'warehouse_id'],
-  FUZZY_THRESHOLD: 0.7,
-  MAX_RESULTS: 25,
-  CACHE_KEY: 'inventory_search_cache'
+  MAX_RESULTS: 25
 };
 
 // Notification configuration
@@ -86,114 +82,16 @@ const FIELD_MAPPINGS = {
   englishToArabic: FIELD_LABELS
 };
 
-// Enhanced Storage Manager
-const EnhancedStorageManager = {
-  MAX_CACHE_SIZE: PERFORMANCE_CONFIG.MAX_CACHE_SIZE_MB * 1024 * 1024,
-  MAX_ITEMS_PER_CACHE: PERFORMANCE_CONFIG.MAX_ITEMS_PER_CACHE,
-  
-  saveToStorage(key, data) {
-    try {
-      // Convert to string and check size
-      const jsonString = JSON.stringify(data);
-      const size = new Blob([jsonString]).size;
-      
-      if (size > this.MAX_CACHE_SIZE) {
-        console.log('⚠️ Data too large, compressing...');
-        data = this.compressCacheData(data);
-      }
-      
-      // Clear old caches if needed
-      this.cleanupOldCaches();
-      
-      localStorage.setItem(key, JSON.stringify(data));
-      return true;
-      
-    } catch (error) {
-      if (error.name === 'QuotaExceededError') {
-        console.log('🧹 Clearing cache due to quota exceeded...');
-        this.clearAllCaches();
-        
-        // Try again with minimal data
-        try {
-          const minimalData = {
-            results: data.results?.slice(0, 10) || [],
-            timestamp: Date.now()
-          };
-          localStorage.setItem(key, JSON.stringify(minimalData));
-          return true;
-        } catch (e) {
-          console.error('Failed to save even minimal data:', e);
-          return false;
-        }
-      }
-      return false;
-    }
-  },
-  
-  compressCacheData(data) {
-    if (!data.results || !Array.isArray(data.results)) return data;
-    
-    return {
-      results: data.results.slice(0, this.MAX_ITEMS_PER_CACHE).map(item => ({
-        id: item.id,
-        name: item.name,
-        code: item.code,
-        warehouse_id: item.warehouse_id,
-        remaining_quantity: item.remaining_quantity
-      })),
-      timestamp: data.timestamp
-    };
-  },
-  
-  cleanupOldCaches() {
-    const now = Date.now();
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith('search_') || key.includes('cache')) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key));
-          if (data && data.timestamp && data.timestamp < oneDayAgo) {
-            localStorage.removeItem(key);
-          }
-        } catch (e) {
-          localStorage.removeItem(key);
-        }
-      }
-    }
-  },
-  
-  clearAllCaches() {
-    const keysToRemove = [];
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.includes('cache') || key.includes('search')) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-  }
-};
-
 // Helper function to normalize Arabic text for better matching
 function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
   
   return text
-    // Normalize Alef variations
     .replace(/[إأآا]/g, 'ا')
-    // Normalize Teh Marbuta
     .replace(/ة/g, 'ه')
-    // Normalize Yeh variations
     .replace(/[يى]/g, 'ي')
-    // Normalize Hamza variations
     .replace(/[ؤئ]/g, 'ء')
-    // Remove diacritics (tashkeel)
     .replace(/[\u064B-\u065F]/g, '')
-    // Remove extra spaces
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -313,9 +211,6 @@ function matchArabicText(item, searchTerm, fields) {
   return false;
 }
 
-// Track active real-time listeners to prevent zombies
-const activeListeners = new Map();
-
 export default createStore({
   state: () => ({
     user: null,
@@ -353,18 +248,7 @@ export default createStore({
     requiresCompositeIndex: false,
     allUsers: [],
     usersLoading: false,
-    cache: {
-      warehouseLabels: {},
-      itemDetails: {},
-      stats: null,
-      statsTimestamp: null,
-      dashboardCounts: {
-        totalItems: 0,
-        totalQuantity: 0,
-        lowStockItems: 0,
-        lastUpdated: null
-      }
-    },
+    // REMOVED ALL CACHE OBJECTS
     fieldMappings: FIELD_MAPPINGS,
     inventoryLastFetched: null,
     isFetchingInventory: false,
@@ -372,21 +256,16 @@ export default createStore({
     recentTransactionsLoading: false,
     activeItemListeners: new Set(),
     
-    // Enhanced Search State
+    // Search State (SIMPLIFIED - NO CACHE)
     search: {
       query: '',
       results: [],
       loading: false,
       error: null,
-      source: 'none', // 'firebase' | 'cache' | 'local' | 'smart'
-      timestamp: null,
-      lastQuery: '',
-      suggestions: [],
-      debounceTimer: null,
-      activeRequests: new Set()
+      source: 'none', // 'firebase' | 'local'
+      timestamp: null
     },
     warehouseFilter: '',
-    searchCache: new Map(),
     
     // Invoice System State
     invoices: [],
@@ -485,10 +364,6 @@ export default createStore({
     SET_WAREHOUSES(state, warehouses) {
       state.warehouses = warehouses;
       state.warehousesLoaded = true;
-      state.cache.warehouseLabels = {};
-      warehouses.forEach(w => {
-        state.cache.warehouseLabels[w.id] = w.name_ar;
-      });
     },
     SET_TRANSACTIONS(state, transactions) {
       state.transactions = transactions;
@@ -581,27 +456,6 @@ export default createStore({
     CLEAR_OPERATION_ERROR(state) {
       state.operationError = null;
     },
-    CACHE_ITEM_DETAIL(state, { itemId, itemData }) {
-      state.cache.itemDetails[itemId] = {
-        data: itemData,
-        timestamp: Date.now()
-      };
-    },
-    CLEAR_ITEM_CACHE(state, itemId) {
-      delete state.cache.itemDetails[itemId];
-    },
-    SET_STATS_CACHE(state, { stats, timestamp }) {
-      state.cache.stats = stats;
-      state.cache.statsTimestamp = timestamp;
-    },
-    SET_DASHBOARD_COUNTS(state, { totalItems, totalQuantity, lowStockItems, lastUpdated }) {
-      state.cache.dashboardCounts = {
-        totalItems,
-        totalQuantity,
-        lowStockItems,
-        lastUpdated
-      };
-    },
     SET_REQUIRES_COMPOSITE_INDEX(state, value) {
       state.requiresCompositeIndex = value;
     },
@@ -633,31 +487,15 @@ export default createStore({
       state.activeItemListeners.clear();
     },
     
-    // Enhanced Search Mutations
+    // Search Mutations (SIMPLIFIED)
     SET_SEARCH_QUERY(state, query) {
       state.search.query = query;
     },
     SET_SEARCH_RESULTS(state, { results, source, query }) {
       state.search.results = results;
       state.search.source = source;
-      state.search.lastQuery = query;
       state.search.timestamp = new Date();
       state.search.loading = false;
-      
-      if (source === 'smart' && query) {
-        const cacheKey = `smart_${normalizeArabicText(query)}_${state.warehouseFilter || 'all'}`;
-        state.searchCache.set(cacheKey, {
-          results,
-          timestamp: Date.now(),
-          warehouse: state.warehouseFilter
-        });
-        
-        // Also save to localStorage for persistence
-        EnhancedStorageManager.saveToStorage(cacheKey, {
-          results: results.slice(0, PERFORMANCE_CONFIG.MAX_ITEMS_PER_CACHE),
-          timestamp: Date.now()
-        });
-      }
     },
     SET_SEARCH_LOADING(state, loading) {
       state.search.loading = loading;
@@ -675,35 +513,6 @@ export default createStore({
     SET_WAREHOUSE_FILTER(state, warehouseId) {
       state.warehouseFilter = warehouseId;
       state.filters.warehouse = warehouseId;
-    },
-    ADD_SEARCH_SUGGESTION(state, suggestion) {
-      if (suggestion && !state.search.suggestions.includes(suggestion)) {
-        state.search.suggestions.push(suggestion);
-        if (state.search.suggestions.length > 10) {
-          state.search.suggestions.shift();
-        }
-      }
-    },
-    CLEAR_SEARCH_SUGGESTIONS(state) {
-      state.search.suggestions = [];
-    },
-    ADD_TO_SEARCH_CACHE(state, { key, value }) {
-      if (state.searchCache.size >= PERFORMANCE_CONFIG.MAX_SEARCH_CACHE) {
-        const firstKey = state.searchCache.keys().next().value;
-        state.searchCache.delete(firstKey);
-      }
-      state.searchCache.set(key, {
-        ...value,
-        timestamp: Date.now()
-      });
-    },
-    CLEAR_EXPIRED_CACHE(state) {
-      const now = Date.now();
-      for (const [key, value] of state.searchCache.entries()) {
-        if (now - value.timestamp > PERFORMANCE_CONFIG.CACHE_DURATION) {
-          state.searchCache.delete(key);
-        }
-      }
     },
     
     // Invoice System Mutations
@@ -805,32 +614,15 @@ export default createStore({
         search: '',
         searchField: 'name'
       };
-      state.cache = {
-        warehouseLabels: {},
-        itemDetails: {},
-        stats: null,
-        statsTimestamp: null,
-        dashboardCounts: {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          lastUpdated: null
-        }
-      };
       state.search = {
         query: '',
         results: [],
         loading: false,
         error: null,
         source: 'none',
-        timestamp: null,
-        lastQuery: '',
-        suggestions: [],
-        debounceTimer: null,
-        activeRequests: new Set()
+        timestamp: null
       };
       state.warehouseFilter = '';
-      state.searchCache.clear();
       state.invoices = [];
       state.invoicesLoaded = false;
       state.invoiceFilters = {
@@ -864,169 +656,164 @@ export default createStore({
 
   actions: {
     // ============================================
-    // ENHANCED SMART SEARCH ACTIONS (SOLUTION 1-6)
+    // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
     // ============================================
     
-    async smartSearchInventory({ commit, state, getters, dispatch }, {
+    async searchInventoryDirect({ commit, state, getters }, {
       query,
       warehouseId = null,
-      limit = SEARCH_CONFIG.MAX_RESULTS,
-      useCache = true
+      limit = SEARCH_CONFIG.MAX_RESULTS
     }) {
       try {
-        if (state.search.debounceTimer) {
-          clearTimeout(state.search.debounceTimer);
+        if (!query || query.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+          commit('SET_SEARCH_RESULTS', { 
+            results: [], 
+            source: 'none', 
+            query: '' 
+          });
+          return [];
         }
         
-        return new Promise((resolve) => {
-          state.search.debounceTimer = setTimeout(async () => {
-            try {
-              if (!query || query.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-                commit('SET_SEARCH_RESULTS', { 
-                  results: [], 
-                  source: 'none', 
-                  query: '' 
-                });
-                resolve([]);
-                return;
-              }
-              
-              const searchTerm = query.trim();
-              const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-              const cacheKey = `smart_${normalizeArabicText(searchTerm)}_${targetWarehouse}`;
-              
-              commit('SET_SEARCH_LOADING', true);
-              commit('SET_SEARCH_QUERY', searchTerm);
-              
-              // Step 1: Check cache (if enabled)
-              let cachedResults = [];
-              if (useCache) {
-                // Check in-memory cache first
-                const cached = state.searchCache.get(cacheKey);
-                if (cached && Date.now() - cached.timestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
-                  cachedResults = cached.results;
-                  console.log(`📦 Using cached results: ${cachedResults.length} items`);
-                }
-                
-                // Check localStorage cache
-                if (cachedResults.length === 0) {
-                  try {
-                    const storedCache = localStorage.getItem(cacheKey);
-                    if (storedCache) {
-                      const parsedCache = JSON.parse(storedCache);
-                      if (Date.now() - parsedCache.timestamp < PERFORMANCE_CONFIG.CACHE_DURATION) {
-                        cachedResults = parsedCache.results;
-                        console.log(`📦 Using localStorage cache: ${cachedResults.length} items`);
-                      }
-                    }
-                  } catch (e) {
-                    console.log('LocalStorage cache read error:', e.message);
-                  }
-                }
-              }
-              
-              // Step 2: Search local inventory (memory cache)
-              const localResults = await dispatch('searchLocalInventorySmart', {
-                query: searchTerm,
-                warehouseId: targetWarehouse,
-                limit: limit
-              });
-              
-              // Step 3: Combine cached + local results
-              const combinedLocalResults = [...cachedResults, ...localResults];
-              
-              // Remove duplicates and sort by relevance
-              const uniqueLocalResults = removeDuplicatesAndSortByRelevance(
-                combinedLocalResults,
-                searchTerm,
-                limit
-              );
-              
-              // If we have enough results from cache/local, show them immediately
-              if (uniqueLocalResults.length >= Math.min(limit, 5)) {
-                commit('SET_SEARCH_RESULTS', {
-                  results: uniqueLocalResults.slice(0, limit),
-                  source: 'cache',
-                  query: searchTerm
-                });
-                commit('SET_SEARCH_LOADING', false);
-                
-                // Fetch fresh results from Firestore in background
-                dispatch('fetchLiveResultsInBackground', { 
-                  query, 
-                  warehouseId: targetWarehouse, 
-                  cacheKey 
-                });
-                
-                resolve(uniqueLocalResults.slice(0, limit));
-                return;
-              }
-              
-              // Step 4: Get live results from Firestore
-              const liveResults = await dispatch('searchFirebaseInventorySmart', {
-                query: searchTerm,
-                warehouseId: targetWarehouse,
-                limit: limit * 2
-              });
-              
-              // Step 5: Combine all results and prioritize
-              const allResults = [...uniqueLocalResults, ...liveResults];
-              const finalResults = removeDuplicatesAndSortByRelevance(allResults, searchTerm, limit);
-              
-              // Step 6: Update cache with fresh results
-              if (finalResults.length > 0) {
-                commit('ADD_TO_SEARCH_CACHE', {
-                  key: cacheKey,
-                  value: { 
-                    results: finalResults,
-                    timestamp: Date.now()
-                  }
-                });
-                
-                // Save to localStorage
-                EnhancedStorageManager.saveToStorage(cacheKey, {
-                  results: finalResults.slice(0, PERFORMANCE_CONFIG.MAX_ITEMS_PER_CACHE),
-                  timestamp: Date.now()
-                });
-              }
-              
-              commit('SET_SEARCH_RESULTS', {
-                results: finalResults,
-                source: 'smart',
-                query: searchTerm
-              });
-              
-              console.log(`✅ Smart search found: ${finalResults.length} items`);
-              resolve(finalResults);
-              
-            } catch (error) {
-              console.error('❌ Smart search error:', error);
-              commit('SET_SEARCH_ERROR', error.message);
-              
-              // Fallback to local-only search
-              const fallbackResults = await dispatch('searchLocalInventorySmart', {
-                query,
-                warehouseId,
-                limit
-              });
-              
-              commit('SET_SEARCH_RESULTS', {
-                results: fallbackResults,
-                source: 'fallback',
-                query
-              });
-              
-              resolve(fallbackResults);
-            } finally {
-              commit('SET_SEARCH_LOADING', false);
-            }
-          }, PERFORMANCE_CONFIG.SEARCH_DEBOUNCE);
+        const searchTerm = query.trim();
+        const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+        
+        commit('SET_SEARCH_LOADING', true);
+        commit('SET_SEARCH_QUERY', searchTerm);
+        
+        console.log(`🔍 Direct Firebase search for: "${searchTerm}"`);
+        
+        // DIRECT FIREBASE SEARCH - NO CACHE
+        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = normalizeArabicText(searchTermLower);
+        const itemsRef = collection(db, 'items');
+        
+        // Get accessible warehouses based on user permissions
+        const accessibleWarehouses = getters.accessibleWarehouses.map(w => w.id);
+        
+        // Build query based on permissions
+        let itemsQuery;
+        
+        if (accessibleWarehouses.includes('all') || getters.userRole === 'superadmin') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('remaining_quantity', 'desc'),
+            limit(50)
+          );
+        } else if (accessibleWarehouses.length > 0) {
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', 'in', accessibleWarehouses.slice(0, 5)),
+            orderBy('remaining_quantity', 'desc'),
+            limit(50)
+          );
+        } else {
+          console.log('⚠️ User has no accessible warehouses');
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'firebase',
+            query: searchTerm
+          });
+          return [];
+        }
+        
+        // Fetch data directly from Firebase
+        const snapshot = await getDocs(itemsQuery);
+        
+        if (snapshot.empty) {
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'firebase',
+            query: searchTerm
+          });
+          return [];
+        }
+        
+        // Convert all items
+        const allItems = snapshot.docs.map(doc => {
+          const itemData = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...itemData
+          });
         });
+        
+        // Filter by warehouse locally if needed
+        let filteredItems = allItems;
+        if (targetWarehouse && targetWarehouse !== 'all') {
+          filteredItems = filteredItems.filter(item => item.warehouse_id === targetWarehouse);
+        }
+        
+        // Apply Arabic search filtering
+        const searchResults = filteredItems.filter(item => {
+          return matchArabicText(item, normalizedSearchTerm, SEARCH_CONFIG.FIELDS);
+        });
+        
+        // Sort by relevance
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults, 
+          searchTerm, 
+          limit
+        );
+        
+        console.log(`✅ Direct search found: ${finalResults.length} items`);
+        
+        commit('SET_SEARCH_RESULTS', {
+          results: finalResults,
+          source: 'firebase',
+          query: searchTerm
+        });
+        
+        return finalResults;
+        
       } catch (error) {
-        console.error('❌ Smart search outer error:', error);
+        console.error('❌ Direct search error:', error);
+        commit('SET_SEARCH_ERROR', error.message);
+        
+        // Fallback to local memory search only
+        try {
+          const searchTerm = query.toLowerCase();
+          const normalizedSearchTerm = normalizeArabicText(searchTerm);
+          
+          let localResults = [...state.inventory];
+          
+          if (warehouseId && warehouseId !== 'all') {
+            localResults = localResults.filter(item => item.warehouse_id === warehouseId);
+          }
+          
+          const filtered = localResults.filter(item => 
+            matchArabicText(item, normalizedSearchTerm, SEARCH_CONFIG.FIELDS)
+          );
+          
+          const finalResults = removeDuplicatesAndSortByRelevance(
+            filtered, 
+            query, 
+            limit
+          );
+          
+          commit('SET_SEARCH_RESULTS', {
+            results: finalResults,
+            source: 'local',
+            query: query
+          });
+          
+          return finalResults;
+        } catch (fallbackError) {
+          console.error('Fallback search error:', fallbackError);
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'error',
+            query: query
+          });
+          return [];
+        }
+      } finally {
         commit('SET_SEARCH_LOADING', false);
-        return [];
       }
+    },
+    
+    // For backward compatibility
+    async smartSearchInventory({ dispatch }, params) {
+      return await dispatch('searchInventoryDirect', params);
     },
     
     async searchLocalInventorySmart({ state }, { query, warehouseId, limit }) {
@@ -1034,7 +821,7 @@ export default createStore({
         const searchTerm = query.toLowerCase();
         const normalizedSearchTerm = normalizeArabicText(searchTerm);
         
-        // Start with all inventory items
+        // Start with all inventory items in memory
         let results = [...state.inventory];
         
         // Filter by warehouse if specified
@@ -1052,19 +839,23 @@ export default createStore({
         });
         
         // Sort by relevance
-        const sortedResults = removeDuplicatesAndSortByRelevance(results, searchTerm, limit || SEARCH_CONFIG.MAX_RESULTS);
+        const sortedResults = removeDuplicatesAndSortByRelevance(
+          results, 
+          searchTerm, 
+          limit || SEARCH_CONFIG.MAX_RESULTS
+        );
         
         return sortedResults;
         
       } catch (error) {
-        console.error('❌ Local smart search error:', error);
+        console.error('❌ Local search error:', error);
         return [];
       }
     },
     
-    async searchFirebaseInventorySmart({ state, getters, commit }, { query, warehouseId, limit }) {
+    async searchFirebaseInventorySmart({ state, getters }, { query, warehouseId, limit }) {
       try {
-        console.log(`🔍 Smart Firestore search for: "${query}"`);
+        console.log(`🔍 Firebase smart search for: "${query}"`);
         
         const searchTerm = normalizeArabicText(query.toLowerCase());
         const itemsRef = collection(db, 'items');
@@ -1078,16 +869,15 @@ export default createStore({
         if (accessibleWarehouses.includes('all') || getters.userRole === 'superadmin') {
           itemsQuery = query(
             itemsRef,
-            orderBy('remaining_quantity', 'desc'), // Prioritize items with stock
-            limit(100)
+            orderBy('remaining_quantity', 'desc'),
+            limit(50)
           );
         } else if (accessibleWarehouses.length > 0) {
-          const warehouseIds = accessibleWarehouses.slice(0, 10);
           itemsQuery = query(
             itemsRef,
-            where('warehouse_id', 'in', warehouseIds),
+            where('warehouse_id', 'in', accessibleWarehouses.slice(0, 5)),
             orderBy('remaining_quantity', 'desc'),
-            limit(100)
+            limit(50)
           );
         } else {
           console.log('⚠️ User has no accessible warehouses');
@@ -1122,111 +912,26 @@ export default createStore({
         });
         
         // Sort by relevance
-        const finalResults = removeDuplicatesAndSortByRelevance(searchResults, query, limit || SEARCH_CONFIG.MAX_RESULTS);
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults, 
+          query, 
+          limit || SEARCH_CONFIG.MAX_RESULTS
+        );
         
-        console.log(`✅ Smart Firestore search found: ${finalResults.length} items`);
+        console.log(`✅ Firebase search found: ${finalResults.length} items`);
         return finalResults;
         
       } catch (error) {
-        console.error('❌ Smart Firestore search error:', error);
-        
-        // Try a simpler fallback query
-        try {
-          const itemsRef = collection(db, 'items');
-          const fallbackQuery = query(itemsRef, limit(50));
-          const fallbackSnapshot = await getDocs(fallbackQuery);
-          
-          if (!fallbackSnapshot.empty) {
-            const fallbackItems = fallbackSnapshot.docs.map(doc => {
-              const itemData = doc.data();
-              return InventoryService.convertForDisplay({
-                id: doc.id,
-                ...itemData
-              });
-            });
-            
-            const filtered = fallbackItems.filter(item => 
-              matchArabicText(item, normalizeArabicText(query.toLowerCase()), SEARCH_CONFIG.FIELDS)
-            );
-            
-            return removeDuplicatesAndSortByRelevance(filtered, query, limit || SEARCH_CONFIG.MAX_RESULTS);
-          }
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-        }
-        
+        console.error('❌ Firebase search error:', error);
         return [];
       }
-    },
-    
-    async fetchLiveResultsInBackground({ commit, dispatch }, { query, warehouseId, cacheKey }) {
-      try {
-        // Don't block UI - fetch in background
-        const liveResults = await dispatch('searchFirebaseInventorySmart', {
-          query,
-          warehouseId,
-          limit: 50
-        });
-        
-        if (liveResults.length > 0) {
-          // Update cache with fresh results
-          commit('ADD_TO_SEARCH_CACHE', {
-            key: cacheKey,
-            value: {
-              results: liveResults,
-              timestamp: Date.now()
-            }
-          });
-          
-          // Save to localStorage
-          EnhancedStorageManager.saveToStorage(cacheKey, {
-            results: liveResults.slice(0, PERFORMANCE_CONFIG.MAX_ITEMS_PER_CACHE),
-            timestamp: Date.now()
-          });
-          
-          console.log(`✅ Background update added ${liveResults.length} live results to cache`);
-        }
-      } catch (error) {
-        console.log('Background search failed:', error.message);
-      }
-    },
-    
-    async getSearchSuggestions({ commit, state }, query) {
-      if (!query || query.length < 1) {
-        commit('CLEAR_SEARCH_SUGGESTIONS');
-        return [];
-      }
-      
-      const searchTerm = normalizeArabicText(query.toLowerCase());
-      
-      const cachedSuggestions = state.search.suggestions.filter(s => 
-        normalizeArabicText(s).includes(searchTerm)
-      );
-      
-      if (cachedSuggestions.length > 0) {
-        return cachedSuggestions.slice(0, 5);
-      }
-      
-      const localSuggestions = state.inventory
-        .filter(item => 
-          matchArabicText(item, searchTerm, ['name', 'code'])
-        )
-        .map(item => item.name || item.code)
-        .filter(Boolean)
-        .slice(0, 5);
-      
-      localSuggestions.forEach(suggestion => {
-        commit('ADD_SEARCH_SUGGESTION', suggestion);
-      });
-      
-      return localSuggestions;
     },
     
     async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
       commit('SET_WAREHOUSE_FILTER', warehouseId);
       
       if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        await dispatch('smartSearchInventory', {
+        await dispatch('searchInventoryDirect', {
           query: state.search.query,
           warehouseId
         });
@@ -1237,68 +942,15 @@ export default createStore({
       commit('CLEAR_SEARCH');
     },
     
-    async preloadSearchCache({ commit, state }) {
-      try {
-        // Clean old caches first
-        EnhancedStorageManager.cleanupOldCaches();
-        
-        const itemsRef = collection(db, 'items');
-        const q = query(
-          itemsRef,
-          orderBy('remaining_quantity', 'desc'),
-          limit(50)
-        );
-        
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return InventoryService.convertForDisplay({
-            id: doc.id,
-            ...data
-          });
-        });
-        
-        // Preload cache for common search terms
-        items.forEach(item => {
-          if (item.code) {
-            const cacheKey = `smart_${normalizeArabicText(item.code)}_all`;
-            commit('ADD_TO_SEARCH_CACHE', {
-              key: cacheKey,
-              value: { results: [item] }
-            });
-          }
-          
-          if (item.name) {
-            const nameWords = normalizeArabicText(item.name).split(/\s+/);
-            nameWords.forEach(word => {
-              if (word.length >= 3) {
-                const cacheKey = `smart_${word}_all`;
-                commit('ADD_TO_SEARCH_CACHE', {
-                  key: cacheKey,
-                  value: { results: [item] }
-                });
-              }
-            });
-          }
-        });
-        
-        console.log('✅ Search cache preloaded');
-      } catch (error) {
-        console.log('Preload cache failed:', error.message);
-      }
-    },
-    
     // ============================================
-    // EXISTING ACTIONS (UPDATED FOR COMPATIBILITY)
+    // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
     // ============================================
     
     async searchInventoryEnhanced({ dispatch }, params) {
-      // Alias for smartSearchInventory for backward compatibility
-      return await dispatch('smartSearchInventory', params);
+      return await dispatch('searchInventoryDirect', params);
     },
     
     async searchLocalInventory({ state, dispatch }, { query, warehouseId, fields, limit }) {
-      // Alias for searchLocalInventorySmart for backward compatibility
       return await dispatch('searchLocalInventorySmart', {
         query,
         warehouseId,
@@ -1307,7 +959,6 @@ export default createStore({
     },
     
     async searchFirebaseInventory({ dispatch }, params) {
-      // Alias for searchFirebaseInventorySmart for backward compatibility
       return await dispatch('searchFirebaseInventorySmart', params);
     },
     
@@ -1382,19 +1033,27 @@ export default createStore({
       try {
         console.log(`🔴 Setting up optimized real-time for ${itemIds.length} items`);
         
-        state.realtimeListeners = state.realtimeListeners.filter(listener => {
-          const hasOverlap = listener.itemIds?.some(id => itemIds.includes(id));
-          if (hasOverlap && typeof listener.unsubscribe === 'function') {
-            listener.unsubscribe();
-          }
-          return !hasOverlap;
-        });
+        // Limit real-time listeners to prevent performance issues
+        const limitedItemIds = itemIds.slice(0, PERFORMANCE_CONFIG.MAX_REALTIME_LISTENERS);
         
-        if (itemIds.length <= PERFORMANCE_CONFIG.BATCH_SIZE) {
+        // Clean up existing listeners
+        state.realtimeListeners.forEach(listener => {
+          try {
+            if (typeof listener === 'function') {
+              listener();
+            }
+          } catch (error) {
+            console.warn('Error unsubscribing listener:', error);
+          }
+        });
+        state.realtimeListeners = [];
+        state.activeItemListeners.clear();
+        
+        if (limitedItemIds.length <= PERFORMANCE_CONFIG.BATCH_SIZE) {
           const itemsRef = collection(db, 'items');
           const q = query(
             itemsRef,
-            where('__name__', 'in', itemIds.slice(0, PERFORMANCE_CONFIG.BATCH_SIZE))
+            where('__name__', 'in', limitedItemIds)
           );
           
           const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1407,13 +1066,8 @@ export default createStore({
                 });
                 
                 commit('UPDATE_INVENTORY_ITEM', updatedItem);
-                commit('CACHE_ITEM_DETAIL', {
-                  itemId: change.doc.id,
-                  itemData: updatedItem
-                });
               } else if (change.type === 'removed') {
                 commit('REMOVE_INVENTORY_ITEM', change.doc.id);
-                commit('CLEAR_ITEM_CACHE', change.doc.id);
               }
             });
           });
@@ -1421,7 +1075,8 @@ export default createStore({
           commit('ADD_REALTIME_LISTENER', unsubscribe);
           
         } else {
-          const listeners = itemIds.map(itemId => {
+          // For larger batches, use individual listeners with limit
+          const listeners = limitedItemIds.map(itemId => {
             const itemRef = doc(db, 'items', itemId);
             
             const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
@@ -1433,13 +1088,8 @@ export default createStore({
                 });
                 
                 commit('UPDATE_INVENTORY_ITEM', updatedItem);
-                commit('CACHE_ITEM_DETAIL', {
-                  itemId: docSnapshot.id,
-                  itemData: updatedItem
-                });
               } else {
                 commit('REMOVE_INVENTORY_ITEM', itemId);
-                commit('CLEAR_ITEM_CACHE', itemId);
               }
             });
             
@@ -1449,7 +1099,7 @@ export default createStore({
           listeners.forEach(listener => commit('ADD_REALTIME_LISTENER', listener));
         }
         
-        console.log(`✅ Optimized real-time updates set up`);
+        console.log(`✅ Optimized real-time updates set up for ${limitedItemIds.length} items`);
         
       } catch (error) {
         console.error('❌ Error setting up optimized real-time updates:', error);
@@ -1526,7 +1176,7 @@ export default createStore({
         const term = searchTerm.trim().toLowerCase();
         const targetWarehouse = warehouseId || state.warehouseFilter;
         
-        const results = await dispatch('smartSearchInventory', {
+        const results = await dispatch('searchInventoryDirect', {
           query: term,
           warehouseId: targetWarehouse,
           limit: limitResults
@@ -1670,14 +1320,6 @@ export default createStore({
       try {
         console.log('🔄 Refreshing dashboard counts...');
 
-        const cache = state.cache.dashboardCounts;
-        const cacheExpiry = 5 * 60 * 1000;
-
-        if (cache.lastUpdated && (Date.now() - new Date(cache.lastUpdated).getTime()) < cacheExpiry) {
-          console.log('📦 Using cached dashboard counts');
-          return cache;
-        }
-
         const totalItems = await dispatch('getTotalItemCount', warehouseId);
         const lowStockItems = await dispatch('getLowStockCount', warehouseId);
         const totalQuantity = await dispatch('getTotalQuantitySum', warehouseId);
@@ -1689,7 +1331,6 @@ export default createStore({
           lastUpdated: new Date()
         };
 
-        commit('SET_DASHBOARD_COUNTS', counts);
         console.log('✅ Dashboard counts refreshed:', counts);
         return counts;
 
@@ -1753,7 +1394,7 @@ export default createStore({
       }
     },
 
-    // ✅ Original searchItemsForTransactions (updated to use smart search)
+    // ✅ Original searchItemsForTransactions (updated to use direct search)
     async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults = 20 }) {
       try {
         console.log('🔍 REAL-TIME SEARCH:', searchTerm);
@@ -1761,7 +1402,7 @@ export default createStore({
           return [];
         }
         
-        return await dispatch('smartSearchInventory', {
+        return await dispatch('searchInventoryDirect', {
           query: searchTerm,
           limit: limitResults
         });
@@ -1876,16 +1517,16 @@ export default createStore({
             }
           }
         }
-        console.log('🔄 Using smart search...');
+        console.log('🔄 Using direct search...');
         const searchTerm = itemCode || itemName || '';
         if (searchTerm.length >= 2) {
-          const searchResults = await dispatch('smartSearchInventory', {
+          const searchResults = await dispatch('searchInventoryDirect', {
             query: searchTerm,
             limitResults: 10
           });
           if (searchResults.length > 0) {
             const foundItem = searchResults[0];
-            console.log('✅ Item found through smart search');
+            console.log('✅ Item found through direct search');
             return foundItem;
           }
         }
@@ -2349,13 +1990,8 @@ export default createStore({
               });
 
               commit('UPDATE_INVENTORY_ITEM', updatedItem);
-              commit('CACHE_ITEM_DETAIL', {
-                itemId: docSnapshot.id,
-                itemData: updatedItem
-              });
             } else {
               commit('REMOVE_INVENTORY_ITEM', item.id);
-              commit('CLEAR_ITEM_CACHE', item.id);
               commit('REMOVE_ITEM_LISTENER', item.id);
             }
           }, (error) => {
@@ -2398,13 +2034,8 @@ export default createStore({
               });
 
               commit('UPDATE_INVENTORY_ITEM', updatedItem);
-              commit('CACHE_ITEM_DETAIL', {
-                itemId: docSnapshot.id,
-                itemData: updatedItem
-              });
             } else {
               commit('REMOVE_INVENTORY_ITEM', itemId);
-              commit('CLEAR_ITEM_CACHE', itemId);
               commit('REMOVE_ITEM_LISTENER', itemId);
             }
           });
@@ -2434,9 +2065,9 @@ export default createStore({
           throw new Error('User not authenticated');
         }
 
-        // Use smart search for better Arabic support
+        // Use direct search for better Arabic support
         if (search && search.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          const results = await dispatch('smartSearchInventory', {
+          const results = await dispatch('searchInventoryDirect', {
             query: search,
             warehouseId: warehouse
           });
@@ -2570,11 +2201,6 @@ export default createStore({
 
     async getItem({ commit, state, dispatch }, itemId) {
       try {
-        const cachedItem = state.cache.itemDetails[itemId];
-        if (cachedItem && (Date.now() - cachedItem.timestamp) < PERFORMANCE_CONFIG.CACHE_DURATION) {
-          return cachedItem.data;
-        }
-
         console.log(`🔍 Getting item from Firestore: ${itemId}`);
 
         const itemDoc = await getDoc(doc(db, 'items', itemId));
@@ -2597,11 +2223,6 @@ export default createStore({
         const item = InventoryService.convertForDisplay({
           id: itemDoc.id,
           ...data
-        });
-
-        commit('CACHE_ITEM_DETAIL', {
-          itemId: itemDoc.id,
-          itemData: item
         });
 
         return item;
@@ -2702,10 +2323,6 @@ export default createStore({
 
         commit('ADD_RECENT_TRANSACTION', transactionData);
         commit('UPDATE_INVENTORY_ITEM', newItem);
-        commit('CACHE_ITEM_DETAIL', {
-          itemId: docRef.id,
-          itemData: newItem
-        });
 
         dispatch('showNotification', {
           type: 'success',
@@ -2820,10 +2437,6 @@ export default createStore({
         });
 
         commit('UPDATE_INVENTORY_ITEM', updatedItem);
-        commit('CACHE_ITEM_DETAIL', {
-          itemId: itemId,
-          itemData: updatedItem
-        });
 
         dispatch('showNotification', {
           type: 'success',
@@ -2908,7 +2521,6 @@ export default createStore({
         await deleteDoc(itemRef);
 
         commit('REMOVE_INVENTORY_ITEM', itemId);
-        commit('CLEAR_ITEM_CACHE', itemId);
         commit('ADD_RECENT_TRANSACTION', transactionData);
 
         dispatch('showNotification', {
@@ -3267,9 +2879,6 @@ export default createStore({
                 await dispatch('loadAllInventory');
                 await dispatch('fetchTransactions');
                 dispatch('getRecentTransactions');
-                
-                // Preload search cache on auth
-                dispatch('preloadSearchCache');
 
                 dispatch('showNotification', {
                   type: 'success',
@@ -3380,8 +2989,8 @@ export default createStore({
           return [];
         }
         
-        // Use smart search for better results
-        return await dispatch('smartSearchInventory', {
+        // Use direct search for better results
+        return await dispatch('searchInventoryDirect', {
           query: searchTerm,
           limit: limitResults
         });
@@ -3438,7 +3047,7 @@ export default createStore({
       }
       commit('SET_IS_REFRESHING_SILENTLY', true);
       try {
-        console.log('🔄 Silently refreshing inventory cache...');
+        console.log('🔄 Silently refreshing inventory...');
 
         const itemsRef = collection(db, 'items');
         const q = query(
@@ -3465,7 +3074,7 @@ export default createStore({
           totalLoaded: inventory.length
         });
 
-        console.log('✅ Inventory cache silently refreshed');
+        console.log('✅ Inventory silently refreshed');
 
       } catch (error) {
         console.log('Silent refresh failed:', error.message);
