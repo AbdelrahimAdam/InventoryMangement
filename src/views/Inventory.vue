@@ -939,7 +939,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'; // ADDED watch import
+import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import { debounce } from 'lodash';
@@ -950,6 +950,19 @@ import EditItemModal from '@/components/inventory/EditItemModal.vue';
 import TransferModal from '@/components/inventory/TransferModal.vue';
 import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
 import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
+
+// Firebase imports
+import { db } from '@/firebase/config';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs,
+  limit,
+  startAt,
+  endAt
+} from 'firebase/firestore';
 
 // Click outside directive for dropdowns
 const vClickOutside = {
@@ -1014,8 +1027,14 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
+    // Enhanced Live Search State
+    const useLiveSearch = ref(false);
+    const liveSearchResults = ref([]);
+    const isLiveSearching = ref(false);
+    const searchTimeout = ref(null);
+    
     // Mobile UI state
-    const showFilters = ref(false);
+    const showFilters = ref(false); // For collapsible filters on mobile
     
     // Virtual scrolling state
     const scrollContainer = ref(null);
@@ -1038,6 +1057,7 @@ export default {
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
     const inventory = computed(() => store.state.inventory || []);
+    const stats = computed(() => store.getters.dashboardStats || {});
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     const currentUser = computed(() => store.state.user);
@@ -1047,9 +1067,6 @@ export default {
     const totalLoaded = computed(() => store.state.pagination.totalLoaded);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     const allUsers = computed(() => store.state.allUsers || []);
-    const searchResults = computed(() => store.state.search.results || []);
-    const searchLoading = computed(() => store.state.search.loading || false);
-    const searchSource = computed(() => store.state.search.source || 'none');
     
     // Current user info
     const currentUserInfo = computed(() => {
@@ -1094,55 +1111,17 @@ export default {
       return canEditItem(item) && userRole.value === 'superadmin';
     };
     
-    // Displayed items - now using store's enhanced search
+    // Displayed items (either from live search or filtered inventory)
     const displayedItems = computed(() => {
-      // If we have search results from store, use them
-      if (searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0) {
-        return applyAdditionalFilters(searchResults.value);
-      }
-      
-      // Otherwise use filtered inventory from store
-      const filtered = store.getters.filteredInventoryEnhanced || [];
-      return applyAdditionalFilters(filtered);
+      return useLiveSearch.value ? liveSearchResults.value : filteredItems.value;
     });
     
-    // Apply additional filters (warehouse, status) to items
-    const applyAdditionalFilters = (items) => {
-      if (!Array.isArray(items)) {
-        return [];
-      }
-      
-      let filtered = [...items];
-      
-      if (selectedWarehouse.value && selectedWarehouse.value !== 'all') {
-        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
-      }
-      
-      if (statusFilter.value) {
-        filtered = filtered.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
-      return filtered.sort((a, b) => {
-        const nameA = a.name?.toLowerCase() || '';
-        const nameB = b.name?.toLowerCase() || '';
-        return nameA.localeCompare(nameB, 'ar');
-      });
-    };
-    
-    // Stats computed - FIXED: Added null checks
+    // Stats computed
     const totalQuantity = computed(() => {
-      if (!Array.isArray(displayedItems.value)) return 0;
       return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
-      if (!Array.isArray(displayedItems.value)) return 0;
       return displayedItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
@@ -1150,8 +1129,7 @@ export default {
     });
     
     const warehouseCount = computed(() => {
-      if (!Array.isArray(displayedItems.value)) return 0;
-      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id).filter(Boolean));
+      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id));
       return warehouses.size;
     });
     
@@ -1168,16 +1146,87 @@ export default {
       return count;
     });
     
+    // Enhanced search function that works with store structure
+    const performEnhancedSearch = (items, searchTerm) => {
+      if (!searchTerm || searchTerm.length < 2) return items;
+      
+      const term = searchTerm.toLowerCase().trim();
+      
+      return items.filter(item => {
+        // Search across all fields (matching store's data structure)
+        const fieldsToSearch = [
+          item.name,
+          item.code,
+          item.color,
+          item.supplier,
+          item.item_location,
+          // Warehouse name from cache
+          store.getters.getWarehouseLabel(item.warehouse_id),
+          // Numeric fields as strings
+          String(item.remaining_quantity),
+          String(item.cartons_count),
+          String(item.per_carton_count),
+          String(item.single_bottles_count),
+          String(item.total_added)
+        ].filter(Boolean).map(field => field.toString().toLowerCase());
+        
+        // Check if search term appears in any field with fuzzy matching
+        return fieldsToSearch.some(field => {
+          // Exact match
+          if (field.includes(term)) return true;
+          
+          // Partial match for longer terms
+          if (term.length > 2) {
+            // Check for similar words
+            const words = term.split(' ');
+            return words.some(word => 
+              word.length > 1 && field.includes(word)
+            );
+          }
+          
+          return false;
+        });
+      });
+    };
+    
+    // Filtered items - normal view (cached data)
+    const filteredItems = computed(() => {
+      let filtered = [...inventory.value];
+      
+      if (selectedWarehouse.value) {
+        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      if (statusFilter.value) {
+        filtered = filtered.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          if (statusFilter.value === 'in_stock') return quantity >= 10;
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'out_of_stock') return quantity === 0;
+          return true;
+        });
+      }
+      
+      // Use enhanced search on cached data
+      if (searchTerm.value && searchTerm.value.length >= 2) {
+        filtered = performEnhancedSearch(filtered, searchTerm.value);
+      }
+      
+      return filtered.sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB, 'ar');
+      });
+    });
+    
     // Visible items for virtual scrolling
     const visibleItems = computed(() => {
-      if (!Array.isArray(displayedItems.value)) return [];
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
       const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
       return displayedItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
-      if (!Array.isArray(displayedItems.value)) return [];
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
       const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
       return displayedItems.value.slice(start, end);
@@ -1206,21 +1255,10 @@ export default {
       return englishDigits;
     };
     
-    // FIXED: getWarehouseLabel function
+    // Use store's getWarehouseLabel getter
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
-      
-      // First try store's cache
-      const storeLabel = store.getters.getWarehouseLabel?.(warehouseId);
-      if (storeLabel && storeLabel !== warehouseId) return storeLabel;
-      
-      // Fallback to local warehouses array
-      const warehouse = allWarehouses.value.find(w => w.id === warehouseId);
-      if (warehouse) {
-        return warehouse.name_ar || warehouse.name || 'غير معروف';
-      }
-      
-      return warehouseId;
+      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
     };
     
     // Get user name from allUsers or return userId
@@ -1436,10 +1474,10 @@ export default {
           visibleStartIndex.value = newStartIndex;
         }
         
-        // Load more when near bottom
-        if (!searchTerm.value && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+        // Load more when near bottom (loads 100 items per batch)
+        if (!useLiveSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < 500) {
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
             loadMoreItems();
           }
         }
@@ -1466,41 +1504,56 @@ export default {
         }
         
         // Load more when near bottom
-        if (!searchTerm.value && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+        if (!useLiveSearch.value) {
           const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < 500) {
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
             loadMoreItems();
           }
         }
       });
     };
     
-    // ENHANCED LIVE SEARCH USING STORE'S SYSTEM
+    // ENHANCED LIVE SEARCH WITH FIREBASE AND CACHED DATA
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
-        // Clear search in store
-        await store.dispatch('clearSearch');
-        visibleStartIndex.value = 0;
-        mobileVisibleStartIndex.value = 0;
+        resetToNormalView();
         return;
       }
       
-      // Only search if we have at least 2 characters
+      // Only search if we have at least 2 characters (reduced from 3 for faster results)
       if (term.length < 2) {
+        useLiveSearch.value = false;
+        isLiveSearching.value = false;
         return;
       }
+      
+      // Start live search
+      isLiveSearching.value = true;
+      useLiveSearch.value = true;
       
       try {
-        // Use store's enhanced search system
-        await store.dispatch('searchInventoryEnhanced', {
-          query: term,
-          warehouseId: selectedWarehouse.value || null,
-          useCache: true
-        });
+        // Search in Firebase first (live data)
+        const firebaseResults = await searchInFirebase(term);
         
-        isDataFresh.value = searchSource.value === 'firebase';
+        // If we have results from Firebase, use them
+        if (firebaseResults.length > 0) {
+          liveSearchResults.value = applyAdditionalFilters(firebaseResults);
+          isDataFresh.value = true;
+        } else {
+          // Fallback to cached data search
+          const cachedResults = searchInCachedData(term);
+          liveSearchResults.value = applyAdditionalFilters(cachedResults);
+          isDataFresh.value = false;
+          
+          if (cachedResults.length === 0) {
+            store.dispatch('showNotification', {
+              type: 'info',
+              message: 'لم يتم العثور على نتائج في البيانات المباشرة أو المخزنة'
+            });
+          }
+        }
         
         // Reset scroll positions
         visibleStartIndex.value = 0;
@@ -1512,14 +1565,165 @@ export default {
           mobileScrollContainer.value.scrollTop = 0;
         }
         
+        // Show notification for live search results
+        if (liveSearchResults.value.length > 0) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم العثور على ${liveSearchResults.value.length} نتيجة للبحث: "${term}"`
+          });
+        }
+        
       } catch (error) {
         console.error('❌ Error in live search:', error);
+        
+        // Fallback to cached search on error
+        const cachedResults = searchInCachedData(term);
+        liveSearchResults.value = applyAdditionalFilters(cachedResults);
+        isDataFresh.value = false;
+        
         store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في البحث'
+          type: 'warning',
+          message: 'تم استخدام البيانات المخزنة للبحث بسبب مشكلة في الاتصال'
         });
+        
+      } finally {
+        isLiveSearching.value = false;
       }
     }, 300);
+    
+    // Search in Firebase (live data)
+    const searchInFirebase = async (searchTerm) => {
+      try {
+        const inventoryRef = collection(db, 'inventory');
+        const searchTermLower = searchTerm.toLowerCase();
+        
+        // Create multiple queries for different fields
+        const queries = [
+          // Search by name
+          query(
+            inventoryRef,
+            where('name', '>=', searchTerm),
+            where('name', '<=', searchTerm + '\uf8ff'),
+            orderBy('name'),
+            limit(100)
+          ),
+          // Search by code
+          query(
+            inventoryRef,
+            where('code', '>=', searchTerm),
+            where('code', '<=', searchTerm + '\uf8ff'),
+            orderBy('code'),
+            limit(100)
+          ),
+          // Search by color
+          query(
+            inventoryRef,
+            where('color', '>=', searchTerm),
+            where('color', '<=', searchTerm + '\uf8ff'),
+            orderBy('color'),
+            limit(100)
+          ),
+          // Search by supplier
+          query(
+            inventoryRef,
+            where('supplier', '>=', searchTerm),
+            where('supplier', '<=', searchTerm + '\uf8ff'),
+            orderBy('supplier'),
+            limit(100)
+          ),
+          // Search by location
+          query(
+            inventoryRef,
+            where('item_location', '>=', searchTerm),
+            where('item_location', '<=', searchTerm + '\uf8ff'),
+            orderBy('item_location'),
+            limit(100)
+          )
+        ];
+        
+        // Execute all queries in parallel
+        const queryPromises = queries.map(q => getDocs(q));
+        const querySnapshots = await Promise.all(queryPromises);
+        
+        // Combine and deduplicate results
+        const resultsMap = new Map();
+        
+        querySnapshots.forEach(snapshot => {
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const item = {
+              id: doc.id,
+              ...data,
+              // Ensure all required fields exist
+              remaining_quantity: data.remaining_quantity || 0,
+              cartons_count: data.cartons_count || 0,
+              per_carton_count: data.per_carton_count || 0,
+              single_bottles_count: data.single_bottles_count || 0,
+              total_added: data.total_added || 0
+            };
+            
+            // Fuzzy matching: check if search term appears in any relevant field
+            const searchFields = [
+              item.name?.toLowerCase(),
+              item.code?.toLowerCase(),
+              item.color?.toLowerCase(),
+              item.supplier?.toLowerCase(),
+              item.item_location?.toLowerCase(),
+              item.warehouse_id?.toLowerCase()
+            ].filter(Boolean);
+            
+            // Check for matches (exact or partial)
+            const hasMatch = searchFields.some(field => 
+              field.includes(searchTermLower) || 
+              (searchTermLower.length > 2 && 
+               searchTermLower.split(' ').some(word => 
+                 word.length > 1 && field.includes(word)
+               ))
+            );
+            
+            if (hasMatch && !resultsMap.has(item.id)) {
+              resultsMap.set(item.id, item);
+            }
+          });
+        });
+        
+        return Array.from(resultsMap.values());
+        
+      } catch (error) {
+        console.error('❌ Error searching in Firebase:', error);
+        return [];
+      }
+    };
+    
+    // Search in cached data
+    const searchInCachedData = (searchTerm) => {
+      return performEnhancedSearch(inventory.value, searchTerm);
+    };
+    
+    // Apply additional filters (warehouse, status) to search results
+    const applyAdditionalFilters = (items) => {
+      let filtered = [...items];
+      
+      if (selectedWarehouse.value) {
+        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      if (statusFilter.value) {
+        filtered = filtered.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          if (statusFilter.value === 'in_stock') return quantity >= 10;
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'out_of_stock') return quantity === 0;
+          return true;
+        });
+      }
+      
+      return filtered.sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB, 'ar');
+      });
+    };
     
     const handleWarehouseChange = async () => {
       // Reset scroll positions
@@ -1532,21 +1736,18 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      // Update warehouse filter in store
-      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
-      
-      // If we have search term, re-run search with new warehouse
-      if (searchTerm.value.trim()) {
+      // If we're in live search mode, re-run search with new warehouse filter
+      if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
     };
     
-    const resetToNormalView = async () => {
+    const resetToNormalView = () => {
+      useLiveSearch.value = false;
+      liveSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
-      
-      // Clear search in store
-      await store.dispatch('clearSearch');
+      isLiveSearching.value = false;
       
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
@@ -1558,19 +1759,12 @@ export default {
       }
     };
     
-    const clearAllFilters = async () => {
+    const clearAllFilters = () => {
       selectedWarehouse.value = '';
       statusFilter.value = '';
       searchTerm.value = '';
       showFilters.value = false;
-      
-      // Clear warehouse filter in store
-      await store.dispatch('setWarehouseFilter', '');
-      // Clear search in store
-      await store.dispatch('clearSearch');
-      
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
+      resetToNormalView();
     };
     
     const handleFilterChange = () => {
@@ -1582,11 +1776,16 @@ export default {
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
       }
+      
+      // If we're in live search mode, re-run search with new filters
+      if (useLiveSearch.value && searchTerm.value.trim()) {
+        handleLiveSearch();
+      }
     };
     
     // Excel Export - Enhanced with user and warehouse info
     const exportToExcel = async () => {
-      if (!Array.isArray(displayedItems.value) || displayedItems.value.length === 0) {
+      if (displayedItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1606,8 +1805,6 @@ export default {
           exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
           
           const warehouseId = item.warehouse_id;
-          if (!warehouseId) return;
-          
           if (!itemsByWarehouse[warehouseId]) {
             itemsByWarehouse[warehouseId] = [];
           }
@@ -1649,7 +1846,7 @@ export default {
           'عدد المخازن': warehouseCount.value,
           'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
           'تم التصدير بواسطة': currentUserInfo.value,
-          'مصدر البيانات': searchSource.value === 'firebase' ? 'بحث مباشر' : 'بيانات مخزنة'
+          'مصدر البيانات': useLiveSearch.value ? 'بحث مباشر' : 'بيانات مخزنة'
         }];
         
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
@@ -1725,19 +1922,15 @@ export default {
     const refreshData = async () => {
       try {
         refreshing.value = true;
-        
-        // Clear search first
-        await store.dispatch('clearSearch');
-        
-        // Load fresh data
-        await store.dispatch('loadAllInventory', { forceRefresh: true });
-        
-        // Load warehouses
-        await store.dispatch('loadWarehousesEnhanced');
-        
+        await store.dispatch('refreshAllData');
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         saveToCache();
+        
+        // If in live search mode, refresh search results
+        if (useLiveSearch.value && searchTerm.value.trim()) {
+          await handleLiveSearch();
+        }
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1755,9 +1948,9 @@ export default {
       }
     };
     
-    // Load more items using store's loadMoreInventory
+    // Load more items - loads 100 items per batch using store's loadMoreInventory
     const loadMoreItems = async () => {
-      if (hasMore.value && !loadingMore.value && !searchTerm.value) {
+      if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
           loadingMore.value = true;
           await store.dispatch('loadMoreInventory');
@@ -1784,8 +1977,6 @@ export default {
     };
     
     const showItemDetails = (item) => {
-      if (!item) return;
-      
       selectedItem.value = {
         ...item,
         warehouse_name: getWarehouseLabel(item.warehouse_id),
@@ -1802,7 +1993,7 @@ export default {
     };
     
     const handleTransfer = (item) => {
-      if (!item || !canTransferItem(item)) {
+      if (!canTransferItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية النقل من هذا المخزن'
@@ -1816,7 +2007,7 @@ export default {
     };
     
     const handleDispatch = (item) => {
-      if (!item || !canDispatchItem(item)) {
+      if (!canDispatchItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية الصرف من هذا المخزن'
@@ -1830,7 +2021,7 @@ export default {
     };
     
     const handleEdit = (item) => {
-      if (!item || !canEditItem(item)) {
+      if (!canEditItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية التعديل على هذا المخزن'
@@ -1847,7 +2038,7 @@ export default {
     };
     
     const handleDelete = (item) => {
-      if (!item || !canDeleteItem(item)) {
+      if (!canDeleteItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية حذف هذا الصنف'
@@ -1879,8 +2070,8 @@ export default {
           closeDetailsModal();
         }
         
-        // Refresh search results if active
-        if (searchTerm.value.trim()) {
+        // Refresh live search results if active
+        if (useLiveSearch.value && searchTerm.value.trim()) {
           await handleLiveSearch();
         }
         
@@ -1902,8 +2093,8 @@ export default {
       showAddModal.value = false;
       saveToCache();
       
-      // Refresh search results if active
-      if (searchTerm.value.trim()) {
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
@@ -1918,8 +2109,8 @@ export default {
       selectedItemForEdit.value = null;
       saveToCache();
       
-      // Refresh search results if active
-      if (searchTerm.value.trim()) {
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
@@ -1934,8 +2125,8 @@ export default {
       selectedItemForTransfer.value = null;
       saveToCache();
       
-      // Refresh search results if active
-      if (searchTerm.value.trim()) {
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
@@ -1950,8 +2141,8 @@ export default {
       selectedItemForDispatch.value = null;
       saveToCache();
       
-      // Refresh search results if active
-      if (searchTerm.value.trim()) {
+      // Refresh live search results if active
+      if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
@@ -1998,12 +2189,11 @@ export default {
       }
       
       if (allWarehouses.value.length === 0) {
-        store.dispatch('loadWarehousesEnhanced');
+        store.dispatch('loadWarehouses');
       }
       
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
-        store.dispatch('setWarehouseFilter', accessibleWarehouses.value[0].id);
       }
       
       if (route.name === 'AddInventory') {
@@ -2022,6 +2212,10 @@ export default {
     });
     
     onUnmounted(() => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
+      
       if (scrollContainer.value) {
         scrollContainer.value.removeEventListener('scroll', onScroll);
       }
@@ -2036,26 +2230,16 @@ export default {
       
       // Clean up store's real-time listeners
       store.commit('CLEAR_REALTIME_LISTENERS');
-      
-      // Clear search in store
-      store.dispatch('clearSearch');
     });
     
-    // Watch for changes
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
       handleFilterChange();
     });
     
-    watch(() => displayedItems.value, () => {
-      // Reset scroll position when items change
+    watch(() => displayedItems.value.length, () => {
+      // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
-    }, { deep: true });
-    
-    watch(() => selectedWarehouse.value, async (newWarehouse) => {
-      if (newWarehouse) {
-        await handleWarehouseChange();
-      }
     });
     
     return {
@@ -2082,6 +2266,11 @@ export default {
       refreshing,
       exportProgress,
       
+      // Live search state
+      useLiveSearch,
+      liveSearchResults,
+      isLiveSearching,
+      
       // Mobile UI State
       showFilters,
       
@@ -2102,6 +2291,7 @@ export default {
       canAddItem,
       showActions,
       readonly,
+      filteredItems,
       displayedItems,
       visibleItems,
       mobileVisibleItems,
@@ -2111,8 +2301,6 @@ export default {
       isFetchingMore,
       totalLoaded,
       inventoryLoaded,
-      searchLoading,
-      searchSource,
       
       // Stats
       totalQuantity,
@@ -2173,6 +2361,7 @@ export default {
   }
 };
 </script>
+
 <style scoped>
 /* Performance optimized styles */
 table {
