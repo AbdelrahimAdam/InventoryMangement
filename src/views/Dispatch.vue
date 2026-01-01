@@ -1,22 +1,28 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-    <!-- Header -->
+    <!-- Header - Enhanced for Mobile -->
     <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div class="w-full px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center space-x-4 space-x-reverse">
+      <div class="w-full px-3 sm:px-4 lg:px-6">
+        <div class="flex justify-between items-center h-14 sm:h-16">
+          <!-- Logo and Title - Mobile Optimized -->
+          <div class="flex items-center space-x-2 space-x-reverse">
             <router-link to="/" class="flex items-center space-x-2 space-x-reverse hover:opacity-80 transition-opacity">
-              <div class="h-8 w-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span class="text-white font-bold text-sm">م</span>
+              <div class="h-7 w-7 sm:h-8 sm:w-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span class="text-white font-bold text-xs sm:text-sm">م</span>
               </div>
-              <div>
+              <div class="hidden sm:block">
                 <h1 class="text-lg font-bold text-gray-900 dark:text-white">صرف المخزون</h1>
                 <p class="text-xs text-gray-500 dark:text-gray-400">نظام إدارة المخزون والفواتير</p>
+              </div>
+              <div class="sm:hidden">
+                <h1 class="text-sm font-bold text-gray-900 dark:text-white">صرف المخزون</h1>
               </div>
             </router-link>
           </div>
 
-          <div class="flex items-center space-x-3 space-x-reverse">
+          <!-- User Actions - Mobile Optimized -->
+          <div class="flex items-center space-x-2 space-x-reverse">
+            <!-- User Info - Desktop Only -->
             <div class="hidden md:flex items-center space-x-2 space-x-reverse text-sm">
               <span class="text-gray-600 dark:text-gray-300">{{ userName }}</span>
               <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-full text-xs">
@@ -24,32 +30,36 @@
               </span>
             </div>
 
-            <div class="flex items-center space-x-2 space-x-reverse">
+            <!-- Buttons - Mobile Optimized -->
+            <div class="flex items-center space-x-1 sm:space-x-2 space-x-reverse">
+              <!-- Inventory Button - Icon only on mobile -->
               <router-link 
                 to="/inventory" 
-                class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+                class="inline-flex items-center p-2 sm:px-4 sm:py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+                :title="'المخزون'"
               >
-                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                 </svg>
-                المخزون
+                <span class="hidden sm:inline">المخزون</span>
               </router-link>
 
-              <!-- Invoice System Toggle Button -->
+              <!-- Invoice System Toggle Button - Mobile Optimized -->
               <button 
                 @click="toggleInvoiceSystem"
                 :class="[
-                  'inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200',
+                  'inline-flex items-center p-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap',
                   showInvoiceSystem 
                     ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700'
                     : 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:from-teal-600 hover:to-emerald-600'
                 ]"
                 style="display: inline-flex !important;"
               >
-                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                {{ showInvoiceSystem ? 'العودة للصرف' : 'نظام الفواتير' }}
+                <span class="hidden sm:inline">{{ showInvoiceSystem ? 'العودة للصرف' : 'نظام الفواتير' }}</span>
+                <span class="sm:hidden">{{ showInvoiceSystem ? 'عودة' : 'فواتير' }}</span>
               </button>
             </div>
           </div>
@@ -57,126 +67,129 @@
       </div>
     </header>
 
-    <main class="w-full px-4 sm:px-6 lg:px-8 py-8">
+    <main class="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
       <!-- ============================================ -->
-      <!-- INVOICE SYSTEM SECTION (When toggled ON) -->
+      <!-- INVOICE SYSTEM SECTION (When toggled ON) - MOBILE OPTIMIZED -->
       <!-- ============================================ -->
       <div v-if="showInvoiceSystem">
-        <!-- Invoice System Header -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <!-- Invoice System Header - Mobile Optimized -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
-              <h2 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">نظام الفواتير الضريبية</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400">نظام فواتير متوافق مع مصلحة الضرائب المصرية</p>
+              <h2 class="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">نظام الفواتير الضريبية</h2>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">نظام فواتير متوافق مع مصلحة الضرائب المصرية</p>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-3">
-              <button @click="createNewInvoice" class="btn-primary">
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Action Buttons - Stacked on Mobile -->
+            <div class="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
+              <button @click="createNewInvoice" class="btn-primary flex-1 sm:flex-none">
+                <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                فاتورة جديدة
+                <span class="whitespace-nowrap">فاتورة جديدة</span>
               </button>
-              <button @click="exportInvoicesToExcel" :disabled="invoices.length === 0" class="btn-secondary">
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button @click="exportInvoicesToExcel" :disabled="invoices.length === 0" class="btn-secondary flex-1 sm:flex-none">
+                <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                تصدير Excel
+                <span class="hidden sm:inline">تصدير Excel</span>
+                <span class="sm:hidden">Excel</span>
               </button>
-              <button @click="exportToPDF" :disabled="invoices.length === 0" class="btn-success">
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button @click="exportToPDF" :disabled="invoices.length === 0" class="btn-success flex-1 sm:flex-none">
+                <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                تصدير PDF
+                <span class="hidden sm:inline">تصدير PDF</span>
+                <span class="sm:hidden">PDF</span>
               </button>
             </div>
           </div>
 
-          <!-- Quick Stats -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <!-- Quick Stats - Responsive Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div class="stat-card">
               <div class="stat-icon bg-blue-100 dark:bg-blue-900">
-                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إجمالي الفواتير</p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ totalInvoices }}</p>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">إجمالي الفواتير</p>
+                <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{{ totalInvoices }}</p>
               </div>
             </div>
 
             <div class="stat-card">
               <div class="stat-icon bg-green-100 dark:bg-green-900">
-                <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إجمالي المبيعات</p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalSales) }}</p>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">إجمالي المبيعات</p>
+                <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalSales) }}</p>
               </div>
             </div>
 
             <div class="stat-card">
               <div class="stat-icon bg-yellow-100 dark:bg-yellow-900">
-                <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">العملاء</p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ uniqueCustomers }}</p>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">العملاء</p>
+                <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{{ uniqueCustomers }}</p>
               </div>
             </div>
 
             <div class="stat-card">
               <div class="stat-icon bg-purple-100 dark:bg-purple-900">
-                <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">الضريبة</p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalTax) }}</p>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">الضريبة</p>
+                <p class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalTax) }}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Invoice Creation/Editing Form - REFACTORED TO MATCH DISPATCH MODAL LAYOUT -->
-        <div v-if="showInvoiceForm" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-          <!-- Form Header -->
-          <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <!-- Invoice Creation/Editing Form - MOBILE OPTIMIZED -->
+        <div v-if="showInvoiceForm" class="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto">
+          <!-- Form Header - Mobile Optimized -->
+          <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              <div class="min-w-0 flex-1">
+                <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                   {{ editingInvoice ? 'تعديل فاتورة #' + editingInvoice.invoiceNumber : 'إنشاء فاتورة جديدة' }}
                 </h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">املأ بيانات الفاتورة وإضافة الأصناف</p>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">املأ بيانات الفاتورة وإضافة الأصناف</p>
               </div>
-              <button @click="cancelInvoiceForm" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button @click="cancelInvoiceForm" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0 ml-2">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
           </div>
 
-          <!-- Main Form Content -->
-          <div class="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-            <!-- Step 1: Invoice Type and Customer Information -->
+          <!-- Main Form Content - Mobile Optimized -->
+          <div class="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 overflow-y-auto max-h-[calc(100vh-180px)]">
+            <!-- Step 1: Invoice Type and Customer Information - Responsive Grid -->
             <div>
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
-                معلومات الفاتورة والعميل
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
+                <span class="h-5 w-5 sm:h-6 sm:w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">1</span>
+                <span class="truncate">معلومات الفاتورة والعميل</span>
               </h4>
               
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <!-- Invoice Type -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نوع الفاتورة *</label>
-                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">نوع الفاتورة *</label>
+                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="B2B">فاتورة ضريبية (B2B) - نشاط تجاري</option>
                     <option value="B2C">فاتورة ضريبية (B2C) - مستهلك نهائي</option>
                     <option value="simplified">فاتورة مبسطة</option>
@@ -185,8 +198,8 @@
 
                 <!-- Payment Method -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">طريقة الدفع *</label>
-                  <select v-model="invoiceForm.paymentMethod" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">طريقة الدفع *</label>
+                  <select v-model="invoiceForm.paymentMethod" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="cash">نقدي</option>
                     <option value="bank">تحويل بنكي</option>
                     <option value="check">شيك</option>
@@ -196,40 +209,40 @@
 
                 <!-- Customer Name -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم العميل *</label>
-                  <input v-model="invoiceForm.customer.name" type="text" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="اسم العميل الكامل" required>
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">اسم العميل *</label>
+                  <input v-model="invoiceForm.customer.name" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="اسم العميل الكامل" required>
                 </div>
 
                 <!-- Customer Phone -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">رقم الهاتف *</label>
-                  <input v-model="invoiceForm.customer.phone" type="tel" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="01XXXXXXXXX" required>
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">رقم الهاتف *</label>
+                  <input v-model="invoiceForm.customer.phone" type="tel" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="01XXXXXXXXX" required>
                 </div>
 
                 <!-- Tax ID (for B2B only) -->
-                <div v-if="invoiceForm.type === 'B2B'">
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الرقم الضريبي *</label>
-                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
+                <div v-if="invoiceForm.type === 'B2B'" class="sm:col-span-2">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">الرقم الضريبي *</label>
+                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
                 </div>
 
                 <!-- Customer Address -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">العنوان</label>
-                  <input v-model="invoiceForm.customer.address" type="text" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="عنوان العميل">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">العنوان</label>
+                  <input v-model="invoiceForm.customer.address" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="عنوان العميل">
                 </div>
 
                 <!-- Notes -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ملاحظات</label>
-                  <textarea v-model="invoiceForm.notes" rows="2" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="ملاحظات إضافية..."></textarea>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">ملاحظات</label>
+                  <textarea v-model="invoiceForm.notes" rows="2" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
               </div>
             </div>
 
             <!-- Step 2: Warehouse Selection -->
             <div>
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                <span class="h-6 w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
+                <span class="h-5 w-5 sm:h-6 sm:w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">2</span>
                 اختر المخزن
               </h4>
               
@@ -237,7 +250,7 @@
                 <select 
                   v-model="selectedWarehouseForInvoice" 
                   @change="loadWarehouseItems" 
-                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" 
+                  class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" 
                   required
                   :disabled="availableWarehouses.length === 0"
                 >
@@ -252,25 +265,25 @@
                 </select>
                 
                 <!-- Warehouse Info -->
-                <div v-if="selectedWarehouseForInvoice" class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                <div v-if="selectedWarehouseForInvoice" class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 sm:gap-2">
                   <span>المخزن: {{ getWarehouseLabel(selectedWarehouseForInvoice) }}</span>
                 </div>
                 
                 <!-- Error message if no warehouses available -->
-                <div v-if="availableWarehouses.length === 0" class="mt-2 text-xs px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full inline-flex items-center">
+                <div v-if="availableWarehouses.length === 0" class="mt-2 text-xs px-2 sm:px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full inline-flex items-center">
                   <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
                   </svg>
-                  ليس لديك صلاحية للوصول إلى أي مخزن. يرجى التواصل مع المشرف.
+                  ليس لديك صلاحية للوصول إلى أي مخزن
                 </div>
               </div>
             </div>
 
-            <!-- Step 3: Add Items -->
+            <!-- Step 3: Add Items - Mobile Optimized -->
             <div>
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <span class="h-6 w-6 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
+              <div class="flex items-center justify-between mb-2 sm:mb-3">
+                <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                  <span class="h-5 w-5 sm:h-6 sm:w-6 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">3</span>
                   إضافة الأصناف للفاتورة
                 </h4>
                 <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -279,13 +292,13 @@
               </div>
 
               <!-- Search Items -->
-              <div class="relative mb-4">
+              <div class="relative mb-3 sm:mb-4">
                 <input 
                   v-model="itemSearch" 
                   @input="searchItems" 
                   type="text" 
-                  class="w-full pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  placeholder="ابحث عن صنف بالاسم أو الكود..."
+                  class="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  placeholder="ابحث عن صنف..."
                   :disabled="!selectedWarehouseForInvoice"
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -295,28 +308,28 @@
                 </div>
               </div>
 
-              <!-- Available Items Grid -->
-              <div v-if="availableItemsForInvoice.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              <!-- Available Items Grid - Responsive -->
+              <div v-if="availableItemsForInvoice.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div 
                   v-for="item in availableItemsForInvoice" 
                   :key="item.id"
                   @click="addItemToInvoice(item)"
-                  class="p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm"
+                  class="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ item.code }}</p>
+                      <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</p>
                       <div class="mt-2 flex items-center flex-wrap gap-1">
-                        <span :class="['text-xs px-2 py-0.5 rounded', getQuantityClass(item.remaining_quantity)]">
+                        <span :class="['text-xs px-1.5 sm:px-2 py-0.5 rounded', getQuantityClass(item.remaining_quantity)]">
                           {{ formatNumber(item.remaining_quantity) }} متبقي
                         </span>
-                        <span class="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        <span class="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
                           السعر: {{ formatCurrency(item.sale_price || 0) }}
                         </span>
                       </div>
                     </div>
-                    <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0 mr-1 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                   </div>
@@ -324,40 +337,40 @@
               </div>
 
               <!-- No Items Available -->
-              <div v-else-if="selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-center">
-                <svg class="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+              <div v-else-if="selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+                <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
                 </svg>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3">لا توجد أصناف</h4>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 sm:mt-3">لا توجد أصناف</h4>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {{ itemSearch ? 'لا توجد أصناف مطابقة للبحث' : 'لا توجد أصناف متاحة في هذا المخزن' }}
                 </p>
               </div>
 
               <!-- Please Select Warehouse -->
-              <div v-else class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-center">
-                <svg class="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div v-else class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+                <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3">اختر مخزن أولاً</h4>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 sm:mt-3">اختر مخزن أولاً</h4>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   يرجى اختيار مخزن لعرض الأصناف المتاحة
                 </p>
               </div>
             </div>
 
-            <!-- Selected Items Section -->
+            <!-- Selected Items Section - Mobile Optimized -->
             <div v-if="invoiceForm.items.length > 0">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                <span class="h-6 w-6 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center text-xs ml-2">4</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
+                <span class="h-5 w-5 sm:h-6 sm:w-6 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">4</span>
                 الأصناف المحددة
-                <span class="text-xs text-gray-500 dark:text-gray-400 mr-2">({{ invoiceForm.items.length }} صنف)</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400 mr-1 sm:mr-2">({{ invoiceForm.items.length }} صنف)</span>
               </h4>
 
-              <!-- Selected Items Table -->
+              <!-- Selected Items Table - Mobile Optimized -->
               <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <!-- Table Header -->
-                <div class="grid grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                <!-- Table Header - Hidden on Mobile, Card View Instead -->
+                <div class="hidden sm:grid sm:grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                   <div class="col-span-4 p-3">الصنف</div>
                   <div class="col-span-2 p-3 text-center">السعر</div>
                   <div class="col-span-2 p-3 text-center">الكمية</div>
@@ -365,81 +378,175 @@
                   <div class="col-span-2 p-3 text-center">الإجراءات</div>
                 </div>
 
-                <!-- Table Body -->
-                <div class="max-h-60 overflow-y-auto">
-                  <div
-                    v-for="(item, index) in invoiceForm.items"
-                    :key="item.id"
-                    class="grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
-                  >
-                    <!-- Item Name and Details -->
-                    <div class="col-span-4 p-3">
-                      <div class="font-medium text-sm text-gray-900 dark:text-white">{{ item.name }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ item.code }}</div>
-                    </div>
-
-                    <!-- Unit Price -->
-                    <div class="col-span-2 p-3 text-center">
-                      <input 
-                        v-model.number="item.unitPrice" 
-                        type="number" 
-                        min="0" 
-                        step="0.01"
-                        @change="updateItemTotal(index)"
-                        class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                    </div>
-
-                    <!-- Quantity -->
-                    <div class="col-span-2 p-3 text-center">
-                      <div class="flex items-center justify-center space-x-2 space-x-reverse">
-                        <button @click="decreaseQuantity(index)" 
-                          class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                          :disabled="item.quantity <= 1">
-                          -
+                <!-- Table Body - Mobile Card View -->
+                <div class="max-h-60 overflow-y-auto p-1 sm:p-0">
+                  <!-- Mobile Card View -->
+                  <div class="sm:hidden space-y-2">
+                    <div
+                      v-for="(item, index) in invoiceForm.items"
+                      :key="item.id"
+                      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
+                    >
+                      <!-- Item Header -->
+                      <div class="flex justify-between items-start mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
+                          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</p>
+                        </div>
+                        <button @click="removeItem(index)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2 flex-shrink-0">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
                         </button>
+                      </div>
+
+                      <!-- Item Controls - Mobile Optimized -->
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <!-- Price -->
+                        <div>
+                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">السعر</label>
+                          <input 
+                            v-model.number="item.unitPrice" 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            @change="updateItemTotal(index)"
+                            class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                        </div>
+
+                        <!-- Quantity -->
+                        <div>
+                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</label>
+                          <div class="flex items-center space-x-1 space-x-reverse">
+                            <button @click="decreaseQuantity(index)" 
+                              class="w-7 h-7 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              :disabled="item.quantity <= 1">
+                              -
+                            </button>
+                            <input 
+                              v-model.number="item.quantity" 
+                              type="number" 
+                              min="1" 
+                              :max="item.maxQuantity"
+                              @change="validateItemQuantity(index)"
+                              class="flex-1 px-2 py-1.5 border-y border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                            <button @click="increaseQuantity(index)" 
+                              class="w-7 h-7 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              :disabled="item.quantity >= item.maxQuantity">
+                              +
+                            </button>
+                          </div>
+                          <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                            متوفر: {{ formatNumber(item.maxQuantity) }}
+                          </div>
+                        </div>
+
+                        <!-- Discount -->
+                        <div>
+                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الخصم %</label>
+                          <input 
+                            v-model.number="item.discount" 
+                            type="number" 
+                            min="0" 
+                            max="100"
+                            step="0.1"
+                            @change="updateItemTotal(index)"
+                            class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                          <div v-if="item.discount > 0" class="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
+                            خصم {{ item.discount }}%
+                          </div>
+                        </div>
+
+                        <!-- Total -->
+                        <div>
+                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الإجمالي</label>
+                          <div class="text-sm font-medium text-gray-900 dark:text-white text-center">
+                            {{ formatCurrency(item.total || 0) }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Desktop Table View -->
+                  <div class="hidden sm:block">
+                    <div
+                      v-for="(item, index) in invoiceForm.items"
+                      :key="item.id"
+                      class="grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
+                    >
+                      <!-- Item Name and Details -->
+                      <div class="col-span-4 p-3">
+                        <div class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ item.name }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</div>
+                      </div>
+
+                      <!-- Unit Price -->
+                      <div class="col-span-2 p-3">
                         <input 
-                          v-model.number="item.quantity" 
+                          v-model.number="item.unitPrice" 
                           type="number" 
-                          min="1" 
-                          :max="item.maxQuantity"
-                          @change="validateItemQuantity(index)"
-                          class="w-16 px-2 py-1.5 border-y border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          min="0" 
+                          step="0.01"
+                          @change="updateItemTotal(index)"
+                          class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         >
-                        <button @click="increaseQuantity(index)" 
-                          class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                          :disabled="item.quantity >= item.maxQuantity">
-                          +
+                      </div>
+
+                      <!-- Quantity -->
+                      <div class="col-span-2 p-3">
+                        <div class="flex items-center justify-center space-x-2 space-x-reverse">
+                          <button @click="decreaseQuantity(index)" 
+                            class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            :disabled="item.quantity <= 1">
+                            -
+                          </button>
+                          <input 
+                            v-model.number="item.quantity" 
+                            type="number" 
+                            min="1" 
+                            :max="item.maxQuantity"
+                            @change="validateItemQuantity(index)"
+                            class="w-16 px-2 py-1.5 border-y border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                          <button @click="increaseQuantity(index)" 
+                            class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            :disabled="item.quantity >= item.maxQuantity">
+                            +
+                          </button>
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                          متوفر: {{ formatNumber(item.maxQuantity) }}
+                        </div>
+                      </div>
+
+                      <!-- Discount -->
+                      <div class="col-span-2 p-3">
+                        <input 
+                          v-model.number="item.discount" 
+                          type="number" 
+                          min="0" 
+                          max="100"
+                          step="0.1"
+                          @change="updateItemTotal(index)"
+                          class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                        <div v-if="item.discount > 0" class="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
+                          خصم {{ item.discount }}%
+                        </div>
+                      </div>
+
+                      <!-- Actions -->
+                      <div class="col-span-2 p-3 text-center">
+                        <button @click="removeItem(index)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
                         </button>
                       </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        متوفر: {{ formatNumber(item.maxQuantity) }}
-                      </div>
-                    </div>
-
-                    <!-- Discount -->
-                    <div class="col-span-2 p-3 text-center">
-                      <input 
-                        v-model.number="item.discount" 
-                        type="number" 
-                        min="0" 
-                        max="100"
-                        step="0.1"
-                        @change="updateItemTotal(index)"
-                        class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                      <div v-if="item.discount > 0" class="text-xs text-red-600 dark:text-red-400 mt-1">
-                        خصم {{ item.discount }}%
-                      </div>
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="col-span-2 p-3 text-center">
-                      <button @click="removeItem(index)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -454,34 +561,34 @@
               </div>
             </div>
 
-            <!-- Step 5: Invoice Summary -->
+            <!-- Step 5: Invoice Summary - Mobile Optimized -->
             <div v-if="invoiceForm.items.length > 0">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                <span class="h-6 w-6 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-2">5</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
+                <span class="h-5 w-5 sm:h-6 sm:w-6 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">5</span>
                 ملخص الفاتورة
               </h4>
 
-              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700 p-5">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg sm:rounded-xl border border-blue-200 dark:border-blue-700 p-3 sm:p-4 lg:p-5">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   <!-- Invoice Details -->
                   <div>
-                    <h5 class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-4">تفاصيل الفاتورة</h5>
-                    <div class="space-y-3">
+                    <h5 class="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-300 mb-2 sm:mb-4">تفاصيل الفاتورة</h5>
+                    <div class="space-y-2 sm:space-y-3">
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">عدد الأصناف:</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ invoiceForm.items.length }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">عدد الأصناف:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{{ invoiceForm.items.length }}</span>
                       </div>
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">إجمالي الكميات:</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ totalQuantity }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">إجمالي الكميات:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{{ totalQuantity }}</span>
                       </div>
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">المخزن:</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ getWarehouseLabel(selectedWarehouseForInvoice) }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">المخزن:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white truncate">{{ getWarehouseLabel(selectedWarehouseForInvoice) }}</span>
                       </div>
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">طريقة الدفع:</span>
-                        <span class="font-medium text-gray-900 dark:text-white">
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">طريقة الدفع:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
                           {{ invoiceForm.paymentMethod === 'cash' ? 'نقدي' : 
                              invoiceForm.paymentMethod === 'bank' ? 'تحويل بنكي' : 
                              invoiceForm.paymentMethod === 'check' ? 'شيك' : 'آجل' }}
@@ -492,23 +599,23 @@
 
                   <!-- Invoice Totals -->
                   <div>
-                    <h5 class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-4">الحسابات</h5>
-                    <div class="space-y-3">
+                    <h5 class="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-300 mb-2 sm:mb-4">الحسابات</h5>
+                    <div class="space-y-2 sm:space-y-3">
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">المجموع:</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(subtotal) }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">المجموع:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{{ formatCurrency(subtotal) }}</span>
                       </div>
                       <div class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">الخصم:</span>
-                        <span class="font-medium text-red-600 dark:text-red-400">-{{ formatCurrency(totalDiscount) }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">الخصم:</span>
+                        <span class="text-sm sm:text-base font-medium text-red-600 dark:text-red-400">-{{ formatCurrency(totalDiscount) }}</span>
                       </div>
                       <div v-if="invoiceForm.type === 'B2B' || invoiceForm.type === 'B2C'" class="flex justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">الضريبة (14%):</span>
-                        <span class="font-medium text-gray-900 dark:text-white">+{{ formatCurrency(taxAmount) }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">الضريبة (14%):</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">+{{ formatCurrency(taxAmount) }}</span>
                       </div>
-                      <div class="flex justify-between pt-3 border-t border-blue-200 dark:border-blue-700">
-                        <span class="text-lg font-bold text-gray-900 dark:text-white">الإجمالي النهائي:</span>
-                        <span class="text-xl font-bold text-green-600 dark:text-green-400">{{ formatCurrency(totalAmount) }}</span>
+                      <div class="flex justify-between pt-2 sm:pt-3 border-t border-blue-200 dark:border-blue-700">
+                        <span class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">الإجمالي النهائي:</span>
+                        <span class="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">{{ formatCurrency(totalAmount) }}</span>
                       </div>
                     </div>
                   </div>
@@ -517,25 +624,25 @@
             </div>
 
             <!-- No Items Selected Message -->
-            <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
-              <svg class="mx-auto h-10 w-10 text-yellow-400 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 sm:p-6 text-center">
+              <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-yellow-400 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
               </svg>
-              <h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mt-3">لم يتم إضافة أصناف</h4>
+              <h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mt-2 sm:mt-3">لم يتم إضافة أصناف</h4>
               <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
                 يرجى إضافة أصناف للفاتورة قبل المتابعة
               </p>
             </div>
           </div>
 
-          <!-- Fixed Footer -->
-          <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
-            <div class="flex space-x-3 space-x-reverse">
+          <!-- Fixed Footer - Mobile Optimized -->
+          <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 space-x-reverse">
               <button
                 type="button"
                 @click="cancelInvoiceForm"
                 :disabled="saving"
-                class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50"
+                class="order-2 sm:order-1 px-4 py-2.5 sm:flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50"
               >
                 إلغاء
               </button>
@@ -544,7 +651,7 @@
                 @click="saveAndPrint"
                 :disabled="!canSaveInvoice || saving"
                 :class="[
-                  'flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
+                  'order-1 sm:order-2 px-4 py-2.5 sm:flex-1 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
                   (!canSaveInvoice || saving)
                     ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                     : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 dark:from-purple-600 dark:to-indigo-700 dark:hover:from-purple-700 dark:hover:to-indigo-800'
@@ -564,7 +671,7 @@
                 @click="saveInvoice"
                 :disabled="!canSaveInvoice || saving"
                 :class="[
-                  'flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
+                  'order-3 px-4 py-2.5 sm:flex-1 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
                   (!canSaveInvoice || saving)
                     ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 dark:from-green-600 dark:to-emerald-700 dark:hover:from-green-700 dark:hover:to-emerald-800'
@@ -583,31 +690,32 @@
           </div>
         </div>
 
-        <!-- Invoices List (When not in create/edit mode) -->
+        <!-- Invoices List (When not in create/edit mode) - Mobile Optimized -->
         <div v-if="!showInvoiceForm" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <!-- List Header with Filters -->
-          <div class="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <!-- List Header with Filters - Mobile Optimized -->
+          <div class="p-3 sm:p-4 lg:p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">الفواتير المسجلة</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">إجمالي {{ filteredInvoices.length }} فاتورة</p>
+                <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">الفواتير المسجلة</h3>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">إجمالي {{ filteredInvoices.length }} فاتورة</p>
               </div>
 
-              <div class="flex flex-col sm:flex-row gap-3">
-                <div class="relative">
+              <!-- Filters - Stacked on Mobile -->
+              <div class="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
+                <div class="relative flex-1 min-w-0">
                   <input 
                     v-model="invoiceSearchTerm" 
                     @input="filterInvoices" 
                     type="text" 
-                    class="input-field pl-10" 
-                    placeholder="ابحث برقم أو اسم..."
+                    class="w-full px-3 py-2.5 pr-9 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="بحث..."
                   >
-                  <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
                 </div>
 
-                <select v-model="invoiceStatusFilter" @change="filterInvoices" class="input-field">
+                <select v-model="invoiceStatusFilter" @change="filterInvoices" class="input-field text-sm py-2.5">
                   <option value="">جميع الحالات</option>
                   <option value="draft">مسودة</option>
                   <option value="issued">صادرة</option>
@@ -615,7 +723,7 @@
                   <option value="cancelled">ملغية</option>
                 </select>
 
-                <select v-model="invoiceTypeFilter" @change="filterInvoices" class="input-field">
+                <select v-model="invoiceTypeFilter" @change="filterInvoices" class="input-field text-sm py-2.5">
                   <option value="">جميع الأنواع</option>
                   <option value="B2B">B2B</option>
                   <option value="B2C">B2C</option>
@@ -625,43 +733,44 @@
             </div>
           </div>
 
-          <!-- Invoices Table -->
+          <!-- Invoices Table - Mobile Optimized -->
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Desktop Table -->
+            <table class="hidden sm:table min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">رقم الفاتورة</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">التاريخ</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العميل</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">النوع</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المبلغ</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجراءات</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">رقم الفاتورة</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">التاريخ</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العميل</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">النوع</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المبلغ</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
+                  <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجراءات</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 <tr v-for="invoice in paginatedInvoices" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900 dark:text-white">#{{ invoice.invoiceNumber }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.items?.length || 0 }} صنف</div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900 dark:text-white">{{ formatDate(invoice.date) }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(invoice.date) }}</div>
                   </td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white">{{ invoice.customer.name }}</div>
+                  <td class="px-4 lg:px-6 py-4">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[150px]">{{ invoice.customer.name }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.customer.phone }}</div>
-                    <div v-if="invoice.customer.taxId" class="text-xs text-blue-600 dark:text-blue-400">
+                    <div v-if="invoice.customer.taxId" class="text-xs text-blue-600 dark:text-blue-400 truncate max-w-[150px]">
                       ضريبي: {{ invoice.customer.taxId }}
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <span class="px-2 py-1 text-xs rounded-full" :class="getInvoiceTypeClass(invoice.type)">
                       {{ getInvoiceTypeLabel(invoice.type) }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900 dark:text-white">{{ formatCurrency(invoice.totalAmount) }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
                       {{ invoice.paymentMethod === 'cash' ? 'نقدي' : 
@@ -669,36 +778,36 @@
                          invoice.paymentMethod === 'check' ? 'شيك' : 'آجل' }}
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <span class="px-2 py-1 text-xs rounded-full" :class="getInvoiceStatusClass(invoice.status)">
                       {{ getInvoiceStatusLabel(invoice.status) }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div class="flex items-center space-x-2 space-x-reverse">
+                  <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div class="flex items-center space-x-1 space-x-reverse">
                       <button @click="viewInvoice(invoice)" class="action-btn text-blue-600 dark:text-blue-400" title="عرض التفاصيل">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                         </svg>
                       </button>
                       <button @click="printInvoice(invoice)" class="action-btn text-green-600 dark:text-green-400" title="طباعة الفاتورة">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                         </svg>
                       </button>
                       <button @click="exportInvoicePDF(invoice)" class="action-btn text-purple-600 dark:text-purple-400" title="تصدير PDF">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                       </button>
                       <button @click="editInvoice(invoice)" v-if="invoice.status === 'draft'" class="action-btn text-yellow-600 dark:text-yellow-400" title="تعديل الفاتورة">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                       </button>
                       <button @click="deleteInvoice(invoice.id)" v-if="invoice.status === 'draft'" class="action-btn text-red-600 dark:text-red-400" title="حذف الفاتورة">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
                       </button>
@@ -707,20 +816,111 @@
                 </tr>
               </tbody>
             </table>
+
+            <!-- Mobile Cards View -->
+            <div class="sm:hidden p-3">
+              <div class="space-y-3">
+                <div 
+                  v-for="invoice in paginatedInvoices" 
+                  :key="invoice.id" 
+                  class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-150"
+                >
+                  <!-- Header -->
+                  <div class="flex justify-between items-start mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center space-x-2 space-x-reverse">
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">#{{ invoice.invoiceNumber }}</span>
+                        <span class="px-2 py-0.5 text-xs rounded-full" :class="getInvoiceTypeClass(invoice.type)">
+                          {{ getInvoiceTypeLabel(invoice.type) }}
+                        </span>
+                        <span class="px-2 py-0.5 text-xs rounded-full" :class="getInvoiceStatusClass(invoice.status)">
+                          {{ getInvoiceStatusLabel(invoice.status) }}
+                        </span>
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {{ formatDate(invoice.date) }} - {{ formatTime(invoice.date) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Details -->
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">العميل</div>
+                      <div class="font-medium text-gray-900 dark:text-white truncate">{{ invoice.customer.name }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.customer.phone }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">المبلغ</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(invoice.totalAmount) }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ invoice.paymentMethod === 'cash' ? 'نقدي' : 
+                           invoice.paymentMethod === 'bank' ? 'بنكي' : 
+                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل' }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">الأصناف</div>
+                      <div class="font-medium text-gray-900 dark:text-white">{{ invoice.items?.length || 0 }} صنف</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">المخزن</div>
+                      <div class="font-medium text-gray-900 dark:text-white truncate">{{ getWarehouseLabel(invoice.warehouseId) }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Actions - Mobile Optimized -->
+                  <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                      <button @click="viewInvoice(invoice)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 text-xs sm:text-sm flex items-center p-1">
+                        <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        عرض
+                      </button>
+                      <button @click="printInvoice(invoice)" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 text-xs sm:text-sm flex items-center p-1">
+                        <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        طباعة
+                      </button>
+                    </div>
+                    <div class="flex items-center space-x-1 space-x-reverse">
+                      <button @click="exportInvoicePDF(invoice)" class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 p-1" title="تصدير PDF">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                      </button>
+                      <button @click="editInvoice(invoice)" v-if="invoice.status === 'draft'" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 p-1" title="تعديل">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                      </button>
+                      <button @click="deleteInvoice(invoice.id)" v-if="invoice.status === 'draft'" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1" title="حذف">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Empty State -->
-          <div v-if="filteredInvoices.length === 0" class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-if="filteredInvoices.length === 0" class="text-center py-8 sm:py-12">
+            <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد فواتير</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ invoiceSearchTerm ? 'لم يتم العثور على فواتير تطابق بحثك' : 'ابدأ بإنشاء فاتورتك الأولى' }}
+            <h3 class="mt-2 text-sm sm:text-base font-medium text-gray-900 dark:text-white">لا توجد فواتير</h3>
+            <p class="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              {{ invoiceSearchTerm ? 'لم يتم العثور على فواتير مطابقة للبحث' : 'ابدأ بإنشاء فاتورتك الأولى' }}
             </p>
-            <div class="mt-6">
+            <div class="mt-4 sm:mt-6">
               <button @click="createNewInvoice" class="btn-primary">
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 إنشاء فاتورة جديدة
@@ -728,20 +928,20 @@
             </div>
           </div>
 
-          <!-- Pagination -->
-          <div v-if="filteredInvoices.length > 0" class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div class="text-sm text-gray-700 dark:text-gray-300">
+          <!-- Pagination - Mobile Optimized -->
+          <div v-if="filteredInvoices.length > 0" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+              <div class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center sm:text-right">
                 عرض <span class="font-medium">{{ startInvoiceIndex + 1 }}</span> إلى <span class="font-medium">{{ endInvoiceIndex }}</span> من <span class="font-medium">{{ filteredInvoices.length }}</span> فاتورة
               </div>
-              <div class="flex items-center space-x-2">
-                <button @click="prevInvoicePage" :disabled="currentPage === 1" class="pagination-btn">
+              <div class="flex items-center justify-center space-x-2">
+                <button @click="prevInvoicePage" :disabled="currentPage === 1" class="pagination-btn text-xs sm:text-sm px-2.5 sm:px-3 py-1.5">
                   السابق
                 </button>
-                <span class="text-sm text-gray-700 dark:text-gray-300">
+                <span class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-[80px] sm:min-w-[100px] text-center">
                   صفحة {{ currentPage }} من {{ totalPages }}
                 </span>
-                <button @click="nextInvoicePage" :disabled="currentPage >= totalPages" class="pagination-btn">
+                <button @click="nextInvoicePage" :disabled="currentPage >= totalPages" class="pagination-btn text-xs sm:text-sm px-2.5 sm:px-3 py-1.5">
                   التالي
                 </button>
               </div>
@@ -754,54 +954,54 @@
       <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) -->
       <!-- ============================================ -->
       <div v-else>
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
+        <!-- Stats Cards - Mobile Optimized -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
-              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-2 sm:ml-4">
+              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-2 sm:ml-3 lg:ml-4">
                 <svg class="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                 </svg>
               </div>
               <div>
                 <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">إجمالي عمليات الصرف</p>
-                <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalDispatches) }}</p>
+                <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(totalDispatches) }}</p>
               </div>
             </div>
           </div>
 
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
-              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center ml-2 sm:ml-4">
+              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center ml-2 sm:ml-3 lg:ml-4">
                 <svg class="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <div>
                 <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">صرف هذا الشهر</p>
-                <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(monthlyDispatches) }}</p>
+                <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(monthlyDispatches) }}</p>
               </div>
             </div>
           </div>
 
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
-              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center ml-2 sm:ml-4">
+              <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center ml-2 sm:ml-3 lg:ml-4">
                 <svg class="h-5 w-5 sm:h-6 sm:w-6 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <div>
                 <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">قيمة الصرف</p>
-                <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalDispatchValue) }}</p>
+                <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalDispatchValue) }}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Create Dispatch Section -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <!-- Create Dispatch Section - Mobile Optimized -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 lg:mb-8">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 lg:mb-6">
             <div>
               <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">إنشاء صرف جديد</h2>
               <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">صرف أصناف من المخازن إلى خارج النظام</p>
@@ -809,16 +1009,16 @@
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <!-- Search Box -->
-              <div class="relative flex-1 min-w-[200px]">
+              <div class="relative flex-1 min-w-0">
                 <input
                   type="text"
                   v-model="searchTerm"
                   @input="handleSearch"
                   placeholder="ابحث عن صنف..."
-                  class="w-full px-4 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  class="w-full px-3 sm:px-4 py-2.5 pr-9 sm:pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   :disabled="loading"
                 >
-                <svg class="absolute right-3 top-3 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
               </div>
@@ -827,7 +1027,7 @@
               <select
                 v-model="selectedWarehouse"
                 @change="updateAvailableItems"
-                class="px-3 sm:px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 min-h-[44px] min-w-[180px]"
+                class="px-3 sm:px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 min-h-[44px] min-w-[150px] sm:min-w-[180px]"
                 :disabled="loading || !availableWarehousesForDispatch.length"
               >
                 <option value="">جميع المخازن</option>
@@ -844,104 +1044,101 @@
                 v-if="canPerformDispatch"
                 @click="showDispatchModal = true"
                 :disabled="loading || availableItems.length === 0"
-                class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] min-w-[140px]"
+                class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
               >
-                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 <span class="hidden sm:inline">إنشاء صرف جديد</span>
-                <span class="inline sm:hidden">صرف جديد</span>
+                <span class="sm:hidden">صرف جديد</span>
               </button>
             </div>
           </div>
 
           <!-- Available Items -->
-          <div v-if="availableItems.length > 0" class="mt-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div v-if="availableItems.length > 0" class="mt-3 sm:mt-4">
+            <div class="flex items-center justify-between mb-2 sm:mb-3">
+              <h3 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                 {{ selectedWarehouse ? `الأصناف المتاحة في ${getWarehouseLabel(selectedWarehouse)}` : 'جميع الأصناف المتاحة' }}
                 <span class="text-xs text-gray-500">({{ availableItems.length }} صنف)</span>
               </h3>
-              <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+              <div class="flex items-center space-x-1 sm:space-x-2 text-xs text-gray-500 dark:text-gray-400">
                 <span>المعروض: {{ Math.min(8, availableItems.length) }} من {{ availableItems.length }}</span>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+            <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
               <div 
                 v-for="item in displayedAvailableItems" 
                 :key="item.id"
-                class="p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm"
+                class="p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98"
                 @click="selectItemForDispatch(item)"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
+                    <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
                     <div class="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
-                      <span class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{{ item.code }}</span>
-                      <span class="text-xs px-1.5 py-0.5 rounded" 
+                      <span class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 rounded truncate">{{ item.code }}</span>
+                      <span class="text-xs px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap" 
                             :class="getQuantityClass(item.remaining_quantity)">
                         {{ formatNumber(item.remaining_quantity) }} متبقي
                       </span>
-                      <span v-if="item.warehouse_id" class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ getWarehouseLabel(item.warehouse_id) }}
-                      </span>
                     </div>
                   </div>
-                  <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mr-1 sm:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0 mr-1 sm:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div v-if="availableItems.length > 8" class="text-center mt-4">
+            <div v-if="availableItems.length > 8" class="text-center mt-3 sm:mt-4">
               <button 
                 @click="showAllItems = !showAllItems"
-                class="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg transition-colors"
+                class="text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg transition-colors"
               >
                 {{ showAllItems ? 'عرض أقل' : `عرض المزيد (+${availableItems.length - 8})` }}
               </button>
             </div>
           </div>
 
-          <div v-else-if="!loading" class="text-center py-8">
-            <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
-              <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else-if="!loading" class="text-center py-6 sm:py-8">
+            <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-3 sm:mb-4">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
             </div>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">
+            <p class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
               {{ selectedWarehouse ? 'لا توجد أصناف في هذا المخزن' : 'لا توجد أصناف متاحة' }}
             </p>
           </div>
 
-          <div v-else class="text-center py-6">
-            <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-3"></div>
+          <div v-else class="text-center py-4 sm:py-6">
+            <div class="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-2 sm:mb-3"></div>
             <p class="text-gray-500 dark:text-gray-400 text-xs">جاري تحميل الأصناف...</p>
           </div>
         </div>
 
-        <!-- Dispatch History -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
-          <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <!-- Dispatch History - Mobile Optimized -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
+          <div class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
               <div>
                 <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">سجل عمليات الصرف</h2>
                 <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">جميع عمليات الصرف المسجلة في النظام</p>
               </div>
 
-              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 <!-- Search History -->
-                <div class="relative flex-1 sm:flex-initial min-w-[200px]">
+                <div class="relative flex-1 sm:flex-initial min-w-0">
                   <input
                     type="text"
                     v-model="historySearch"
                     @input="applyHistoryFilters"
                     placeholder="بحث في السجل..."
-                    class="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    class="w-full px-3 sm:px-4 py-2 sm:py-2.5 pr-9 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
-                  <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="absolute right-2.5 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
                 </div>
@@ -950,7 +1147,7 @@
                 <select
                   v-model="historyWarehouseFilter"
                   @change="applyHistoryFilters"
-                  class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[150px]"
+                  class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[120px] sm:min-w-[150px]"
                 >
                   <option value="">جميع المخازن</option>
                   <option v-for="warehouse in availableWarehousesForDispatch" :key="warehouse.id" :value="warehouse.id">
@@ -962,7 +1159,7 @@
                 <select
                   v-model="dateFilter"
                   @change="applyHistoryFilters"
-                  class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[140px]"
+                  class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[120px] sm:min-w-[140px]"
                 >
                   <option value="all">جميع الفترات</option>
                   <option value="today">اليوم</option>
@@ -972,19 +1169,19 @@
                 </select>
 
                 <!-- Custom Date Range -->
-                <div v-if="dateFilter === 'custom'" class="flex flex-wrap items-center gap-2">
+                <div v-if="dateFilter === 'custom'" class="flex flex-wrap items-center gap-1 sm:gap-2">
                   <input 
                     type="date" 
                     v-model="customDateFrom"
                     @change="applyHistoryFilters"
-                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[120px]"
+                    class="px-2 sm:px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[110px] sm:min-w-[120px]"
                   >
                   <span class="text-gray-500 dark:text-gray-400 text-xs">إلى</span>
                   <input 
                     type="date" 
                     v-model="customDateTo"
                     @change="applyHistoryFilters"
-                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[120px]"
+                    class="px-2 sm:px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[110px] sm:min-w-[120px]"
                   >
                 </div>
 
@@ -993,7 +1190,7 @@
                   v-if="canExport"
                   @click="exportDispatches"
                   :disabled="filteredDispatchHistory.length === 0"
-                  class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  class="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <span class="hidden sm:inline">تصدير Excel</span>
                   <span class="inline sm:hidden">تصدير</span>
@@ -1002,11 +1199,11 @@
             </div>
 
             <!-- Active Filters Badges -->
-            <div v-if="hasFilters" class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <div class="flex flex-wrap items-center gap-2">
+            <div v-if="hasFilters" class="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div class="flex flex-wrap items-center gap-1 sm:gap-2">
                 <span class="text-xs text-gray-600 dark:text-gray-400">الفلاتر النشطة:</span>
 
-                <span v-if="historySearch" class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                <span v-if="historySearch" class="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
                   بحث: "{{ historySearch }}"
                   <button @click="historySearch = ''; applyHistoryFilters()" class="mr-1 hover:text-blue-900 dark:hover:text-blue-200">
                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1015,7 +1212,7 @@
                   </button>
                 </span>
 
-                <span v-if="historyWarehouseFilter" class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300">
+                <span v-if="historyWarehouseFilter" class="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300">
                   مخزن: {{ getWarehouseLabel(historyWarehouseFilter) }}
                   <button @click="historyWarehouseFilter = ''; applyHistoryFilters()" class="mr-1 hover:text-indigo-900 dark:hover:text-indigo-200">
                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1024,7 +1221,7 @@
                   </button>
                 </span>
 
-                <span v-if="dateFilter !== 'all'" class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300">
+                <span v-if="dateFilter !== 'all'" class="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300">
                   فترة: {{ getDateFilterLabel(dateFilter) }}
                   <button @click="dateFilter = 'all'; customDateFrom = ''; customDateTo = ''; applyHistoryFilters()" class="mr-1 hover:text-yellow-900 dark:hover:text-yellow-200">
                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1036,7 +1233,7 @@
                 <button 
                   v-if="hasFilters"
                   @click="clearHistoryFilters"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  class="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -1048,26 +1245,26 @@
           </div>
 
           <!-- Loading State -->
-          <div v-if="loading" class="p-8 text-center">
-            <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p class="text-gray-700 dark:text-gray-300 text-sm">جاري تحميل البيانات...</p>
+          <div v-if="loading" class="p-6 sm:p-8 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
+            <p class="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">جاري تحميل البيانات...</p>
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="filteredDispatchHistory.length === 0" class="p-6 sm:p-8 text-center">
-            <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
-              <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else-if="filteredDispatchHistory.length === 0" class="p-4 sm:p-6 lg:p-8 text-center">
+            <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-3 sm:mb-4">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
             </div>
-            <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">لا توجد عمليات صرف</h3>
-            <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+            <h3 class="text-sm sm:text-base lg:text-lg font-medium text-gray-900 dark:text-white mb-1 sm:mb-2">لا توجد عمليات صرف</h3>
+            <p class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">
               {{ hasFilters ? 'لا توجد عمليات صرف تطابق التصفية المحددة' : 'لم يتم تسجيل أي عمليات صرف حتى الآن' }}
             </p>
             <button 
               v-if="canPerformDispatch"
               @click="showDispatchModal = true"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm min-h-[44px]"
+              class="px-3 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 min-h-[40px] sm:min-h-[44px]"
             >
               إنشاء أول صرف
             </button>
@@ -1079,7 +1276,7 @@
             <div class="hidden lg:block">
               <!-- Fixed Table Headers -->
               <div class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div class="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <div class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   <div class="col-span-2 text-right">التاريخ والوقت</div>
                   <div class="col-span-2 text-right">الصنف</div>
                   <div class="col-span-2 text-right">من مخزن</div>
@@ -1097,7 +1294,7 @@
                   <div 
                     v-for="dispatch in paginatedHistory" 
                     :key="dispatch.id" 
-                    class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700"
+                    class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700"
                   >
                     <!-- Date & Time -->
                     <div class="col-span-2">
@@ -1123,7 +1320,7 @@
 
                     <!-- Quantity -->
                     <div class="col-span-1">
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
                             :class="getDispatchQuantityClass(dispatch.total_delta)">
                         {{ formatNumber(Math.abs(dispatch.total_delta)) }}
                       </span>
@@ -1141,13 +1338,13 @@
 
                     <!-- Actions -->
                     <div class="col-span-2">
-                      <div class="flex items-center space-x-2 space-x-reverse">
+                      <div class="flex items-center space-x-1 space-x-reverse">
                         <button 
                           @click="viewDispatchDetails(dispatch)"
                           class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
                           title="عرض التفاصيل"
                         >
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                           </svg>
@@ -1157,7 +1354,7 @@
                           class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
                           title="طباعة"
                         >
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                           </svg>
                         </button>
@@ -1170,34 +1367,34 @@
 
             <!-- Mobile Cards View -->
             <div class="lg:hidden">
-              <div class="p-2 sm:p-4">
-                <div class="space-y-3">
+              <div class="p-2 sm:p-3 lg:p-4">
+                <div class="space-y-2 sm:space-y-3">
                   <div 
                     v-for="dispatch in paginatedHistory" 
                     :key="dispatch.id" 
-                    class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-150"
+                    class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow duration-150"
                   >
                     <!-- Header -->
-                    <div class="flex justify-between items-start mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
-                      <div>
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dispatch.item_name }}</div>
+                    <div class="flex justify-between items-start mb-2 sm:mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                      <div class="min-w-0 flex-1">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ formatDate(dispatch.timestamp) }} - {{ formatTime(dispatch.timestamp) }}</div>
                       </div>
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
                             :class="getDispatchQuantityClass(dispatch.total_delta)">
                         {{ formatNumber(Math.abs(dispatch.total_delta)) }}
                       </span>
                     </div>
 
                     <!-- Details Grid -->
-                    <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
                       <div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">من مخزن</div>
-                        <div class="font-medium text-gray-900 dark:text-white">{{ getWarehouseLabel(dispatch.from_warehouse) }}</div>
+                        <div class="font-medium text-gray-900 dark:text-white truncate">{{ getWarehouseLabel(dispatch.from_warehouse) }}</div>
                       </div>
                       <div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">إلى</div>
-                        <div class="font-medium text-gray-900 dark:text-white">{{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) }}</div>
+                        <div class="font-medium text-gray-900 dark:text-white truncate">{{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) }}</div>
                       </div>
                       <div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">القيمة</div>
@@ -1205,21 +1402,21 @@
                       </div>
                       <div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">بواسطة</div>
-                        <div class="font-medium text-gray-900 dark:text-white">{{ dispatch.user_name || dispatch.created_by || 'مستخدم النظام' }}</div>
+                        <div class="font-medium text-gray-900 dark:text-white truncate">{{ dispatch.user_name || dispatch.created_by || 'مستخدم النظام' }}</div>
                       </div>
                     </div>
 
                     <!-- Actions -->
-                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div class="flex justify-between items-center mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 dark:border-gray-700">
                       <div class="text-xs text-gray-500 dark:text-gray-400">
                         {{ dispatch.item_code }}
                       </div>
-                      <div class="flex items-center space-x-3 space-x-reverse">
+                      <div class="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
                         <button 
                           @click="viewDispatchDetails(dispatch)"
-                          class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 text-sm flex items-center p-1"
+                          class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 text-xs sm:text-sm flex items-center p-1"
                         >
-                          <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                           </svg>
@@ -1227,9 +1424,9 @@
                         </button>
                         <button 
                           @click="printDispatch(dispatch)"
-                          class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 text-sm flex items-center p-1"
+                          class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 text-xs sm:text-sm flex items-center p-1"
                         >
-                          <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                           </svg>
                           طباعة
@@ -1242,8 +1439,8 @@
             </div>
 
             <!-- Pagination -->
-            <div v-if="totalHistoryPages > 1" class="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div v-if="totalHistoryPages > 1" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-right">
                   عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredDispatchHistory.length) }} من {{ filteredDispatchHistory.length }}
                 </div>
@@ -1251,17 +1448,17 @@
                   <button 
                     @click="prevPage"
                     :disabled="currentHistoryPage === 1"
-                    class="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[36px] min-w-[80px]"
+                    class="px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[34px] sm:min-h-[36px] min-w-[70px] sm:min-w-[80px]"
                   >
                     السابق
                   </button>
-                  <span class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-[100px] text-center">
+                  <span class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-[80px] sm:min-w-[100px] text-center">
                     صفحة {{ currentHistoryPage }} من {{ totalHistoryPages }}
                   </span>
                   <button 
                     @click="nextPage"
                     :disabled="currentHistoryPage === totalHistoryPages"
-                    class="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[36px] min-w-[80px]"
+                    class="px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[34px] sm:min-h-[36px] min-w-[70px] sm:min-w-[80px]"
                   >
                     التالي
                   </button>
@@ -1284,9 +1481,9 @@
 
     <!-- Loading Overlay -->
     <div v-if="loading && !showDispatchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 flex flex-col items-center">
-        <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-gray-700 dark:text-gray-300 text-sm">جاري تحميل البيانات...</p>
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 lg:p-8 flex flex-col items-center mx-4 max-w-sm w-full">
+        <div class="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 border-b-2 border-blue-600 mb-3 sm:mb-4"></div>
+        <p class="text-gray-700 dark:text-gray-300 text-xs sm:text-sm text-center">جاري تحميل البيانات...</p>
       </div>
     </div>
   </div>
@@ -3252,29 +3449,149 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 </script>
 
 <style scoped>
+/* Mobile-optimized styles for invoice section */
+@media (max-width: 640px) {
+  .mobile\:text-xs {
+    font-size: 0.75rem;
+  }
+  
+  .mobile\:text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .mobile\:p-2 {
+    padding: 0.5rem;
+  }
+  
+  .mobile\:p-3 {
+    padding: 0.75rem;
+  }
+  
+  .mobile\:space-y-2 > * + * {
+    margin-top: 0.5rem;
+  }
+  
+  .mobile\:grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .mobile\:flex-col {
+    flex-direction: column;
+  }
+  
+  .mobile\:items-stretch {
+    align-items: stretch;
+  }
+  
+  .mobile\:min-h-10 {
+    min-height: 2.5rem;
+  }
+  
+  .mobile\:min-w-0 {
+    min-width: 0;
+  }
+  
+  .mobile\:truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Touch-friendly buttons for mobile */
+@media (max-width: 768px) {
+  button, 
+  .btn-primary,
+  .btn-secondary,
+  .btn-success,
+  .input-field,
+  select,
+  .pagination-btn {
+    min-height: 44px; /* Minimum touch target size */
+    min-width: 44px;
+  }
+  
+  .action-btn {
+    padding: 0.5rem;
+  }
+}
+
+/* Improved mobile scrolling */
+@media (max-width: 768px) {
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+  }
+  
+  .mobile-no-scroll {
+    overflow: hidden;
+  }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  .mobile-hide {
+    display: none;
+  }
+  
+  .mobile-show {
+    display: block;
+  }
+  
+  .mobile-stack {
+    flex-direction: column;
+  }
+  
+  .mobile-center {
+    text-align: center;
+  }
+  
+  .mobile-full-width {
+    width: 100%;
+  }
+  
+  .mobile-mt-2 {
+    margin-top: 0.5rem;
+  }
+  
+  .mobile-mb-2 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .mobile-px-3 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .mobile-py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
 /* Custom styles for the integrated system */
 .stat-card {
-  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center space-x-4 space-x-reverse hover:shadow-md transition-shadow duration-200;
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex items-center space-x-3 sm:space-x-4 space-x-reverse hover:shadow-md transition-shadow duration-200;
 }
 
 .stat-icon {
-  @apply h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0;
+  @apply h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center flex-shrink-0;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-3 sm:px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-success {
-  @apply inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .input-field {
-  @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
+  @apply w-full px-3 sm:px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
 }
 
 .action-btn {
@@ -3296,8 +3613,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -3351,24 +3668,9 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Mobile optimizations */
-@media (max-width: 640px) {
-  .mobile\:text-sm {
-    font-size: 0.875rem;
-  }
-  
-  .mobile\:p-3 {
-    padding: 0.75rem;
-  }
-  
-  .mobile\:text-xs {
-    font-size: 0.75rem;
-  }
-}
-
-/* Dark mode transitions */
-.dark-transition {
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+/* Active state for touch devices */
+.active\:scale-98:active {
+  transform: scale(0.98);
 }
 
 /* Focus states for accessibility */
@@ -3378,24 +3680,24 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 /* Custom grid for responsive layouts */
 .grid-responsive {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4;
 }
 
 /* Badge variants */
 .badge-primary {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
 }
 
 .badge-success {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
 }
 
 .badge-warning {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
 }
 
 .badge-danger {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
 }
 
 /* Card hover effects */
@@ -3496,7 +3798,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 /* Responsive padding utilities */
 .responsive-padding {
-  @apply px-4 sm:px-6 lg:px-8;
+  @apply px-3 sm:px-4 lg:px-6;
 }
 
 /* Custom border radius */
@@ -3608,7 +3910,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 /* Responsive margin utilities */
 .margin-responsive {
-  @apply my-4 sm:my-6 lg:my-8;
+  @apply my-3 sm:my-4 lg:my-6;
 }
 
 /* Custom width utilities */
@@ -3641,7 +3943,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 /* Responsive min-height utilities */
 .min-h-responsive {
-  @apply min-h-[200px] sm:min-h-[300px] lg:min-h-[400px];
+  @apply min-h-[150px] sm:min-h-[200px] lg:min-h-[300px];
 }
 
 /* Invoice print styles */
@@ -3704,43 +4006,43 @@ img {
 
 /* Invoice details card styling */
 .invoice-details-card {
-  @apply bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6;
+  @apply bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6;
 }
 
 .invoice-details-card h3 {
-  @apply text-xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-200 dark:border-gray-700;
+  @apply text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200 dark:border-gray-700;
 }
 
 .invoice-details-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6;
 }
 
 .invoice-details-section {
-  @apply space-y-4;
+  @apply space-y-3 sm:space-y-4;
 }
 
 .invoice-details-label {
-  @apply block text-sm font-medium text-gray-600 dark:text-gray-400;
+  @apply block text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400;
 }
 
 .invoice-details-value {
-  @apply text-lg font-semibold text-gray-900 dark:text-white;
+  @apply text-base sm:text-lg font-semibold text-gray-900 dark:text-white;
 }
 
 .invoice-items-table {
-  @apply w-full divide-y divide-gray-200 dark:divide-gray-700 mt-4;
+  @apply w-full divide-y divide-gray-200 dark:divide-gray-700 mt-3 sm:mt-4;
 }
 
 .invoice-items-table th {
-  @apply px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800;
+  @apply px-3 sm:px-4 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800;
 }
 
 .invoice-items-table td {
-  @apply px-4 py-3 text-sm text-gray-900 dark:text-white;
+  @apply px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white;
 }
 
 .invoice-totals-section {
-  @apply bg-gray-50 dark:bg-gray-800/50 rounded-lg p-5 mt-6 border border-gray-200 dark:border-gray-700;
+  @apply bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 sm:p-4 lg:p-5 mt-4 sm:mt-6 border border-gray-200 dark:border-gray-700;
 }
 
 .invoice-total-row {
@@ -3748,15 +4050,15 @@ img {
 }
 
 .invoice-total-label {
-  @apply text-sm text-gray-600 dark:text-gray-400;
+  @apply text-xs sm:text-sm text-gray-600 dark:text-gray-400;
 }
 
 .invoice-total-value {
-  @apply text-base font-semibold text-gray-900 dark:text-white;
+  @apply text-sm sm:text-base font-semibold text-gray-900 dark:text-white;
 }
 
 .invoice-total-final {
-  @apply text-xl font-bold text-green-600 dark:text-green-400;
+  @apply text-lg sm:text-xl font-bold text-green-600 dark:text-green-400;
 }
 
 /* Performance optimization classes */
@@ -3816,32 +4118,32 @@ img {
 
 /* Invoice card styling */
 .invoice-card {
-  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow duration-200;
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-md transition-shadow duration-200;
 }
 
 .invoice-card-header {
-  @apply flex justify-between items-start mb-3;
+  @apply flex justify-between items-start mb-2 sm:mb-3;
 }
 
 .invoice-card-title {
-  @apply text-lg font-semibold text-gray-900 dark:text-white;
+  @apply text-base sm:text-lg font-semibold text-gray-900 dark:text-white;
 }
 
 .invoice-card-subtitle {
-  @apply text-sm text-gray-500 dark:text-gray-400;
+  @apply text-xs sm:text-sm text-gray-500 dark:text-gray-400;
 }
 
 .invoice-card-content {
-  @apply space-y-2;
+  @apply space-y-1 sm:space-y-2;
 }
 
 .invoice-card-footer {
-  @apply flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700;
+  @apply flex justify-between items-center mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 dark:border-gray-700;
 }
 
 /* Responsive invoice grid */
 .invoice-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
 }
 
 /* PDF export styles */
@@ -3851,11 +4153,11 @@ img {
 
 /* Invoice summary card */
 .invoice-summary-card {
-  @apply bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700 p-5;
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg sm:rounded-xl border border-blue-200 dark:border-blue-700 p-3 sm:p-4 lg:p-5;
 }
 
 .invoice-summary-title {
-  @apply text-lg font-bold text-blue-900 dark:text-blue-300 mb-4;
+  @apply text-base sm:text-lg font-bold text-blue-900 dark:text-blue-300 mb-3 sm:mb-4;
 }
 
 .invoice-summary-item {
@@ -3863,20 +4165,20 @@ img {
 }
 
 .invoice-summary-total {
-  @apply text-2xl font-bold text-blue-900 dark:text-blue-300 mt-3 pt-3 border-t border-blue-200 dark:border-blue-700;
+  @apply text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-300 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-blue-200 dark:border-blue-700;
 }
 
 /* Dispatch details card */
 .dispatch-details-card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5;
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-5;
 }
 
 .dispatch-details-title {
-  @apply text-lg font-semibold text-gray-900 dark:text-white mb-4;
+  @apply text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4;
 }
 
 .dispatch-details-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  @apply grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4;
 }
 
 .dispatch-details-item {
@@ -3884,7 +4186,7 @@ img {
 }
 
 .dispatch-details-label {
-  @apply text-sm text-gray-500 dark:text-gray-400;
+  @apply text-xs sm:text-sm text-gray-500 dark:text-gray-400;
 }
 
 .dispatch-details-value {
@@ -3903,7 +4205,7 @@ img {
 
 /* Invoice actions toolbar */
 .invoice-actions-toolbar {
-  @apply flex items-center space-x-2 space-x-reverse bg-gray-50 dark:bg-gray-800 rounded-lg p-2;
+  @apply flex items-center space-x-1 sm:space-x-2 space-x-reverse bg-gray-50 dark:bg-gray-800 rounded-lg p-1 sm:p-2;
 }
 
 /* Data table optimizations */
@@ -3912,11 +4214,11 @@ img {
 }
 
 .optimized-table th {
-  @apply px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 sticky top-0;
+  @apply px-3 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 sticky top-0;
 }
 
 .optimized-table td {
-  @apply px-4 py-3 text-sm text-gray-900 dark:text-white;
+  @apply px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white;
 }
 
 /* Lazy loading for images */
@@ -3943,11 +4245,11 @@ img {
 /* Responsive invoice form */
 @media (max-width: 768px) {
   .invoice-form-responsive {
-    @apply space-y-4;
+    @apply space-y-3;
   }
   
   .invoice-form-responsive .grid {
-    @apply grid-cols-1 gap-4;
+    @apply grid-cols-1 gap-3;
   }
 }
 
