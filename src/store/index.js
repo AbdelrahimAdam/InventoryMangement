@@ -693,6 +693,7 @@ export default createStore({
               
               resolve(localResults);
               
+              // Get Firebase results in background
               dispatch('searchFirebaseInventory', {
                 query: searchTerm,
                 warehouseId: targetWarehouse,
@@ -738,198 +739,252 @@ export default createStore({
     },
     
     async searchLocalInventory({ state }, { query, warehouseId, fields, limit }) {
-      let results = state.inventory;
-      
-      if (warehouseId && warehouseId !== 'all') {
-        results = results.filter(item => item.warehouse_id === warehouseId);
-      }
-      
-      if (query && query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        const searchTerm = query.toLowerCase();
-        results = results.filter(item => {
-          return fields.some(field => {
-            const value = item[field];
-            if (!value) return false;
+      try {
+        let results = Array.isArray(state.inventory) ? [...state.inventory] : [];
+        
+        if (warehouseId && warehouseId !== 'all') {
+          results = results.filter(item => item.warehouse_id === warehouseId);
+        }
+        
+        if (query && query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+          const searchTerm = query.toLowerCase();
+          
+          results = results.filter(item => {
+            // Check all searchable fields
+            const searchableFields = [
+              item.name,
+              item.code,
+              item.color,
+              item.supplier,
+              item.item_location,
+              item.warehouse_id
+            ].filter(Boolean);
             
-            const fieldValue = String(value).toLowerCase();
-            
-            if (fieldValue === searchTerm) return true;
-            if (fieldValue.startsWith(searchTerm)) return true;
-            if (fieldValue.includes(searchTerm)) return true;
-            
-            const itemWords = fieldValue.split(/\s+/);
-            const searchWords = searchTerm.split(/\s+/);
-            
-            return searchWords.some(searchWord =>
-              itemWords.some(itemWord => itemWord.includes(searchWord))
+            return searchableFields.some(field => 
+              field.toString().toLowerCase().includes(searchTerm)
             );
           });
-        });
+        }
+        
+        // Sort results by relevance
+        if (query) {
+          const searchTerm = query.toLowerCase();
+          results.sort((a, b) => {
+            // Exact matches first
+            if (a.code?.toLowerCase() === searchTerm) return -1;
+            if (b.code?.toLowerCase() === searchTerm) return 1;
+            
+            // Starts with search term
+            const aStarts = a.code?.toLowerCase().startsWith(searchTerm) || 
+                           a.name?.toLowerCase().startsWith(searchTerm);
+            const bStarts = b.code?.toLowerCase().startsWith(searchTerm) || 
+                           b.name?.toLowerCase().startsWith(searchTerm);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            
+            return 0;
+          });
+        }
+        
+        return results.slice(0, limit || 25);
+        
+      } catch (error) {
+        console.error('❌ Local search error:', error);
+        return [];
       }
-      
-      results.sort((a, b) => {
-        if (a.code?.toLowerCase() === query) return -1;
-        if (b.code?.toLowerCase() === query) return 1;
-        
-        if (a.name?.toLowerCase() === query) return -1;
-        if (b.name?.toLowerCase() === query) return 1;
-        
-        const aStarts = a.name?.toLowerCase().startsWith(query) || a.code?.toLowerCase().startsWith(query);
-        const bStarts = b.name?.toLowerCase().startsWith(query) || b.code?.toLowerCase().startsWith(query);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        
-        const aNameDiff = Math.abs((a.name?.length || 0) - query.length);
-        const bNameDiff = Math.abs((b.name?.length || 0) - query.length);
-        return aNameDiff - bNameDiff;
-      });
-      
-      return results.slice(0, limit);
     },
     
     async searchFirebaseInventory({ state, getters, commit }, { query, warehouseId, fields, limit }) {
       try {
-        const requestKey = `${query}_${warehouseId}`;
-        if (state.search.activeRequests.has(requestKey)) {
-          return [];
-        }
-        
-        state.search.activeRequests.add(requestKey);
+        console.log(`🔍 Firestore search for: "${query}"`);
         
         const searchTerm = query.toLowerCase();
         const itemsRef = collection(db, 'items');
         
+        // Get user's accessible warehouses
         const accessibleWarehouses = getters.accessibleWarehouses.map(w => w.id);
         
-        const conditions = [];
+        // SIMPLIFIED: Get ALL items first, then filter locally
+        // This bypasses Firestore's search limitations with Arabic text
+        let itemsQuery;
         
-        if (warehouseId && warehouseId !== 'all') {
-          if (accessibleWarehouses.includes('all') || accessibleWarehouses.includes(warehouseId)) {
-            conditions.push(where('warehouse_id', '==', warehouseId));
-          }
-        } else if (accessibleWarehouses.length > 0 && !accessibleWarehouses.includes('all')) {
-          const allowedWarehouses = accessibleWarehouses.slice(0, 10);
-          conditions.push(where('warehouse_id', 'in', allowedWarehouses));
+        // Build simple query based on permissions
+        if (accessibleWarehouses.includes('all') || getters.userRole === 'superadmin') {
+          // Superadmin or users with 'all' access - get all items
+          itemsQuery = query(itemsRef, limit(200)); // Increased limit for better search
+        } else if (accessibleWarehouses.length > 0) {
+          // Warehouse manager with specific warehouses - use 'in' operator
+          const warehouseIds = accessibleWarehouses.slice(0, 10); // Firestore limit: 10 items in 'in' array
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', 'in', warehouseIds),
+            limit(200)
+          );
+        } else {
+          // No accessible warehouses
+          console.log('⚠️ User has no accessible warehouses');
+          return [];
         }
         
-        const searchPromises = [];
+        // Execute the simple query
+        const snapshot = await getDocs(itemsQuery);
+        console.log(`📦 Got ${snapshot.size} items from Firestore`);
         
-        searchPromises.push(
-          getDocs(query(
-            itemsRef,
-            ...conditions,
-            where('code', '==', searchTerm),
-            limit(5)
-          ))
-        );
-        
-        searchPromises.push(
-          getDocs(query(
-            itemsRef,
-            ...conditions,
-            where('code', '>=', searchTerm),
-            where('code', '<=', searchTerm + '\uf8ff'),
-            orderBy('code'),
-            limit(limit)
-          ))
-        );
-        
-        searchPromises.push(
-          getDocs(query(
-            itemsRef,
-            ...conditions,
-            where('name', '>=', searchTerm),
-            where('name', '<=', searchTerm + '\uf8ff'),
-            orderBy('name'),
-            limit(limit)
-          ))
-        );
-        
-        if (searchTerm.length >= 3) {
-          searchPromises.push(
-            getDocs(query(
-              itemsRef,
-              ...conditions,
-              where('color', '>=', searchTerm),
-              where('color', '<=', searchTerm + '\uf8ff'),
-              orderBy('color'),
-              limit(limit / 2)
-            ))
-          );
-          
-          searchPromises.push(
-            getDocs(query(
-              itemsRef,
-              ...conditions,
-              where('supplier', '>=', searchTerm),
-              where('supplier', '<=', searchTerm + '\uf8ff'),
-              orderBy('supplier'),
-              limit(limit / 2)
-            ))
-          );
+        if (snapshot.empty) {
+          return [];
         }
         
-        const results = await Promise.allSettled(searchPromises);
-        
-        const allItems = new Map();
-        
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled' && !result.value.empty) {
-            result.value.docs.forEach(doc => {
-              if (!allItems.has(doc.id)) {
-                const itemData = doc.data();
-                const convertedItem = InventoryService.convertForDisplay({
-                  id: doc.id,
-                  ...itemData
-                });
-                allItems.set(doc.id, convertedItem);
-                
-                if (index === 0) {
-                  commit('ADD_SEARCH_SUGGESTION', convertedItem.code);
-                } else if (index === 1 || index === 2) {
-                  commit('ADD_SEARCH_SUGGESTION', convertedItem.name);
-                }
-              }
-            });
-          }
+        // Convert all items
+        const allItems = snapshot.docs.map(doc => {
+          const itemData = doc.data();
+          return {
+            id: doc.id,
+            name: itemData.name || '',
+            code: itemData.code || '',
+            color: itemData.color || '',
+            supplier: itemData.supplier || '',
+            item_location: itemData.item_location || '',
+            warehouse_id: itemData.warehouse_id || '',
+            remaining_quantity: itemData.remaining_quantity || 0,
+            cartons_count: itemData.cartons_count || 0,
+            per_carton_count: itemData.per_carton_count || 12,
+            single_bottles_count: itemData.single_bottles_count || 0,
+            total_added: itemData.total_added || 0,
+            created_at: itemData.created_at,
+            updated_at: itemData.updated_at
+          };
         });
         
-        let firebaseResults = Array.from(allItems.values());
+        // Apply warehouse filter locally (if specified)
+        let filteredItems = allItems;
+        if (warehouseId && warehouseId !== 'all') {
+          filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
+        }
         
-        firebaseResults.sort((a, b) => {
+        // Apply search term filtering LOCALLY (this handles Arabic text correctly)
+        const searchResults = filteredItems.filter(item => {
+          // Create searchable text from all fields
+          const searchableText = [
+            item.name,
+            item.code,
+            item.color,
+            item.supplier,
+            item.item_location,
+            item.warehouse_id
+          ]
+            .filter(Boolean)
+            .map(text => text.toString().toLowerCase())
+            .join(' ');
+          
+          // Simple includes check (works with Arabic)
+          return searchableText.includes(searchTerm);
+        });
+        
+        // Sort by relevance (similar to Amazon/Google)
+        searchResults.sort((a, b) => {
+          // Exact code match first
           if (a.code?.toLowerCase() === searchTerm) return -1;
           if (b.code?.toLowerCase() === searchTerm) return 1;
           
+          // Code starts with search term
           const aCodeStarts = a.code?.toLowerCase().startsWith(searchTerm);
           const bCodeStarts = b.code?.toLowerCase().startsWith(searchTerm);
           if (aCodeStarts && !bCodeStarts) return -1;
           if (!aCodeStarts && bCodeStarts) return 1;
           
+          // Name starts with search term
           const aNameStarts = a.name?.toLowerCase().startsWith(searchTerm);
           const bNameStarts = b.name?.toLowerCase().startsWith(searchTerm);
           if (aNameStarts && !bNameStarts) return -1;
           if (!aNameStarts && bNameStarts) return 1;
           
-          const aContains = a.name?.toLowerCase().includes(searchTerm) || 
-                           a.code?.toLowerCase().includes(searchTerm);
-          const bContains = b.name?.toLowerCase().includes(searchTerm) || 
-                           b.code?.toLowerCase().includes(searchTerm);
-          if (aContains && !bContains) return -1;
-          if (!aContains && bContains) return 1;
+          // Name contains search term
+          const aNameContains = a.name?.toLowerCase().includes(searchTerm);
+          const bNameContains = b.name?.toLowerCase().includes(searchTerm);
+          if (aNameContains && !bNameContains) return -1;
+          if (!aNameContains && bNameContains) return 1;
           
+          // Sort by quantity (higher quantity first for better availability)
+          const aQuantity = a.remaining_quantity || 0;
+          const bQuantity = b.remaining_quantity || 0;
+          if (aQuantity !== bQuantity) return bQuantity - aQuantity;
+          
+          // Sort by name length (shorter names typically more relevant)
           return (a.name?.length || 0) - (b.name?.length || 0);
         });
         
-        firebaseResults = firebaseResults.slice(0, limit);
+        // Limit results
+        const finalResults = searchResults.slice(0, limit || 25);
         
-        state.search.activeRequests.delete(requestKey);
+        console.log(`✅ Found ${finalResults.length} items matching "${query}"`);
         
-        return firebaseResults;
+        // Add suggestions for common searches
+        if (finalResults.length > 0) {
+          finalResults.forEach(item => {
+            if (item.code && item.code.length >= 3) {
+              commit('ADD_SEARCH_SUGGESTION', item.code);
+            }
+            if (item.name && item.name.length > 2) {
+              const nameWords = item.name.split(' ').filter(word => word.length > 2);
+              nameWords.forEach(word => {
+                if (word.length >= 3) {
+                  commit('ADD_SEARCH_SUGGESTION', word);
+                }
+              });
+            }
+          });
+        }
+        
+        return finalResults;
         
       } catch (error) {
-        console.error('❌ Firebase search error:', error);
-        state.search.activeRequests.clear();
-        throw error;
+        console.error('❌ Firestore search error:', error);
+        
+        // Try fallback query
+        try {
+          console.log('🔄 Trying fallback query...');
+          const itemsRef = collection(db, 'items');
+          const fallbackQuery = query(itemsRef, limit(50));
+          const fallbackSnapshot = await getDocs(fallbackQuery);
+          
+          if (!fallbackSnapshot.empty) {
+            const fallbackItems = fallbackSnapshot.docs.map(doc => {
+              const itemData = doc.data();
+              return {
+                id: doc.id,
+                name: itemData.name || '',
+                code: itemData.code || '',
+                color: itemData.color || '',
+                supplier: itemData.supplier || '',
+                warehouse_id: itemData.warehouse_id || '',
+                remaining_quantity: itemData.remaining_quantity || 0
+              };
+            });
+            
+            const searchTerm = query.toLowerCase();
+            const fallbackResults = fallbackItems.filter(item => {
+              const searchableText = [
+                item.name,
+                item.code,
+                item.color,
+                item.supplier
+              ]
+                .filter(Boolean)
+                .map(text => text.toString().toLowerCase())
+                .join(' ');
+              
+              return searchableText.includes(searchTerm);
+            }).slice(0, limit || 25);
+            
+            console.log(`🔄 Fallback found ${fallbackResults.length} items`);
+            return fallbackResults;
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback also failed:', fallbackError);
+        }
+        
+        // Return empty array (don't crash the UI)
+        return [];
       }
     },
     
@@ -1483,18 +1538,15 @@ export default createStore({
         const searchPromises = [];
         const codeQuery = query(
           itemsRef,
-          where('code', '>=', term),
-          where('code', '<=', term + '\uf8ff'),
-          orderBy('code'),
+          where('code', '==', term),
           limit(limitResults)
         );
         searchPromises.push(getDocs(codeQuery));
         if (term.length > 3) {
+          // Try exact name match
           const nameQuery = query(
             itemsRef,
-            where('name', '>=', term),
-            where('name', '<=', term + '\uf8ff'),
-            orderBy('name'),
+            where('name', '==', term),
             limit(limitResults)
           );
           searchPromises.push(getDocs(nameQuery));
@@ -1628,8 +1680,7 @@ export default createStore({
           const itemsRef = collection(db, 'items');
           const q = query(
             itemsRef,
-            where('name', '>=', itemName),
-            where('name', '<=', itemName + '\uf8ff'),
+            where('name', '==', itemName),
             limit(10)
           );
           const snapshot = await getDocs(q);
@@ -2219,9 +2270,7 @@ export default createStore({
           if (search && search.length >= 2) {
             itemsQuery = query(
               itemsRef,
-              where(searchField, '>=', search.toLowerCase()),
-              where(searchField, '<=', search.toLowerCase() + '\uf8ff'),
-              orderBy(searchField),
+              where(searchField, '==', search),
               limit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
             );
           } else if (warehouse) {
@@ -2245,9 +2294,7 @@ export default createStore({
             if (search && search.length >= 2) {
               itemsQuery = query(
                 itemsRef,
-                where(searchField, '>=', search.toLowerCase()),
-                where(searchField, '<=', search.toLowerCase() + '\uf8ff'),
-                orderBy(searchField),
+                where(searchField, '==', search),
                 limit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
               );
             } else if (warehouse) {
@@ -2271,9 +2318,7 @@ export default createStore({
               itemsQuery = query(
                 itemsRef,
                 where('warehouse_id', 'in', warehousesFilter),
-                where(searchField, '>=', search.toLowerCase()),
-                where(searchField, '<=', search.toLowerCase() + '\uf8ff'),
-                orderBy(searchField),
+                where(searchField, '==', search),
                 limit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
               );
             } else if (warehouse && warehousesFilter.includes(warehouse)) {
