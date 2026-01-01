@@ -951,19 +951,6 @@ import TransferModal from '@/components/inventory/TransferModal.vue';
 import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
 import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
 
-// Firebase imports
-import { db } from '@/firebase/config';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs,
-  limit,
-  startAt,
-  endAt
-} from 'firebase/firestore';
-
 // Click outside directive for dropdowns
 const vClickOutside = {
   mounted(el, binding) {
@@ -1027,14 +1014,14 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
-    // Enhanced Live Search State
+    // Enhanced Live Search State - Now using store's smart search
     const useLiveSearch = ref(false);
     const liveSearchResults = ref([]);
     const isLiveSearching = ref(false);
     const searchTimeout = ref(null);
     
     // Mobile UI state
-    const showFilters = ref(false); // For collapsible filters on mobile
+    const showFilters = ref(false);
     
     // Virtual scrolling state
     const scrollContainer = ref(null);
@@ -1053,20 +1040,19 @@ export default {
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
     
-    // Computed properties
+    // Computed properties - Updated to use store getters
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
-    const inventory = computed(() => store.state.inventory || []);
-    const stats = computed(() => store.getters.dashboardStats || {});
+    const inventory = computed(() => store.getters.allInventory || []);
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
-    const allWarehouses = computed(() => store.state.warehouses || []);
+    const allWarehouses = computed(() => store.getters.warehouses || []);
     const currentUser = computed(() => store.state.user);
     const inventoryLoading = computed(() => store.state.inventoryLoading);
-    const hasMore = computed(() => store.state.pagination.hasMore);
+    const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination.isFetching);
-    const totalLoaded = computed(() => store.state.pagination.totalLoaded);
+    const totalLoaded = computed(() => store.getters.totalLoaded);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
-    const allUsers = computed(() => store.state.allUsers || []);
+    const allUsers = computed(() => store.getters.allUsers || []);
     
     // Current user info
     const currentUserInfo = computed(() => {
@@ -1077,7 +1063,7 @@ export default {
       return 'مستخدم النظام';
     });
     
-    // Permissions
+    // Permissions - Using store getters
     const canAddItem = computed(() => {
       return userRole.value === 'superadmin' || 
              (userRole.value === 'warehouse_manager' && userProfile.value?.allowed_warehouses?.length > 0);
@@ -1111,12 +1097,12 @@ export default {
       return canEditItem(item) && userRole.value === 'superadmin';
     };
     
-    // Displayed items (either from live search or filtered inventory)
+    // Displayed items - Updated to use store's filtered inventory
     const displayedItems = computed(() => {
       return useLiveSearch.value ? liveSearchResults.value : filteredItems.value;
     });
     
-    // Stats computed
+    // Stats computed - Using store data
     const totalQuantity = computed(() => {
       return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
@@ -1137,7 +1123,6 @@ export default {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
     
-    // Count active filters for mobile badge
     const activeFilterCount = computed(() => {
       let count = 0;
       if (selectedWarehouse.value) count++;
@@ -1146,50 +1131,7 @@ export default {
       return count;
     });
     
-    // Enhanced search function that works with store structure
-    const performEnhancedSearch = (items, searchTerm) => {
-      if (!searchTerm || searchTerm.length < 2) return items;
-      
-      const term = searchTerm.toLowerCase().trim();
-      
-      return items.filter(item => {
-        // Search across all fields (matching store's data structure)
-        const fieldsToSearch = [
-          item.name,
-          item.code,
-          item.color,
-          item.supplier,
-          item.item_location,
-          // Warehouse name from cache
-          store.getters.getWarehouseLabel(item.warehouse_id),
-          // Numeric fields as strings
-          String(item.remaining_quantity),
-          String(item.cartons_count),
-          String(item.per_carton_count),
-          String(item.single_bottles_count),
-          String(item.total_added)
-        ].filter(Boolean).map(field => field.toString().toLowerCase());
-        
-        // Check if search term appears in any field with fuzzy matching
-        return fieldsToSearch.some(field => {
-          // Exact match
-          if (field.includes(term)) return true;
-          
-          // Partial match for longer terms
-          if (term.length > 2) {
-            // Check for similar words
-            const words = term.split(' ');
-            return words.some(word => 
-              word.length > 1 && field.includes(word)
-            );
-          }
-          
-          return false;
-        });
-      });
-    };
-    
-    // Filtered items - normal view (cached data)
+    // Filtered items using store's inventory
     const filteredItems = computed(() => {
       let filtered = [...inventory.value];
       
@@ -1207,8 +1149,9 @@ export default {
         });
       }
       
-      // Use enhanced search on cached data
+      // Use store's smart search for better Arabic support
       if (searchTerm.value && searchTerm.value.length >= 2) {
+        // Use the store's search logic for cached data
         filtered = performEnhancedSearch(filtered, searchTerm.value);
       }
       
@@ -1218,6 +1161,54 @@ export default {
         return nameA.localeCompare(nameB, 'ar');
       });
     });
+    
+    // Helper function to normalize Arabic text
+    const normalizeArabicText = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      return text
+        .replace(/[إأآا]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[يى]/g, 'ي')
+        .replace(/[ؤئ]/g, 'ء')
+        .replace(/[\u064B-\u065F]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    };
+    
+    // Enhanced search function
+    const performEnhancedSearch = (items, searchTerm) => {
+      if (!searchTerm || searchTerm.length < 2) return items;
+      
+      const term = normalizeArabicText(searchTerm);
+      
+      return items.filter(item => {
+        const fieldsToSearch = [
+          item.name,
+          item.code,
+          item.color,
+          item.supplier,
+          item.item_location,
+          store.getters.getWarehouseLabel(item.warehouse_id),
+          String(item.remaining_quantity),
+          String(item.cartons_count),
+          String(item.per_carton_count),
+          String(item.single_bottles_count),
+          String(item.total_added)
+        ].filter(Boolean).map(field => normalizeArabicText(field.toString()));
+        
+        return fieldsToSearch.some(field => {
+          if (field.includes(term)) return true;
+          
+          if (term.length > 2) {
+            const words = term.split(' ');
+            return words.some(word => word.length > 1 && field.includes(word));
+          }
+          
+          return false;
+        });
+      });
+    };
     
     // Visible items for virtual scrolling
     const visibleItems = computed(() => {
@@ -1249,19 +1240,17 @@ export default {
       'فضي': '#9ca3af'
     };
     
-    // Helper Methods
+    // Helper Methods - Using store getters
     const formatNumber = (num) => {
       const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
       return englishDigits;
     };
     
-    // Use store's getWarehouseLabel getter
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
       return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
     };
     
-    // Get user name from allUsers or return userId
     const getUserName = (userId) => {
       if (!userId) return 'نظام';
       if (userId === currentUser.value?.uid) return currentUserInfo.value;
@@ -1272,11 +1261,9 @@ export default {
       return userId;
     };
     
-    // Get action user for item
     const getActionUser = (item) => {
       if (!item) return currentUserInfo.value;
       
-      // Try to get updated by user first
       if (item.updated_by) {
         const userName = getUserName(item.updated_by);
         if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
@@ -1284,7 +1271,6 @@ export default {
         }
       }
       
-      // Then try created by user
       if (item.created_by) {
         const userName = getUserName(item.created_by);
         if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
@@ -1292,11 +1278,9 @@ export default {
         }
       }
       
-      // Fallback to current user
       return currentUserInfo.value;
     };
     
-    // Get user display name (for item details)
     const getLastActionUser = (item) => {
       return getActionUser(item);
     };
@@ -1332,19 +1316,15 @@ export default {
       return colorMap[colorName] || '#6b7280';
     };
     
-    // Handle Firestore timestamps
     const formatDate = (timestamp) => {
       if (!timestamp) return '-';
       try {
         let dateObj;
         if (timestamp.toDate) {
-          // Firestore timestamp
           dateObj = timestamp.toDate();
         } else if (timestamp instanceof Date) {
-          // JavaScript Date object
           dateObj = timestamp;
         } else {
-          // String or number
           dateObj = new Date(timestamp);
         }
         
@@ -1450,7 +1430,7 @@ export default {
       }
     };
     
-    // Enhanced virtual scrolling handlers
+    // Virtual scrolling handlers
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
@@ -1474,7 +1454,7 @@ export default {
           visibleStartIndex.value = newStartIndex;
         }
         
-        // Load more when near bottom (loads 100 items per batch)
+        // Load more when near bottom
         if (!useLiveSearch.value) {
           const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
           if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
@@ -1513,7 +1493,7 @@ export default {
       });
     };
     
-    // ENHANCED LIVE SEARCH WITH FIREBASE AND CACHED DATA
+    // ENHANCED LIVE SEARCH USING STORE'S SMART SEARCH
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
@@ -1522,7 +1502,7 @@ export default {
         return;
       }
       
-      // Only search if we have at least 2 characters (reduced from 3 for faster results)
+      // Only search if we have at least 2 characters
       if (term.length < 2) {
         useLiveSearch.value = false;
         isLiveSearching.value = false;
@@ -1534,26 +1514,15 @@ export default {
       useLiveSearch.value = true;
       
       try {
-        // Search in Firebase first (live data)
-        const firebaseResults = await searchInFirebase(term);
+        // Use store's smart search action
+        const results = await store.dispatch('smartSearchInventory', {
+          query: term,
+          warehouseId: selectedWarehouse.value || undefined,
+          limit: 50
+        });
         
-        // If we have results from Firebase, use them
-        if (firebaseResults.length > 0) {
-          liveSearchResults.value = applyAdditionalFilters(firebaseResults);
-          isDataFresh.value = true;
-        } else {
-          // Fallback to cached data search
-          const cachedResults = searchInCachedData(term);
-          liveSearchResults.value = applyAdditionalFilters(cachedResults);
-          isDataFresh.value = false;
-          
-          if (cachedResults.length === 0) {
-            store.dispatch('showNotification', {
-              type: 'info',
-              message: 'لم يتم العثور على نتائج في البيانات المباشرة أو المخزنة'
-            });
-          }
-        }
+        liveSearchResults.value = results;
+        isDataFresh.value = true;
         
         // Reset scroll positions
         visibleStartIndex.value = 0;
@@ -1566,19 +1535,24 @@ export default {
         }
         
         // Show notification for live search results
-        if (liveSearchResults.value.length > 0) {
+        if (results.length > 0) {
           store.dispatch('showNotification', {
             type: 'success',
-            message: `تم العثور على ${liveSearchResults.value.length} نتيجة للبحث: "${term}"`
+            message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
+          });
+        } else {
+          store.dispatch('showNotification', {
+            type: 'info',
+            message: 'لم يتم العثور على نتائج للبحث'
           });
         }
         
       } catch (error) {
         console.error('❌ Error in live search:', error);
         
-        // Fallback to cached search on error
-        const cachedResults = searchInCachedData(term);
-        liveSearchResults.value = applyAdditionalFilters(cachedResults);
+        // Fallback to local search on error
+        const cachedResults = performEnhancedSearch(inventory.value, term);
+        liveSearchResults.value = cachedResults;
         isDataFresh.value = false;
         
         store.dispatch('showNotification', {
@@ -1591,140 +1565,6 @@ export default {
       }
     }, 300);
     
-    // Search in Firebase (live data)
-    const searchInFirebase = async (searchTerm) => {
-      try {
-        const inventoryRef = collection(db, 'inventory');
-        const searchTermLower = searchTerm.toLowerCase();
-        
-        // Create multiple queries for different fields
-        const queries = [
-          // Search by name
-          query(
-            inventoryRef,
-            where('name', '>=', searchTerm),
-            where('name', '<=', searchTerm + '\uf8ff'),
-            orderBy('name'),
-            limit(100)
-          ),
-          // Search by code
-          query(
-            inventoryRef,
-            where('code', '>=', searchTerm),
-            where('code', '<=', searchTerm + '\uf8ff'),
-            orderBy('code'),
-            limit(100)
-          ),
-          // Search by color
-          query(
-            inventoryRef,
-            where('color', '>=', searchTerm),
-            where('color', '<=', searchTerm + '\uf8ff'),
-            orderBy('color'),
-            limit(100)
-          ),
-          // Search by supplier
-          query(
-            inventoryRef,
-            where('supplier', '>=', searchTerm),
-            where('supplier', '<=', searchTerm + '\uf8ff'),
-            orderBy('supplier'),
-            limit(100)
-          ),
-          // Search by location
-          query(
-            inventoryRef,
-            where('item_location', '>=', searchTerm),
-            where('item_location', '<=', searchTerm + '\uf8ff'),
-            orderBy('item_location'),
-            limit(100)
-          )
-        ];
-        
-        // Execute all queries in parallel
-        const queryPromises = queries.map(q => getDocs(q));
-        const querySnapshots = await Promise.all(queryPromises);
-        
-        // Combine and deduplicate results
-        const resultsMap = new Map();
-        
-        querySnapshots.forEach(snapshot => {
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const item = {
-              id: doc.id,
-              ...data,
-              // Ensure all required fields exist
-              remaining_quantity: data.remaining_quantity || 0,
-              cartons_count: data.cartons_count || 0,
-              per_carton_count: data.per_carton_count || 0,
-              single_bottles_count: data.single_bottles_count || 0,
-              total_added: data.total_added || 0
-            };
-            
-            // Fuzzy matching: check if search term appears in any relevant field
-            const searchFields = [
-              item.name?.toLowerCase(),
-              item.code?.toLowerCase(),
-              item.color?.toLowerCase(),
-              item.supplier?.toLowerCase(),
-              item.item_location?.toLowerCase(),
-              item.warehouse_id?.toLowerCase()
-            ].filter(Boolean);
-            
-            // Check for matches (exact or partial)
-            const hasMatch = searchFields.some(field => 
-              field.includes(searchTermLower) || 
-              (searchTermLower.length > 2 && 
-               searchTermLower.split(' ').some(word => 
-                 word.length > 1 && field.includes(word)
-               ))
-            );
-            
-            if (hasMatch && !resultsMap.has(item.id)) {
-              resultsMap.set(item.id, item);
-            }
-          });
-        });
-        
-        return Array.from(resultsMap.values());
-        
-      } catch (error) {
-        console.error('❌ Error searching in Firebase:', error);
-        return [];
-      }
-    };
-    
-    // Search in cached data
-    const searchInCachedData = (searchTerm) => {
-      return performEnhancedSearch(inventory.value, searchTerm);
-    };
-    
-    // Apply additional filters (warehouse, status) to search results
-    const applyAdditionalFilters = (items) => {
-      let filtered = [...items];
-      
-      if (selectedWarehouse.value) {
-        filtered = filtered.filter(item => item.warehouse_id === selectedWarehouse.value);
-      }
-      
-      if (statusFilter.value) {
-        filtered = filtered.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
-      return filtered.sort((a, b) => {
-        const nameA = a.name?.toLowerCase() || '';
-        const nameB = b.name?.toLowerCase() || '';
-        return nameA.localeCompare(nameB, 'ar');
-      });
-    };
-    
     const handleWarehouseChange = async () => {
       // Reset scroll positions
       visibleStartIndex.value = 0;
@@ -1734,6 +1574,11 @@ export default {
       }
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
+      }
+      
+      // Update store's warehouse filter
+      if (selectedWarehouse.value) {
+        store.commit('SET_WAREHOUSE_FILTER', selectedWarehouse.value);
       }
       
       // If we're in live search mode, re-run search with new warehouse filter
@@ -1757,6 +1602,9 @@ export default {
       if (mobileScrollContainer.value) {
         mobileScrollContainer.value.scrollTop = 0;
       }
+      
+      // Clear store search
+      store.commit('CLEAR_SEARCH');
     };
     
     const clearAllFilters = () => {
@@ -1765,6 +1613,10 @@ export default {
       searchTerm.value = '';
       showFilters.value = false;
       resetToNormalView();
+      
+      // Clear store filters
+      store.commit('CLEAR_FILTERS');
+      store.commit('SET_WAREHOUSE_FILTER', '');
     };
     
     const handleFilterChange = () => {
@@ -1783,7 +1635,7 @@ export default {
       }
     };
     
-    // Excel Export - Enhanced with user and warehouse info
+    // Excel Export - Using store data
     const exportToExcel = async () => {
       if (displayedItems.value.length === 0) {
         store.dispatch('showNotification', {
@@ -1861,7 +1713,7 @@ export default {
           if (warehouseItems.length > 0) {
             const ws = XLSX.utils.json_to_sheet(warehouseItems);
             
-            // Add column widths for better formatting
+            // Add column widths
             const colWidths = [
               { wch: 12 }, // الكود
               { wch: 20 }, // اسم الصنف
@@ -1882,7 +1734,6 @@ export default {
             ];
             ws['!cols'] = colWidths;
             
-            // Limit sheet name to 31 characters (Excel limit)
             const safeSheetName = sheetName.slice(0, 31);
             XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
           }
@@ -1890,7 +1741,7 @@ export default {
 
         exportProgress.value = 'جاري حفظ الملف...';
         
-        // Generate filename with timestamp
+        // Generate filename
         const timestamp = new Date().toISOString().split('T')[0];
         const warehouseName = selectedWarehouse.value 
           ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '-')
@@ -1922,7 +1773,7 @@ export default {
     const refreshData = async () => {
       try {
         refreshing.value = true;
-        await store.dispatch('refreshAllData');
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         saveToCache();
@@ -1948,7 +1799,7 @@ export default {
       }
     };
     
-    // Load more items - loads 100 items per batch using store's loadMoreInventory
+    // Load more items - using store's loadMoreInventory
     const loadMoreItems = async () => {
       if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
         try {
@@ -2058,7 +1909,7 @@ export default {
     const confirmDelete = async () => {
       try {
         deleteLoading.value = true;
-        await store.dispatch('deleteInventoryItem', itemToDelete.value.id);
+        await store.dispatch('deleteItem', itemToDelete.value.id);
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -2188,14 +2039,18 @@ export default {
         });
       }
       
+      // Load warehouses if not loaded
       if (allWarehouses.value.length === 0) {
-        store.dispatch('loadWarehouses');
+        store.dispatch('loadWarehousesEnhanced');
       }
       
+      // Auto-select warehouse if user has only one accessible warehouse
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
+        store.commit('SET_WAREHOUSE_FILTER', selectedWarehouse.value);
       }
       
+      // Show add modal if route is AddInventory
       if (route.name === 'AddInventory') {
         showAddModal.value = true;
       }
