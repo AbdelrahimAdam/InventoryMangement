@@ -939,7 +939,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'; // ADDED watch import
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import { debounce } from 'lodash';
@@ -1102,11 +1102,16 @@ export default {
       }
       
       // Otherwise use filtered inventory from store
-      return applyAdditionalFilters(store.getters.filteredInventoryEnhanced || []);
+      const filtered = store.getters.filteredInventoryEnhanced || [];
+      return applyAdditionalFilters(filtered);
     });
     
     // Apply additional filters (warehouse, status) to items
     const applyAdditionalFilters = (items) => {
+      if (!Array.isArray(items)) {
+        return [];
+      }
+      
       let filtered = [...items];
       
       if (selectedWarehouse.value && selectedWarehouse.value !== 'all') {
@@ -1130,12 +1135,14 @@ export default {
       });
     };
     
-    // Stats computed
+    // Stats computed - FIXED: Added null checks
     const totalQuantity = computed(() => {
+      if (!Array.isArray(displayedItems.value)) return 0;
       return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
+      if (!Array.isArray(displayedItems.value)) return 0;
       return displayedItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
@@ -1143,7 +1150,8 @@ export default {
     });
     
     const warehouseCount = computed(() => {
-      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id));
+      if (!Array.isArray(displayedItems.value)) return 0;
+      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id).filter(Boolean));
       return warehouses.size;
     });
     
@@ -1162,12 +1170,14 @@ export default {
     
     // Visible items for virtual scrolling
     const visibleItems = computed(() => {
+      if (!Array.isArray(displayedItems.value)) return [];
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
       const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
       return displayedItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
+      if (!Array.isArray(displayedItems.value)) return [];
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
       const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
       return displayedItems.value.slice(start, end);
@@ -1201,7 +1211,7 @@ export default {
       if (!warehouseId) return 'غير معروف';
       
       // First try store's cache
-      const storeLabel = store.getters.getWarehouseLabel(warehouseId);
+      const storeLabel = store.getters.getWarehouseLabel?.(warehouseId);
       if (storeLabel && storeLabel !== warehouseId) return storeLabel;
       
       // Fallback to local warehouses array
@@ -1576,7 +1586,7 @@ export default {
     
     // Excel Export - Enhanced with user and warehouse info
     const exportToExcel = async () => {
-      if (displayedItems.value.length === 0) {
+      if (!Array.isArray(displayedItems.value) || displayedItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1596,6 +1606,8 @@ export default {
           exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
           
           const warehouseId = item.warehouse_id;
+          if (!warehouseId) return;
+          
           if (!itemsByWarehouse[warehouseId]) {
             itemsByWarehouse[warehouseId] = [];
           }
@@ -1772,6 +1784,8 @@ export default {
     };
     
     const showItemDetails = (item) => {
+      if (!item) return;
+      
       selectedItem.value = {
         ...item,
         warehouse_name: getWarehouseLabel(item.warehouse_id),
@@ -1788,7 +1802,7 @@ export default {
     };
     
     const handleTransfer = (item) => {
-      if (!canTransferItem(item)) {
+      if (!item || !canTransferItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية النقل من هذا المخزن'
@@ -1802,7 +1816,7 @@ export default {
     };
     
     const handleDispatch = (item) => {
-      if (!canDispatchItem(item)) {
+      if (!item || !canDispatchItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية الصرف من هذا المخزن'
@@ -1816,7 +1830,7 @@ export default {
     };
     
     const handleEdit = (item) => {
-      if (!canEditItem(item)) {
+      if (!item || !canEditItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية التعديل على هذا المخزن'
@@ -1833,7 +1847,7 @@ export default {
     };
     
     const handleDelete = (item) => {
-      if (!canDeleteItem(item)) {
+      if (!item || !canDeleteItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'ليس لديك صلاحية حذف هذا الصنف'
@@ -2027,15 +2041,16 @@ export default {
       store.dispatch('clearSearch');
     });
     
+    // Watch for changes
     watch(() => [searchTerm.value, statusFilter.value, selectedWarehouse.value], () => {
       handleFilterChange();
     });
     
-    watch(() => displayedItems.value.length, () => {
-      // Reset scroll position when filters change
+    watch(() => displayedItems.value, () => {
+      // Reset scroll position when items change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
-    });
+    }, { deep: true });
     
     watch(() => selectedWarehouse.value, async (newWarehouse) => {
       if (newWarehouse) {
@@ -2108,7 +2123,7 @@ export default {
       
       // Helper Methods
       formatNumber,
-      getWarehouseLabel, // FIXED
+      getWarehouseLabel,
       getStatusLabel,
       getStockStatus,
       getStockStatusClass,
