@@ -656,8 +656,7 @@ export default createStore({
     // ============================================
     // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
     // ============================================
-    
-           async searchInventoryDirect({ commit, state, getters }, {
+        async searchInventoryDirect({ commit, state }, {
       query,
       warehouseId = null,
       limit = SEARCH_CONFIG.MAX_RESULTS
@@ -681,42 +680,37 @@ export default createStore({
 
         console.log(`🔍 Direct Firebase search for: "${searchTerm}"`);
 
-        // ============ FINAL SAFE ACCESSIBLE WAREHOUSES HANDLING ============
+        // ============ FINAL & SAFE: No dependency on getters.accessibleWarehouses ============
         let accessibleWarehouseIds = [];
 
-        let accessible = null;
-        try {
-          accessible = getters.accessibleWarehouses;
-        } catch (err) {
-          console.warn('Getter accessibleWarehouses threw error:', err);
-        }
+        const userRole = state.userProfile?.role || '';
+        const allowedFromProfile = state.userProfile?.allowed_warehouses || [];
 
-        if (Array.isArray(accessible)) {
-          accessibleWarehouseIds = accessible
-            .map(w => w && w.id ? w.id : null)
-            .filter(id => id !== null);
-        } else {
-          console.warn('accessibleWarehouses is not an array:', accessible);
-
-          if (getters.userRole === 'superadmin') {
-            accessibleWarehouseIds = ['all'];
-          } else if (state.userProfile && Array.isArray(state.userProfile.allowed_warehouses)) {
-            accessibleWarehouseIds = state.userProfile.allowed_warehouses.filter(id => id);
+        if (userRole === 'superadmin' || userRole === 'company_manager') {
+          accessibleWarehouseIds = ['all']; // يرى كل المخازن
+        } else if (userRole === 'warehouse_manager') {
+          if (Array.isArray(allowedFromProfile)) {
+            if (allowedFromProfile.includes('all')) {
+              accessibleWarehouseIds = ['all'];
+            } else {
+              accessibleWarehouseIds = allowedFromProfile.filter(id => typeof id === 'string' && id);
+            }
           }
         }
-        // ===================================================================
+        // إذا لا صلاحيات → فارغ
+        // ===================================================================================
 
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        if (accessibleWarehouseIds.includes('all') || getters.userRole === 'superadmin') {
+        if (accessibleWarehouseIds.includes('all')) {
           itemsQuery = query(
             itemsRef,
             orderBy('remaining_quantity', 'desc'),
             limit(50)
           );
         } else if (accessibleWarehouseIds.length > 0) {
-          const warehousesToQuery = accessibleWarehouseIds.slice(0, 10);
+          const warehousesToQuery = accessibleWarehouseIds.slice(0, 10); // Firestore max 10
           itemsQuery = query(
             itemsRef,
             where('warehouse_id', 'in', warehousesToQuery),
@@ -724,7 +718,7 @@ export default createStore({
             limit(50)
           );
         } else {
-          console.log('⚠️ User has no warehouse access → returning empty');
+          console.log('⚠️ No warehouse access → returning empty results from Firebase');
           commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
           return [];
         }
@@ -738,7 +732,10 @@ export default createStore({
 
         const allItems = snapshot.docs.map(doc => {
           const itemData = doc.data();
-          return InventoryService.convertForDisplay({ id: doc.id, ...itemData });
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...itemData
+          });
         });
 
         let filteredItems = allItems;
@@ -756,7 +753,7 @@ export default createStore({
           limit
         );
 
-        console.log(`✅ Direct search success: ${finalResults.length} items found`);
+        console.log(`✅ Direct Firebase search success: ${finalResults.length} items`);
 
         commit('SET_SEARCH_RESULTS', {
           results: finalResults,
@@ -767,11 +764,11 @@ export default createStore({
         return finalResults;
 
       } catch (error) {
-        console.error('❌ Direct search error:', error);
+        console.error('❌ Direct Firebase search failed:', error);
 
+        // Fallback to local search (already working perfectly)
         try {
-          console.log('🔄 Falling back to local inventory search...');
-
+          console.log('🔄 Using local fallback search...');
           if (!normalizedSearchTerm && searchTerm) {
             normalizedSearchTerm = normalizeArabicText(searchTerm.toLowerCase());
           }
@@ -792,8 +789,6 @@ export default createStore({
             limit
           );
 
-          console.log(`✅ Fallback local search: ${finalResults.length} items found`);
-
           commit('SET_SEARCH_RESULTS', {
             results: finalResults,
             source: 'local',
@@ -803,7 +798,7 @@ export default createStore({
           return finalResults;
 
         } catch (fallbackError) {
-          console.error('❌ Fallback failed too:', fallbackError);
+          console.error('❌ Local fallback also failed:', fallbackError);
           commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
           return [];
         }
