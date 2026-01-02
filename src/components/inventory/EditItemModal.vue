@@ -14,7 +14,7 @@
       </TransitionChild>
 
       <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div class="flex min-h-full items-end justify-center p-2 text-center sm:items-center sm:p-0">
           <TransitionChild
             as="template"
             enter="ease-out duration-300"
@@ -24,594 +24,697 @@
             leave-from="opacity-100 translate-y-0 sm:scale-100"
             leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
           >
-            <DialogPanel class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full max-w-6xl max-h-[90vh] flex flex-col">
-              <!-- Header -->
-              <div class="sticky top-0 z-20 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <DialogPanel 
+              :class="[
+                'relative transform overflow-hidden rounded-xl sm:rounded-2xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all w-full',
+                'mx-2 my-2 sm:my-8 max-w-full sm:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] flex flex-col'
+              ]"
+            >
+              <!-- Header - Sticky on Mobile -->
+              <div class="sticky top-0 z-30 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                   <div class="flex-1 min-w-0">
-                    <DialogTitle class="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                    <DialogTitle class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                       {{ isCreating ? 'إضافة صنف جديد' : 'تعديل الصنف' }}
-                      <span v-if="selectedItem && !isCreating" class="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                      <span v-if="selectedItem && !isCreating" class="text-xs sm:text-sm font-normal text-gray-500 dark:text-gray-400 ml-2 hidden sm:inline">
                         ({{ selectedItem.name }} - {{ selectedItem.code }})
                       </span>
                     </DialogTitle>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
                       {{ isCreating ? 'اختر المخزن ثم ابحث عن الصنف لتحريره أو إضافة صنف جديد' : 'قم بتعديل الحقول المطلوبة فقط، سيتم حفظ التغييرات فقط' }}
                     </p>
                   </div>
                   <button
                     type="button"
-                    class="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4 flex-shrink-0"
+                    class="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 ml-3 flex-shrink-0"
                     @click="closeModal"
                   >
                     <span class="sr-only">إغلاق</span>
-                    <XIcon class="h-6 w-6" />
+                    <XIcon class="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 </div>
               </div>
 
-              <!-- Main Content -->
-              <div class="flex-1 overflow-hidden flex">
-                <!-- Left Panel: Warehouse Selection & Item Search -->
-                <div class="w-1/3 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-6 overflow-y-auto">
-                  <!-- Warehouse Selection -->
-                  <div class="mb-6">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                      <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
-                      اختر المخزن
-                    </h3>
-                    <select
-                      v-model="selectedWarehouseId"
-                      :disabled="loading || (!isCreating && selectedItem)"
-                      @change="onWarehouseChange"
-                      class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">اختر المخزن</option>
-                      <option 
-                        v-for="warehouse in accessibleWarehouses" 
-                        :key="warehouse.id" 
-                        :value="warehouse.id"
-                        class="bg-white dark:bg-gray-700"
-                      >
-                        {{ warehouse.name_ar }}
-                      </option>
-                    </select>
-                    <p v-if="selectedWarehouse" class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center">
+              <!-- Mobile Tabs for Panel Switching -->
+              <div v-if="showMobileTabs" class="sm:hidden border-b border-gray-200 dark:border-gray-700">
+                <div class="flex">
+                  <button
+                    @click="activeMobileTab = 'search'"
+                    :class="[
+                      'flex-1 py-3 text-sm font-medium border-b-2 transition-colors',
+                      activeMobileTab === 'search'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    ]"
+                  >
+                    <div class="flex items-center justify-center">
                       <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                       </svg>
-                      {{ selectedWarehouse.name_ar }} - {{ selectedWarehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}
-                    </p>
-                  </div>
+                      البحث
+                    </div>
+                  </button>
+                  <button
+                    @click="activeMobileTab = 'form'"
+                    :class="[
+                      'flex-1 py-3 text-sm font-medium border-b-2 transition-colors',
+                      activeMobileTab === 'form'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    ]"
+                    :disabled="!selectedWarehouseId || (!isCreating && !selectedItem)"
+                  >
+                    <div class="flex items-center justify-center">
+                      <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                      {{ isCreating ? 'إضافة' : 'تعديل' }}
+                    </div>
+                  </button>
+                </div>
+              </div>
 
-                  <!-- Item Search -->
-                  <div v-if="selectedWarehouseId" class="mb-6">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                      <span class="h-6 w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
-                      ابحث عن الصنف
-                    </h3>
-                    
-                    <!-- Search Input with Live Search Indicator -->
-                    <div class="relative mb-4">
-                      <input
-                        v-model="searchTerm"
-                        @input="handleSearch"
-                        type="text"
+              <!-- Main Content - Responsive Layout -->
+              <div class="flex-1 overflow-hidden flex flex-col sm:flex-row">
+                <!-- Left Panel: Warehouse Selection & Item Search -->
+                <div 
+                  :class="[
+                    'w-full sm:w-1/3 lg:w-2/5 xl:w-1/3 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50',
+                    'transition-all duration-300 ease-in-out',
+                    showMobileTabs && activeMobileTab !== 'search' ? 'hidden sm:block' : 'block'
+                  ]"
+                >
+                  <div class="h-full overflow-y-auto p-4 sm:p-6">
+                    <!-- Warehouse Selection -->
+                    <div class="mb-6">
+                      <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                        <span class="h-5 w-5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
+                        اختر المخزن
+                      </h3>
+                      <select
+                        v-model="selectedWarehouseId"
                         :disabled="loading || (!isCreating && selectedItem)"
-                        placeholder="ابحث بالاسم، الكود، اللون، المورد..."
-                        class="w-full pr-10 pl-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        @change="onWarehouseChange"
+                        class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                      <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                      </div>
-                      <!-- Live Search Indicator -->
-                      <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
-                      </div>
-                    </div>
-
-                    <!-- Items Count -->
-                    <div class="flex items-center justify-between mb-3">
-                      <span class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ combinedItems.length }} صنف متاح
-                        <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
-                          ({{ liveSearchResults.length }} من البحث المباشر)
-                        </span>
-                      </span>
-                      <button
-                        v-if="!isCreating && combinedItems.length > 0"
-                        @click="showAllItems = !showAllItems"
-                        class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                      >
-                        {{ showAllItems ? 'إخفاء القائمة' : 'عرض الكل' }}
-                      </button>
-                    </div>
-
-                    <!-- Items Table -->
-                    <div v-if="combinedItems.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                      <!-- Table Header -->
-                      <div class="grid grid-cols-12 bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                        <div class="col-span-5 p-3">الصنف</div>
-                        <div class="col-span-3 p-3 text-center">الكود</div>
-                        <div class="col-span-4 p-3 text-center">المتاح</div>
-                      </div>
-
-                      <!-- Table Body -->
-                      <div class="max-h-64 overflow-y-auto">
-                        <div
-                          v-for="item in (showAllItems ? combinedItems : combinedItems.slice(0, 5))"
-                          :key="item.id"
-                          @click="selectItemForEdit(item)"
-                          :class="[
-                            'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150',
-                            selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' : '',
-                            item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
-                          ]"
+                        <option value="">اختر المخزن</option>
+                        <option 
+                          v-for="warehouse in accessibleWarehouses" 
+                          :key="warehouse.id" 
+                          :value="warehouse.id"
+                          class="bg-white dark:bg-gray-700"
                         >
-                          <!-- Item Name and Details -->
-                          <div class="col-span-5 p-3">
-                            <div class="font-medium text-sm text-gray-900 dark:text-white truncate flex items-center">
-                              {{ item.name }}
-                              <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
-                                🔍
-                              </span>
-                            </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
-                              <span class="ml-2">{{ item.color }}</span>
-                              <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500 mr-2">| مورد: {{ item.supplier }}</span>
-                              <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
-                            </div>
-                          </div>
+                          {{ warehouse.name_ar }}
+                        </option>
+                      </select>
+                      <p v-if="selectedWarehouse" class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center">
+                        <svg class="w-4 h-4 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span class="truncate">{{ selectedWarehouse.name_ar }} - {{ selectedWarehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}</span>
+                      </p>
+                    </div>
 
-                          <!-- Item Code -->
-                          <div class="col-span-3 p-3 text-center">
-                            <span class="text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code }}</span>
-                          </div>
+                    <!-- Item Search -->
+                    <div v-if="selectedWarehouseId" class="mb-6">
+                      <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                        <span class="h-5 w-5 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
+                        ابحث عن الصنف
+                      </h3>
 
-                          <!-- Available Quantity -->
-                          <div class="col-span-4 p-3 text-center">
-                            <span :class="[
-                              'text-sm font-medium',
-                              getStockClass(item.remaining_quantity)
-                            ]">
-                              {{ item.remaining_quantity }}
-                            </span>
-                            <span v-if="item.per_carton_count" class="text-xs text-gray-500 dark:text-gray-400 block">
-                              ({{ Math.floor(item.remaining_quantity / item.per_carton_count) }} ك + {{ item.remaining_quantity % item.per_carton_count }} فردي)
-                            </span>
-                          </div>
+                      <!-- Search Input with Live Search Indicator -->
+                      <div class="relative mb-4">
+                        <input
+                          v-model="searchTerm"
+                          @input="handleSearch"
+                          type="text"
+                          :disabled="loading || (!isCreating && selectedItem)"
+                          placeholder="ابحث بالاسم، الكود، اللون، المورد..."
+                          class="w-full pr-10 pl-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                          </svg>
+                        </div>
+                        <!-- Live Search Indicator -->
+                        <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
                         </div>
                       </div>
 
-                      <!-- Live Search Loading State -->
-                      <div v-if="isLiveSearching && combinedItems.length === 0" class="p-8 text-center">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+                      <!-- Items Count & Mobile Controls -->
+                      <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ combinedItems.length }} صنف متاح
+                          <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
+                            ({{ liveSearchResults.length }} من البحث المباشر)
+                          </span>
+                        </span>
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                          <button
+                            v-if="!isCreating && combinedItems.length > 5"
+                            @click="showAllItems = !showAllItems"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                          >
+                            {{ showAllItems ? 'إخفاء' : 'عرض الكل' }}
+                          </button>
+                          <button
+                            v-if="userCanEdit && isCreating"
+                            @click="createNewItem"
+                            class="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 px-2 py-1 rounded hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center"
+                          >
+                            <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            جديد
+                          </button>
+                        </div>
                       </div>
 
-                      <!-- Show More Indicator -->
-                      <div v-if="!showAllItems && combinedItems.length > 5" 
-                        @click="showAllItems = true"
-                        class="p-3 text-center border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150"
-                      >
-                        <span class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                          عرض {{ combinedItems.length - 5 }} صنف إضافي...
-                        </span>
-                      </div>
-                    </div>
+                      <!-- Items List with Mobile Optimized Layout -->
+                      <div v-if="combinedItems.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <!-- Mobile Cards View -->
+                        <div class="sm:hidden max-h-64 overflow-y-auto">
+                          <div
+                            v-for="item in (showAllItems ? combinedItems : combinedItems.slice(0, 5))"
+                            :key="item.id"
+                            @click="selectItemForEdit(item)"
+                            :class="[
+                              'p-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150',
+                              selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' : '',
+                              item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                            ]"
+                          >
+                            <div class="flex items-start justify-between">
+                              <div class="flex-1 min-w-0">
+                                <div class="flex items-center">
+                                  <div class="font-medium text-sm text-gray-900 dark:text-white truncate">
+                                    {{ item.name }}
+                                  </div>
+                                  <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2 flex-shrink-0">
+                                    🔍
+                                  </span>
+                                </div>
+                                <div class="flex items-center mt-1">
+                                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+                                    {{ item.code }}
+                                  </span>
+                                  <span class="text-xs text-gray-500 dark:text-gray-400 mx-2">|</span>
+                                  <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                    {{ item.color }}
+                                  </span>
+                                </div>
+                              </div>
+                              <div class="ml-3 flex-shrink-0">
+                                <span :class="[
+                                  'text-sm font-medium px-2 py-1 rounded',
+                                  getStockClass(item.remaining_quantity).includes('red') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                                  getStockClass(item.remaining_quantity).includes('yellow') ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                  'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                ]">
+                                  {{ item.remaining_quantity }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
-                    <!-- Empty State -->
-                    <div v-else-if="!isLiveSearching" class="text-center py-8 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                      </svg>
-                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">لا توجد أصناف في هذا المخزن</p>
-                      <button
-                        v-if="userCanEdit"
-                        @click="createNewItem"
-                        class="mt-3 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                      >
-                        + إضافة صنف جديد
-                      </button>
-                    </div>
-                  </div>
+                        <!-- Desktop Table View -->
+                        <div class="hidden sm:block">
+                          <!-- Table Header -->
+                          <div class="grid grid-cols-12 bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                            <div class="col-span-5 p-3">الصنف</div>
+                            <div class="col-span-3 p-3 text-center">الكود</div>
+                            <div class="col-span-4 p-3 text-center">المتاح</div>
+                          </div>
 
-                  <!-- Selected Item Info -->
-                  <div v-if="selectedItem && !isCreating" class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-                    <div class="flex items-center justify-between mb-3">
-                      <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد للتعديل</h5>
-                      <div class="flex items-center gap-2">
-                        <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
-                          تم العثور عبر البحث المباشر
-                        </span>
-                        <button
-                          @click="clearSelection"
-                          class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          <!-- Table Body -->
+                          <div class="max-h-64 overflow-y-auto">
+                            <div
+                              v-for="item in (showAllItems ? combinedItems : combinedItems.slice(0, 5))"
+                              :key="item.id"
+                              @click="selectItemForEdit(item)"
+                              :class="[
+                                'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150',
+                                selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' : '',
+                                item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                              ]"
+                            >
+                              <div class="col-span-5 p-3">
+                                <div class="font-medium text-sm text-gray-900 dark:text-white truncate flex items-center">
+                                  {{ item.name }}
+                                  <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
+                                    🔍
+                                  </span>
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                                  <span class="ml-2">{{ item.color }}</span>
+                                  <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500 mr-2">| مورد: {{ item.supplier }}</span>
+                                </div>
+                              </div>
+                              <div class="col-span-3 p-3 text-center">
+                                <span class="text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code }}</span>
+                              </div>
+                              <div class="col-span-4 p-3 text-center">
+                                <span :class="[
+                                  'text-sm font-medium',
+                                  getStockClass(item.remaining_quantity)
+                                ]">
+                                  {{ item.remaining_quantity }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Show More Indicator -->
+                        <div v-if="!showAllItems && combinedItems.length > 5" 
+                          @click="showAllItems = true"
+                          class="p-3 text-center border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-150"
                         >
-                          تغيير الصنف
+                          <span class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                            عرض {{ combinedItems.length - 5 }} صنف إضافي...
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Empty State -->
+                      <div v-else-if="!isLiveSearching" class="text-center py-8 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">لا توجد أصناف في هذا المخزن</p>
+                        <button
+                          v-if="userCanEdit"
+                          @click="createNewItem"
+                          class="mt-3 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                        >
+                          + إضافة صنف جديد
                         </button>
                       </div>
                     </div>
-                    <div class="space-y-2">
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs text-blue-600 dark:text-blue-400">الاسم:</span>
-                        <span class="text-sm font-medium text-blue-900 dark:text-blue-300">{{ selectedItem.name }}</span>
+
+                    <!-- Selected Item Info -->
+                    <div v-if="selectedItem && !isCreating" class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                      <div class="flex items-center justify-between mb-3">
+                        <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
+                        <div class="flex items-center gap-2">
+                          <button
+                            @click="clearSelection"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                          >
+                            تغيير
+                          </button>
+                        </div>
                       </div>
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs text-blue-600 dark:text-blue-400">الكود:</span>
-                        <span class="text-sm font-medium text-blue-900 dark:text-blue-300">{{ selectedItem.code }}</span>
-                      </div>
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs text-blue-600 dark:text-blue-400">المتاح:</span>
-                        <span :class="[
-                          'text-sm font-medium',
-                          getStockClass(selectedItem.remaining_quantity)
-                        ]">
-                          {{ selectedItem.remaining_quantity }}
-                        </span>
+                      <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-blue-600 dark:text-blue-400">الاسم:</span>
+                          <span class="text-sm font-medium text-blue-900 dark:text-blue-300 truncate ml-2">{{ selectedItem.name }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-blue-600 dark:text-blue-400">الكود:</span>
+                          <span class="text-sm font-medium text-blue-900 dark:text-blue-300">{{ selectedItem.code }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-blue-600 dark:text-blue-400">المتاح:</span>
+                          <span :class="[
+                            'text-sm font-medium',
+                            getStockClass(selectedItem.remaining_quantity)
+                          ]">
+                            {{ selectedItem.remaining_quantity }}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Right Panel: Item Editing Form -->
-                <div class="w-2/3 p-6 overflow-y-auto">
-                  <!-- Form Title -->
-                  <div class="mb-6">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                      <span class="h-6 w-6 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
-                      {{ isCreating ? 'تفاصيل الصنف الجديد' : 'تعديل تفاصيل الصنف' }}
-                    </h3>
-                    <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400">
-                      قم بتعديل الحقول المطلوبة فقط. الحقول التي لم يتم تغييرها سيتم حفظها كما هي.
-                    </p>
-                  </div>
-
-                  <!-- Edit Form -->
-                  <form v-if="selectedWarehouseId" @submit.prevent="handleSubmit" class="space-y-6">
-                    <!-- Changed Fields Indicator -->
-                    <div v-if="changedFields.length > 0" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                      <div class="flex items-start">
-                        <svg class="h-5 w-5 text-yellow-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <div class="text-sm">
-                          <p class="font-medium text-yellow-800 dark:text-yellow-300">الحقول التي سيتم تحديثها:</p>
-                          <p class="text-yellow-700 dark:text-yellow-400 mt-1">{{ changedFields.join('، ') }}</p>
-                        </div>
-                      </div>
+                <div 
+                  :class="[
+                    'w-full sm:w-2/3 lg:w-3/5 xl:w-2/3',
+                    'transition-all duration-300 ease-in-out',
+                    showMobileTabs && activeMobileTab !== 'form' ? 'hidden sm:block' : 'block'
+                  ]"
+                >
+                  <div class="h-full overflow-y-auto p-4 sm:p-6">
+                    <!-- Form Title -->
+                    <div class="mb-6">
+                      <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                        <span class="h-5 w-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
+                        {{ isCreating ? 'تفاصيل الصنف الجديد' : 'تعديل تفاصيل الصنف' }}
+                      </h3>
+                      <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400">
+                        قم بتعديل الحقول المطلوبة فقط. الحقول التي لم يتم تغييرها سيتم حفظها كما هي.
+                      </p>
                     </div>
 
-                    <!-- Field Validation Errors -->
-                    <div v-if="fieldErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                      <div class="flex items-start">
-                        <ExclamationIcon class="h-5 w-5 text-red-400 flex-shrink-0 ml-2" />
-                        <div class="text-sm">
-                          <p class="font-medium text-red-800 dark:text-red-300">يجب تعبئة الحقول التالية:</p>
-                          <ul class="list-disc mr-4 mt-1 text-red-700 dark:text-red-400">
-                            <li v-for="error in fieldErrors" :key="error">{{ error }}</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Basic Information Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <!-- Name -->
-                      <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          اسم الصنف <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="name"
-                            v-model="formData.name"
-                            :disabled="loading"
-                            required
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                              fieldValidation.name ? 'border-red-500 dark:border-red-500' : ''
-                            ]"
-                            placeholder="أدخل اسم الصنف"
-                            @input="clearFieldError('name')"
-                          />
-                          <span v-if="isFieldChanged('name')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                        <p v-if="fieldValidation.name" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.name }}</p>
-                      </div>
-
-                      <!-- Code -->
-                      <div>
-                        <label for="code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          الكود <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="code"
-                            v-model="formData.code"
-                            :disabled="loading || !isCreating"
-                            required
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                              fieldValidation.code ? 'border-red-500 dark:border-red-500' : ''
-                            ]"
-                            placeholder="أدخل كود الصنف"
-                            @input="clearFieldError('code')"
-                          />
-                          <span v-if="isFieldChanged('code')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                        <p v-if="fieldValidation.code" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.code }}</p>
-                        <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400 mt-1">لا يمكن تغيير الكود بعد الإنشاء</p>
-                      </div>
-
-                      <!-- Color -->
-                      <div>
-                        <label for="color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          اللون <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="color"
-                            v-model="formData.color"
-                            :disabled="loading"
-                            required
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                              fieldValidation.color ? 'border-red-500 dark:border-red-500' : ''
-                            ]"
-                            placeholder="أدخل اللون"
-                            @input="clearFieldError('color')"
-                          />
-                          <span v-if="isFieldChanged('color')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                        <p v-if="fieldValidation.color" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.color }}</p>
-                      </div>
-
-                      <!-- Warehouse (Fixed) -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          المخزن <span class="text-red-500">*</span>
-                        </label>
-                        <div :class="[
-                          'px-3 py-2.5 border rounded-lg text-gray-900 dark:text-gray-300',
-                          fieldValidation.warehouse_id ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
-                        ]">
-                          {{ selectedWarehouse?.name_ar || 'غير محدد' }}
-                          <span v-if="fieldValidation.warehouse_id" class="text-red-600 dark:text-red-400 text-xs block mt-1">{{ fieldValidation.warehouse_id }}</span>
-                        </div>
-                        <input type="hidden" v-model="formData.warehouse_id" />
-                      </div>
-
-                      <!-- Supplier -->
-                      <div>
-                        <label for="supplier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          المورد
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="supplier"
-                            v-model="formData.supplier"
-                            :disabled="loading"
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                            ]"
-                            placeholder="أدخل اسم المورد"
-                          />
-                          <span v-if="isFieldChanged('supplier')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                      </div>
-
-                      <!-- Item Location -->
-                      <div>
-                        <label for="item_location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          مكان الصنف في المخزن
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="item_location"
-                            v-model="formData.item_location"
-                            :disabled="loading"
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                            ]"
-                            placeholder="مثال: الرف العلوي، المنطقة أ"
-                          />
-                          <span v-if="isFieldChanged('item_location')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Quantity Section -->
-                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6">
-                      <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
-                        <svg class="w-4 h-4 ml-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                        إدارة الكميات
-                      </h4>
-                      
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Cartons Count -->
-                        <div>
-                          <label for="cartons_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            عدد الكراتين
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="number"
-                              id="cartons_count"
-                              v-model.number="formData.cartons_count"
-                              :disabled="loading"
-                              min="0"
-                              step="1"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                                isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="0"
-                            />
-                            <span v-if="isFieldChanged('cartons_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                        </div>
-
-                        <!-- Per Carton Count -->
-                        <div>
-                          <label for="per_carton_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            عدد في الكرتونة
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="number"
-                              id="per_carton_count"
-                              v-model.number="formData.per_carton_count"
-                              :disabled="loading"
-                              min="1"
-                              step="1"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                                isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="12"
-                            />
-                            <span v-if="isFieldChanged('per_carton_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                        </div>
-
-                        <!-- Single Bottles Count -->
-                        <div>
-                          <label for="single_bottles_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            عدد القزاز الفردي
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="number"
-                              id="single_bottles_count"
-                              v-model.number="formData.single_bottles_count"
-                              :disabled="loading"
-                              min="0"
-                              step="1"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                                isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="0"
-                            />
-                            <span v-if="isFieldChanged('single_bottles_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <!-- Edit Form -->
+                    <form v-if="selectedWarehouseId" @submit.prevent="handleSubmit" class="space-y-6">
+                      <!-- Changed Fields Indicator -->
+                      <div v-if="changedFields.length > 0" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                        <div class="flex items-start">
+                          <svg class="h-5 w-5 text-yellow-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                          <div class="text-sm">
+                            <p class="font-medium text-yellow-800 dark:text-yellow-300">الحقول التي سيتم تحديثها:</p>
+                            <p class="text-yellow-700 dark:text-yellow-400 mt-1 text-xs sm:text-sm">{{ changedFields.join('، ') }}</p>
                           </div>
                         </div>
                       </div>
 
-                      <!-- Total Quantity Display -->
-                      <div class="mt-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <div class="flex items-center justify-between">
+                      <!-- Field Validation Errors -->
+                      <div v-if="fieldErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <div class="flex items-start">
+                          <ExclamationIcon class="h-5 w-5 text-red-400 flex-shrink-0 ml-2" />
+                          <div class="text-sm">
+                            <p class="font-medium text-red-800 dark:text-red-300">يجب تعبئة الحقول التالية:</p>
+                            <ul class="list-disc mr-4 mt-1 text-red-700 dark:text-red-400 text-xs sm:text-sm">
+                              <li v-for="error in fieldErrors" :key="error">{{ error }}</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Basic Information Grid -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <!-- Name -->
+                        <div class="col-span-1 md:col-span-2">
+                          <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            اسم الصنف <span class="text-red-500">*</span>
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="text"
+                              id="name"
+                              v-model="formData.name"
+                              :disabled="loading"
+                              required
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                fieldValidation.name ? 'border-red-500 dark:border-red-500' : ''
+                              ]"
+                              placeholder="أدخل اسم الصنف"
+                              @input="clearFieldError('name')"
+                            />
+                            <span v-if="isFieldChanged('name')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                          <p v-if="fieldValidation.name" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.name }}</p>
+                        </div>
+
+                        <!-- Code -->
+                        <div>
+                          <label for="code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            الكود <span class="text-red-500">*</span>
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="text"
+                              id="code"
+                              v-model="formData.code"
+                              :disabled="loading || !isCreating"
+                              required
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                fieldValidation.code ? 'border-red-500 dark:border-red-500' : ''
+                              ]"
+                              placeholder="أدخل كود الصنف"
+                              @input="clearFieldError('code')"
+                            />
+                            <span v-if="isFieldChanged('code')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                          <p v-if="fieldValidation.code" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.code }}</p>
+                          <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400 mt-1">لا يمكن تغيير الكود بعد الإنشاء</p>
+                        </div>
+
+                        <!-- Color -->
+                        <div>
+                          <label for="color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            اللون <span class="text-red-500">*</span>
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="text"
+                              id="color"
+                              v-model="formData.color"
+                              :disabled="loading"
+                              required
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                fieldValidation.color ? 'border-red-500 dark:border-red-500' : ''
+                              ]"
+                              placeholder="أدخل اللون"
+                              @input="clearFieldError('color')"
+                            />
+                            <span v-if="isFieldChanged('color')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                          <p v-if="fieldValidation.color" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.color }}</p>
+                        </div>
+
+                        <!-- Warehouse (Fixed) -->
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            المخزن <span class="text-red-500">*</span>
+                          </label>
+                          <div :class="[
+                            'px-3 py-2.5 border rounded-lg text-gray-900 dark:text-gray-300 text-sm',
+                            fieldValidation.warehouse_id ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
+                          ]">
+                            <div class="truncate">{{ selectedWarehouse?.name_ar || 'غير محدد' }}</div>
+                            <span v-if="fieldValidation.warehouse_id" class="text-red-600 dark:text-red-400 text-xs block mt-1">{{ fieldValidation.warehouse_id }}</span>
+                          </div>
+                          <input type="hidden" v-model="formData.warehouse_id" />
+                        </div>
+
+                        <!-- Supplier -->
+                        <div>
+                          <label for="supplier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            المورد
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="text"
+                              id="supplier"
+                              v-model="formData.supplier"
+                              :disabled="loading"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
+                              placeholder="أدخل اسم المورد"
+                            />
+                            <span v-if="isFieldChanged('supplier')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                        </div>
+
+                        <!-- Item Location -->
+                        <div>
+                          <label for="item_location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            مكان الصنف في المخزن
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="text"
+                              id="item_location"
+                              v-model="formData.item_location"
+                              :disabled="loading"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
+                              placeholder="مثال: الرف العلوي، المنطقة أ"
+                            />
+                            <span v-if="isFieldChanged('item_location')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Quantity Section -->
+                      <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 sm:p-6">
+                        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                          <svg class="w-4 h-4 ml-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                          </svg>
+                          إدارة الكميات
+                        </h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                          <!-- Cartons Count -->
                           <div>
-                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">إجمالي الكمية</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">محسوب تلقائياً</p>
+                            <label for="cartons_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              عدد الكراتين
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="number"
+                                id="cartons_count"
+                                v-model.number="formData.cartons_count"
+                                :disabled="loading"
+                                min="0"
+                                step="1"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                  isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="0"
+                              />
+                              <span v-if="isFieldChanged('cartons_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
                           </div>
-                          <div class="text-right">
-                            <p class="text-2xl font-bold" :class="isFieldChanged('cartons_count') || isFieldChanged('per_carton_count') || isFieldChanged('single_bottles_count') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'">
-                              {{ totalQuantity }}
-                            </p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">وحدة</p>
+
+                          <!-- Per Carton Count -->
+                          <div>
+                            <label for="per_carton_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              عدد في الكرتونة
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="number"
+                                id="per_carton_count"
+                                v-model.number="formData.per_carton_count"
+                                :disabled="loading"
+                                min="1"
+                                step="1"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                  isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="12"
+                              />
+                              <span v-if="isFieldChanged('per_carton_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                          </div>
+
+                          <!-- Single Bottles Count -->
+                          <div>
+                            <label for="single_bottles_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              عدد القزاز الفردي
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="number"
+                                id="single_bottles_count"
+                                v-model.number="formData.single_bottles_count"
+                                :disabled="loading"
+                                min="0"
+                                step="1"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                  isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="0"
+                              />
+                              <span v-if="isFieldChanged('single_bottles_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
                           </div>
                         </div>
-                        <div v-if="!isCreating && originalItem" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                          <span :class="originalTotalQuantity === totalQuantity ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
-                            {{ originalTotalQuantity === totalQuantity ? 'الكمية لم تتغير' : `الكمية السابقة: ${originalTotalQuantity}` }}
-                          </span>
+
+                        <!-- Total Quantity Display -->
+                        <div class="mt-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                          <div class="flex items-center justify-between">
+                            <div>
+                              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">إجمالي الكمية</p>
+                              <p class="text-xs text-gray-500 dark:text-gray-400">محسوب تلقائياً</p>
+                            </div>
+                            <div class="text-right">
+                              <p class="text-xl sm:text-2xl font-bold" :class="isFieldChanged('cartons_count') || isFieldChanged('per_carton_count') || isFieldChanged('single_bottles_count') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'">
+                                {{ totalQuantity }}
+                              </p>
+                              <p class="text-xs text-gray-500 dark:text-gray-400">وحدة</p>
+                            </div>
+                          </div>
+                          <div v-if="!isCreating && originalItem" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span :class="originalTotalQuantity === totalQuantity ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
+                              {{ originalTotalQuantity === totalQuantity ? 'الكمية لم تتغير' : `الكمية السابقة: ${originalTotalQuantity}` }}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      <!-- Additional Information -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <!-- Photo URL -->
+                        <div class="md:col-span-2">
+                          <label for="photo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            رابط الصورة (اختياري)
+                          </label>
+                          <div class="relative">
+                            <input
+                              type="url"
+                              id="photo_url"
+                              v-model="formData.photo_url"
+                              :disabled="loading"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
+                              placeholder="https://example.com/image.jpg"
+                            />
+                            <span v-if="isFieldChanged('photo_url')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                          <!-- Image Preview -->
+                          <div v-if="formData.photo_url" class="mt-3 flex items-center justify-center">
+                            <img 
+                              :src="formData.photo_url" 
+                              alt="Item preview" 
+                              class="h-24 w-24 sm:h-32 sm:w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                              @error="handleImageError"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="md:col-span-2">
+                          <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            ملاحظات
+                          </label>
+                          <div class="relative">
+                            <textarea
+                              id="notes"
+                              v-model="formData.notes"
+                              :disabled="loading"
+                              rows="3"
+                              :class="[
+                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
+                                isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                              ]"
+                              placeholder="أي ملاحظات إضافية حول الصنف..."
+                            ></textarea>
+                            <span v-if="isFieldChanged('notes')" class="absolute top-3 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Error Message -->
+                      <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div class="flex items-center">
+                          <ExclamationIcon class="h-5 w-5 text-red-400 ml-2 flex-shrink-0" />
+                          <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
+                        </div>
+                      </div>
+                    </form>
+
+                    <!-- No Warehouse Selected State -->
+                    <div v-else class="text-center py-8 sm:py-12">
+                      <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                      </svg>
+                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يجب اختيار المخزن أولاً لعرض نماذج التعديل</p>
                     </div>
-
-                    <!-- Additional Information -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <!-- Photo URL -->
-                      <div class="md:col-span-2">
-                        <label for="photo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          رابط الصورة (اختياري)
-                        </label>
-                        <div class="relative">
-                          <input
-                            type="url"
-                            id="photo_url"
-                            v-model="formData.photo_url"
-                            :disabled="loading"
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                            ]"
-                            placeholder="https://example.com/image.jpg"
-                          />
-                          <span v-if="isFieldChanged('photo_url')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                        <!-- Image Preview -->
-                        <div v-if="formData.photo_url" class="mt-3 flex items-center justify-center">
-                          <img 
-                            :src="formData.photo_url" 
-                            alt="Item preview" 
-                            class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
-                            @error="handleImageError"
-                          />
-                        </div>
-                      </div>
-
-                      <!-- Notes -->
-                      <div class="md:col-span-2">
-                        <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          ملاحظات
-                        </label>
-                        <div class="relative">
-                          <textarea
-                            id="notes"
-                            v-model="formData.notes"
-                            :disabled="loading"
-                            rows="3"
-                            :class="[
-                              'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed',
-                              isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                            ]"
-                            placeholder="أي ملاحظات إضافية حول الصنف..."
-                          ></textarea>
-                          <span v-if="isFieldChanged('notes')" class="absolute top-3 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Error Message -->
-                    <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                      <div class="flex items-center">
-                        <ExclamationIcon class="h-5 w-5 text-red-400 ml-2 flex-shrink-0" />
-                        <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
-                      </div>
-                    </div>
-                  </form>
-
-                  <!-- No Warehouse Selected State -->
-                  <div v-else class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يجب اختيار المخزن أولاً لعرض نماذج التعديل</p>
                   </div>
                 </div>
               </div>
 
-              <!-- Fixed Footer -->
-              <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+              <!-- Fixed Footer - Mobile Optimized -->
+              <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6 sm:py-4">
                 <div class="flex items-center justify-between">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
                     <span v-if="changedFields.length > 0">
                       {{ changedFields.length }} حقل سيتم تحديثه
                     </span>
@@ -619,12 +722,12 @@
                       لم يتم إجراء أي تغييرات
                     </span>
                   </div>
-                  <div class="flex space-x-3 space-x-reverse">
+                  <div class="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
                     <button
                       type="button"
                       @click="closeModal"
                       :disabled="loading"
-                      class="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       إلغاء
                     </button>
@@ -633,7 +736,7 @@
                       type="button"
                       @click="confirmDelete"
                       :disabled="loading"
-                      class="px-6 py-2.5 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       حذف
                     </button>
@@ -641,7 +744,7 @@
                       type="button"
                       @click="resetFormChanges"
                       :disabled="loading || changedFields.length === 0"
-                      class="px-6 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       إعادة تعيين
                     </button>
@@ -649,14 +752,14 @@
                       type="submit"
                       @click="handleSubmit"
                       :disabled="loading || !selectedWarehouseId || (!isCreating && changedFields.length === 0) || (isCreating && !formData.name.trim())"
-                      class="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+                      class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px] sm:min-w-[120px]"
                     >
                       <span v-if="loading">
                         <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        جاري الحفظ...
+                        <span class="hidden sm:inline">جاري الحفظ...</span>
                       </span>
                       <span v-else>
                         {{ isCreating ? 'إضافة صنف' : 'حفظ التغييرات' }}
@@ -686,7 +789,7 @@ import {
 import { XIcon, ExclamationIcon } from '@heroicons/vue/outline';
 
 export default {
-  name: 'EditItemModal',
+  name: 'EditItemModalMobile',
   components: {
     Dialog,
     DialogPanel,
@@ -716,12 +819,16 @@ export default {
     const selectedWarehouseId = ref('');
     const originalItem = ref(null);
     
+    // Mobile Tabs State
+    const activeMobileTab = ref('search');
+    const showMobileTabs = computed(() => window.innerWidth < 640); // sm breakpoint
+    
     // Live Search State
     const isLiveSearching = ref(false);
     const liveSearchResults = reactive([]);
     const liveSearchTimeout = ref(null);
 
-    // Form Data - EXACTLY MATCHING STORE EXPECTATIONS
+    // Form Data
     const formData = reactive({
       name: '',
       code: '',
@@ -774,12 +881,9 @@ export default {
     const combinedItems = computed(() => {
       const combined = [...inventory.value];
       
-      // Add live search results that aren't already in local inventory
       liveSearchResults.forEach(liveItem => {
         if (!combined.some(item => item.id === liveItem.id)) {
-          // Only include items from the selected warehouse
           if (liveItem.warehouse_id === selectedWarehouseId.value) {
-            // Mark as live search result for styling
             combined.push({
               ...liveItem,
               isLiveSearchResult: true
@@ -788,7 +892,6 @@ export default {
         }
       });
       
-      // Filter by search term if provided
       if (!searchTerm.value.trim()) {
         return combined;
       }
@@ -812,7 +915,7 @@ export default {
       return props.item;
     });
 
-    // Calculate total quantity - EXACT MATCHING STORE LOGIC
+    // Calculate total quantity
     const totalQuantity = computed(() => {
       const cartons = Number(formData.cartons_count) || 0;
       const perCarton = Number(formData.per_carton_count) || 12;
@@ -894,7 +997,6 @@ export default {
       try {
         console.log('🔍 Performing live search in edit modal for:', searchTermValue)
         
-        // Use the store action to search Firestore directly
         const searchResults = await store.dispatch('searchItemsForTransactions', {
           searchTerm: searchTermValue,
           limitResults: 50
@@ -902,8 +1004,7 @@ export default {
         
         console.log('✅ Live search results in edit modal:', searchResults.length, 'items')
         
-        // Update live search results
-        liveSearchResults.length = 0 // Clear previous results
+        liveSearchResults.length = 0
         searchResults.forEach(item => {
           liveSearchResults.push(item)
         })
@@ -919,19 +1020,15 @@ export default {
       }
     }
     
-    // Handle search input with live search
     const handleSearch = () => {
-      // Clear any existing timeout
       if (liveSearchTimeout.value) {
         clearTimeout(liveSearchTimeout.value)
       }
       
-      // Debounce the live search
       liveSearchTimeout.value = setTimeout(() => {
         if (searchTerm.value && searchTerm.value.trim().length >= 2) {
           performLiveSearch(searchTerm.value.trim())
         } else {
-          // Clear live search results if search term is too short
           liveSearchResults.length = 0
           isLiveSearching.value = false
         }
@@ -974,6 +1071,7 @@ export default {
       showAllItems.value = false;
       liveSearchResults.length = 0;
       isLiveSearching.value = false;
+      activeMobileTab.value = 'search';
     };
 
     const loadItemData = (item) => {
@@ -995,9 +1093,13 @@ export default {
         notes: item.notes || ''
       });
 
-      // Set warehouse ID for the search panel
       if (item.warehouse_id) {
         selectedWarehouseId.value = item.warehouse_id;
+      }
+      
+      // Switch to form tab on mobile when item is selected
+      if (showMobileTabs.value) {
+        activeMobileTab.value = 'form';
       }
     };
 
@@ -1011,7 +1113,6 @@ export default {
       liveSearchResults.length = 0;
       isLiveSearching.value = false;
       
-      // When creating new item in a warehouse, reset form with warehouse info
       if (isCreating.value && selectedWarehouseId.value) {
         createNewItem();
       }
@@ -1023,6 +1124,11 @@ export default {
       showAllItems.value = false;
       liveSearchResults.length = 0;
       isLiveSearching.value = false;
+      
+      // Switch to form tab on mobile
+      if (showMobileTabs.value) {
+        activeMobileTab.value = 'form';
+      }
     };
 
     const createNewItem = () => {
@@ -1033,10 +1139,18 @@ export default {
         formData.per_carton_count = 12;
         formData.single_bottles_count = 0;
       }
+      
+      // Switch to form tab on mobile
+      if (showMobileTabs.value) {
+        activeMobileTab.value = 'form';
+      }
     };
 
     const clearSelection = () => {
       resetForm();
+      if (selectedWarehouseId.value) {
+        formData.warehouse_id = selectedWarehouseId.value;
+      }
     };
 
     const resetFormChanges = () => {
@@ -1064,12 +1178,10 @@ export default {
     const validateForm = () => {
       let isValid = true;
       
-      // Reset validation
       Object.keys(fieldValidation).forEach(key => {
         fieldValidation[key] = '';
       });
 
-      // Validate required fields
       if (!formData.name.trim()) {
         fieldValidation.name = 'اسم الصنف مطلوب';
         isValid = false;
@@ -1090,7 +1202,6 @@ export default {
         isValid = false;
       }
 
-      // Validate quantities
       if (totalQuantity.value < 0) {
         error.value = 'الكمية لا يمكن أن تكون سالبة';
         isValid = false;
@@ -1124,7 +1235,7 @@ export default {
 
       try {
         if (isCreating.value) {
-          // Add new item - using store-compatible field names
+          // Add new item using store action
           const itemData = {
             name: formData.name,
             code: formData.code,
@@ -1141,7 +1252,10 @@ export default {
 
           console.log('📝 Adding new item with data:', itemData);
 
-          const result = await store.dispatch('addItem', itemData);
+          const result = await store.dispatch('addInventoryItem', { 
+            itemData, 
+            isAddingCartons: true 
+          });
 
           if (result && result.id) {
             emit('success', {
@@ -1152,30 +1266,21 @@ export default {
             closeModal();
           }
         } else {
-          // Prepare update data in EXACT format the store expects
+          // Update existing item using store action
           const updateData = {
             itemId: selectedItem.value.id,
             itemData: {
-              // Required fields
               name: formData.name,
               code: formData.code,
               color: formData.color,
               warehouse_id: formData.warehouse_id,
-              
-              // Quantity fields
               cartons_count: Number(formData.cartons_count) || 0,
               per_carton_count: Number(formData.per_carton_count) || 12,
               single_bottles_count: Number(formData.single_bottles_count) || 0,
-              
-              // Optional fields
               supplier: formData.supplier || '',
               item_location: formData.item_location || '',
               photo_url: formData.photo_url || '',
-              notes: formData.notes || '',
-              
-              // Store calculates these automatically when updating
-              total_added: (Number(formData.cartons_count) || 0) * (Number(formData.per_carton_count) || 12) + (Number(formData.single_bottles_count) || 0),
-              remaining_quantity: (Number(formData.cartons_count) || 0) * (Number(formData.per_carton_count) || 12) + (Number(formData.single_bottles_count) || 0)
+              notes: formData.notes || ''
             }
           };
 
@@ -1183,7 +1288,7 @@ export default {
 
           const result = await store.dispatch('updateItem', updateData);
 
-          if (result && result.id) {
+          if (result && result.success) {
             emit('success', {
               type: 'updated',
               message: `تم تحديث الصنف "${formData.name}" بنجاح`,
@@ -1209,6 +1314,7 @@ export default {
       const confirmMessage = `هل أنت متأكد من حذف الصنف "${selectedItem.value.name}"؟\nهذا الإجراء لا يمكن التراجع عنه.`;
 
       if (window.confirm(confirmMessage)) {
+        store.dispatch('deleteItem', selectedItem.value.id);
         emit('delete', selectedItem.value.id);
         closeModal();
       }
@@ -1229,7 +1335,6 @@ export default {
       }
     });
 
-    // Watch search term changes to clear live search results when cleared
     watch(searchTerm, (newValue) => {
       if (!newValue || newValue.trim().length < 2) {
         liveSearchResults.length = 0;
@@ -1240,8 +1345,11 @@ export default {
     // Initialize warehouses if not loaded
     onMounted(() => {
       if (store.state.warehouses.length === 0) {
-        store.dispatch('loadWarehouses');
+        store.dispatch('loadWarehousesEnhanced');
       }
+      
+      // Add resize listener for mobile tabs
+      window.addEventListener('resize', handleResize);
     });
 
     // Cleanup on unmount
@@ -1249,7 +1357,12 @@ export default {
       if (liveSearchTimeout.value) {
         clearTimeout(liveSearchTimeout.value);
       }
+      window.removeEventListener('resize', handleResize);
     });
+
+    const handleResize = () => {
+      // Update mobile tabs visibility on resize
+    };
 
     return {
       // State
@@ -1261,6 +1374,10 @@ export default {
       selectedWarehouseId,
       originalItem,
       fieldValidation,
+      
+      // Mobile Tabs
+      activeMobileTab,
+      showMobileTabs,
       
       // Live Search State
       isLiveSearching,
@@ -1299,30 +1416,61 @@ export default {
 </script>
 
 <style scoped>
-/* Custom scrollbar for dark mode */
-.dark ::-webkit-scrollbar {
-  width: 8px;
+/* Custom scrollbar for mobile */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .dark ::-webkit-scrollbar-track {
   background: #374151;
-  border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
-  border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
 
-/* Smooth transitions */
-.transition-colors {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+/* Mobile touch optimization */
+@media (max-width: 640px) {
+  button, 
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input[type="text"],
+  input[type="number"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Transition animations */
+.transition-all {
+  transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-duration: 300ms;
 }
 
 /* Animation for loading spinner */
@@ -1364,38 +1512,9 @@ export default {
   background-position: 0 100%;
 }
 
-/* Hover effects for interactive elements */
-.hover\:bg-gray-50:hover {
-  background-color: rgba(249, 250, 251, 0.5);
-}
-
-.dark .hover\:bg-gray-700\/50:hover {
-  background-color: rgba(55, 65, 81, 0.5);
-}
-
-/* Focus styles */
+/* Focus styles for mobile */
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
-}
-
-/* Truncate text */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rtl {
-  direction: rtl;
-}
-
-.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
-}
-
-/* Ensure consistent heights */
-.max-h-\[90vh\] {
-  max-height: 90vh;
 }
 
 /* Remove number input arrows */
@@ -1407,5 +1526,55 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Mobile optimization for modal */
+@media (max-width: 640px) {
+  .max-h-\[95vh\] {
+    max-height: 95vh;
+  }
+  
+  .mx-2 {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+  
+  .my-2 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Desktop optimization */
+@media (min-width: 640px) {
+  .max-h-\[90vh\] {
+    max-height: 90vh;
+  }
+}
+
+/* RTL support */
+.rtl {
+  direction: rtl;
+}
+
+.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* Truncate text with ellipsis */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Smooth hover transitions */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 </style>
