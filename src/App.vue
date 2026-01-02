@@ -22,10 +22,9 @@
             <button 
               @click="removeNotification(notification.id)"
               class="mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
+              :aria-label="'إغلاق الإشعار'"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
+              <CloseIcon size="sm" color="gray" />
             </button>
           </div>
         </div>
@@ -38,7 +37,7 @@
         <!-- Logo or App Name -->
         <div class="mb-8">
           <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
             </svg>
           </div>
@@ -48,8 +47,8 @@
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400 mb-4"></div>
 
         <!-- Loading Text -->
-        <p class="text-gray-600 dark:text-gray-400 font-medium">جاري تحميل النظام...</p>
-        <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">يرجى الانتظار لحظات</p>
+        <p class="text-gray-700 dark:text-gray-300 font-medium">جاري تحميل النظام...</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">يرجى الانتظار لحظات</p>
 
         <!-- Preloaded Inventory Status -->
         <div v-if="preloadedItems > 0" class="mt-8">
@@ -57,9 +56,14 @@
             <div 
               class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
               :style="{ width: `${preloadedProgress}%` }"
+              role="progressbar"
+              :aria-valuenow="preloadedProgress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-label="`تم تحميل ${preloadedProgress}% من البيانات`"
             ></div>
           </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
             تم تحميل {{ preloadedItems }} صنف
           </p>
         </div>
@@ -91,6 +95,8 @@
                 v-if="mobileMenuOpen"
                 class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
                 @click="mobileMenuOpen = false"
+                role="presentation"
+                aria-hidden="true"
               ></div>
             </transition>
 
@@ -128,19 +134,23 @@
                     <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                       <div class="flex items-center gap-3">
                         <div class="animate-pulse w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                           </svg>
                         </div>
                         <div>
-                          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">جاري تحميل المخزون...</p>
-                          <p class="text-xs text-gray-500 dark:text-gray-500">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
+                          <p class="text-sm font-medium text-gray-800 dark:text-gray-200">جاري تحميل المخزون...</p>
+                          <p class="text-xs text-gray-600 dark:text-gray-400">تحميل {{ preloadedItems }} من {{ preloadedTarget }} صنف</p>
                         </div>
                       </div>
                       <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div 
                           class="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
                           :style="{ width: `${preloadedProgress}%` }"
+                          role="progressbar"
+                          :aria-valuenow="preloadedProgress"
+                          aria-valuemin="0"
+                          aria-valuemax="100"
                         ></div>
                       </div>
                     </div>
@@ -159,19 +169,21 @@
           <div class="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
             <div class="text-center p-8">
               <div class="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-10 h-10 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-10 h-10 text-yellow-700 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
               </div>
-              <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">غير مصرح بالوصول</h2>
-              <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">غير مصرح بالوصول</h2>
+              <p class="text-gray-700 dark:text-gray-300 mb-6 max-w-md">
                 عذراً، ليس لديك صلاحية للوصول إلى لوحة التحكم. يرجى التواصل مع المشرف.
               </p>
               <div class="space-x-4">
                 <button 
                   @click="logout"
-                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                  :aria-label="'تسجيل الخروج'"
                 >
+                  <LogoutIcon size="sm" color="white" />
                   تسجيل الخروج
                 </button>
               </div>
@@ -192,6 +204,8 @@ import MobileSidebar from '@/components/layout/MobileSidebar.vue';
 import MobileBottomNav from '@/components/layout/MobileBottomNav.vue';
 import DesktopSidebar from '@/components/layout/DesktopSidebar.vue';
 import DesktopHeader from '@/components/layout/DesktopHeader.vue';
+import CloseIcon from '@/components/icons/CloseIcon.vue';
+import LogoutIcon from '@/components/icons/LogoutIcon.vue';
 
 export default {
   name: 'App',
@@ -200,7 +214,9 @@ export default {
     MobileSidebar,
     MobileBottomNav,
     DesktopSidebar,
-    DesktopHeader
+    DesktopHeader,
+    CloseIcon,
+    LogoutIcon
   },
   setup() {
     const store = useStore();
@@ -632,6 +648,14 @@ main {
   .notification-leave-to {
     transform: none !important;
   }
+  
+  .animate-spin {
+    animation: none !important;
+  }
+  
+  .animate-pulse {
+    animation: none !important;
+  }
 }
 
 /* Print styles */
@@ -660,5 +684,61 @@ main {
 /* Ensure proper stacking context */
 .fixed {
   isolation: isolate;
+}
+
+/* Accessibility: Ensure proper focus styles */
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bg-gray-50 {
+    background-color: #ffffff !important;
+  }
+  
+  .dark .bg-gray-900 {
+    background-color: #000000 !important;
+  }
+  
+  .border-gray-200 {
+    border-color: #000000 !important;
+  }
+  
+  .text-gray-600 {
+    color: #000000 !important;
+  }
+  
+  .dark .text-gray-400 {
+    color: #ffffff !important;
+  }
+}
+
+/* Forced colors mode (Windows High Contrast) */
+@media (forced-colors: active) {
+  button,
+  [role="button"] {
+    border: 2px solid ButtonText;
+  }
+  
+  .border {
+    border-color: CanvasText;
+  }
+  
+  svg {
+    forced-color-adjust: none;
+    stroke: ButtonText;
+  }
+}
+
+/* Touch target optimization for mobile */
+@media (max-width: 768px) {
+  button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 </style>
