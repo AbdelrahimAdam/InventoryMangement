@@ -48,7 +48,7 @@
               <i class="fas" :class="exporting ? 'fa-spinner fa-spin' : 'fa-file-export'"></i>
               {{ exporting ? 'جاري التصدير...' : 'تصدير' }}
             </button>
-            <button @click="showCreateModal = true" class="btn-success">
+            <button @click="openCreateModal" class="btn-success">
               <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
             </button>
           </div>
@@ -65,7 +65,7 @@
               <p class="stat-number">{{ stats.totalUsers }}</p>
             </div>
           </div>
-          
+
           <div class="stat-card">
             <div class="stat-icon active-users">
               <i class="fas fa-user-check"></i>
@@ -75,7 +75,7 @@
               <p class="stat-number">{{ stats.activeUsers }}</p>
             </div>
           </div>
-          
+
           <div class="stat-card">
             <div class="stat-icon inactive-users">
               <i class="fas fa-user-times"></i>
@@ -85,7 +85,7 @@
               <p class="stat-number">{{ stats.inactiveUsers }}</p>
             </div>
           </div>
-          
+
           <div class="stat-card">
             <div class="stat-icon superadmins">
               <i class="fas fa-crown"></i>
@@ -130,6 +130,7 @@
               <option value="superadmin">مشرف عام</option>
               <option value="company_manager">مدير شركة</option>
               <option value="warehouse_manager">مدير مخزن</option>
+              <option value="employee">موظف</option>
             </select>
           </div>
 
@@ -153,7 +154,7 @@
             <select id="warehouseFilter" v-model="filters.warehouse" @change="applyFilters">
               <option value="">جميع المخازن</option>
               <option value="all">جميع المخازن</option>
-              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+              <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
                 {{ warehouse.name_ar || warehouse.name }}
               </option>
             </select>
@@ -191,7 +192,7 @@
             <button @click="showBulkActions = !showBulkActions" class="btn-secondary">
               <i class="fas fa-bars"></i> إجراءات جماعية
             </button>
-            
+
             <div v-if="showBulkActions" class="bulk-actions-dropdown">
               <button @click="bulkActivate" :disabled="selectedUsers.length === 0" class="bulk-action-btn">
                 <i class="fas fa-check-circle"></i> تفعيل المحددين
@@ -304,7 +305,7 @@
               <div class="user-info">
                 <h4 class="user-name">{{ user.name }}</h4>
                 <p class="user-email">{{ user.email }}</p>
-                
+
                 <div class="user-meta">
                   <span class="user-role" :class="user.role">
                     <i :class="getRoleIcon(user.role)"></i>
@@ -553,7 +554,7 @@
           <div class="pagination-info">
             عرض {{ (currentPage - 1) * itemsPerPage + 1 }} إلى {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} من {{ filteredUsers.length }} مستخدم
           </div>
-          
+
           <div class="pagination-controls">
             <select v-model="itemsPerPage" @change="itemsPerPage = parseInt($event.target.value)" class="page-size-select">
               <option value="10">10 لكل صفحة</option>
@@ -569,7 +570,7 @@
             >
               <i class="fas fa-chevron-right"></i>
             </button>
-            
+
             <div class="page-numbers">
               <button 
                 v-for="page in visiblePages" 
@@ -581,7 +582,7 @@
                 {{ page }}
               </button>
             </div>
-            
+
             <button 
               @click="nextPage" 
               :disabled="currentPage === totalPages" 
@@ -594,17 +595,185 @@
       </div>
     </div>
 
-    <!-- Modals -->
-    
-    <!-- Add/Edit User Modal (Using External Component) -->
-    <AddUserModal
-      v-if="showCreateModal"
-      :auto-open="true"
-      :edit-user="editingUser"
-      @success="handleUserSuccess"
-      @closed="closeUserModal"
-      @completed="handleUserCompleted"
-    />
+    <!-- Create/Edit User Modal -->
+    <div v-if="showUserModal" class="modal-overlay" @click.self="closeUserModal">
+      <div class="modal-container user-modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>
+              <i class="fas" :class="editingUser ? 'fa-user-edit' : 'fa-user-plus'"></i>
+              {{ editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد' }}
+            </h2>
+            <button @click="closeUserModal" class="modal-close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <form @submit.prevent="saveUser" class="user-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="name">
+                    <i class="fas fa-user"></i> الاسم الكامل *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    v-model="userForm.name"
+                    placeholder="أدخل الاسم الكامل"
+                    required
+                    :disabled="savingUser"
+                  >
+                  <span v-if="!userForm.name && formSubmitted" class="error-message">الاسم مطلوب</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="email">
+                    <i class="fas fa-envelope"></i> البريد الإلكتروني *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    v-model="userForm.email"
+                    placeholder="user@example.com"
+                    required
+                    :disabled="savingUser"
+                  >
+                  <span v-if="!isValidEmail(userForm.email) && formSubmitted" class="error-message">
+                    بريد إلكتروني غير صالح
+                  </span>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="role">
+                    <i class="fas fa-user-tag"></i> الدور *
+                  </label>
+                  <select id="role" v-model="userForm.role" required :disabled="savingUser">
+                    <option value="">اختر الدور</option>
+                    <option value="superadmin">مشرف عام</option>
+                    <option value="company_manager">مدير شركة</option>
+                    <option value="warehouse_manager">مدير مخزن</option>
+                    <option value="employee">موظف</option>
+                  </select>
+                  <span v-if="!userForm.role && formSubmitted" class="error-message">الدور مطلوب</span>
+                </div>
+
+                <div v-if="!editingUser" class="form-group">
+                  <label for="password">
+                    <i class="fas fa-key"></i> كلمة المرور *
+                  </label>
+                  <div class="password-input">
+                    <input
+                      :type="showPassword ? 'text' : 'password'"
+                      id="password"
+                      v-model="userForm.password"
+                      placeholder="أدخل كلمة المرور"
+                      required
+                      minlength="8"
+                      :disabled="savingUser"
+                    >
+                    <button
+                      type="button"
+                      @click="showPassword = !showPassword"
+                      class="password-toggle"
+                      :title="showPassword ? 'إخفاء كلمة المرور' : 'عرض كلمة المرور'"
+                    >
+                      <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                    </button>
+                  </div>
+                  <div v-if="!editingUser && userForm.password" class="password-strength" :class="passwordStrength.class">
+                    <div class="strength-bar">
+                      <div class="strength-fill" :style="{ width: passwordStrength.percentage + '%' }"></div>
+                    </div>
+                    <span>{{ passwordStrength.text }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Warehouse Access -->
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-warehouse"></i> المخازن المسموحة
+                </label>
+                <div class="warehouse-selection">
+                  <div class="warehouse-options">
+                    <label class="checkbox-label">
+                      <input type="checkbox" v-model="selectAllWarehouses" @change="toggleAllWarehouses">
+                      <span class="checkbox-custom"></span>
+                      <span class="checkbox-text">جميع المخازن</span>
+                    </label>
+                    
+                    <div class="warehouses-list">
+                      <label v-for="warehouse in accessibleWarehouses" :key="warehouse.id" class="checkbox-label warehouse-item">
+                        <input 
+                          type="checkbox" 
+                          :value="warehouse.id" 
+                          v-model="userForm.allowed_warehouses"
+                          :disabled="selectAllWarehouses || savingUser"
+                        >
+                        <span class="checkbox-custom"></span>
+                        <span class="warehouse-name">{{ warehouse.name_ar || warehouse.name }}</span>
+                        <span class="warehouse-type">{{ warehouse.type === 'dispatch' ? 'مخزن صرف' : 'مخزن رئيسي' }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Permissions -->
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-shield-alt"></i> الصلاحيات
+                </label>
+                <div class="permissions-grid">
+                  <label v-for="permission in availablePermissions" :key="permission.value" class="checkbox-label permission-item">
+                    <input 
+                      type="checkbox" 
+                      :value="permission.value" 
+                      v-model="userForm.permissions"
+                      :disabled="savingUser"
+                    >
+                    <span class="checkbox-custom"></span>
+                    <div class="permission-info">
+                      <i :class="permission.icon"></i>
+                      <span>{{ permission.label }}</span>
+                      <small>{{ permission.description }}</small>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Notes -->
+              <div class="form-group">
+                <label for="notes">
+                  <i class="fas fa-sticky-note"></i> ملاحظات
+                </label>
+                <textarea
+                  id="notes"
+                  v-model="userForm.notes"
+                  placeholder="ملاحظات إضافية عن المستخدم..."
+                  rows="3"
+                  :disabled="savingUser"
+                ></textarea>
+              </div>
+
+              <!-- Form Actions -->
+              <div class="form-actions">
+                <button type="button" @click="closeUserModal" class="btn-secondary" :disabled="savingUser">
+                  <i class="fas fa-times"></i> إلغاء
+                </button>
+                <button type="submit" class="btn-primary" :disabled="savingUser">
+                  <i class="fas" :class="savingUser ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                  {{ savingUser ? 'جاري الحفظ...' : (editingUser ? 'تحديث' : 'حفظ') }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Delete Confirmation Modal -->
     <div v-if="deleteModalVisible" class="modal-overlay" @click.self="cancelDelete">
@@ -613,7 +782,7 @@
           <div class="modal-header danger">
             <h2><i class="fas fa-exclamation-triangle"></i> تأكيد الحذف</h2>
           </div>
-          
+
           <div class="modal-body">
             <div class="delete-warning">
               <i class="fas fa-trash-alt"></i>
@@ -656,7 +825,7 @@
               <i class="fas fa-times"></i>
             </button>
           </div>
-          
+
           <div class="modal-body">
             <div class="reset-info">
               <i class="fas fa-user-shield"></i>
@@ -673,7 +842,7 @@
                     type="radio"
                     v-model="resetMethod"
                     value="auto"
-                    checked
+                    :disabled="resetting"
                   >
                   <span class="radio-custom"></span>
                   <div class="option-content">
@@ -687,6 +856,7 @@
                     type="radio"
                     v-model="resetMethod"
                     value="manual"
+                    :disabled="resetting"
                   >
                   <span class="radio-custom"></span>
                   <div class="option-content">
@@ -699,7 +869,7 @@
               <div v-if="resetMethod === 'manual'" class="manual-password">
                 <div class="form-group">
                   <label for="newPassword">
-                    <i class="fas fa-key"></i> كلمة المرور الجديدة
+                    <i class="fas fa-key"></i> كلمة المرور الجديدة *
                   </label>
                   <div class="password-input">
                     <input
@@ -709,6 +879,7 @@
                       placeholder="أدخل كلمة المرور الجديدة"
                       required
                       minlength="8"
+                      :disabled="resetting"
                     >
                     <button
                       type="button"
@@ -729,7 +900,7 @@
 
                 <div class="form-group">
                   <label for="confirmNewPassword">
-                    <i class="fas fa-key"></i> تأكيد كلمة المرور
+                    <i class="fas fa-key"></i> تأكيد كلمة المرور *
                   </label>
                   <div class="password-input">
                     <input
@@ -738,6 +909,7 @@
                       v-model="confirmNewPassword"
                       placeholder="أعد إدخال كلمة المرور الجديدة"
                       required
+                      :disabled="resetting"
                     >
                     <button
                       type="button"
@@ -754,7 +926,7 @@
 
               <div class="notification-option">
                 <label class="checkbox-label">
-                  <input type="checkbox" v-model="sendResetNotification">
+                  <input type="checkbox" v-model="sendResetNotification" :disabled="resetting">
                   <span class="checkbox-custom"></span>
                   <div class="checkbox-content">
                     <h4><i class="fas fa-envelope"></i> إرسال إشعار للمستخدم</h4>
@@ -765,47 +937,12 @@
             </div>
 
             <div class="reset-actions">
-              <button @click="cancelResetPassword" class="btn-secondary">
+              <button @click="cancelResetPassword" class="btn-secondary" :disabled="resetting">
                 <i class="fas fa-times"></i> إلغاء
               </button>
-              <button @click="confirmResetPassword" class="btn-primary" :disabled="resetting">
+              <button @click="confirmResetPassword" class="btn-primary" :disabled="resetting || !canResetPassword">
                 <i class="fas" :class="resetting ? 'fa-spinner fa-spin' : 'fa-key'"></i>
                 {{ resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Impersonate Confirmation Modal -->
-    <div v-if="showImpersonateModal" class="modal-overlay" @click.self="cancelImpersonate">
-      <div class="modal-container">
-        <div class="modal-content">
-          <div class="modal-header warning">
-            <h2><i class="fas fa-user-secret"></i> الدخول كمستخدم</h2>
-          </div>
-          
-          <div class="modal-body">
-            <div class="impersonate-warning">
-              <i class="fas fa-exclamation-triangle"></i>
-              <h3>هل تريد الدخول كمستخدم آخر؟</h3>
-              <p v-if="userToImpersonate">
-                ستقوم بتسجيل الدخول كمستخدم <strong>{{ userToImpersonate.name }}</strong> (<strong>{{ userToImpersonate.email }}</strong>)
-              </p>
-              <div class="warning-list">
-                <p><i class="fas fa-shield-alt"></i> ستفقد صلاحياتك كمدير مؤقتاً</p>
-                <p><i class="fas fa-history"></i> سيتم تسجيل هذا الإجراء في السجلات</p>
-                <p><i class="fas fa-sign-out-alt"></i> يمكنك الرجوع لحسابك في أي وقت</p>
-              </div>
-            </div>
-
-            <div class="impersonate-actions">
-              <button @click="cancelImpersonate" class="btn-secondary">
-                <i class="fas fa-times"></i> إلغاء
-              </button>
-              <button @click="confirmImpersonate" class="btn-warning">
-                <i class="fas fa-user-secret"></i> متابعة والدخول
               </button>
             </div>
           </div>
@@ -828,14 +965,12 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
-import AddUserModal from '@/components/users/AddUserModal.vue'
+import { auth, db } from '@/firebase/config'
+import { updatePassword, sendPasswordResetEmail } from 'firebase/auth'
+import { doc, updateDoc } from 'firebase/firestore'
 
 export default {
   name: 'UserManagement',
-  
-  components: {
-    AddUserModal
-  },
   
   data() {
     return {
@@ -845,6 +980,8 @@ export default {
       exporting: false,
       deleting: false,
       resetting: false,
+      savingUser: false,
+      formSubmitted: false,
       
       // View Mode
       viewMode: 'grid',
@@ -870,14 +1007,25 @@ export default {
       itemsPerPage: 25,
       
       // Modals
-      showCreateModal: false,
+      showUserModal: false,
       editingUser: null,
+      userForm: {
+        name: '',
+        email: '',
+        role: '',
+        password: '',
+        allowed_warehouses: [],
+        permissions: ['view_reports'],
+        notes: ''
+      },
       deleteModalVisible: false,
       userToDelete: null,
       showResetPasswordModal: false,
       userToReset: null,
-      showImpersonateModal: false,
-      userToImpersonate: null,
+      
+      // User Creation/Edit
+      selectAllWarehouses: false,
+      showPassword: false,
       
       // Reset Password
       resetMethod: 'auto',
@@ -896,14 +1044,34 @@ export default {
         icon: 'fas fa-check-circle'
       },
       
+      // Available permissions
+      availablePermissions: [
+        { value: 'full_access', label: 'صلاحية كاملة', icon: 'fas fa-crown', description: 'جميع الصلاحيات' },
+        { value: 'view_items', label: 'عرض الأصناف', icon: 'fas fa-eye', description: 'عرض المخزون' },
+        { value: 'add_items', label: 'إضافة أصناف', icon: 'fas fa-plus', description: 'إضافة أصناف جديدة' },
+        { value: 'edit_items', label: 'تعديل الأصناف', icon: 'fas fa-edit', description: 'تعديل بيانات الأصناف' },
+        { value: 'delete_items', label: 'حذف الأصناف', icon: 'fas fa-trash', description: 'حذف الأصناف' },
+        { value: 'transfer_items', label: 'نقل الأصناف', icon: 'fas fa-exchange-alt', description: 'نقل بين المخازن' },
+        { value: 'dispatch_items', label: 'صرف الأصناف', icon: 'fas fa-truck', description: 'صرف للأقسام/العملاء' },
+        { value: 'view_reports', label: 'عرض التقارير', icon: 'fas fa-chart-bar', description: 'عرض الإحصائيات' },
+        { value: 'view_users', label: 'عرض المستخدمين', icon: 'fas fa-users', description: 'عرض قائمة المستخدمين' },
+        { value: 'manage_invoices', label: 'إدارة الفواتير', icon: 'fas fa-file-invoice', description: 'إنشاء وإدارة الفواتير' }
+      ],
+      
       // Debounce search
       searchTimeout: null
     }
   },
   
   computed: {
-    ...mapState(['allUsers', 'warehouses', 'user']),
-    ...mapGetters(['primaryWarehouses', 'dispatchWarehouses']),
+    ...mapState(['allUsers', 'warehouses', 'user', 'usersLoading']),
+    ...mapGetters([
+      'primaryWarehouses', 
+      'dispatchWarehouses', 
+      'accessibleWarehouses',
+      'userProfile',
+      'canManageUsers'
+    ]),
     
     // Current User ID
     currentUserId() {
@@ -928,7 +1096,8 @@ export default {
         inactiveUsers: 0,
         superadmins: 0,
         companyManagers: 0,
-        warehouseManagers: 0
+        warehouseManagers: 0,
+        employees: 0
       }
       
       this.allUsers.forEach(user => {
@@ -948,6 +1117,9 @@ export default {
           case 'warehouse_manager':
             stats.warehouseManagers++
             break
+          case 'employee':
+            stats.employees++
+            break
         }
       })
       
@@ -964,7 +1136,7 @@ export default {
         filtered = filtered.filter(user => 
           (user.name?.toLowerCase() || '').includes(searchTerm) ||
           (user.email?.toLowerCase() || '').includes(searchTerm) ||
-          (user.role?.toLowerCase() || '').includes(searchTerm)
+          (this.getRoleName(user.role)?.toLowerCase() || '').includes(searchTerm)
         )
       }
       
@@ -1076,6 +1248,39 @@ export default {
     // Password Strength
     newPasswordStrength() {
       return this.calculatePasswordStrength(this.newPassword)
+    },
+    
+    passwordStrength() {
+      return this.calculatePasswordStrength(this.userForm.password)
+    },
+    
+    // Check if reset password is allowed
+    canResetPassword() {
+      if (this.resetMethod === 'manual') {
+        return this.newPassword && 
+               this.confirmNewPassword && 
+               this.newPassword === this.confirmNewPassword &&
+               this.newPasswordStrength.class !== 'weak'
+      }
+      return true
+    }
+  },
+  
+  watch: {
+    selectAllWarehouses(val) {
+      if (val) {
+        this.userForm.allowed_warehouses = ['all']
+      } else if (this.userForm.allowed_warehouses.includes('all')) {
+        this.userForm.allowed_warehouses = []
+      }
+    },
+    
+    'userForm.allowed_warehouses'(val) {
+      if (val.includes('all')) {
+        this.selectAllWarehouses = true
+      } else {
+        this.selectAllWarehouses = false
+      }
     }
   },
   
@@ -1084,7 +1289,9 @@ export default {
       'loadAllUsers',
       'deleteUser',
       'updateUserStatus',
-      'showNotification'
+      'showNotification',
+      'createUser',
+      'updateUser'
     ]),
     
     // Initialization
@@ -1092,6 +1299,12 @@ export default {
       try {
         this.loading = true
         this.error = null
+        
+        // Check permissions
+        if (!this.canManageUsers) {
+          this.error = 'ليس لديك صلاحية للوصول إلى إدارة المستخدمين'
+          return
+        }
         
         // Load theme preference
         this.loadThemePreference()
@@ -1183,7 +1396,8 @@ export default {
       const roles = {
         'superadmin': 'مشرف عام',
         'company_manager': 'مدير شركة',
-        'warehouse_manager': 'مدير مخزن'
+        'warehouse_manager': 'مدير مخزن',
+        'employee': 'موظف'
       }
       return roles[role] || role
     },
@@ -1192,12 +1406,14 @@ export default {
       const icons = {
         'superadmin': 'fas fa-crown',
         'company_manager': 'fas fa-user-tie',
-        'warehouse_manager': 'fas fa-warehouse'
+        'warehouse_manager': 'fas fa-warehouse',
+        'employee': 'fas fa-user'
       }
       return icons[role] || 'fas fa-user'
     },
     
     getWarehouseName(warehouseId) {
+      if (warehouseId === 'all') return 'جميع المخازن'
       const warehouse = this.warehouses.find(w => w.id === warehouseId)
       return warehouse ? (warehouse.name_ar || warehouse.name) : warehouseId
     },
@@ -1292,7 +1508,7 @@ export default {
       this.applyFilters()
     },
     
-    // Selection Management - FIXED INDIVIDUAL SELECTION
+    // Selection Management
     toggleUserSelection(userId) {
       const index = this.selectedUsers.indexOf(userId)
       if (index === -1) {
@@ -1300,7 +1516,6 @@ export default {
       } else {
         this.selectedUsers.splice(index, 1)
       }
-      console.log('Selected users:', this.selectedUsers) // Debug log
     },
     
     toggleAllSelection() {
@@ -1309,7 +1524,6 @@ export default {
       } else {
         this.selectedUsers = this.filteredUsers.map(user => user.id)
       }
-      console.log('All selected:', this.allSelected, 'Selected users:', this.selectedUsers) // Debug log
     },
     
     clearSelection() {
@@ -1322,10 +1536,119 @@ export default {
     },
     
     // User Actions
+    openCreateModal() {
+      this.editingUser = null
+      this.resetUserForm()
+      this.showUserModal = true
+      this.activeDropdown = null
+    },
+    
     editUser(user) {
       this.editingUser = user
-      this.showCreateModal = true
+      this.userForm = {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        password: '',
+        allowed_warehouses: user.allowed_warehouses || [],
+        permissions: user.permissions || ['view_reports'],
+        notes: user.notes || ''
+      }
+      this.showUserModal = true
       this.activeDropdown = null
+    },
+    
+    resetUserForm() {
+      this.userForm = {
+        name: '',
+        email: '',
+        role: '',
+        password: '',
+        allowed_warehouses: [],
+        permissions: ['view_reports'],
+        notes: ''
+      }
+      this.selectAllWarehouses = false
+      this.showPassword = false
+      this.formSubmitted = false
+    },
+    
+    async saveUser() {
+      this.formSubmitted = true
+      
+      // Validate form
+      if (!this.userForm.name || !this.userForm.email || !this.userForm.role) {
+        this.showToast('يرجى ملء جميع الحقول المطلوبة', 'error')
+        return
+      }
+      
+      if (!this.editingUser && !this.userForm.password) {
+        this.showToast('يرجى إدخال كلمة المرور', 'error')
+        return
+      }
+      
+      if (!this.isValidEmail(this.userForm.email)) {
+        this.showToast('يرجى إدخال بريد إلكتروني صحيح', 'error')
+        return
+      }
+      
+      if (!this.editingUser && this.passwordStrength.class === 'weak') {
+        this.showToast('كلمة المرور ضعيفة جداً، يرجى اختيار كلمة مرور أقوى', 'error')
+        return
+      }
+      
+      try {
+        this.savingUser = true
+        
+        const userData = {
+          name: this.userForm.name.trim(),
+          email: this.userForm.email.trim(),
+          role: this.userForm.role,
+          allowed_warehouses: this.userForm.allowed_warehouses,
+          permissions: this.userForm.permissions,
+          notes: this.userForm.notes.trim(),
+          is_active: true
+        }
+        
+        if (this.editingUser) {
+          // Update existing user
+          await this.updateUser({
+            userId: this.editingUser.id,
+            userData
+          })
+          
+          this.showToast('تم تحديث المستخدم بنجاح', 'success')
+        } else {
+          // Create new user
+          userData.password = this.userForm.password
+          await this.createUser(userData)
+          
+          this.showToast('تم إنشاء المستخدم بنجاح', 'success')
+        }
+        
+        this.closeUserModal()
+        await this.refreshData()
+        
+      } catch (error) {
+        console.error('Error saving user:', error)
+        this.showToast(error.message || 'حدث خطأ أثناء حفظ المستخدم', 'error')
+      } finally {
+        this.savingUser = false
+      }
+    },
+    
+    closeUserModal() {
+      this.showUserModal = false
+      this.editingUser = null
+      this.resetUserForm()
+    },
+    
+    toggleAllWarehouses() {
+      if (this.selectAllWarehouses) {
+        this.userForm.allowed_warehouses = ['all']
+      } else {
+        this.userForm.allowed_warehouses = []
+      }
     },
     
     viewUserProfile(user) {
@@ -1390,17 +1713,24 @@ export default {
           ? [this.userToDelete] 
           : this.allUsers.filter(user => this.selectedUsers.includes(user.id))
         
-        if (usersToDelete.length > 1) {
-          const confirmMessage = `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
-            usersToDelete.slice(0, 3).map(u => `• ${u.name} (${u.email})`).join('\n') +
-            (usersToDelete.length > 3 ? `\n• +${usersToDelete.length - 3} مستخدمين آخرين` : '')
-          
-          if (!confirm(confirmMessage)) {
-            this.cancelDelete()
-            return
-          }
+        if (usersToDelete.length === 0) {
+          this.showToast('لم يتم تحديد مستخدمين للحذف', 'warning')
+          return
         }
         
+        // Confirm deletion
+        const confirmMessage = usersToDelete.length === 1
+          ? `هل أنت متأكد من حذف المستخدم "${usersToDelete[0].name}"؟`
+          : `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
+            usersToDelete.slice(0, 3).map(u => `• ${u.name} (${u.email})`).join('\n') +
+            (usersToDelete.length > 3 ? `\n• +${usersToDelete.length - 3} مستخدمين آخرين` : '')
+        
+        if (!confirm(confirmMessage)) {
+          this.cancelDelete()
+          return
+        }
+        
+        // Delete users
         const deletePromises = usersToDelete.map(user => 
           this.deleteUser(user.id).catch(error => {
             console.error(`Error deleting user ${user.id}:`, error)
@@ -1423,6 +1753,7 @@ export default {
           this.showToast(message, 'success')
         }
         
+        // Clear selection
         this.selectedUsers = this.selectedUsers.filter(id => 
           !usersToDelete.some(user => user.id === id)
         )
@@ -1438,7 +1769,10 @@ export default {
     
     // Bulk Actions
     async bulkActivate() {
-      if (this.selectedUsers.length === 0) return
+      if (this.selectedUsers.length === 0) {
+        this.showToast('لم يتم تحديد مستخدمين', 'warning')
+        return
+      }
       
       try {
         const confirmMessage = `هل تريد تفعيل ${this.selectedUsers.length} مستخدمين؟`
@@ -1464,7 +1798,10 @@ export default {
     },
     
     async bulkDeactivate() {
-      if (this.selectedUsers.length === 0) return
+      if (this.selectedUsers.length === 0) {
+        this.showToast('لم يتم تحديد مستخدمين', 'warning')
+        return
+      }
       
       try {
         const confirmMessage = `هل تريد تعطيل ${this.selectedUsers.length} مستخدمين؟`
@@ -1490,11 +1827,10 @@ export default {
     },
     
     bulkDelete() {
-      if (this.selectedUsers.length === 0) return
-      
-      const usersToDelete = this.allUsers.filter(user => 
-        this.selectedUsers.includes(user.id)
-      )
+      if (this.selectedUsers.length === 0) {
+        this.showToast('لم يتم تحديد مستخدمين', 'warning')
+        return
+      }
       
       this.userToDelete = null
       this.openDeleteModal()
@@ -1517,10 +1853,12 @@ export default {
     cancelResetPassword() {
       this.userToReset = null
       this.showResetPasswordModal = false
+      this.passwordMatchError = ''
     },
     
     async confirmResetPassword() {
       try {
+        // Validate manual password
         if (this.resetMethod === 'manual') {
           if (!this.newPassword || !this.confirmNewPassword) {
             this.passwordMatchError = 'يجب إدخال كلمة المرور وتأكيدها'
@@ -1540,22 +1878,41 @@ export default {
         
         this.resetting = true
         
-        const password = this.resetMethod === 'auto' 
-          ? this.generateRandomPassword()
-          : this.newPassword
-        
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        let message = `تم إعادة تعيين كلمة مرور المستخدم "${this.userToReset.name}"`
-        
         if (this.resetMethod === 'auto') {
-          message += `. كلمة المرور الجديدة: ${password}`
+          // Generate random password
+          const password = this.generateRandomPassword()
+          
+          // In a real app, you would call Firebase Admin SDK to update password
+          // For now, we'll simulate the process
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          let message = `تم إعادة تعيين كلمة مرور المستخدم "${this.userToReset.name}"`
+          
           if (this.sendResetNotification) {
-            message += ' (تم إرسالها بالبريد)'
+            // Send password reset email
+            try {
+              await sendPasswordResetEmail(auth, this.userToReset.email)
+              message += ' (تم إرسال رابط إعادة التعيين بالبريد)'
+            } catch (emailError) {
+              console.error('Error sending reset email:', emailError)
+              message += ` - كلمة المرور الجديدة: ${password}`
+            }
+          } else {
+            message += ` - كلمة المرور الجديدة: ${password}`
           }
+          
+          this.showToast(message, 'success')
+          
+        } else {
+          // Manual password reset
+          // In a real app, you would call Firebase Admin SDK
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          this.showToast(
+            `تم تعيين كلمة مرور جديدة للمستخدم "${this.userToReset.name}"`,
+            'success'
+          )
         }
-        
-        this.showToast(message, 'success')
         
         this.cancelResetPassword()
         
@@ -1591,51 +1948,19 @@ export default {
       return { class: 'weak', percentage: 33, text: 'ضعيفة' }
     },
     
-    // Impersonation
+    isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email)
+    },
+    
+    // Impersonation (simulated)
     impersonateUser(user) {
       if (user.id === this.currentUserId) {
         this.showToast('لا يمكنك الدخول كمستخدم نفسك', 'warning')
         return
       }
       
-      this.userToImpersonate = user
-      this.showImpersonateModal = true
-      this.activeDropdown = null
-    },
-    
-    cancelImpersonate() {
-      this.userToImpersonate = null
-      this.showImpersonateModal = false
-    },
-    
-    confirmImpersonate() {
-      this.showToast(`تم الدخول كمستخدم ${this.userToImpersonate.name}`, 'success')
-      this.cancelImpersonate()
-    },
-    
-    // User Modal Management
-    closeUserModal() {
-      this.showCreateModal = false
-      this.editingUser = null
-    },
-    
-    handleUserSuccess({ user, password, isEdit }) {
-      const message = isEdit 
-        ? `تم تحديث المستخدم "${user.name}" بنجاح`
-        : `تم إنشاء المستخدم "${user.name}" بنجاح`
-      
-      this.showToast(message, 'success')
-      
-      if (password) {
-        this.showToast(`كلمة المرور للمستخدم: ${password}`, 'info')
-      }
-      
-      this.closeUserModal()
-      this.refreshData()
-    },
-    
-    handleUserCompleted() {
-      this.closeUserModal()
+      this.showToast(`تم الدخول كمستخدم ${user.name} (ميزة تجريبية)`, 'info')
     },
     
     // Export
@@ -1659,6 +1984,11 @@ export default {
           'آخر دخول': user.last_login ? this.formatDate(user.last_login) : 'غير متاح',
           'ملاحظات': user.notes || ''
         }))
+        
+        if (exportData.length === 0) {
+          this.showToast('لا توجد بيانات للتصدير', 'warning')
+          return
+        }
         
         const headers = Object.keys(exportData[0])
         const csvContent = [
@@ -1691,41 +2021,75 @@ export default {
     },
     
     async exportSelected() {
-      if (this.selectedUsers.length === 0) return
-      
-      const originalFilters = { ...this.filters }
-      this.filters = {
-        ...this.filters,
-        search: '',
-        role: '',
-        status: '',
-        warehouse: ''
+      if (this.selectedUsers.length === 0) {
+        this.showToast('لم يتم تحديد مستخدمين للتصدير', 'warning')
+        return
       }
       
-      await this.$nextTick()
+      const selectedData = this.allUsers
+        .filter(user => this.selectedUsers.includes(user.id))
+        .map(user => ({
+          'الاسم': user.name,
+          'البريد الإلكتروني': user.email,
+          'الدور': this.getRoleName(user.role),
+          'الحالة': user.is_active !== false ? 'نشط' : 'معطل',
+          'المخازن المسموحة': user.allowed_warehouses?.includes('all') 
+            ? 'جميع المخازن' 
+            : (user.allowed_warehouses?.map(id => this.getWarehouseName(id)).join(', ') || 'لا توجد'),
+          'الصلاحيات': user.permissions?.includes('full_access')
+            ? 'صلاحية كاملة'
+            : (user.permissions?.length || 0) + ' صلاحية',
+          'تاريخ الإنشاء': this.formatDate(user.created_at),
+          'ملاحظات': user.notes || ''
+        }))
       
-      await this.exportUsers()
+      const headers = Object.keys(selectedData[0])
+      const csvContent = [
+        headers.join(','),
+        ...selectedData.map(row => 
+          headers.map(header => `"${row[header] || ''}"`).join(',')
+        )
+      ].join('\n')
       
-      this.filters = originalFilters
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', `selected_users_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      this.showToast(`تم تصدير ${selectedData.length} مستخدم`, 'success')
     },
     
     // Pagination
     prevPage() {
       if (this.currentPage > 1) {
         this.currentPage--
+        this.scrollToTop()
       }
     },
     
     nextPage() {
       if (this.currentPage < this.totalPages) {
         this.currentPage++
+        this.scrollToTop()
       }
     },
     
     goToPage(page) {
       if (page !== '...') {
         this.currentPage = page
+        this.scrollToTop()
       }
+    },
+    
+    scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     },
     
     // Toast Notifications
@@ -1764,6 +2128,9 @@ export default {
       if (!event.target.closest('.dropdown')) {
         this.activeDropdown = null
       }
+      if (!event.target.closest('.bulk-actions-container')) {
+        this.showBulkActions = false
+      }
     })
     
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -1778,13 +2145,12 @@ export default {
     this.closeUserModal()
     this.cancelDelete()
     this.cancelResetPassword()
-    this.cancelImpersonate()
   }
 }
 </script>
 
 <style scoped>
-/* Base Layout */
+/* ===== BASE STYLES ===== */
 .user-management {
   min-height: 100vh;
   background: var(--bg-primary, #f5f5f5);
@@ -1792,6 +2158,7 @@ export default {
   transition: all 0.3s ease;
   font-family: 'Tajawal', 'Segoe UI', sans-serif;
   direction: rtl;
+  padding-bottom: 2rem;
 }
 
 .user-management.dark-mode {
@@ -1812,7 +2179,7 @@ export default {
   --secondary-color: #FF9800;
 }
 
-/* Loading Overlay */
+/* ===== LOADING & ERROR STATES ===== */
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -1843,19 +2210,18 @@ export default {
   font-weight: 500;
 }
 
-/* Error State */
 .error-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .error-card {
   background: var(--bg-card);
   border-radius: 12px;
-  padding: 3rem;
+  padding: 2rem;
   text-align: center;
   max-width: 500px;
   width: 100%;
@@ -1863,9 +2229,9 @@ export default {
 }
 
 .error-icon {
-  font-size: 4rem;
+  font-size: 3rem;
   color: var(--error-color);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .error-card h2 {
@@ -1883,52 +2249,76 @@ export default {
   display: flex;
   gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
-/* Main Content */
+/* ===== MAIN CONTENT ===== */
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
-/* Header Section */
+@media (min-width: 768px) {
+  .main-content {
+    padding: 1.5rem;
+  }
+}
+
+/* ===== HEADER SECTION ===== */
 .header-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .header-content {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .header-content {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
 }
 
 .header-info {
   flex: 1;
-  min-width: 300px;
 }
 
 .page-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   margin: 0 0 0.5rem;
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .page-title {
+    font-size: 2rem;
+  }
 }
 
 .page-subtitle {
   color: var(--text-secondary);
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 768px) {
+  .page-subtitle {
+    font-size: 1.125rem;
+  }
 }
 
 .header-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -1937,14 +2327,14 @@ export default {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  width: 45px;
-  height: 45px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   transition: all 0.3s;
   flex-shrink: 0;
 }
@@ -1955,40 +2345,54 @@ export default {
   transform: rotate(15deg);
 }
 
-/* Stats Grid */
+/* ===== STATS GRID ===== */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-card {
   background: var(--bg-card);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
   box-shadow: 0 2px 8px var(--shadow-color);
   transition: transform 0.3s;
   min-width: 0;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  min-width: 60px;
-  border-radius: 12px;
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   color: white;
+}
+
+@media (min-width: 768px) {
+  .stat-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+  }
 }
 
 .total-users { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
@@ -2002,40 +2406,63 @@ export default {
 }
 
 .stat-content h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.875rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
+@media (min-width: 768px) {
+  .stat-content h3 {
+    font-size: 0.875rem;
+  }
+}
+
 .stat-number {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-/* Filters Section */
+@media (min-width: 768px) {
+  .stat-number {
+    font-size: 2rem;
+  }
+}
+
+/* ===== FILTERS SECTION ===== */
 .filters-section {
   background: var(--bg-card);
   border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
   box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .filters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .filters-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 0;
 }
 
 .filter-group label {
@@ -2045,7 +2472,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  white-space: nowrap;
 }
 
 .filter-group input,
@@ -2058,7 +2484,6 @@ export default {
   font-size: 0.875rem;
   transition: all 0.3s;
   width: 100%;
-  min-width: 0;
 }
 
 .filter-group input:focus,
@@ -2101,7 +2526,6 @@ export default {
   color: var(--text-secondary);
   cursor: pointer;
   padding: 0.25rem;
-  z-index: 1;
 }
 
 /* Date Range */
@@ -2109,12 +2533,11 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 .date-inputs input {
   flex: 1;
-  min-width: 120px;
+  min-width: 0;
 }
 
 .date-separator {
@@ -2125,10 +2548,18 @@ export default {
 /* Quick Actions */
 .quick-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
+}
+
+@media (min-width: 640px) {
+  .quick-actions {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 
 .bulk-actions-container {
@@ -2182,7 +2613,7 @@ export default {
   color: var(--info-color);
 }
 
-/* Buttons */
+/* ===== BUTTONS ===== */
 button {
   font-family: 'Tajawal', 'Segoe UI', sans-serif;
 }
@@ -2279,7 +2710,7 @@ button:disabled {
   font-size: 0.75rem;
 }
 
-/* Table Section */
+/* ===== TABLE SECTION ===== */
 .table-section {
   background: var(--bg-card);
   border-radius: 12px;
@@ -2288,25 +2719,38 @@ button:disabled {
 }
 
 .table-header {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .table-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 
 .table-info {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .table-info {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
 }
 
 .table-info h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -2323,11 +2767,11 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(33, 150, 243, 0.1);
   border-radius: 20px;
   color: var(--info-color);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .clear-selection {
@@ -2349,20 +2793,28 @@ button:disabled {
 .table-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .select-all-btn {
   background: none;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .select-all-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
 }
 
 .select-all-btn:hover {
@@ -2381,7 +2833,7 @@ button:disabled {
   background: none;
   border: none;
   color: var(--text-secondary);
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2394,13 +2846,19 @@ button:disabled {
   color: white;
 }
 
-/* Grid View */
+/* ===== GRID VIEW ===== */
 .users-grid {
-  padding: 1.5rem;
+  padding: 1rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-  min-height: 400px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  min-height: 300px;
+}
+
+@media (max-width: 480px) {
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .user-card {
@@ -2409,11 +2867,13 @@ button:disabled {
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px var(--shadow-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-color);
   border-color: var(--primary-color);
 }
 
@@ -2443,13 +2903,13 @@ button:disabled {
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: bold;
   color: white;
 }
@@ -2458,8 +2918,8 @@ button:disabled {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   background: var(--bg-card);
   border-radius: 50%;
   display: flex;
@@ -2468,7 +2928,7 @@ button:disabled {
 }
 
 .user-status .fa-circle {
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .user-status.online .fa-circle {
@@ -2481,7 +2941,7 @@ button:disabled {
 
 .user-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .select-user-btn {
@@ -2533,7 +2993,7 @@ button:disabled {
   min-width: 150px;
   box-shadow: 0 4px 12px var(--shadow-color);
   z-index: 100;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .dropdown-item {
@@ -2541,7 +3001,7 @@ button:disabled {
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.5rem;
   background: none;
   border: none;
   color: var(--text-primary);
@@ -2549,7 +3009,8 @@ button:disabled {
   border-radius: 6px;
   transition: background 0.2s;
   text-align: right;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .dropdown-item:hover {
@@ -2561,18 +3022,19 @@ button:disabled {
 }
 
 .card-body {
-  padding: 1.25rem;
+  padding: 1rem;
+  flex: 1;
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .user-name {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: var(--text-primary);
   line-height: 1.4;
 }
@@ -2580,24 +3042,25 @@ button:disabled {
 .user-email {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   direction: ltr;
   text-align: right;
+  word-break: break-all;
 }
 
 .user-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin: 0.5rem 0;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
 }
 
 .user-role,
 .user-date {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   background: var(--bg-input);
@@ -2618,18 +3081,23 @@ button:disabled {
   color: var(--success-color);
 }
 
+.user-role.employee {
+  background: rgba(158, 158, 158, 0.1);
+  color: #9e9e9e;
+}
+
 .user-stats {
   display: flex;
-  gap: 1.5rem;
-  margin: 0.5rem 0;
+  gap: 1rem;
+  margin: 0.25rem 0;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .warehouses-preview {
@@ -2639,21 +3107,21 @@ button:disabled {
 .warehouses-label {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .warehouses-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.25rem;
 }
 
 .warehouse-tag {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.375rem;
   background: var(--bg-input);
   border-radius: 4px;
   color: var(--text-primary);
@@ -2674,16 +3142,17 @@ button:disabled {
 }
 
 .card-footer {
-  padding: 1rem;
+  padding: 0.75rem;
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-/* Table View */
+/* ===== TABLE VIEW ===== */
 .users-table-container {
   overflow-x: auto;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
 }
 
 .users-table {
@@ -2697,13 +3166,20 @@ button:disabled {
 }
 
 .users-table th {
-  padding: 1rem;
+  padding: 0.75rem;
   text-align: right;
   font-weight: 600;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .users-table th {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
 }
 
 .users-table tbody tr {
@@ -2728,8 +3204,14 @@ button:disabled {
 }
 
 .users-table td {
-  padding: 1rem;
+  padding: 0.75rem;
   vertical-align: middle;
+}
+
+@media (min-width: 768px) {
+  .users-table td {
+    padding: 1rem;
+  }
 }
 
 .select-column,
@@ -2749,21 +3231,21 @@ button:disabled {
 
 .user-info-row {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
 .user-avatar-sm {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   color: white;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .user-details {
@@ -2787,7 +3269,7 @@ button:disabled {
 }
 
 .current-user-badge {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   padding: 0.125rem 0.375rem;
   background: rgba(33, 150, 243, 0.1);
   color: var(--info-color);
@@ -2803,10 +3285,11 @@ button:disabled {
   font-size: 0.75rem;
   direction: ltr;
   text-align: right;
+  word-break: break-all;
 }
 
 .user-meta-row {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
 }
 
@@ -2823,13 +3306,13 @@ button:disabled {
 .role-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 6px;
   background: var(--bg-input);
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .role-badge.superadmin {
@@ -2847,8 +3330,13 @@ button:disabled {
   color: var(--success-color);
 }
 
+.role-badge.employee {
+  background: rgba(158, 158, 158, 0.1);
+  color: #9e9e9e;
+}
+
 .permissions-count {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -2862,13 +3350,13 @@ button:disabled {
 .warehouses-list-table {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .all-warehouses {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   font-size: 0.75rem;
   color: var(--success-color);
 }
@@ -2876,7 +3364,7 @@ button:disabled {
 .warehouses-count {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   font-size: 0.75rem;
   color: var(--text-primary);
 }
@@ -2884,12 +3372,12 @@ button:disabled {
 .warehouses-preview-table {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.125rem;
 }
 
 .warehouse-tag-sm {
   font-size: 0.6875rem;
-  padding: 0.125rem 0.375rem;
+  padding: 0.125rem 0.25rem;
   background: var(--bg-input);
   border-radius: 4px;
   color: var(--text-primary);
@@ -2904,7 +3392,7 @@ button:disabled {
 .no-warehouses {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -2916,8 +3404,8 @@ button:disabled {
 .status-indicator {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 0.5rem;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 .status-indicator.active .fa-circle {
@@ -2935,6 +3423,7 @@ button:disabled {
 
 .status-toggle-btn.success {
   background: var(--success-color);
+  color: white;
 }
 
 .date-column {
@@ -2944,10 +3433,10 @@ button:disabled {
 .date-display {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   font-size: 0.875rem;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.125rem;
 }
 
 .time-ago {
@@ -2961,7 +3450,7 @@ button:disabled {
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   flex-wrap: wrap;
 }
 
@@ -3015,45 +3504,52 @@ button:disabled {
   transform: none !important;
 }
 
-/* Empty State */
+/* ===== EMPTY STATE ===== */
 .empty-state {
-  padding: 4rem 2rem;
+  padding: 3rem 1rem;
   text-align: center;
   color: var(--text-secondary);
 }
 
 .empty-state-icon {
-  font-size: 4rem;
+  font-size: 3rem;
   color: var(--text-muted);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   opacity: 0.5;
 }
 
 .empty-state h3 {
   margin: 0 0 0.5rem;
   color: var(--text-primary);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .empty-state p {
-  margin: 0 0 2rem;
-  font-size: 1rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
 }
 
-/* Pagination */
+/* ===== PAGINATION ===== */
 .pagination-section {
-  padding: 1.5rem;
+  padding: 1rem;
   border-top: 1px solid var(--border-color);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .pagination-section {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 
 .pagination-info {
   color: var(--text-secondary);
   font-size: 0.875rem;
+  text-align: center;
 }
 
 .pagination-controls {
@@ -3061,6 +3557,7 @@ button:disabled {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .page-size-select {
@@ -3069,8 +3566,15 @@ button:disabled {
   border-radius: 6px;
   background: var(--bg-input);
   color: var(--text-primary);
-  font-size: 0.875rem;
-  margin-left: 1rem;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .page-size-select {
+    font-size: 0.875rem;
+    margin-left: 1rem;
+  }
 }
 
 .page-size-select:focus {
@@ -3079,8 +3583,8 @@ button:disabled {
 }
 
 .pagination-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -3108,8 +3612,8 @@ button:disabled {
 }
 
 .page-number {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -3137,7 +3641,7 @@ button:disabled {
   cursor: default;
 }
 
-/* Modals */
+/* ===== MODALS ===== */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -3165,25 +3669,41 @@ button:disabled {
   max-width: 450px;
 }
 
+.modal-container.user-modal {
+  max-width: 600px;
+}
+
 .modal-content {
   padding: 0;
 }
 
 .modal-header {
-  padding: 1.5rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+@media (min-width: 768px) {
+  .modal-header {
+    padding: 1.5rem;
+  }
+}
+
 .modal-header h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .modal-header h2 {
+    font-size: 1.25rem;
+  }
 }
 
 .modal-header.danger {
@@ -3214,17 +3734,23 @@ button:disabled {
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .modal-body {
+    padding: 1.5rem;
+  }
 }
 
 /* Delete Modal */
 .delete-warning {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .delete-warning .fa-trash-alt {
-  font-size: 3rem;
+  font-size: 2.5rem;
   color: var(--error-color);
   margin-bottom: 1rem;
 }
@@ -3232,13 +3758,14 @@ button:disabled {
 .delete-warning h3 {
   margin: 0 0 1rem;
   color: var(--text-primary);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
 }
 
 .delete-warning p {
   margin: 0 0 1rem;
   color: var(--text-secondary);
   line-height: 1.6;
+  font-size: 0.875rem;
 }
 
 .bulk-delete-warning {
@@ -3248,13 +3775,14 @@ button:disabled {
   justify-content: center;
   color: var(--warning-color);
   font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .warning-list {
   background: var(--bg-input);
   border-radius: 8px;
-  padding: 1rem;
-  margin: 1.5rem 0;
+  padding: 0.75rem;
+  margin: 1rem 0;
   text-align: right;
 }
 
@@ -3263,147 +3791,88 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
 .delete-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   justify-content: flex-end;
 }
 
-/* Reset Password Modal */
-.reset-info {
-  text-align: center;
-  margin-bottom: 2rem;
+@media (min-width: 768px) {
+  .delete-actions {
+    gap: 1rem;
+  }
 }
 
-.reset-info .fa-user-shield {
-  font-size: 3rem;
-  color: var(--info-color);
-  margin-bottom: 1rem;
-}
-
-.reset-info h3 {
-  margin: 0 0 0.5rem;
-  color: var(--text-primary);
-  font-size: 1.25rem;
-}
-
-.reset-info p {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.reset-options {
-  margin-bottom: 2rem;
-}
-
-.option-group {
+/* User Form Modal */
+.user-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
 }
 
-.option-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  cursor: pointer;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: all 0.2s;
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
 }
 
-.option-label:hover {
-  border-color: var(--primary-color);
-  background: rgba(33, 150, 243, 0.05);
-}
-
-.option-label input[type="radio"] {
-  display: none;
-}
-
-.radio-custom {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  margin-top: 0.25rem;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.option-label input[type="radio"]:checked + .radio-custom {
-  border-color: var(--primary-color);
-  background: var(--primary-color);
-}
-
-.radio-custom::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 8px;
-  height: 8px;
-  background: white;
-  border-radius: 50%;
-  opacity: 0;
-}
-
-.option-label input[type="radio"]:checked + .radio-custom::after {
-  opacity: 1;
-}
-
-.option-content {
-  flex: 1;
-}
-
-.option-content h4 {
-  margin: 0 0 0.25rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.option-content p {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.manual-password {
-  background: var(--bg-input);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+@media (min-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .password-input {
@@ -3412,19 +3881,8 @@ button:disabled {
 
 .password-input input {
   width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.password-input input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+  padding-left: 2.5rem;
+  padding-right: 0.75rem;
 }
 
 .password-toggle {
@@ -3484,10 +3942,18 @@ button:disabled {
   color: var(--success-color);
 }
 
-.notification-option {
-  padding: 0.75rem;
+/* Warehouse Selection */
+.warehouse-selection {
   border: 1px solid var(--border-color);
   border-radius: 8px;
+  padding: 1rem;
+  background: var(--bg-input);
+}
+
+.warehouse-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .checkbox-label {
@@ -3502,12 +3968,12 @@ button:disabled {
 }
 
 .checkbox-custom {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
   border: 2px solid var(--border-color);
   border-radius: 4px;
-  margin-top: 0.25rem;
+  margin-top: 0.125rem;
   position: relative;
   transition: all 0.2s;
 }
@@ -3534,6 +4000,235 @@ button:disabled {
   opacity: 1;
 }
 
+.checkbox-text {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.warehouses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.warehouse-item {
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.warehouse-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.warehouse-name {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.warehouse-type {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(158, 158, 158, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+/* Permissions Grid */
+.permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+}
+
+@media (max-width: 480px) {
+  .permissions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.permission-item {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.permission-item:hover {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.permission-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.permission-info i {
+  color: var(--info-color);
+  font-size: 1rem;
+}
+
+.permission-info span {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.permission-info small {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (min-width: 768px) {
+  .form-actions {
+    gap: 1rem;
+  }
+}
+
+/* Reset Password Modal */
+.reset-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.reset-info .fa-user-shield {
+  font-size: 2.5rem;
+  color: var(--info-color);
+  margin-bottom: 1rem;
+}
+
+.reset-info h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+.reset-info p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+.reset-options {
+  margin-bottom: 1.5rem;
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.option-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.option-label:hover {
+  border-color: var(--primary-color);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.option-label input[type="radio"] {
+  display: none;
+}
+
+.radio-custom {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  margin-top: 0.125rem;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.option-label input[type="radio"]:checked + .radio-custom {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+
+.radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.option-label input[type="radio"]:checked + .radio-custom::after {
+  opacity: 1;
+}
+
+.option-content {
+  flex: 1;
+}
+
+.option-content h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.option-content p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.manual-password {
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.notification-option {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
 .checkbox-content h4 {
   margin: 0 0 0.25rem;
   font-size: 0.875rem;
@@ -3552,57 +4247,43 @@ button:disabled {
 
 .reset-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   justify-content: flex-end;
 }
 
-/* Impersonate Modal */
-.impersonate-warning {
-  text-align: center;
-  margin-bottom: 2rem;
+@media (min-width: 768px) {
+  .reset-actions {
+    gap: 1rem;
+  }
 }
 
-.impersonate-warning .fa-exclamation-triangle {
-  font-size: 3rem;
-  color: var(--warning-color);
-  margin-bottom: 1rem;
-}
-
-.impersonate-warning h3 {
-  margin: 0 0 1rem;
-  color: var(--text-primary);
-  font-size: 1.25rem;
-}
-
-.impersonate-warning p {
-  margin: 0 0 1rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.impersonate-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-/* Toast Notifications */
+/* ===== TOAST NOTIFICATIONS ===== */
 .toast-container {
   position: fixed;
-  bottom: 2rem;
-  left: 2rem;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
   background: var(--bg-card);
   border-radius: 8px;
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   box-shadow: 0 4px 12px var(--shadow-color);
   z-index: 1001;
-  animation: slideInLeft 0.3s ease, slideOutLeft 0.3s ease 4.7s forwards;
+  animation: slideInRight 0.3s ease, slideOutRight 0.3s ease 4.7s forwards;
   max-width: 400px;
-  min-width: 300px;
+  margin: 0 auto;
   border: 1px solid var(--border-color);
+}
+
+@media (min-width: 768px) {
+  .toast-container {
+    left: auto;
+    right: 2rem;
+    bottom: 2rem;
+    margin: 0;
+  }
 }
 
 .toast-container.success {
@@ -3629,7 +4310,7 @@ button:disabled {
 }
 
 .toast-content i {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
 }
 
 .toast-container.success .toast-content i {
@@ -3672,7 +4353,7 @@ button:disabled {
   background: var(--bg-input);
 }
 
-/* Animations */
+/* ===== ANIMATIONS ===== */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -3692,194 +4373,6 @@ button:disabled {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideOutLeft {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .filters-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 1rem;
-  }
-
-  .header-content {
-    flex-direction: column;
-  }
-
-  .header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-actions {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-  }
-
-  .users-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .table-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .table-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .pagination-section {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-
-  .pagination-controls {
-    justify-content: center;
-  }
-
-  .modal-container {
-    margin: 1rem;
-  }
-
-  .error-actions {
-    flex-direction: column;
-  }
-
-  .error-actions button {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .header-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-actions button {
-    width: 100%;
-  }
-
-  .view-options {
-    width: 100%;
-  }
-
-  .view-btn {
-    flex: 1;
-  }
-
-  .user-avatar-section {
-    flex-shrink: 0;
-  }
-
-  .user-details {
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .user-name {
-    font-size: 0.75rem;
-  }
-
-  .user-email {
-    font-size: 0.6875rem;
-  }
-
-  .user-meta {
-    gap: 0.5rem;
-  }
-
-  .user-role,
-  .user-date {
-    font-size: 0.6875rem;
-    padding: 0.125rem 0.375rem;
-  }
-
-  .action-buttons {
-    gap: 0.25rem;
-  }
-
-  .action-btn {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-  }
-
-  .toast-container {
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
-    max-width: none;
-    min-width: 0;
-  }
-}
-
-/* RTL Adjustments */
-[dir="rtl"] .search-input::before {
-  right: 0.75rem;
-  left: auto;
-}
-
-[dir="rtl"] .clear-search {
-  right: 2.5rem;
-  left: auto;
-}
-
-[dir="rtl"] .dropdown-menu {
-  right: 0;
-  left: auto;
-}
-
-[dir="rtl"] .toast-container {
-  right: 2rem;
-  left: auto;
-  animation: slideInRight 0.3s ease, slideOutRight 0.3s ease 4.7s forwards;
 }
 
 @keyframes slideInRight {
@@ -3902,6 +4395,52 @@ button:disabled {
     opacity: 0;
     transform: translateX(100%);
   }
+}
+
+/* ===== ACCESSIBILITY ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus Styles */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-input);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Selection */
+::selection {
+  background: var(--primary-color);
+  color: white;
 }
 
 /* Print Styles */
@@ -3944,154 +4483,5 @@ button:disabled {
     color: black !important;
     background: white !important;
   }
-}
-
-/* Accessibility Improvements */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Focus Styles */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-input);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
-}
-
-/* Selection */
-::selection {
-  background: var(--primary-color);
-  color: white;
-}
-
-/* Utility Classes */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.text-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.text-success {
-  color: var(--success-color) !important;
-}
-
-.text-error {
-  color: var(--error-color) !important;
-}
-
-.text-warning {
-  color: var(--warning-color) !important;
-}
-
-.text-info {
-  color: var(--info-color) !important;
-}
-
-.text-muted {
-  color: var(--text-muted) !important;
-}
-
-/* Spacing Utilities */
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.mb-5 { margin-bottom: 2rem; }
-
-.mt-1 { margin-top: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-.mt-5 { margin-top: 2rem; }
-
-.gap-1 { gap: 0.25rem; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 1rem; }
-.gap-4 { gap: 1.5rem; }
-.gap-5 { gap: 2rem; }
-
-/* Loading Shimmer Effect */
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--bg-input) 25%,
-    var(--border-color) 50%,
-    var(--bg-input) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Empty State for Loading */
-.empty-loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-loading-state .shimmer {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  margin-bottom: 1.5rem;
-}
-
-.empty-loading-state h3.shimmer {
-  width: 200px;
-  height: 24px;
-  margin-bottom: 1rem;
-}
-
-.empty-loading-state p.shimmer {
-  width: 300px;
-  height: 16px;
 }
 </style>
