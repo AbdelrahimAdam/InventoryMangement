@@ -950,14 +950,6 @@ const vClickOutside = {
   }
 };
 
-// Cache keys
-const CACHE_KEYS = {
-  INVENTORY: 'inventory_cache_v3',
-  WAREHOUSES: 'warehouses_cache_v3',
-  LAST_UPDATE: 'inventory_last_update_v3',
-  CACHE_TTL: 30 * 60 * 1000
-};
-
 export default {
   name: 'InventoryProduction',
   components: {
@@ -998,9 +990,8 @@ export default {
     const refreshing = ref(false);
     const exportProgress = ref('');
     
-    // Live Search State - NOW FULLY INTEGRATED WITH STORE
+    // Live Search State
     const useLiveSearch = ref(false);
-    const liveSearchResults = ref([]);
     const isLiveSearching = ref(false);
     const searchTimeout = ref(null);
     
@@ -1025,36 +1016,36 @@ export default {
     const isDataFresh = ref(false);
     
     // ============================================
-    // UPDATED COMPUTED PROPERTIES - FULL STORE INTEGRATION
+    // CORRECT COMPUTED PROPERTIES - MATCHING STORE
     // ============================================
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
+    const currentUser = computed(() => store.state.user);
     
-    // Use store's filtered inventory instead of local filtering
+    // CORRECT: Use store's actual inventory getter
     const inventory = computed(() => {
-      // When using live search, use store's search results
+      // When in live search mode, use store's search results
       if (useLiveSearch.value && store.getters.searchResults.length > 0) {
         return store.getters.searchResults;
       }
       
-      // Otherwise use store's filtered inventory with warehouse filter
-      return store.getters.filteredInventoryEnhanced || [];
+      // Otherwise use store's filtered inventory
+      return store.getters.filteredInventory || [];
     });
     
-    // Get warehouses from store
+    // CORRECT: Access warehouses from store
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.getters.warehouses || []);
-    const currentUser = computed(() => store.state.user);
+    const allUsers = computed(() => store.getters.allUsers || []);
     
-    // Loading states from store
+    // CORRECT: Loading states from store
     const inventoryLoading = computed(() => store.state.inventoryLoading);
+    const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     
-    // Pagination from store - INTEGRATED FOR 200 ITEMS
+    // CORRECT: Pagination from store (200 items configured in store)
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
-    const totalLoaded = computed(() => store.getters.totalLoaded || 0);
-    const inventoryLoaded = computed(() => store.state.inventoryLoaded);
-    const allUsers = computed(() => store.getters.allUsers || []);
+    const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
     
     // Current user info
     const currentUserInfo = computed(() => {
@@ -1065,7 +1056,7 @@ export default {
       return 'مستخدم النظام';
     });
     
-    // Permissions - Using store getters
+    // Permissions
     const canAddItem = computed(() => {
       return userRole.value === 'superadmin' ||
              (userRole.value === 'warehouse_manager' && 
@@ -1075,33 +1066,29 @@ export default {
     const showActions = computed(() => userRole.value !== 'viewer');
     const readonly = computed(() => userRole.value === 'viewer');
     
-    // Permission methods - use store's permission checkers
+    // Permission methods
     const canEditItem = (item) => {
-      return store.getters.canEdit && 
-             (userRole.value === 'superadmin' || 
-              (userRole.value === 'warehouse_manager' && 
-               store.getters.allowedWarehouses?.includes(item.warehouse_id)));
+      if (userRole.value === 'superadmin') return true;
+      if (userRole.value !== 'warehouse_manager') return false;
+      
+      const allowedWarehouses = store.getters.allowedWarehouses || [];
+      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
     };
     
-    const canTransferItem = (item) => {
-      return store.getters.canTransfer && canEditItem(item);
-    };
-    
-    const canDispatchItem = (item) => {
-      return store.getters.canDispatch && canEditItem(item);
-    };
+    const canTransferItem = (item) => canEditItem(item);
+    const canDispatchItem = (item) => canEditItem(item);
     
     const canDeleteItem = (item) => {
-      return store.getters.canDelete && canEditItem(item);
+      return canEditItem(item) && userRole.value === 'superadmin';
     };
     
     // ============================================
-    // DISPLAYED ITEMS - SIMPLIFIED WITH STORE INTEGRATION
+    // DISPLAYED ITEMS - WITH LOCAL STATUS FILTER
     // ============================================
     const displayedItems = computed(() => {
-      let items = [...(inventory.value || [])];
+      let items = [...inventory.value];
       
-      // Apply status filter locally (store handles warehouse and search)
+      // Apply status filter locally
       if (statusFilter.value) {
         items = items.filter(item => {
           const quantity = item.remaining_quantity || 0;
@@ -1120,7 +1107,7 @@ export default {
     });
     
     // ============================================
-    // STATS COMPUTED - USING DISPLAYED ITEMS
+    // STATS
     // ============================================
     const totalQuantity = computed(() => {
       return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
@@ -1208,9 +1195,7 @@ export default {
       return currentUserInfo.value;
     };
     
-    const getLastActionUser = (item) => {
-      return getActionUser(item);
-    };
+    const getLastActionUser = (item) => getActionUser(item);
     
     const getStatusLabel = (status) => {
       const labels = {
@@ -1240,62 +1225,39 @@ export default {
     };
     
     const colorMap = {
-      'أحمر': '#ef4444',
-      'أزرق': '#3b82f6',
-      'أخضر': '#10b981',
-      'أصفر': '#f59e0b',
-      'أسود': '#000000',
-      'أبيض': '#ffffff',
-      'رمادي': '#6b7280',
-      'بني': '#92400e',
-      'وردي': '#ec4899',
-      'برتقالي': '#f97316',
-      'بنفسجي': '#8b5cf6',
-      'ذهبي': '#d97706',
+      'أحمر': '#ef4444', 'أزرق': '#3b82f6', 'أخضر': '#10b981',
+      'أصفر': '#f59e0b', 'أسود': '#000000', 'أبيض': '#ffffff',
+      'رمادي': '#6b7280', 'بني': '#92400e', 'وردي': '#ec4899',
+      'برتقالي': '#f97316', 'بنفسجي': '#8b5cf6', 'ذهبي': '#d97706',
       'فضي': '#9ca3af'
     };
     
-    const getColorHex = (colorName) => {
-      return colorMap[colorName] || '#6b7280';
-    };
+    const getColorHex = (colorName) => colorMap[colorName] || '#6b7280';
     
     const formatDate = (timestamp) => {
       if (!timestamp) return '-';
       try {
         let dateObj;
-        if (timestamp.toDate) {
-          dateObj = timestamp.toDate();
-        } else if (timestamp instanceof Date) {
-          dateObj = timestamp;
-        } else {
-          dateObj = new Date(timestamp);
-        }
+        if (timestamp.toDate) dateObj = timestamp.toDate();
+        else if (timestamp instanceof Date) dateObj = timestamp;
+        else dateObj = new Date(timestamp);
         
         if (isNaN(dateObj.getTime())) return '-';
         
         return dateObj.toLocaleDateString('ar-EG', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
         });
-      } catch (e) {
-        return '-';
-      }
+      } catch (e) { return '-'; }
     };
     
     const formatRelativeTime = (timestamp) => {
       if (!timestamp) return '-';
       try {
         let dateObj;
-        if (timestamp.toDate) {
-          dateObj = timestamp.toDate();
-        } else if (timestamp instanceof Date) {
-          dateObj = timestamp;
-        } else {
-          dateObj = new Date(timestamp);
-        }
+        if (timestamp.toDate) dateObj = timestamp.toDate();
+        else if (timestamp instanceof Date) dateObj = timestamp;
+        else dateObj = new Date(timestamp);
         
         if (isNaN(dateObj.getTime())) return '-';
         
@@ -1310,11 +1272,8 @@ export default {
         if (diffHours < 24) return `قبل ${diffHours} ساعة`;
         if (diffDays === 1) return 'أمس';
         if (diffDays < 7) return `قبل ${diffDays} أيام`;
-        
         return formatDate(timestamp);
-      } catch (e) {
-        return '-';
-      }
+      } catch (e) { return '-'; }
     };
     
     const formatTime = (timestamp) => {
@@ -1329,8 +1288,7 @@ export default {
       if (diffHours < 24) return `قبل ${diffHours} ساعة`;
       
       return new Date(timestamp).toLocaleTimeString('ar-EG', {
-        hour: '2-digit',
-        minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
       });
     };
     
@@ -1344,104 +1302,7 @@ export default {
     };
     
     // ============================================
-    // CACHE MANAGEMENT
-    // ============================================
-    const loadFromCache = () => {
-      try {
-        const cached = localStorage.getItem(CACHE_KEYS.INVENTORY);
-        const lastUpdateCache = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-        
-        if (cached && lastUpdateCache) {
-          const cacheAge = Date.now() - parseInt(lastUpdateCache);
-          if (cacheAge < CACHE_KEYS.CACHE_TTL) {
-            const data = JSON.parse(cached);
-            store.commit('SET_INVENTORY', data);
-            isDataFresh.value = false;
-            return true;
-          }
-        }
-      } catch (error) {
-        console.warn('Error loading from cache:', error);
-      }
-      return false;
-    };
-    
-    const saveToCache = () => {
-      try {
-        localStorage.setItem(CACHE_KEYS.INVENTORY, JSON.stringify(store.state.inventory));
-        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
-      } catch (error) {
-        console.warn('Error saving to cache:', error);
-      }
-    };
-    
-    // ============================================
-    // VIRTUAL SCROLLING HANDLERS
-    // ============================================
-    const onScroll = () => {
-      if (!scrollContainer.value) return;
-      
-      const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
-      lastScrollTime.value = now;
-      
-      if (scrollThrottle.value) {
-        cancelAnimationFrame(scrollThrottle.value);
-      }
-      
-      scrollThrottle.value = requestAnimationFrame(() => {
-        const scrollTop = scrollContainer.value.scrollTop;
-        const rowHeight = 80;
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
-        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
-          visibleStartIndex.value = newStartIndex;
-        }
-        
-        // Load more when near bottom - 200 ITEMS CONFIGURED
-        if (!useLiveSearch.value) {
-          const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
-          }
-        }
-      });
-    };
-    
-    const onMobileScroll = () => {
-      if (!mobileScrollContainer.value) return;
-      
-      const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
-      lastScrollTime.value = now;
-      
-      requestAnimationFrame(() => {
-        const scrollTop = mobileScrollContainer.value.scrollTop;
-        const rowHeight = 120;
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
-        
-        if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
-          mobileVisibleStartIndex.value = newStartIndex;
-        }
-        
-        // Load more when near bottom - 200 ITEMS CONFIGURED
-        if (!useLiveSearch.value) {
-          const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
-          }
-        }
-      });
-    };
-    
-    // ============================================
-    // ENHANCED LIVE SEARCH - FULLY INTEGRATED WITH STORE
+    // FIXED LIVE SEARCH - CORRECT STORE INTEGRATION
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1455,8 +1316,7 @@ export default {
       if (term.length < 2) {
         useLiveSearch.value = false;
         isLiveSearching.value = false;
-        liveSearchResults.value = [];
-        store.commit('CLEAR_SEARCH');
+        store.dispatch('clearSearch');
         return;
       }
       
@@ -1467,17 +1327,16 @@ export default {
       try {
         console.log(`🔍 Live search: "${term}"`);
         
-        // Use store's DIRECT search action (from your store code)
+        // FIXED: Use the CORRECT store action names from your store
         const results = await store.dispatch('searchInventoryDirect', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || undefined,
-          limit: 50 // Get more results
+          limit: 50
         });
         
-        console.log(`✅ Live search found: ${results.length} items`);
+        console.log(`✅ Live search found: ${results?.length || 0} items`);
         
-        // Store results
-        liveSearchResults.value = results || [];
+        // Store automatically updates search results via mutation
         isDataFresh.value = true;
         
         // Reset scroll positions
@@ -1506,25 +1365,24 @@ export default {
       } catch (error) {
         console.error('❌ Error in live search:', error);
         
-        // Fallback to store's smart search
+        // Try alternative search method
         try {
-          const fallbackResults = await store.dispatch('searchFirebaseInventorySmart', {
+          console.log('🔄 Trying alternative search method...');
+          await store.dispatch('searchFirebaseInventory', {
             query: term,
             warehouseId: selectedWarehouse.value || undefined,
             limit: 50
           });
           
-          liveSearchResults.value = fallbackResults || [];
           isDataFresh.value = false;
           
           store.dispatch('showNotification', {
             type: 'warning',
-            message: 'تم استخدام البحث المحسن كبديل'
+            message: 'تم استخدام البحث البديل'
           });
           
         } catch (fallbackError) {
-          console.error('❌ Fallback search also failed:', fallbackError);
-          liveSearchResults.value = [];
+          console.error('❌ All search methods failed:', fallbackError);
           
           store.dispatch('showNotification', {
             type: 'error',
@@ -1538,10 +1396,39 @@ export default {
     }, 300);
     
     // ============================================
-    // FILTER HANDLERS - INTEGRATED WITH STORE
+    // FIXED LOAD MORE ITEMS - CORRECT INTEGRATION
+    // ============================================
+    const loadMoreItems = async () => {
+      if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
+        try {
+          loadingMore.value = true;
+          console.log('📥 Loading more items...');
+          
+          // FIXED: Use the correct store action for loading more
+          await store.dispatch('loadMoreInventory');
+          
+          console.log('✅ Loaded more items successfully');
+          
+          // After loading, ensure virtual scrolling updates
+          await nextTick();
+          
+        } catch (error) {
+          console.error('❌ Error loading more items:', error);
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'خطأ في تحميل المزيد من العناصر'
+          });
+        } finally {
+          loadingMore.value = false;
+        }
+      }
+    };
+    
+    // ============================================
+    // FILTER HANDLERS
     // ============================================
     const handleWarehouseChange = async () => {
-      // Update store's warehouse filter
+      // FIXED: Use correct store action for warehouse filter
       await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
       
       // Reset scroll positions
@@ -1561,7 +1448,7 @@ export default {
     };
     
     const handleFilterChange = () => {
-      // Only reset scroll positions, store handles the filtering
+      // Reset scroll positions
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
       if (scrollContainer.value) {
@@ -1579,7 +1466,6 @@ export default {
     
     const resetToNormalView = () => {
       useLiveSearch.value = false;
-      liveSearchResults.value = [];
       searchTerm.value = '';
       showFilters.value = false;
       isLiveSearching.value = false;
@@ -1613,36 +1499,8 @@ export default {
     };
     
     // ============================================
-    // DATA LOADING - INTEGRATED WITH STORE
+    // DATA REFRESH
     // ============================================
-    const loadMoreItems = async () => {
-      if (hasMore.value && !loadingMore.value && !useLiveSearch.value) {
-        try {
-          loadingMore.value = true;
-          console.log('📥 Loading 200 more items...');
-          
-          // Use store's loadMoreInventory action - automatically loads 200 items
-          await store.dispatch('loadMoreInventory');
-          
-          saveToCache();
-          
-          // After loading, ensure virtual scrolling updates
-          await nextTick();
-          
-          console.log('✅ Loaded more items successfully');
-          
-        } catch (error) {
-          console.error('❌ Error loading more items:', error);
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل المزيد من العناصر'
-          });
-        } finally {
-          loadingMore.value = false;
-        }
-      }
-    };
-    
     const refreshData = async () => {
       try {
         refreshing.value = true;
@@ -1652,7 +1510,6 @@ export default {
         
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
-        saveToCache();
         
         // If in live search mode, refresh search results
         if (useLiveSearch.value && searchTerm.value.trim()) {
@@ -1691,10 +1548,8 @@ export default {
       exportProgress.value = 'جاري تجهير البيانات...';
       
       try {
-        // Group items by warehouse for multiple sheets
         const itemsByWarehouse = {};
         
-        // Group items
         displayedItems.value.forEach((item, index) => {
           exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
           
@@ -1728,10 +1583,8 @@ export default {
         
         exportProgress.value = 'جاري إنشاء ملف Excel...';
         
-        // Create workbook
         const wb = XLSX.utils.book_new();
         
-        // Create summary sheet
         const summaryData = [{
           'إجمالي الأصناف': displayedItems.value.length,
           'إجمالي الكمية': totalQuantity.value,
@@ -1745,7 +1598,6 @@ export default {
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
         XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
         
-        // Create a sheet for each warehouse
         Object.keys(itemsByWarehouse).forEach((warehouseId, index) => {
           const warehouseItems = itemsByWarehouse[warehouseId];
           const warehouseName = getWarehouseLabel(warehouseId).replace(/[^\w\u0600-\u06FF\s]/g, '').trim();
@@ -1754,7 +1606,6 @@ export default {
           if (warehouseItems.length > 0) {
             const ws = XLSX.utils.json_to_sheet(warehouseItems);
             
-            // Add column widths
             const colWidths = [
               { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
               { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
@@ -1770,7 +1621,6 @@ export default {
         
         exportProgress.value = 'جاري حفظ الملف...';
         
-        // Generate filename
         const timestamp = new Date().toISOString().split('T')[0];
         const warehouseName = selectedWarehouse.value
           ? getWarehouseLabel(selectedWarehouse.value).replace(/\s+/g, '-')
@@ -1778,7 +1628,6 @@ export default {
         const searchInfo = searchTerm.value ? `-بحث-${searchTerm.value.substring(0, 10)}` : '';
         const fileName = `مخزون-${warehouseName}${searchInfo}-${timestamp}.xlsx`;
         
-        // Save file
         XLSX.writeFile(wb, fileName);
         
         store.dispatch('showNotification', {
@@ -1894,12 +1743,10 @@ export default {
           message: 'تم حذف الصنف بنجاح!'
         });
         
-        // Close details modal if open
         if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
           closeDetailsModal();
         }
         
-        // Refresh live search results if active
         if (useLiveSearch.value && searchTerm.value.trim()) {
           await handleLiveSearch();
         }
@@ -1920,9 +1767,7 @@ export default {
     
     const handleItemSaved = async () => {
       showAddModal.value = false;
-      saveToCache();
       
-      // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
@@ -1936,9 +1781,7 @@ export default {
     const handleItemUpdated = async () => {
       showEditModal.value = false;
       selectedItemForEdit.value = null;
-      saveToCache();
       
-      // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
@@ -1952,9 +1795,7 @@ export default {
     const handleTransferSuccess = async () => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
-      saveToCache();
       
-      // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
@@ -1968,9 +1809,7 @@ export default {
     const handleDispatchSuccess = async () => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
-      saveToCache();
       
-      // Refresh live search results if active
       if (useLiveSearch.value && searchTerm.value.trim()) {
         await handleLiveSearch();
       }
@@ -1982,49 +1821,109 @@ export default {
     };
     
     // ============================================
+    // VIRTUAL SCROLLING HANDLERS
+    // ============================================
+    const onScroll = () => {
+      if (!scrollContainer.value) return;
+      
+      const now = Date.now();
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
+        return;
+      }
+      
+      lastScrollTime.value = now;
+      
+      if (scrollThrottle.value) {
+        cancelAnimationFrame(scrollThrottle.value);
+      }
+      
+      scrollThrottle.value = requestAnimationFrame(() => {
+        const scrollTop = scrollContainer.value.scrollTop;
+        const rowHeight = 80;
+        const newStartIndex = Math.floor(scrollTop / rowHeight);
+        
+        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
+          visibleStartIndex.value = newStartIndex;
+        }
+        
+        // Load more when near bottom
+        if (!useLiveSearch.value) {
+          const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            loadMoreItems();
+          }
+        }
+      });
+    };
+    
+    const onMobileScroll = () => {
+      if (!mobileScrollContainer.value) return;
+      
+      const now = Date.now();
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
+        return;
+      }
+      
+      lastScrollTime.value = now;
+      
+      requestAnimationFrame(() => {
+        const scrollTop = mobileScrollContainer.value.scrollTop;
+        const rowHeight = 120;
+        const newStartIndex = Math.floor(scrollTop / rowHeight);
+        
+        if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
+          mobileVisibleStartIndex.value = newStartIndex;
+        }
+        
+        // Load more when near bottom
+        if (!useLiveSearch.value) {
+          const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
+          if (scrollBottom < 500 && hasMore.value && !loadingMore.value && inventoryLoaded.value) {
+            loadMoreItems();
+          }
+        }
+      });
+    };
+    
+    // ============================================
     // LIFECYCLE HOOKS
     // ============================================
     onMounted(() => {
-      // Load from cache first
-      const fromCache = loadFromCache();
+      // Set initial loading
+      loading.value = true;
       
-      if (!inventoryLoaded.value || fromCache) {
-        loading.value = true;
+      // Load initial data
+      store.dispatch('loadAllInventory').then(() => {
+        isDataFresh.value = true;
+        lastUpdate.value = Date.now();
         
-        // Load fresh data in background using store's loadAllInventory
-        store.dispatch('loadAllInventory').then(() => {
-          isDataFresh.value = true;
-          lastUpdate.value = Date.now();
-          saveToCache();
-          
-          // Setup real-time updates using store's method
-          if (store.state.realtimeMode) {
-            store.dispatch('setupRealtimeUpdatesForInventory');
-          }
-          
-          // Reset scroll positions after load
-          visibleStartIndex.value = 0;
-          mobileVisibleStartIndex.value = 0;
-          
-          // Load users for user name display
-          if (userRole.value === 'superadmin') {
-            store.dispatch('loadAllUsers');
-          }
-          
-        }).catch(error => {
-          console.error('❌ Error loading inventory:', error);
-          error.value = 'حدث خطأ في تحميل البيانات';
-        }).finally(() => {
-          loading.value = false;
-        });
-      }
+        // Setup real-time updates
+        if (store.state.realtimeMode) {
+          store.dispatch('setupRealtimeUpdatesForInventory');
+        }
+        
+        // Reset scroll positions
+        visibleStartIndex.value = 0;
+        mobileVisibleStartIndex.value = 0;
+        
+        // Load users if admin
+        if (userRole.value === 'superadmin') {
+          store.dispatch('loadAllUsers');
+        }
+        
+      }).catch(error => {
+        console.error('❌ Error loading inventory:', error);
+        error.value = 'حدث خطأ في تحميل البيانات';
+      }).finally(() => {
+        loading.value = false;
+      });
       
-      // Load warehouses if not loaded
+      // Load warehouses
       if (allWarehouses.value.length === 0) {
         store.dispatch('loadWarehousesEnhanced');
       }
       
-      // Auto-select warehouse if user has only one accessible warehouse
+      // Auto-select warehouse if only one accessible
       if (accessibleWarehouses.value.length === 1) {
         selectedWarehouse.value = accessibleWarehouses.value[0].id;
         store.dispatch('setWarehouseFilter', selectedWarehouse.value);
@@ -2063,7 +1962,6 @@ export default {
         cancelAnimationFrame(scrollThrottle.value);
       }
       
-      // Clean up store's real-time listeners
       store.commit('CLEAR_REALTIME_LISTENERS');
     });
     
@@ -2075,20 +1973,19 @@ export default {
     });
     
     watch(() => displayedItems.value.length, () => {
-      // Reset scroll position when filters change
       visibleStartIndex.value = 0;
       mobileVisibleStartIndex.value = 0;
     });
     
-    // Watch for store search results to update live search results
-    watch(() => store.getters.searchResults, (newResults) => {
-      if (useLiveSearch.value && searchTerm.value.trim()) {
-        liveSearchResults.value = newResults;
+    // Watch for store search query changes
+    watch(() => store.state.search.query, (newQuery) => {
+      if (newQuery !== searchTerm.value) {
+        searchTerm.value = newQuery || '';
       }
     });
     
     // ============================================
-    // RETURN ALL REACTIVE PROPERTIES
+    // RETURN ALL PROPERTIES
     // ============================================
     return {
       // State
@@ -2116,7 +2013,6 @@ export default {
       
       // Live search state
       useLiveSearch,
-      liveSearchResults,
       isLiveSearching,
       
       // Mobile UI State
