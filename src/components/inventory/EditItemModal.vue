@@ -94,18 +94,18 @@
                 </div>
               </div>
 
-              <!-- Main Content - Responsive Layout -->
-              <div class="flex-1 overflow-hidden flex flex-col sm:flex-row">
+              <!-- Main Content - FIXED SCROLLING -->
+              <div class="flex-1 min-h-0 overflow-hidden flex flex-col sm:flex-row">
                 <!-- Left Panel: Warehouse Selection & Item Search -->
                 <div 
                   :class="[
                     'w-full sm:w-1/3 lg:w-2/5 xl:w-1/3 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50',
-                    'transition-all duration-300 ease-in-out',
-                    showMobileTabs && activeMobileTab !== 'search' ? 'hidden sm:block' : 'block'
+                    'transition-all duration-300 ease-in-out min-h-0 flex flex-col',
+                    showMobileTabs && activeMobileTab !== 'search' ? 'hidden sm:flex' : 'flex'
                   ]"
                 >
-                  <div class="h-full overflow-y-auto p-4 sm:p-6">
-                    <!-- Warehouse Selection -->
+                  <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+                    <!-- Warehouse Selection - FIXED: Now selectable -->
                     <div class="mb-6">
                       <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
                         <span class="h-5 w-5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
@@ -113,9 +113,8 @@
                       </h3>
                       <select
                         v-model="selectedWarehouseId"
-                        :disabled="loading || (!isCreating && selectedItem)"
                         @change="onWarehouseChange"
-                        class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 cursor-pointer"
                       >
                         <option value="">اختر المخزن</option>
                         <option 
@@ -135,22 +134,21 @@
                       </p>
                     </div>
 
-                    <!-- Item Search -->
+                    <!-- Item Search - FIXED: Now typable -->
                     <div v-if="selectedWarehouseId" class="mb-6">
                       <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
                         <span class="h-5 w-5 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
                         ابحث عن الصنف
                       </h3>
 
-                      <!-- Search Input with Live Search Indicator -->
+                      <!-- Search Input with Live Search Indicator - FIXED: Removed disabled attribute -->
                       <div class="relative mb-4">
                         <input
                           v-model="searchTerm"
                           @input="handleSearch"
                           type="text"
-                          :disabled="loading || (!isCreating && selectedItem)"
                           placeholder="ابحث بالاسم، الكود، اللون، المورد..."
-                          class="w-full pr-10 pl-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          class="w-full pr-10 pl-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200"
                         >
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                           <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,361 +349,355 @@
                   </div>
                 </div>
 
-                <!-- Right Panel: Item Editing Form -->
+                <!-- Right Panel: Item Editing Form - FIXED SCROLLING -->
                 <div 
                   :class="[
                     'w-full sm:w-2/3 lg:w-3/5 xl:w-2/3',
-                    'transition-all duration-300 ease-in-out',
-                    showMobileTabs && activeMobileTab !== 'form' ? 'hidden sm:block' : 'block'
+                    'transition-all duration-300 ease-in-out min-h-0 flex flex-col',
+                    showMobileTabs && activeMobileTab !== 'form' ? 'hidden sm:flex' : 'flex'
                   ]"
                 >
-                  <div class="h-full overflow-y-auto p-4 sm:p-6">
-                    <!-- Form Title -->
-                    <div class="mb-6">
-                      <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                        <span class="h-5 w-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
-                        {{ isCreating ? 'تفاصيل الصنف الجديد' : 'تعديل تفاصيل الصنف' }}
-                      </h3>
-                      <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400">
-                        قم بتعديل الحقول المطلوبة فقط. الحقول التي لم يتم تغييرها سيتم حفظها كما هي.
-                      </p>
-                    </div>
-
-                    <!-- Edit Form -->
-                    <form v-if="selectedWarehouseId" @submit.prevent="handleSubmit" class="space-y-6">
-                      <!-- Changed Fields Indicator -->
-                      <div v-if="changedFields.length > 0" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                        <div class="flex items-start">
-                          <svg class="h-5 w-5 text-yellow-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                          </svg>
-                          <div class="text-sm">
-                            <p class="font-medium text-yellow-800 dark:text-yellow-300">الحقول التي سيتم تحديثها:</p>
-                            <p class="text-yellow-700 dark:text-yellow-400 mt-1 text-xs sm:text-sm">{{ changedFields.join('، ') }}</p>
-                          </div>
-                        </div>
+                  <!-- Scrollable form content -->
+                  <div class="flex-1 overflow-y-auto">
+                    <div class="p-4 sm:p-6">
+                      <!-- Form Title -->
+                      <div class="mb-6">
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                          <span class="h-5 w-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
+                          {{ isCreating ? 'تفاصيل الصنف الجديد' : 'تعديل تفاصيل الصنف' }}
+                        </h3>
+                        <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400">
+                          قم بتعديل الحقول المطلوبة فقط. الحقول التي لم يتم تغييرها سيتم حفظها كما هي.
+                        </p>
                       </div>
 
-                      <!-- Field Validation Errors -->
-                      <div v-if="fieldErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                        <div class="flex items-start">
-                          <ExclamationIcon class="h-5 w-5 text-red-400 flex-shrink-0 ml-2" />
-                          <div class="text-sm">
-                            <p class="font-medium text-red-800 dark:text-red-300">يجب تعبئة الحقول التالية:</p>
-                            <ul class="list-disc mr-4 mt-1 text-red-700 dark:text-red-400 text-xs sm:text-sm">
-                              <li v-for="error in fieldErrors" :key="error">{{ error }}</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Basic Information Grid -->
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                        <!-- Name -->
-                        <div class="col-span-1 md:col-span-2">
-                          <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            اسم الصنف <span class="text-red-500">*</span>
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="text"
-                              id="name"
-                              v-model="formData.name"
-                              :disabled="loading"
-                              required
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                                fieldValidation.name ? 'border-red-500 dark:border-red-500' : ''
-                              ]"
-                              placeholder="أدخل اسم الصنف"
-                              @input="clearFieldError('name')"
-                            />
-                            <span v-if="isFieldChanged('name')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                          <p v-if="fieldValidation.name" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.name }}</p>
-                        </div>
-
-                        <!-- Code -->
-                        <div>
-                          <label for="code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            الكود <span class="text-red-500">*</span>
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="text"
-                              id="code"
-                              v-model="formData.code"
-                              :disabled="loading || !isCreating"
-                              required
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                                fieldValidation.code ? 'border-red-500 dark:border-red-500' : ''
-                              ]"
-                              placeholder="أدخل كود الصنف"
-                              @input="clearFieldError('code')"
-                            />
-                            <span v-if="isFieldChanged('code')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                          <p v-if="fieldValidation.code" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.code }}</p>
-                          <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400 mt-1">لا يمكن تغيير الكود بعد الإنشاء</p>
-                        </div>
-
-                        <!-- Color -->
-                        <div>
-                          <label for="color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            اللون <span class="text-red-500">*</span>
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="text"
-                              id="color"
-                              v-model="formData.color"
-                              :disabled="loading"
-                              required
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
-                                fieldValidation.color ? 'border-red-500 dark:border-red-500' : ''
-                              ]"
-                              placeholder="أدخل اللون"
-                              @input="clearFieldError('color')"
-                            />
-                            <span v-if="isFieldChanged('color')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                          <p v-if="fieldValidation.color" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.color }}</p>
-                        </div>
-
-                        <!-- Warehouse (Fixed) -->
-                        <div>
-                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            المخزن <span class="text-red-500">*</span>
-                          </label>
-                          <div :class="[
-                            'px-3 py-2.5 border rounded-lg text-gray-900 dark:text-gray-300 text-sm',
-                            fieldValidation.warehouse_id ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
-                          ]">
-                            <div class="truncate">{{ selectedWarehouse?.name_ar || 'غير محدد' }}</div>
-                            <span v-if="fieldValidation.warehouse_id" class="text-red-600 dark:text-red-400 text-xs block mt-1">{{ fieldValidation.warehouse_id }}</span>
-                          </div>
-                          <input type="hidden" v-model="formData.warehouse_id" />
-                        </div>
-
-                        <!-- Supplier -->
-                        <div>
-                          <label for="supplier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            المورد
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="text"
-                              id="supplier"
-                              v-model="formData.supplier"
-                              :disabled="loading"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="أدخل اسم المورد"
-                            />
-                            <span v-if="isFieldChanged('supplier')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                        </div>
-
-                        <!-- Item Location -->
-                        <div>
-                          <label for="item_location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            مكان الصنف في المخزن
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="text"
-                              id="item_location"
-                              v-model="formData.item_location"
-                              :disabled="loading"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="مثال: الرف العلوي، المنطقة أ"
-                            />
-                            <span v-if="isFieldChanged('item_location')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Quantity Section -->
-                      <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 sm:p-6">
-                        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
-                          <svg class="w-4 h-4 ml-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                          </svg>
-                          إدارة الكميات
-                        </h4>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-                          <!-- Cartons Count -->
-                          <div>
-                            <label for="cartons_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              عدد الكراتين
-                            </label>
-                            <div class="relative">
-                              <input
-                                type="number"
-                                id="cartons_count"
-                                v-model.number="formData.cartons_count"
-                                :disabled="loading"
-                                min="0"
-                                step="1"
-                                :class="[
-                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                  isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                                ]"
-                                placeholder="0"
-                              />
-                              <span v-if="isFieldChanged('cartons_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                            </div>
-                          </div>
-
-                          <!-- Per Carton Count -->
-                          <div>
-                            <label for="per_carton_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              عدد في الكرتونة
-                            </label>
-                            <div class="relative">
-                              <input
-                                type="number"
-                                id="per_carton_count"
-                                v-model.number="formData.per_carton_count"
-                                :disabled="loading"
-                                min="1"
-                                step="1"
-                                :class="[
-                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                  isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                                ]"
-                                placeholder="12"
-                              />
-                              <span v-if="isFieldChanged('per_carton_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                            </div>
-                          </div>
-
-                          <!-- Single Bottles Count -->
-                          <div>
-                            <label for="single_bottles_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              عدد القزاز الفردي
-                            </label>
-                            <div class="relative">
-                              <input
-                                type="number"
-                                id="single_bottles_count"
-                                v-model.number="formData.single_bottles_count"
-                                :disabled="loading"
-                                min="0"
-                                step="1"
-                                :class="[
-                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                  isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                                ]"
-                                placeholder="0"
-                              />
-                              <span v-if="isFieldChanged('single_bottles_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <!-- Edit Form -->
+                      <form v-if="selectedWarehouseId" @submit.prevent="handleSubmit" class="space-y-6">
+                        <!-- Changed Fields Indicator -->
+                        <div v-if="changedFields.length > 0" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                          <div class="flex items-start">
+                            <svg class="h-5 w-5 text-yellow-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="text-sm">
+                              <p class="font-medium text-yellow-800 dark:text-yellow-300">الحقول التي سيتم تحديثها:</p>
+                              <p class="text-yellow-700 dark:text-yellow-400 mt-1 text-xs sm:text-sm">{{ changedFields.join('، ') }}</p>
                             </div>
                           </div>
                         </div>
 
-                        <!-- Total Quantity Display -->
-                        <div class="mt-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div class="flex items-center justify-between">
+                        <!-- Field Validation Errors -->
+                        <div v-if="fieldErrors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                          <div class="flex items-start">
+                            <ExclamationIcon class="h-5 w-5 text-red-400 flex-shrink-0 ml-2" />
+                            <div class="text-sm">
+                              <p class="font-medium text-red-800 dark:text-red-300">يجب تعبئة الحقول التالية:</p>
+                              <ul class="list-disc mr-4 mt-1 text-red-700 dark:text-red-400 text-xs sm:text-sm">
+                                <li v-for="error in fieldErrors" :key="error">{{ error }}</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Basic Information Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                          <!-- Name -->
+                          <div class="col-span-1 md:col-span-2">
+                            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              اسم الصنف <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="text"
+                                id="name"
+                                v-model="formData.name"
+                                required
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('name') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                  fieldValidation.name ? 'border-red-500 dark:border-red-500' : ''
+                                ]"
+                                placeholder="أدخل اسم الصنف"
+                                @input="clearFieldError('name')"
+                              />
+                              <span v-if="isFieldChanged('name')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                            <p v-if="fieldValidation.name" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.name }}</p>
+                          </div>
+
+                          <!-- Code -->
+                          <div>
+                            <label for="code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              الكود <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="text"
+                                id="code"
+                                v-model="formData.code"
+                                :disabled="!isCreating"
+                                required
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('code') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                  fieldValidation.code ? 'border-red-500 dark:border-red-500' : ''
+                                ]"
+                                placeholder="أدخل كود الصنف"
+                                @input="clearFieldError('code')"
+                              />
+                              <span v-if="isFieldChanged('code')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                            <p v-if="fieldValidation.code" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.code }}</p>
+                            <p v-if="!isCreating" class="text-xs text-gray-500 dark:text-gray-400 mt-1">لا يمكن تغيير الكود بعد الإنشاء</p>
+                          </div>
+
+                          <!-- Color -->
+                          <div>
+                            <label for="color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              اللون <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="text"
+                                id="color"
+                                v-model="formData.color"
+                                required
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('color') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600',
+                                  fieldValidation.color ? 'border-red-500 dark:border-red-500' : ''
+                                ]"
+                                placeholder="أدخل اللون"
+                                @input="clearFieldError('color')"
+                              />
+                              <span v-if="isFieldChanged('color')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                            <p v-if="fieldValidation.color" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ fieldValidation.color }}</p>
+                          </div>
+
+                          <!-- Warehouse (Fixed) -->
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              المخزن <span class="text-red-500">*</span>
+                            </label>
+                            <div :class="[
+                              'px-3 py-2.5 border rounded-lg text-gray-900 dark:text-gray-300 text-sm',
+                              fieldValidation.warehouse_id ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
+                            ]">
+                              <div class="truncate">{{ selectedWarehouse?.name_ar || 'غير محدد' }}</div>
+                              <span v-if="fieldValidation.warehouse_id" class="text-red-600 dark:text-red-400 text-xs block mt-1">{{ fieldValidation.warehouse_id }}</span>
+                            </div>
+                            <input type="hidden" v-model="formData.warehouse_id" />
+                          </div>
+
+                          <!-- Supplier -->
+                          <div>
+                            <label for="supplier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              المورد
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="text"
+                                id="supplier"
+                                v-model="formData.supplier"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('supplier') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="أدخل اسم المورد"
+                              />
+                              <span v-if="isFieldChanged('supplier')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                          </div>
+
+                          <!-- Item Location -->
+                          <div>
+                            <label for="item_location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              مكان الصنف في المخزن
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="text"
+                                id="item_location"
+                                v-model="formData.item_location"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('item_location') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="مثال: الرف العلوي، المنطقة أ"
+                              />
+                              <span v-if="isFieldChanged('item_location')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Quantity Section -->
+                        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 sm:p-6">
+                          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                            <svg class="w-4 h-4 ml-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            إدارة الكميات
+                          </h4>
+
+                          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                            <!-- Cartons Count -->
                             <div>
-                              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">إجمالي الكمية</p>
-                              <p class="text-xs text-gray-500 dark:text-gray-400">محسوب تلقائياً</p>
+                              <label for="cartons_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                عدد الكراتين
+                              </label>
+                              <div class="relative">
+                                <input
+                                  type="number"
+                                  id="cartons_count"
+                                  v-model.number="formData.cartons_count"
+                                  min="0"
+                                  step="1"
+                                  :class="[
+                                    'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                    isFieldChanged('cartons_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                  ]"
+                                  placeholder="0"
+                                />
+                                <span v-if="isFieldChanged('cartons_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                              </div>
                             </div>
-                            <div class="text-right">
-                              <p class="text-xl sm:text-2xl font-bold" :class="isFieldChanged('cartons_count') || isFieldChanged('per_carton_count') || isFieldChanged('single_bottles_count') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'">
-                                {{ totalQuantity }}
-                              </p>
-                              <p class="text-xs text-gray-500 dark:text-gray-400">وحدة</p>
+
+                            <!-- Per Carton Count -->
+                            <div>
+                              <label for="per_carton_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                عدد في الكرتونة
+                              </label>
+                              <div class="relative">
+                                <input
+                                  type="number"
+                                  id="per_carton_count"
+                                  v-model.number="formData.per_carton_count"
+                                  min="1"
+                                  step="1"
+                                  :class="[
+                                    'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                    isFieldChanged('per_carton_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                  ]"
+                                  placeholder="12"
+                                />
+                                <span v-if="isFieldChanged('per_carton_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                              </div>
+                            </div>
+
+                            <!-- Single Bottles Count -->
+                            <div>
+                              <label for="single_bottles_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                عدد القزاز الفردي
+                              </label>
+                              <div class="relative">
+                                <input
+                                  type="number"
+                                  id="single_bottles_count"
+                                  v-model.number="formData.single_bottles_count"
+                                  min="0"
+                                  step="1"
+                                  :class="[
+                                    'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                    isFieldChanged('single_bottles_count') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                  ]"
+                                  placeholder="0"
+                                />
+                                <span v-if="isFieldChanged('single_bottles_count')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                              </div>
                             </div>
                           </div>
-                          <div v-if="!isCreating && originalItem" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                            <span :class="originalTotalQuantity === totalQuantity ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
-                              {{ originalTotalQuantity === totalQuantity ? 'الكمية لم تتغير' : `الكمية السابقة: ${originalTotalQuantity}` }}
-                            </span>
+
+                          <!-- Total Quantity Display -->
+                          <div class="mt-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <div class="flex items-center justify-between">
+                              <div>
+                                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">إجمالي الكمية</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">محسوب تلقائياً</p>
+                              </div>
+                              <div class="text-right">
+                                <p class="text-xl sm:text-2xl font-bold" :class="isFieldChanged('cartons_count') || isFieldChanged('per_carton_count') || isFieldChanged('single_bottles_count') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'">
+                                  {{ totalQuantity }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">وحدة</p>
+                              </div>
+                            </div>
+                            <div v-if="!isCreating && originalItem" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              <span :class="originalTotalQuantity === totalQuantity ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'">
+                                {{ originalTotalQuantity === totalQuantity ? 'الكمية لم تتغير' : `الكمية السابقة: ${originalTotalQuantity}` }}
+                              </span>
+                            </div>
                           </div>
                         </div>
+
+                        <!-- Additional Information -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                          <!-- Photo URL -->
+                          <div class="md:col-span-2">
+                            <label for="photo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              رابط الصورة (اختياري)
+                            </label>
+                            <div class="relative">
+                              <input
+                                type="url"
+                                id="photo_url"
+                                v-model="formData.photo_url"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="https://example.com/image.jpg"
+                              />
+                              <span v-if="isFieldChanged('photo_url')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                            <!-- Image Preview -->
+                            <div v-if="formData.photo_url" class="mt-3 flex items-center justify-center">
+                              <img 
+                                :src="formData.photo_url" 
+                                alt="Item preview" 
+                                class="h-24 w-24 sm:h-32 sm:w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                                @error="handleImageError"
+                              />
+                            </div>
+                          </div>
+
+                          <!-- Notes -->
+                          <div class="md:col-span-2">
+                            <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              ملاحظات
+                            </label>
+                            <div class="relative">
+                              <textarea
+                                id="notes"
+                                v-model="formData.notes"
+                                rows="3"
+                                :class="[
+                                  'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm',
+                                  isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                                ]"
+                                placeholder="أي ملاحظات إضافية حول الصنف..."
+                              ></textarea>
+                              <span v-if="isFieldChanged('notes')" class="absolute top-3 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <div class="flex items-center">
+                            <ExclamationIcon class="h-5 w-5 text-red-400 ml-2 flex-shrink-0" />
+                            <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
+                          </div>
+                        </div>
+                      </form>
+
+                      <!-- No Warehouse Selected State -->
+                      <div v-else class="text-center py-8 sm:py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يجب اختيار المخزن أولاً لعرض نماذج التعديل</p>
                       </div>
-
-                      <!-- Additional Information -->
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                        <!-- Photo URL -->
-                        <div class="md:col-span-2">
-                          <label for="photo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            رابط الصورة (اختياري)
-                          </label>
-                          <div class="relative">
-                            <input
-                              type="url"
-                              id="photo_url"
-                              v-model="formData.photo_url"
-                              :disabled="loading"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('photo_url') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="https://example.com/image.jpg"
-                            />
-                            <span v-if="isFieldChanged('photo_url')" class="absolute top-1/2 transform -translate-y-1/2 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                          <!-- Image Preview -->
-                          <div v-if="formData.photo_url" class="mt-3 flex items-center justify-center">
-                            <img 
-                              :src="formData.photo_url" 
-                              alt="Item preview" 
-                              class="h-24 w-24 sm:h-32 sm:w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
-                              @error="handleImageError"
-                            />
-                          </div>
-                        </div>
-
-                        <!-- Notes -->
-                        <div class="md:col-span-2">
-                          <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            ملاحظات
-                          </label>
-                          <div class="relative">
-                            <textarea
-                              id="notes"
-                              v-model="formData.notes"
-                              :disabled="loading"
-                              rows="3"
-                              :class="[
-                                'w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors duration-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm',
-                                isFieldChanged('notes') ? 'border-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                              ]"
-                              placeholder="أي ملاحظات إضافية حول الصنف..."
-                            ></textarea>
-                            <span v-if="isFieldChanged('notes')" class="absolute top-3 left-2 w-2 h-2 bg-blue-500 rounded-full"></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Error Message -->
-                      <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                        <div class="flex items-center">
-                          <ExclamationIcon class="h-5 w-5 text-red-400 ml-2 flex-shrink-0" />
-                          <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
-                        </div>
-                      </div>
-                    </form>
-
-                    <!-- No Warehouse Selected State -->
-                    <div v-else class="text-center py-8 sm:py-12">
-                      <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                      </svg>
-                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يجب اختيار المخزن أولاً لعرض نماذج التعديل</p>
                     </div>
                   </div>
                 </div>
