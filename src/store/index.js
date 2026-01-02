@@ -83,7 +83,7 @@ const FIELD_MAPPINGS = {
 // Helper function to normalize Arabic text for better matching
 function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
-  
+
   return text
     .replace(/[إأآا]/g, 'ا')
     .replace(/ة/g, 'ه')
@@ -99,32 +99,32 @@ function normalizeArabicText(text) {
 function calculateRelevanceScore(item, searchTerm) {
   let score = 0;
   const normalizedSearchTerm = normalizeArabicText(searchTerm);
-  
+
   // Exact code match (highest priority)
   if (item.code && normalizeArabicText(item.code) === normalizedSearchTerm) {
     score += 1000;
   }
-  
+
   // Code starts with search term
   if (item.code && normalizeArabicText(item.code).startsWith(normalizedSearchTerm)) {
     score += 500;
   }
-  
+
   // Name exact match
   if (item.name && normalizeArabicText(item.name) === normalizedSearchTerm) {
     score += 400;
   }
-  
+
   // Name starts with search term
   if (item.name && normalizeArabicText(item.name).startsWith(normalizedSearchTerm)) {
     score += 300;
   }
-  
+
   // Name contains search term
   if (item.name && normalizeArabicText(item.name).includes(normalizedSearchTerm)) {
     score += 200;
   }
-  
+
   // Other fields contain search term
   const otherFields = [item.color, item.supplier, item.item_location];
   otherFields.forEach(field => {
@@ -132,10 +132,10 @@ function calculateRelevanceScore(item, searchTerm) {
       score += 100;
     }
   });
-  
+
   // Bonus for items with higher quantity (better availability)
   score += Math.min(item.remaining_quantity || 0, 50);
-  
+
   // Bonus for recently updated items
   if (item.updated_at) {
     const updateDate = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
@@ -144,7 +144,7 @@ function calculateRelevanceScore(item, searchTerm) {
       score += 50;
     }
   }
-  
+
   return score;
 }
 
@@ -152,52 +152,52 @@ function calculateRelevanceScore(item, searchTerm) {
 function removeDuplicatesAndSortByRelevance(items, searchTerm, limit) {
   const seen = new Set();
   const uniqueItems = [];
-  
+
   for (const item of items) {
     if (!seen.has(item.id)) {
       seen.add(item.id);
       uniqueItems.push(item);
     }
   }
-  
+
   // Sort by relevance score (descending)
   uniqueItems.sort((a, b) => {
     const scoreA = calculateRelevanceScore(a, searchTerm);
     const scoreB = calculateRelevanceScore(b, searchTerm);
     return scoreB - scoreA;
   });
-  
+
   return uniqueItems.slice(0, limit);
 }
 
 // Match Arabic text across multiple fields
 function matchArabicText(item, searchTerm, fields) {
   const normalizedSearchTerm = normalizeArabicText(searchTerm);
-  
+
   for (const field of fields) {
     const fieldValue = item[field];
     if (fieldValue) {
       const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-      
+
       // Check for exact match
       if (normalizedFieldValue === normalizedSearchTerm) {
         return true;
       }
-      
+
       // Check for starts with
       if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
         return true;
       }
-      
+
       // Check for contains
       if (normalizedFieldValue.includes(normalizedSearchTerm)) {
         return true;
       }
-      
+
       // Check for word-by-word matching (for Arabic phrases)
       const fieldWords = normalizedFieldValue.split(/\s+/);
       const searchWords = normalizedSearchTerm.split(/\s+/);
-      
+
       if (searchWords.every(word => 
         fieldWords.some(fieldWord => fieldWord.includes(word))
       )) {
@@ -205,7 +205,7 @@ function matchArabicText(item, searchTerm, fields) {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -253,7 +253,7 @@ export default createStore({
     isRefreshingSilently: false,
     recentTransactionsLoading: false,
     activeItemListeners: new Set(),
-    
+
     // Search State (SIMPLIFIED - NO CACHE)
     search: {
       query: '',
@@ -264,7 +264,7 @@ export default createStore({
       timestamp: null
     },
     warehouseFilter: '',
-    
+
     // Invoice System State
     invoices: [],
     invoicesLoaded: false,
@@ -484,7 +484,7 @@ export default createStore({
     CLEAR_ITEM_LISTENERS(state) {
       state.activeItemListeners.clear();
     },
-    
+
     // Search Mutations (SIMPLIFIED)
     SET_SEARCH_QUERY(state, query) {
       state.search.query = query;
@@ -512,7 +512,7 @@ export default createStore({
       state.warehouseFilter = warehouseId;
       state.filters.warehouse = warehouseId;
     },
-    
+
     // Invoice System Mutations
     SET_INVOICES(state, invoices) {
       state.invoices = invoices;
@@ -569,20 +569,20 @@ export default createStore({
     },
     CALCULATE_INVOICE_STATS(state) {
       const validInvoices = state.invoices.filter(inv => inv.status !== 'cancelled');
-      
+
       const totalInvoices = validInvoices.length;
       const totalSales = validInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
       const totalTax = validInvoices
         .filter(inv => inv.type === 'B2B' || inv.type === 'B2C')
         .reduce((sum, inv) => sum + (inv.taxAmount || 0), 0);
-      
+
       const customers = new Set();
       validInvoices.forEach(inv => {
         if (inv.customer?.phone) {
           customers.add(inv.customer.phone);
         }
       });
-      
+
       state.invoiceStats = {
         totalInvoices,
         totalSales,
@@ -591,7 +591,7 @@ export default createStore({
         lastUpdated: new Date()
       };
     },
-    
+
     RESET_STATE(state) {
       Object.values(state.notificationTimeouts).forEach(timeoutId => {
         clearTimeout(timeoutId);
@@ -637,7 +637,7 @@ export default createStore({
         uniqueCustomers: 0,
         lastUpdated: null
       };
-      
+
       state.realtimeListeners.forEach(unsubscribe => {
         try {
           if (typeof unsubscribe === 'function') {
@@ -803,9 +803,9 @@ async searchInventoryDirect({ commit, state }, {
 async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
   try {
     console.log(`🔍 Firebase smart search for: "${query}"`);
-   
+
     const searchTerm = normalizeArabicText(query.toLowerCase());
-   
+
     // === SAFE: Direct state access, no getters ===
     let canAccessAll = false;
     let allowedWarehouseIds = [];
@@ -824,10 +824,10 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       }
     }
     // =========================================
-   
+
     const itemsRef = collection(db, 'items');
     let itemsQuery;
-   
+
     if (canAccessAll) {
       itemsQuery = query(
         itemsRef,
@@ -841,7 +841,7 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
         console.log('⚠️ No valid warehouse IDs to query');
         return [];
       }
-      
+
       itemsQuery = query(
         itemsRef,
         where('warehouse_id', 'in', validWarehouseIds),
@@ -852,14 +852,14 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       console.log('⚠️ User has no accessible warehouses');
       return [];
     }
-   
+
     // Fetch data
     const snapshot = await getDocs(itemsQuery);
-   
+
     if (snapshot.empty) {
       return [];
     }
-   
+
     // Convert all items
     const allItems = snapshot.docs.map(doc => {
       const itemData = doc.data();
@@ -868,29 +868,29 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
         ...itemData
       });
     });
-   
+
     // Filter by warehouse locally
     let filteredItems = allItems;
     if (warehouseId && warehouseId !== 'all') {
       filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
     }
-   
+
     // Apply smart Arabic search filtering (SAFE implementation)
     const searchResults = filteredItems.filter(item => {
       if (!searchTerm) return false;
-     
+
       for (const field of SEARCH_CONFIG.FIELDS) {
         const fieldValue = item[field];
         if (fieldValue) {
           const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-         
+
           if (normalizedFieldValue.includes(searchTerm)) {
             return true;
           }
-         
+
           const fieldWords = normalizedFieldValue.split(/\s+/);
           const searchWords = searchTerm.split(/\s+/);
-         
+
           if (searchWords.every(word =>
             fieldWords.some(fieldWord => fieldWord.includes(word))
           )) {
@@ -900,34 +900,34 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       }
       return false;
     });
-   
+
     // Sort by relevance
     const finalResults = removeDuplicatesAndSortByRelevance(
       searchResults,
       query,
       limit || SEARCH_CONFIG.MAX_RESULTS
     );
-   
+
     console.log(`✅ Firebase search found: ${finalResults.length} items`);
     return finalResults;
-   
+
   } catch (error) {
     console.error('❌ Firebase search error:', error);
-    
+
     // Log specific error for debugging
     if (error.message && error.message.includes('in') && error.message.includes('array')) {
       console.error('Firebase "in" query array error detected');
     } else if (error.code === 'failed-precondition') {
       console.error('Firestore index error - composite index might be needed');
     }
-    
+
     return [];
   }
 },
 
 async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
   commit('SET_WAREHOUSE_FILTER', warehouseId);
- 
+
   if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
     await dispatch('searchInventoryDirect', {
       query: state.search.query,
@@ -985,14 +985,14 @@ async searchLocalInventorySmart({ state }, { query, warehouseId, limit = SEARCH_
         const fieldValue = item[field];
         if (fieldValue) {
           const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-          
+
           if (normalizedFieldValue.includes(normalizedSearchTerm)) {
             return true;
           }
-          
+
           const fieldWords = normalizedFieldValue.split(/\s+/);
           const searchWords = normalizedSearchTerm.split(/\s+/);
-          
+
           if (searchWords.every(word =>
             fieldWords.some(fieldWord => fieldWord.includes(word))
           )) {
@@ -1025,19 +1025,19 @@ async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults
     if (!searchTerm || searchTerm.trim().length < 2) {
       return [];
     }
-    
+
     return await dispatch('searchInventoryDirect', {
       query: searchTerm,
       limit: limitResults
     });
-    
+
   } catch (error) {
     console.error('❌ Error in real-time search:', error);
     const term = searchTerm?.trim().toLowerCase() || '';
     const fallbackResults = state.inventory.filter(item =>
       matchArabicText(item, term, ['name', 'code', 'color'])
     ).slice(0, 10);
-    
+
     console.log('🔄 Fallback to local search due to error:', error.message);
     return fallbackResults;
   }
@@ -1050,35 +1050,35 @@ async searchItemsForTransactionsEnhanced({ state, dispatch }, {
 }) {
   try {
     console.log('🔍 Enhanced transaction search:', { searchTerm, warehouseId });
-    
+
     if (!searchTerm || searchTerm.trim().length < 2) {
       return [];
     }
-    
+
     const term = searchTerm.trim().toLowerCase();
     const targetWarehouse = warehouseId || state.warehouseFilter;
-    
+
     const results = await dispatch('searchInventoryDirect', {
       query: term,
       warehouseId: targetWarehouse,
       limit: limitResults
     });
-    
+
     console.log(`✅ Found ${results.length} items for transactions`);
     return results;
-    
+
   } catch (error) {
     console.error('❌ Error in enhanced transaction search:', error);
-    
+
     const term = searchTerm?.trim().toLowerCase() || '';
     const fallbackResults = state.inventory.filter(item => {
       if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
         return false;
       }
-      
+
       return matchArabicText(item, term, ['name', 'code', 'color']);
     }).slice(0, 10);
-    
+
     return fallbackResults;
   }
 },
@@ -1089,7 +1089,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     if (!searchTerm || searchTerm.trim().length < 2) {
       return [];
     }
-    
+
     // Use direct search for better results
     return await dispatch('searchInventoryDirect', {
       query: searchTerm,
@@ -1104,11 +1104,11 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
     // ============================================
-    
+
     async searchInventoryEnhanced({ dispatch }, params) {
       return await dispatch('searchInventoryDirect', params);
     },
-    
+
     async searchLocalInventory({ state, dispatch }, { query, warehouseId, fields, limit }) {
       return await dispatch('searchLocalInventorySmart', {
         query,
@@ -1116,27 +1116,27 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         limit
       });
     },
-    
+
     async searchFirebaseInventory({ dispatch }, params) {
       return await dispatch('searchFirebaseInventorySmart', params);
     },
-    
+
     async loadInventoryWithWarehouse({ commit, state, dispatch }, { 
       warehouseId = null,
       forceRefresh = false 
     } = {}) {
       commit('SET_INVENTORY_LOADING', true);
-      
+
       try {
         const targetWarehouse = warehouseId || state.warehouseFilter;
-        
+
         if (targetWarehouse) {
           commit('SET_WAREHOUSE_FILTER', targetWarehouse);
         }
-        
+
         let itemsQuery;
         const itemsRef = collection(db, 'items');
-        
+
         if (targetWarehouse && targetWarehouse !== 'all') {
           itemsQuery = query(
             itemsRef,
@@ -1151,7 +1151,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
             limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
           );
         }
-        
+
         const snapshot = await getDocs(itemsQuery);
         const inventory = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -1160,23 +1160,23 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
             ...data
           });
         });
-        
+
         const lastDoc = snapshot.docs[snapshot.docs.length - 1];
         commit('SET_PAGINATION', {
           lastDoc,
           hasMore: snapshot.size === PERFORMANCE_CONFIG.INITIAL_LOAD,
           totalLoaded: inventory.length
         });
-        
+
         commit('SET_INVENTORY', inventory);
         commit('SET_INVENTORY_LOADED', true);
-        
+
         if (state.realtimeMode) {
           await dispatch('setupOptimizedRealtimeUpdates', inventory.map(item => item.id));
         }
-        
+
         return inventory;
-        
+
       } catch (error) {
         console.error('❌ Error loading inventory with warehouse filter:', error);
         commit('SET_INVENTORY_ERROR', error.message);
@@ -1185,16 +1185,16 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         commit('SET_INVENTORY_LOADING', false);
       }
     },
-    
+
     async setupOptimizedRealtimeUpdates({ commit, state }, itemIds) {
       if (!state.realtimeMode || !itemIds || itemIds.length === 0) return;
-      
+
       try {
         console.log(`🔴 Setting up optimized real-time for ${itemIds.length} items`);
-        
+
         // Limit real-time listeners to prevent performance issues
         const limitedItemIds = itemIds.slice(0, PERFORMANCE_CONFIG.MAX_REALTIME_LISTENERS);
-        
+
         // Clean up existing listeners
         state.realtimeListeners.forEach(listener => {
           try {
@@ -1207,14 +1207,14 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         });
         state.realtimeListeners = [];
         state.activeItemListeners.clear();
-        
+
         if (limitedItemIds.length <= PERFORMANCE_CONFIG.BATCH_SIZE) {
           const itemsRef = collection(db, 'items');
           const q = query(
             itemsRef,
             where('__name__', 'in', limitedItemIds)
           );
-          
+
           const unsubscribe = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach(change => {
               if (change.type === 'modified' || change.type === 'added') {
@@ -1223,21 +1223,21 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
                   id: change.doc.id,
                   ...data
                 });
-                
+
                 commit('UPDATE_INVENTORY_ITEM', updatedItem);
               } else if (change.type === 'removed') {
                 commit('REMOVE_INVENTORY_ITEM', change.doc.id);
               }
             });
           });
-          
+
           commit('ADD_REALTIME_LISTENER', unsubscribe);
-          
+
         } else {
           // For larger batches, use individual listeners with limit
           const listeners = limitedItemIds.map(itemId => {
             const itemRef = doc(db, 'items', itemId);
-            
+
             const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
               if (docSnapshot.exists()) {
                 const data = docSnapshot.data();
@@ -1245,34 +1245,35 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
                   id: docSnapshot.id,
                   ...data
                 });
-                
+
                 commit('UPDATE_INVENTORY_ITEM', updatedItem);
               } else {
                 commit('REMOVE_INVENTORY_ITEM', itemId);
+                commit('REMOVE_ITEM_LISTENER', itemId);
               }
             });
-            
+
             return unsubscribe;
           });
-          
+
           listeners.forEach(listener => commit('ADD_REALTIME_LISTENER', listener));
         }
-        
+
         console.log(`✅ Optimized real-time updates set up for ${limitedItemIds.length} items`);
-        
+
       } catch (error) {
         console.error('❌ Error setting up optimized real-time updates:', error);
       }
     },
-    
+
     async loadWarehousesEnhanced({ commit, dispatch }) {
       try {
         console.log('🔄 Loading warehouses with enhanced filtering...');
-        
+
         const warehousesRef = collection(db, 'warehouses');
         const q = query(warehousesRef, orderBy('name_ar'));
         const snapshot = await getDocs(q);
-        
+
         const warehouses = snapshot.docs
           .map(doc => ({
             id: doc.id,
@@ -1281,12 +1282,12 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
           .filter(warehouse => {
             return warehouse.type !== 'dispatch';
           });
-        
+
         commit('SET_WAREHOUSES', warehouses);
         console.log(`✅ Warehouses loaded: ${warehouses.length} (dispatch warehouses excluded)`);
-        
+
         return warehouses;
-        
+
       } catch (error) {
         console.error('❌ Error loading warehouses:', error);
         dispatch('showNotification', {
@@ -1296,7 +1297,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         return [];
       }
     },
-    
+
     async getDispatchWarehouses({ dispatch }) {
       try {
         const warehousesRef = collection(db, 'warehouses');
@@ -1304,22 +1305,22 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
           warehousesRef,
           where('type', '==', 'dispatch')
         );
-        
+
         const snapshot = await getDocs(q);
         const dispatchWarehouses = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
+
         console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
         return dispatchWarehouses;
-        
+
       } catch (error) {
         console.error('❌ Error loading dispatch warehouses:', error);
         return [];
       }
     },
-    
+
     async searchItemsForTransactionsEnhanced({ state, dispatch }, { 
       searchTerm, 
       limitResults = 20,
@@ -1327,39 +1328,39 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     }) {
       try {
         console.log('🔍 Enhanced transaction search:', { searchTerm, warehouseId });
-        
+
         if (!searchTerm || searchTerm.trim().length < 2) {
           return [];
         }
-        
+
         const term = searchTerm.trim().toLowerCase();
         const targetWarehouse = warehouseId || state.warehouseFilter;
-        
+
         const results = await dispatch('searchInventoryDirect', {
           query: term,
           warehouseId: targetWarehouse,
           limit: limitResults
         });
-        
+
         console.log(`✅ Found ${results.length} items for transactions`);
         return results;
-        
+
       } catch (error) {
         console.error('❌ Error in enhanced transaction search:', error);
-        
+
         const term = searchTerm?.trim().toLowerCase() || '';
         const fallbackResults = state.inventory.filter(item => {
           if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
             return false;
           }
-          
+
           return matchArabicText(item, term, ['name', 'code', 'color']);
         }).slice(0, 10);
-        
+
         return fallbackResults;
       }
     },
-    
+
     // ✅ Original Dashboard Count Actions
     async getTotalItemCount({ state }, warehouseId = 'all') {
       try {
@@ -1560,19 +1561,19 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         if (!searchTerm || searchTerm.trim().length < 2) {
           return [];
         }
-        
+
         return await dispatch('searchInventoryDirect', {
           query: searchTerm,
           limit: limitResults
         });
-        
+
       } catch (error) {
         console.error('❌ Error in real-time search:', error);
         const term = searchTerm?.trim().toLowerCase() || '';
         const fallbackResults = state.inventory.filter(item =>
           matchArabicText(item, term, ['name', 'code', 'color'])
         ).slice(0, 10);
-        
+
         console.log('🔄 Fallback to local search due to error:', error.message);
         return fallbackResults;
       }
@@ -2025,7 +2026,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
           type: 'error',
           message: error.message || 'خطأ في تحميل الأصناف من المخزن'
         });
-        
+
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
         return {
           items: localItems.slice(0, limit),
@@ -2061,11 +2062,11 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
 
         if (result.items.length > 0) {
           const allItems = [...currentItems, ...result.items];
-          
+
           const newIds = new Set(result.items.map(item => item.id));
           const existingIds = new Set(state.inventory.map(item => item.id));
           const itemsToAdd = result.items.filter(item => !existingIds.has(item.id));
-          
+
           if (itemsToAdd.length > 0) {
             commit('APPEND_INVENTORY', itemsToAdd);
           }
@@ -2087,19 +2088,19 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
             hasMore: false, 
             isFetching: false 
           });
-          
+
           return { items: [], allItems: currentItems, hasMore: false };
         }
 
       } catch (error) {
         console.error('❌ Error loading more warehouse items:', error);
         commit('SET_PAGINATION', { isFetching: false });
-        
+
         dispatch('showNotification', {
           type: 'error',
           message: 'خطأ في تحميل المزيد من الأصناف'
         });
-        
+
         return { items: [], allItems: currentItems, hasMore: false };
       }
     },
@@ -2230,14 +2231,14 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
             query: search,
             warehouseId: warehouse
           });
-          
+
           commit('SET_INVENTORY', results);
           commit('SET_INVENTORY_LOADED', true);
           commit('SET_PAGINATION', {
             hasMore: false,
             totalLoaded: results.length
           });
-          
+
           return results;
         }
 
@@ -3147,7 +3148,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         if (!searchTerm || searchTerm.trim().length < 2) {
           return [];
         }
-        
+
         // Use direct search for better results
         return await dispatch('searchInventoryDirect', {
           query: searchTerm,
@@ -3932,7 +3933,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         const docRef = await addDoc(collection(db, 'invoices'), cleanInvoiceData);
 
         const batch = writeBatch(db);
-        
+
         for (const item of invoiceData.items) {
           if (item.id) {
             const itemRef = doc(db, 'items', item.id);
@@ -4143,7 +4144,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
 
         if (existingInvoice.items && Array.isArray(existingInvoice.items)) {
           const batch = writeBatch(db);
-          
+
           for (const item of existingInvoice.items) {
             if (item.id) {
               const itemRef = doc(db, 'items', item.id);
@@ -4152,7 +4153,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
               });
             }
           }
-          
+
           await batch.commit();
         }
 
@@ -4266,7 +4267,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         }
 
         const invoiceData = invoiceDoc.data();
-        
+
         return {
           id: invoiceDoc.id,
           ...invoiceData,
@@ -4339,7 +4340,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
 
         const exportData = invoicesToExport.map(invoice => {
           const invoiceDate = invoice.date instanceof Date ? invoice.date : new Date(invoice.date);
-          
+
           return {
             'رقم الفاتورة': invoice.invoiceNumber,
             'التاريخ': invoiceDate.toLocaleDateString('ar-EG'),
@@ -4410,7 +4411,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     }
   },
 
-    getters: {
+  getters: {
     isAuthenticated: state => !!state.user,
     userRole: state => state.userProfile?.role || '',
     userName: state => state.userProfile?.name || '',
@@ -4452,7 +4453,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     requiresCompositeIndex: state => state.requiresCompositeIndex,
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
-    
+
     // Enhanced Search Getters
     searchQuery: state => state.search.query,
     searchResults: state => state.search.results,
@@ -4461,22 +4462,22 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     searchSource: state => state.search.source,
     searchSuggestions: state => state.search.suggestions,
     warehouseFilter: state => state.warehouseFilter,
-    
+
     // Enhanced Filtered Inventory
     filteredInventoryEnhanced: (state, getters) => {
       let inventory = state.inventory;
-      
+
       if (state.warehouseFilter && state.warehouseFilter !== 'all') {
         inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
       }
-      
+
       if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
         if (state.search.results.length > 0 && 
             state.search.source !== 'none' &&
             Date.now() - new Date(state.search.timestamp).getTime() < 10000) {
           return state.search.results;
         }
-        
+
         const searchTerm = state.search.query.toLowerCase();
         inventory = inventory.filter(item => 
           item.name?.toLowerCase().includes(searchTerm) ||
@@ -4485,21 +4486,21 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
           item.supplier?.toLowerCase().includes(searchTerm)
         );
       }
-      
+
       return inventory;
     },
-    
+
     // Warehouse-aware statistics
     warehouseStats: (state) => (warehouseId) => {
       const inventory = warehouseId === 'all' 
         ? state.inventory 
         : state.inventory.filter(item => item.warehouse_id === warehouseId);
-      
+
       const totalItems = inventory.length;
       const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
       const lowStockItems = inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
       const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
-      
+
       return {
         totalItems,
         totalQuantity,
@@ -4508,18 +4509,18 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         lastUpdated: new Date()
       };
     },
-    
+
     // Enhanced warehouse filtering
     primaryWarehousesFiltered: (state, getters) => {
       return getters.accessibleWarehouses.filter(w => 
         w.type === 'primary' || !w.type
       );
     },
-    
+
     dispatchWarehousesFiltered: (state, getters) => {
       return getters.accessibleWarehouses.filter(w => w.type === 'dispatch');
     },
-    
+
     // Invoice System Getters
     invoices: state => state.invoices,
     invoicesItems: state => Array.isArray(state.invoices) ? state.invoices : [],
@@ -4667,18 +4668,18 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
     dispatchFromWarehouses: (state, getters) => {
       const warehouses = Array.isArray(state.warehouses) ? state.warehouses : [];
       if (!warehouses.length || !state.warehousesLoaded) return [];
-      
+
       const primaryWarehouses = warehouses.filter(w => w.type === 'primary' || !w.type);
-      
+
       if (!state.user) {
         return primaryWarehouses;
       }
-      
+
       const role = getters.userRole;
       if (role === 'superadmin') {
         return primaryWarehouses;
       }
-      
+
       if (role === 'warehouse_manager') {
         const allowedWarehouses = getters.allowedWarehouses;
         if (allowedWarehouses.length > 0) {
@@ -4690,7 +4691,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
           );
         }
       }
-      
+
       return [];
     },
     filteredInventory: (state, getters) => {
@@ -4754,7 +4755,7 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         }
       };
     },
-    
+
     // FIXED: Remove cache reference since state.cache doesn't exist
     dashboardRealStats: (state) => (warehouseId = 'all') => {
       // Calculate real-time stats without cache
@@ -4770,18 +4771,18 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         lastUpdated: new Date()
       };
     },
-    
+
     // FIXED: Get warehouse label from warehouses array, not from non-existent cache
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
-      
+
       // Find warehouse in the warehouses array
       const warehouse = state.warehouses.find(w => w.id === warehouseId);
-      
+
       // Return Arabic name if available, otherwise return warehouseId
       return warehouse?.name_ar || warehouse?.name || warehouseId;
     },
-    
+
     getDestinationLabel: () => (destinationId) => {
       return DESTINATION_LABELS[destinationId] || destinationId;
     },
@@ -4950,13 +4951,13 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
 
       return counts;
     },
-    
+
     // FIXED: Remove cache reference for item details
     getCachedItem: (state) => (itemId) => {
       // Simply return the item from inventory if found
       return state.inventory.find(item => item.id === itemId) || null;
     },
-    
+
     getAllWarehouses: (state) => {
       return state.warehouses.map(w => ({
         id: w.id,
@@ -4985,6 +4986,92 @@ async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
         'cancelled': 'ملغية'
       };
       return labels[status] || status;
+    },
+    
+    // ============================================
+    // NEW GETTERS ADDED AS REQUESTED
+    // ============================================
+    
+    // Note: primaryWarehouses and dispatchWarehouses already exist above
+    // Note: accessibleWarehouses already exists above with different logic
+    // Note: canManageUsers already exists above
+    
+    // Add any missing getters from your request that don't already exist:
+    getRealTimeSearchAvailable: (state) => {
+      return state.search.query && 
+             state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+             state.search.results.length > 0 && 
+             state.search.source === 'firebase';
+    },
+    
+    getManualLoadStatus: (state) => {
+      return {
+        hasMore: state.pagination.hasMore,
+        isFetchingMore: state.pagination.isFetching,
+        totalLoaded: state.pagination.totalLoaded,
+        nextBatchSize: PERFORMANCE_CONFIG.SCROLL_LOAD,
+        canLoadMore: state.pagination.hasMore && !state.pagination.isFetching
+      };
+    },
+    
+    getFilteredSearchSuggestions: (state) => {
+      if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        return [];
+      }
+      
+      const query = state.search.query.toLowerCase();
+      return state.search.suggestions.filter(suggestion => 
+        suggestion.toLowerCase().includes(query)
+      ).slice(0, 10);
+    },
+    
+    getSearchStats: (state) => {
+      const localResults = state.inventory.filter(item => 
+        state.search.query && 
+        state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+        (
+          item.name?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.code?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.color?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.supplier?.toLowerCase().includes(state.search.query.toLowerCase())
+        )
+      ).length;
+      
+      return {
+        localResults,
+        firebaseResults: state.search.results.length,
+        queryLength: state.search.query?.length || 0,
+        isSearching: state.search.loading,
+        lastSearchSource: state.search.source
+      };
+    },
+    
+    getWarehouseSearchResults: (state) => {
+      if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        return [];
+      }
+      
+      const query = state.search.query.toLowerCase();
+      const recentFirebaseResults = state.search.results.length > 0 && 
+                                    state.search.source === 'firebase';
+      
+      if (recentFirebaseResults) {
+        return state.search.results;
+      }
+      
+      return state.inventory.filter(item => 
+        item.name?.toLowerCase().includes(query) ||
+        item.code?.toLowerCase().includes(query) ||
+        item.color?.toLowerCase().includes(query) ||
+        item.supplier?.toLowerCase().includes(query)
+      );
+    },
+    
+    getSearchReady: (state) => {
+      return state.inventoryLoaded || 
+             (state.search.query && 
+              state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+              state.search.results.length > 0);
     }
-    }
+  }
 });
