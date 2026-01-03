@@ -95,16 +95,16 @@ const FIELD_MAPPINGS = {
  */
 function matchArabicTextSimple(item, searchTerm, fields) {
   if (!searchTerm || !item) return false;
-  
+
   const term = searchTerm.trim().toLowerCase();
-  
+
   for (const field of fields) {
     const fieldValue = item[field];
     if (fieldValue && fieldValue.toString().toLowerCase().includes(term)) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -759,9 +759,9 @@ export default createStore({
 
         // Method 2: Fallback - fetch all accessible items and filter manually
         console.log('🔄 Falling back to manual search...');
-        
+
         let allAccessibleItems = [];
-        
+
         if (canAccessAll) {
           const q = query(itemsRef, fsLimit(500)); // Increased limit for fallback
           const snapshot = await getDocs(q);
@@ -783,7 +783,7 @@ export default createStore({
               ...doc.data()
             }));
           });
-          
+
           const results = await Promise.all(promises);
           allAccessibleItems = results.flat();
         }
@@ -819,9 +819,10 @@ export default createStore({
 
       } catch (error) {
         console.error('❌ Error in enhanced live Arabic search:', error);
-        
+
         // Last resort: Search in loaded inventory
-        const searchTerm = (searchText ?? query ?? state.search.query || '').toLowerCase();
+        // FIXED: Added parentheses to fix JavaScript syntax error
+        const searchTerm = ((searchText ?? query ?? state.search.query) || '').toLowerCase();
         const localResults = state.inventory.filter(item => {
           const searchableText = [
             item.name || '',
@@ -917,7 +918,7 @@ export default createStore({
     async addSearchableFieldToItems({ state, dispatch }) {
       try {
         console.log('🔄 Initializing searchable fields for all items...');
-        
+
         const itemsRef = collection(db, 'items');
         const snapshot = await getDocs(itemsRef);
         const batch = writeBatch(db);
@@ -926,15 +927,15 @@ export default createStore({
         // Process items in batches to avoid Firestore limits
         const batchPromises = [];
         const allDocs = snapshot.docs;
-        
+
         for (let i = 0; i < allDocs.length; i += 500) {
           const batchDocs = allDocs.slice(i, i + 500);
           const batch = writeBatch(db);
           let batchCount = 0;
-          
+
           batchDocs.forEach(doc => {
             const data = doc.data();
-            
+
             // Create searchable field from all searchable text
             const searchable = [
               data.name || '',
@@ -970,7 +971,7 @@ export default createStore({
 
         if (totalUpdated > 0) {
           console.log(`✅ Added/Updated searchable field for ${totalUpdated} items`);
-          
+
           dispatch('showNotification', {
             type: 'success',
             message: `تم إضافة/تحديث حقل البحث لـ ${totalUpdated} صنف`
@@ -984,7 +985,7 @@ export default createStore({
         }
 
         return totalUpdated;
-        
+
       } catch (error) {
         console.error('❌ Error adding/updating searchable field:', error);
         dispatch('showNotification', {
