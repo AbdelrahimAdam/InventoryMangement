@@ -1,16 +1,18 @@
 import { createStore } from 'vuex';
 import { auth, db } from '@/firebase/config';
+
 import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
+
 import {
   doc,
   getDoc,
   setDoc,
   collection,
-  query,
+  query as fsQuery,        // ✅ FIXED
   where,
   addDoc,
   getDocs,
@@ -26,6 +28,7 @@ import {
   increment,
   Timestamp
 } from 'firebase/firestore';
+
 import {
   InventoryService,
   WAREHOUSE_LABELS,
@@ -33,6 +36,7 @@ import {
   FIELD_LABELS,
   TRANSACTION_TYPES
 } from '@/services/inventoryService';
+
 import * as XLSX from 'xlsx';
 
 // Performance configuration
