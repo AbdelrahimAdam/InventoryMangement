@@ -661,7 +661,7 @@ export default createStore({
 
   actions: {
     // ============================================
-    // SIMPLIFIED LIVE ARABIC SEARCH (MAIN FUNCTION)
+    // FIXED LIVE ARABIC SEARCH (MAIN FUNCTION)
     // ============================================
     async searchInventoryLive({ commit, state }, {
       query,
@@ -745,7 +745,7 @@ export default createStore({
           return [];
         }
 
-        // Execute query
+        // Execute query - FIXED: Directly use getDocs, no .s() call
         const snapshot = await getDocs(itemsQuery);
 
         if (snapshot.empty) {
