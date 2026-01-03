@@ -12,7 +12,8 @@ import {
   getDoc,
   setDoc,
   collection,
-  query as fsQuery,        // ✅ FIXED
+  query,                 
+  query as fsQuery,      
   where,
   addDoc,
   getDocs,
