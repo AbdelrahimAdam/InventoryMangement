@@ -1048,9 +1048,51 @@ export class InventoryService {
   }
 
   /**
+   * Convert item data for display
+   * @param {Object} itemData - Raw item data
+   * @returns {Object} - Converted item for display
+   */
+  static convertForDisplay(itemData) {
+    if (!itemData) return null;
+    
+    const totalQuantity = (itemData.cartons_count || 0) * (itemData.per_carton_count || 12) + 
+                         (itemData.single_bottles_count || 0);
+    
+    return {
+      id: itemData.id || '',
+      name: itemData.name || '',
+      code: itemData.code || '',
+      color: itemData.color || '',
+      supplier: itemData.supplier || '',
+      item_location: itemData.item_location || '',
+      warehouse_id: itemData.warehouse_id || '',
+      remaining_quantity: itemData.remaining_quantity || totalQuantity || 0,
+      cartons_count: itemData.cartons_count || 0,
+      per_carton_count: itemData.per_carton_count || 12,
+      single_bottles_count: itemData.single_bottles_count || 0,
+      total_added: itemData.total_added || totalQuantity || 0,
+      created_at: itemData.created_at,
+      updated_at: itemData.updated_at,
+      created_by: itemData.created_by,
+      updated_by: itemData.updated_by,
+      searchable: itemData.searchable || '',
+      photo_url: itemData.photo_url || null,
+      _display: {
+        warehouse: WAREHOUSE_LABELS[itemData.warehouse_id] || itemData.warehouse_id || '',
+        has_photo: !!itemData.photo_url,
+        photo_type: itemData.photo_url ? 
+          (itemData.photo_url.startsWith('data:image/') ? 
+            itemData.photo_url.split(';')[0].split('/')[1] : 
+            'unknown') : 
+          null
+      }
+    };
+  }
+
+  /**
    * Helper function to convert data for UI display (add Arabic labels and photo info)
    */
-  static convertForDisplay(data) {
+  static convertForDisplayOld(data) {
     if (Array.isArray(data)) {
       return data.map(item => this._addDisplayLabels(item));
     }
@@ -1216,3 +1258,6 @@ export class InventoryService {
     return false;
   }
 }
+
+// Export default instance for easy import
+export default InventoryService;
