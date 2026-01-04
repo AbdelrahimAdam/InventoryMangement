@@ -790,7 +790,7 @@ export default createStore({
         console.error('❌ Error in universal search:', error);
         
         // Fallback to local cache search
-        const effectiveSearchText = searchText ?? query ?? state.search.query || '';
+        const effectiveSearchText = (searchText ?? query ?? state.search.query) || '';
         const searchTerm = effectiveSearchText.trim();
         
         if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
