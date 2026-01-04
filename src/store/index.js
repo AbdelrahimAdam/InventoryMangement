@@ -4,7 +4,8 @@ import { auth, db } from '@/firebase/config';
 import {
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 
 import {
@@ -220,6 +221,13 @@ function getPaymentMethodLabel(method) {
     'check': 'شيك'
   };
   return labels[method] || method;
+}
+
+// Safe Firebase data extraction
+function safeGetDocData(docSnapshot, fallback = {}) {
+  if (!docSnapshot || !docSnapshot.exists()) return fallback;
+  const data = docSnapshot.data();
+  return data || fallback;
 }
 
 export default createStore({
@@ -666,99 +674,41 @@ export default createStore({
 
   actions: {
     // ============================================
-    // WORKING LIVE ARABIC SEARCH - FETCHES DIRECTLY FROM FIREBASE
+    // UNIVERSAL SEARCH - ALL USERS CAN SEARCH ALL ITEMS
     // ============================================
-  // ============================================
-// WORKING LIVE ARABIC SEARCH - FETCHES DIRECTLY FROM FIREBASE
-// ============================================
-async searchInventoryLive({ commit, state, dispatch }, {
-  searchText = null,
-  query = null,
-  warehouseId = null,
-  limit = 25
-}) {
-  try {
-    // Get the search term from any parameter
-    const effectiveSearchText = searchText ?? query ?? state.search.query;
-    
-    // Validate search term
-    if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-      commit('CLEAR_SEARCH');
-      return [];
-    }
+    async searchInventoryLive({ commit, state, dispatch }, {
+      searchText = null,
+      query = null,
+      warehouseId = null,
+      limit = 25
+    }) {
+      try {
+        // Get the search term from any parameter
+        const effectiveSearchText = searchText ?? query ?? state.search.query;
+        
+        // Validate search term
+        if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+          commit('CLEAR_SEARCH');
+          return [];
+        }
 
-    const searchTerm = effectiveSearchText.trim();
-    const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+        const searchTerm = effectiveSearchText.trim();
+        const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
 
-    console.log(`🔍 Starting live search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
-    
-    commit('SET_SEARCH_LOADING', true);
-    commit('SET_SEARCH_QUERY', searchTerm);
+        console.log(`🔍 Starting universal search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
+        
+        commit('SET_SEARCH_LOADING', true);
+        commit('SET_SEARCH_QUERY', searchTerm);
 
-    // Check user permissions
-    const userRole = state.userProfile?.role || '';
-    const allowedWarehouses = state.userProfile?.allowed_warehouses || [];
-    
-    let canAccessAll = false;
-    let accessibleWarehouseIds = [];
-    
-    if (userRole === 'superadmin' || userRole === 'company_manager') {
-      canAccessAll = true;
-    } else if (userRole === 'warehouse_manager') {
-      if (allowedWarehouses.includes('all')) {
-        canAccessAll = true;
-      } else {
-        accessibleWarehouseIds = allowedWarehouses.filter(id => 
-          typeof id === 'string' && id.trim() !== '' && id !== 'all'
-        );
-      }
-    }
+        // UNIVERSAL SEARCH ACCESS - All authenticated users can search ALL items
+        // Removed all warehouse permission checks for search
 
-    // If user has no access to any warehouse, return empty
-    if (!canAccessAll && accessibleWarehouseIds.length === 0) {
-      commit('SET_SEARCH_RESULTS', { 
-        results: [], 
-        source: 'no_access', 
-        query: searchTerm 
-      });
-      commit('SET_SEARCH_LOADING', false);
-      return [];
-    }
-
-    const itemsRef = collection(db, 'items');
-    let firestoreQuery;
-    
-    // Build Firestore query based on permissions and warehouse filter
-    if (canAccessAll) {
-      if (targetWarehouse === 'all') {
-        // Superadmin searching all warehouses
-        firestoreQuery = query(
-          itemsRef,
-          orderBy('name'),
-          fsLimit(limit * 2) // Get more items for filtering
-        );
-      } else {
-        // Superadmin searching specific warehouse
-        firestoreQuery = query(
-          itemsRef,
-          where('warehouse_id', '==', targetWarehouse),
-          orderBy('name'),
-          fsLimit(limit * 2)
-        );
-      }
-    } else {
-      // Warehouse manager with specific warehouses
-      if (targetWarehouse === 'all') {
-        // Search in all accessible warehouses
-        firestoreQuery = query(
-          itemsRef,
-          where('warehouse_id', 'in', accessibleWarehouseIds.slice(0, 10)),
-          orderBy('name'),
-          fsLimit(limit * 2)
-        );
-      } else {
-        // Check if target warehouse is in accessible list
-        if (accessibleWarehouseIds.includes(targetWarehouse)) {
+        const itemsRef = collection(db, 'items');
+        let firestoreQuery;
+        
+        // Build Firestore query (NO warehouse restrictions for search)
+        if (targetWarehouse && targetWarehouse !== 'all') {
+          // If warehouse filter is specified, search only in that warehouse
           firestoreQuery = query(
             itemsRef,
             where('warehouse_id', '==', targetWarehouse),
@@ -766,130 +716,125 @@ async searchInventoryLive({ commit, state, dispatch }, {
             fsLimit(limit * 2)
           );
         } else {
-          // No access to this specific warehouse
-          commit('SET_SEARCH_RESULTS', { 
-            results: [], 
-            source: 'no_warehouse_access', 
-            query: searchTerm 
+          // Search all items (no warehouse restriction)
+          firestoreQuery = query(
+            itemsRef,
+            orderBy('name'),
+            fsLimit(limit * 2)
+          );
+        }
+
+        // Execute Firestore query
+        const snapshot = await getDocs(firestoreQuery);
+        console.log(`📡 Universal search returned ${snapshot.size} items for filtering`);
+
+        if (snapshot.empty) {
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'firestore',
+            query: searchTerm
           });
           commit('SET_SEARCH_LOADING', false);
           return [];
         }
-      }
-    }
 
-    // Execute Firestore query
-    const snapshot = await getDocs(firestoreQuery);
-    console.log(`📡 Firestore search returned ${snapshot.size} items for filtering`);
+        // Process and filter results locally with Arabic normalization
+        const normalizedSearchTerm = normalizeArabicText(searchTerm);
+        const firestoreResults = [];
 
-    if (snapshot.empty) {
-      commit('SET_SEARCH_RESULTS', {
-        results: [],
-        source: 'firestore',
-        query: searchTerm
-      });
-      commit('SET_SEARCH_LOADING', false);
-      return [];
-    }
-
-    // Process and filter results locally with Arabic normalization
-    const normalizedSearchTerm = normalizeArabicText(searchTerm);
-    const firestoreResults = [];
-
-    snapshot.docs.forEach(doc => {
-      const itemData = doc.data();
-      
-      // Combine all searchable fields into one searchable text
-      const searchableText = [
-        itemData.name || '',
-        itemData.code || '',
-        itemData.color || '',
-        itemData.supplier || '',
-        itemData.item_location || ''
-      ]
-        .filter(text => text && text.toString().trim())
-        .map(text => text.toString())
-        .join(' ');
-      
-      // Normalize the searchable text
-      const normalizedText = normalizeArabicText(searchableText);
-      
-      // Check if normalized text contains the normalized search term
-      if (normalizedText.includes(normalizedSearchTerm)) {
-        const item = InventoryService.convertForDisplay({
-          id: doc.id,
-          ...itemData
+        snapshot.docs.forEach(doc => {
+          const itemData = safeGetDocData(doc, {});
+          
+          // Combine all searchable fields into one searchable text
+          const searchableText = [
+            itemData.name || '',
+            itemData.code || '',
+            itemData.color || '',
+            itemData.supplier || '',
+            itemData.item_location || ''
+          ]
+            .filter(text => text && text.toString().trim())
+            .map(text => text.toString())
+            .join(' ');
+          
+          // Normalize the searchable text
+          const normalizedText = normalizeArabicText(searchableText);
+          
+          // Check if normalized text contains the normalized search term
+          if (normalizedText.includes(normalizedSearchTerm)) {
+            const item = InventoryService.convertForDisplay({
+              id: doc.id,
+              ...itemData
+            });
+            firestoreResults.push(item);
+          }
         });
-        firestoreResults.push(item);
-      }
-    });
 
-    // Sort by relevance
-    const sortedResults = firestoreResults
-      .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
-      .slice(0, limit);
+        // Sort by relevance
+        const sortedResults = firestoreResults
+          .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
+          .slice(0, limit);
 
-    console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
+        console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
 
-    commit('SET_SEARCH_RESULTS', {
-      results: sortedResults,
-      source: 'firestore',
-      query: searchTerm
-    });
-    commit('SET_SEARCH_LOADING', false);
+        commit('SET_SEARCH_RESULTS', {
+          results: sortedResults,
+          source: 'firestore',
+          query: searchTerm
+        });
+        commit('SET_SEARCH_LOADING', false);
 
-    return sortedResults;
+        return sortedResults;
 
-  } catch (error) {
-    console.error('❌ Error in live Arabic search:', error);
-    
-    // Fallback to local cache search
-    // FIXED: Wrap the nullish coalescing expression with parentheses before using OR
-    const effectiveSearchText = (searchText ?? query ?? state.search.query) || '';
-    const searchTerm = effectiveSearchText.trim();
-    
-    if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-      console.log('🔄 Falling back to local cache search...');
-      
-      const normalizedSearchTerm = normalizeArabicText(searchTerm);
-      const localResults = state.inventory.filter(item => {
-        const searchableText = [
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          item.supplier || '',
-          item.item_location || ''
-        ]
-          .filter(text => text && text.toString().trim())
-          .map(text => text.toString())
-          .join(' ');
+      } catch (error) {
+        console.error('❌ Error in universal search:', error);
         
-        const normalizedText = normalizeArabicText(searchableText);
-        return normalizedText.includes(normalizedSearchTerm);
-      })
-      .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
+        // Fallback to local cache search
+        const effectiveSearchText = searchText ?? query ?? state.search.query || '';
+        const searchTerm = effectiveSearchText.trim();
+        
+        if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+          console.log('🔄 Falling back to local cache search...');
+          
+          const normalizedSearchTerm = normalizeArabicText(searchTerm);
+          const localResults = state.inventory.filter(item => {
+            const searchableText = [
+              item.name || '',
+              item.code || '',
+              item.color || '',
+              item.supplier || '',
+              item.item_location || ''
+            ]
+              .filter(text => text && text.toString().trim())
+              .map(text => text.toString())
+              .join(' ');
+            
+            const normalizedText = normalizeArabicText(searchableText);
+            return normalizedText.includes(normalizedSearchTerm);
+          })
+          .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
 
-      commit('SET_SEARCH_RESULTS', {
-        results: localResults,
-        source: 'local_fallback',
-        query: searchTerm
-      });
-      commit('SET_SEARCH_LOADING', false);
+          commit('SET_SEARCH_RESULTS', {
+            results: localResults,
+            source: 'local_fallback',
+            query: searchTerm
+          });
+          commit('SET_SEARCH_LOADING', false);
 
-      return localResults;
-    }
+          return localResults;
+        }
 
-    // If no valid search term, return empty
-    commit('SET_SEARCH_RESULTS', {
-      results: [],
-      source: 'error',
-      query: ''
-    });
-    commit('SET_SEARCH_LOADING', false);
+        // If no valid search term, return empty
+        commit('SET_SEARCH_RESULTS', {
+          results: [],
+          source: 'error',
+          query: ''
+        });
+        commit('SET_SEARCH_LOADING', false);
 
-    return [];
-  }
-},
+        return [];
+      }
+    },
 
     async searchFirebaseInventory({ dispatch }, params) {
       return await dispatch('searchInventoryLive', params);
@@ -954,7 +899,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
     },
 
     // ============================================
-    // ORIGINAL ACTIONS (Preserved exactly as in your code)
+    // INVENTORY LOADING (with warehouse restrictions for viewing)
     // ============================================
     async loadInventoryWithWarehouse({ commit, state, dispatch }, { 
       warehouseId = null,
@@ -989,7 +934,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
         const snapshot = await getDocs(itemsQuery);
         const inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1053,7 +998,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           const unsubscribe = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach(change => {
               if (change.type === 'modified' || change.type === 'added') {
-                const data = change.doc.data();
+                const data = safeGetDocData(change.doc, {});
                 const updatedItem = InventoryService.convertForDisplay({
                   id: change.doc.id,
                   ...data
@@ -1075,7 +1020,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
             const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
               if (docSnapshot.exists()) {
-                const data = docSnapshot.data();
+                const data = safeGetDocData(docSnapshot, {});
                 const updatedItem = InventoryService.convertForDisplay({
                   id: docSnapshot.id,
                   ...data
@@ -1112,7 +1057,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const warehouses = snapshot.docs
           .map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...safeGetDocData(doc, {})
           }))
           .filter(warehouse => {
             return warehouse.type !== 'dispatch';
@@ -1144,7 +1089,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const snapshot = await getDocs(q);
         const dispatchWarehouses = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...safeGetDocData(doc, {})
         }));
 
         console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
@@ -1368,15 +1313,8 @@ async searchInventoryLive({ commit, state, dispatch }, {
           try {
             const itemDoc = await getDoc(doc(db, 'items', itemId));
             if (itemDoc.exists()) {
-              const itemData = itemDoc.data();
-              if (state.user && state.userProfile?.role === 'warehouse_manager') {
-                const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-                if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-                  if (!allowedWarehouses.includes(itemData.warehouse_id)) {
-                    throw new Error('ليس لديك صلاحية للوصول إلى هذا الصنف من هذا المخزن');
-                  }
-                }
-              }
+              const itemData = safeGetDocData(itemDoc, {});
+              // REMOVED warehouse permission check for item viewing
               const convertedItem = InventoryService.convertForDisplay({
                 id: itemDoc.id,
                 ...itemData
@@ -1398,16 +1336,12 @@ async searchInventoryLive({ commit, state, dispatch }, {
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              if (!state.user) return true;
-              const itemData = doc.data();
-              if (state.userProfile.role === 'superadmin') return true;
-              const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-              if (allowedWarehouses.includes('all')) return true;
-              return allowedWarehouses.includes(itemData.warehouse_id);
+              // REMOVED permission check - all users can view items
+              return true;
             });
             if (validItems.length > 0) {
               const doc = validItems[0];
-              const itemData = doc.data();
+              const itemData = safeGetDocData(doc, {});
               const convertedItem = InventoryService.convertForDisplay({
                 id: doc.id,
                 ...itemData
@@ -1427,16 +1361,12 @@ async searchInventoryLive({ commit, state, dispatch }, {
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              if (!state.user) return true;
-              const itemData = doc.data();
-              if (state.userProfile.role === 'superadmin') return true;
-              const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-              if (allowedWarehouses.includes('all')) return true;
-              return allowedWarehouses.includes(itemData.warehouse_id);
+              // REMOVED permission check - all users can view items
+              return true;
             });
             if (validItems.length > 0) {
               const doc = validItems[0];
-              const itemData = doc.data();
+              const itemData = safeGetDocData(doc, {});
               const convertedItem = InventoryService.convertForDisplay({
                 id: doc.id,
                 ...itemData
@@ -1476,14 +1406,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         if (!warehouseId) {
           throw new Error('معرف المخزن مطلوب');
         }
-        if (state.user && state.userProfile?.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(warehouseId)) {
-              throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
-            }
-          }
-        }
+        // REMOVED warehouse permission check for viewing items
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
         if (localItems.length >= limitResults) {
           console.log('✅ Found items in recent inventory:', localItems.length);
@@ -1499,7 +1422,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           );
           const snapshot = await getDocs(q);
           const items = snapshot.docs.map(doc => {
-            const itemData = doc.data();
+            const itemData = safeGetDocData(doc, {});
             return InventoryService.convertForDisplay({
               id: doc.id,
               ...itemData
@@ -1516,7 +1439,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           );
           const snapshot = await getDocs(q);
           const items = snapshot.docs.map(doc => {
-            const itemData = doc.data();
+            const itemData = safeGetDocData(doc, {});
             return InventoryService.convertForDisplay({
               id: doc.id,
               ...itemData
@@ -1564,42 +1487,18 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('name'),
-            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-          );
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-
-          if (allowedWarehouses.length === 0) {
-            throw new Error('No warehouses assigned to this manager');
-          }
-
-          if (allowedWarehouses.includes('all')) {
-            itemsQuery = query(
-              itemsRef,
-              orderBy('name'),
-              fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-            );
-          } else {
-            itemsQuery = query(
-              itemsRef,
-              where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
-              orderBy('name'),
-              fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-            );
-          }
-        } else {
-          throw new Error('User role not authorized for inventory access');
-        }
+        // ALL users can view ALL inventory for searching purposes
+        itemsQuery = query(
+          itemsRef,
+          orderBy('name'),
+          fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+        );
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`✅ Initial inventory loaded: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1655,35 +1554,13 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('name'),
-            startAfter(state.pagination.lastDoc),
-            fsLimit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-          );
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-
-          if (allowedWarehouses.includes('all')) {
-            itemsQuery = query(
-              itemsRef,
-              orderBy('name'),
-              startAfter(state.pagination.lastDoc),
-              fsLimit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-            );
-          } else {
-            itemsQuery = query(
-              itemsRef,
-              where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
-              orderBy('name'),
-              startAfter(state.pagination.lastDoc),
-              fsLimit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-            );
-          }
-        } else {
-          return [];
-        }
+        // ALL users can load more inventory
+        itemsQuery = query(
+          itemsRef,
+          orderBy('name'),
+          startAfter(state.pagination.lastDoc),
+          fsLimit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+        );
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`📥 Loaded ${snapshot.size} more items`);
@@ -1694,7 +1571,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         }
 
         const newItems = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1740,14 +1617,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
         console.log(`🔄 Loading warehouse items (${warehouseId})...`);
 
-        if (state.user && state.userProfile?.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(warehouseId)) {
-              throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
-            }
-          }
-        }
+        // REMOVED warehouse permission check - all users can view warehouse items
 
         const itemsRef = collection(db, 'items');
         let itemsQuery;
@@ -1773,7 +1643,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         console.log(`✅ Loaded ${snapshot.size} items from warehouse ${warehouseId}`);
 
         const items = snapshot.docs.map(doc => {
-          const itemData = doc.data();
+          const itemData = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...itemData
@@ -1912,7 +1782,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
           const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
             if (docSnapshot.exists()) {
-              const data = docSnapshot.data();
+              const data = safeGetDocData(docSnapshot, {});
               const updatedItem = InventoryService.convertForDisplay({
                 id: docSnapshot.id,
                 ...data
@@ -1956,7 +1826,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
           const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
             if (docSnapshot.exists()) {
-              const data = docSnapshot.data();
+              const data = safeGetDocData(docSnapshot, {});
               const updatedItem = InventoryService.convertForDisplay({
                 id: docSnapshot.id,
                 ...data
@@ -2015,67 +1885,27 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
-          if (warehouse) {
-            itemsQuery = query(
-              itemsRef,
-              where('warehouse_id', '==', warehouse),
-              orderBy('name'),
-              fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-            );
-          } else {
-            itemsQuery = query(
-              itemsRef,
-              orderBy('name'),
-              fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-            );
-          }
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-
-          if (allowedWarehouses.includes('all')) {
-            if (warehouse) {
-              itemsQuery = query(
-                itemsRef,
-                where('warehouse_id', '==', warehouse),
-                orderBy('name'),
-                fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-              );
-            } else {
-              itemsQuery = query(
-                itemsRef,
-                orderBy('name'),
-                fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-              );
-            }
-          } else {
-            const warehousesFilter = allowedWarehouses.slice(0, 10);
-
-            if (warehouse && warehousesFilter.includes(warehouse)) {
-              itemsQuery = query(
-                itemsRef,
-                where('warehouse_id', '==', warehouse),
-                orderBy('name'),
-                fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-              );
-            } else {
-              itemsQuery = query(
-                itemsRef,
-                where('warehouse_id', 'in', warehousesFilter),
-                orderBy('name'),
-                fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-              );
-            }
-          }
+        // ALL users can search ALL inventory
+        if (warehouse) {
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', '==', warehouse),
+            orderBy('name'),
+            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          );
         } else {
-          throw new Error('User role not authorized');
+          itemsQuery = query(
+            itemsRef,
+            orderBy('name'),
+            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          );
         }
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`🔍 Search found: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -2138,17 +1968,9 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الصنف غير موجود');
         }
 
-        const data = itemDoc.data();
+        const data = safeGetDocData(itemDoc, {});
 
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(data.warehouse_id)) {
-              throw new Error('ليس لديك صلاحية للوصول إلى هذا الصنف');
-            }
-          }
-        }
-
+        // REMOVED warehouse permission check - all users can view items
         const item = InventoryService.convertForDisplay({
           id: itemDoc.id,
           ...data
@@ -2308,7 +2130,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الصنف غير موجود');
         }
 
-        const existingItem = itemDoc.data();
+        const existingItem = safeGetDocData(itemDoc, {});
 
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -2446,7 +2268,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = itemDoc.data();
+        const itemData = safeGetDocData(itemDoc, {});
 
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -2542,7 +2364,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = itemDoc.data();
+        const itemData = safeGetDocData(itemDoc, {});
 
         if (itemData.warehouse_id !== transferData.from_warehouse_id) {
           throw new Error('الصنف ليس في المخزن المصدر المحدد');
@@ -2665,7 +2487,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = itemDoc.data();
+        const itemData = safeGetDocData(itemDoc, {});
 
         if (itemData.warehouse_id !== dispatchData.from_warehouse_id) {
           throw new Error('الصنف ليس في المخزن المصدر المحدد');
@@ -2750,7 +2572,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
         const warehouses = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...safeGetDocData(doc, {})
         }));
 
         return warehouses;
@@ -2782,8 +2604,8 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const snapshot = await getDocs(transactionsQuery);
         const transactions = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
-        });
+          ...safeGetDocData(doc, {})
+        }));
 
         commit('SET_TRANSACTIONS', transactions);
         return transactions;
@@ -2814,8 +2636,8 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const snapshot = await getDocs(transactionsQuery);
         const transactions = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
-        });
+          ...safeGetDocData(doc, {})
+        }));
 
         commit('SET_RECENT_TRANSACTIONS', transactions);
         return transactions;
@@ -2835,7 +2657,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
             try {
               const userDoc = await getDoc(doc(db, 'users', user.uid));
               if (userDoc.exists()) {
-                const userProfile = userDoc.data();
+                const userProfile = safeGetDocData(userDoc, {});
 
                 if (userProfile.is_active === false) {
                   dispatch('showNotification', {
@@ -3009,7 +2831,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
 
         const snapshot = await getDocs(q);
         const inventory = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -3049,8 +2871,8 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const snapshot = await getDocs(q);
         const history = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
-        });
+          ...safeGetDocData(doc, {})
+        }));
         commit('SET_ITEM_HISTORY', history);
         console.log('✅ Item history loaded:', history.length);
         return history;
@@ -3075,8 +2897,8 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const snapshot = await getDocs(q);
         const users = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
-        });
+          ...safeGetDocData(doc, {})
+        }));
         commit('SET_ALL_USERS', users);
         console.log('✅ Users loaded:', users.length);
         return users;
@@ -3099,7 +2921,6 @@ async searchInventoryLive({ commit, state, dispatch }, {
         }
         commit('SET_OPERATION_LOADING', true);
 
-        const { createUserWithEmailAndPassword } = await import('firebase/auth');
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
 
         const userProfile = {
@@ -3243,13 +3064,17 @@ async searchInventoryLive({ commit, state, dispatch }, {
         const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
 
         const totalUsers = usersSnapshot.size;
-        const activeUsers = usersSnapshot.docs.filter(doc => doc.data().is_active === true).length;
+        const activeUsers = usersSnapshot.docs.filter(doc => {
+          const data = safeGetDocData(doc, {});
+          return data.is_active === true;
+        }).length;
         const totalItems = itemsSnapshot.size;
         const totalTransactions = transactionsSnapshot.size;
 
         const transactionsByType = {};
         transactionsSnapshot.docs.forEach(doc => {
-          const type = doc.data().type;
+          const data = safeGetDocData(doc, {});
+          const type = data.type;
           transactionsByType[type] = (transactionsByType[type] || 0) + 1;
         });
 
@@ -3487,7 +3312,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         console.log(`✅ Initial invoices loaded: ${snapshot.size} invoices`);
 
         const invoices = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return {
             id: doc.id,
             ...data,
@@ -3563,7 +3388,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
         console.log(`🔍 Invoice search found: ${snapshot.size} invoices`);
 
         let invoices = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = safeGetDocData(doc, {});
           return {
             id: doc.id,
             ...data,
@@ -3806,7 +3631,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = invoiceDoc.data();
+        const existingInvoice = safeGetDocData(invoiceDoc, {});
 
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن تعديل فاتورة غير مسودة');
@@ -3921,7 +3746,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = invoiceDoc.data();
+        const existingInvoice = safeGetDocData(invoiceDoc, {});
 
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن حذف فاتورة غير مسودة');
@@ -3994,7 +3819,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = invoiceDoc.data();
+        const existingInvoice = safeGetDocData(invoiceDoc, {});
 
         await updateDoc(invoiceRef, {
           status,
@@ -4056,7 +3881,7 @@ async searchInventoryLive({ commit, state, dispatch }, {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const invoiceData = invoiceDoc.data();
+        const invoiceData = safeGetDocData(invoiceDoc, {});
 
         return {
           id: invoiceDoc.id,
