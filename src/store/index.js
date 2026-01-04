@@ -668,224 +668,228 @@ export default createStore({
     // ============================================
     // WORKING LIVE ARABIC SEARCH - FETCHES DIRECTLY FROM FIREBASE
     // ============================================
-    async searchInventoryLive({ commit, state, dispatch }, {
-      searchText = null,
-      query = null,
-      warehouseId = null,
-      limit = 25
-    }) {
-      try {
-        // Get the search term from any parameter
-        const effectiveSearchText = searchText ?? query ?? state.search.query;
-        
-        // Validate search term
-        if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          commit('CLEAR_SEARCH');
-          return [];
-        }
+  // ============================================
+// WORKING LIVE ARABIC SEARCH - FETCHES DIRECTLY FROM FIREBASE
+// ============================================
+async searchInventoryLive({ commit, state, dispatch }, {
+  searchText = null,
+  query = null,
+  warehouseId = null,
+  limit = 25
+}) {
+  try {
+    // Get the search term from any parameter
+    const effectiveSearchText = searchText ?? query ?? state.search.query;
+    
+    // Validate search term
+    if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      commit('CLEAR_SEARCH');
+      return [];
+    }
 
-        const searchTerm = effectiveSearchText.trim();
-        const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+    const searchTerm = effectiveSearchText.trim();
+    const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
 
-        console.log(`🔍 Starting live search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
-        
-        commit('SET_SEARCH_LOADING', true);
-        commit('SET_SEARCH_QUERY', searchTerm);
+    console.log(`🔍 Starting live search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
+    
+    commit('SET_SEARCH_LOADING', true);
+    commit('SET_SEARCH_QUERY', searchTerm);
 
-        // Check user permissions
-        const userRole = state.userProfile?.role || '';
-        const allowedWarehouses = state.userProfile?.allowed_warehouses || [];
-        
-        let canAccessAll = false;
-        let accessibleWarehouseIds = [];
-        
-        if (userRole === 'superadmin' || userRole === 'company_manager') {
-          canAccessAll = true;
-        } else if (userRole === 'warehouse_manager') {
-          if (allowedWarehouses.includes('all')) {
-            canAccessAll = true;
-          } else {
-            accessibleWarehouseIds = allowedWarehouses.filter(id => 
-              typeof id === 'string' && id.trim() !== '' && id !== 'all'
-            );
-          }
-        }
+    // Check user permissions
+    const userRole = state.userProfile?.role || '';
+    const allowedWarehouses = state.userProfile?.allowed_warehouses || [];
+    
+    let canAccessAll = false;
+    let accessibleWarehouseIds = [];
+    
+    if (userRole === 'superadmin' || userRole === 'company_manager') {
+      canAccessAll = true;
+    } else if (userRole === 'warehouse_manager') {
+      if (allowedWarehouses.includes('all')) {
+        canAccessAll = true;
+      } else {
+        accessibleWarehouseIds = allowedWarehouses.filter(id => 
+          typeof id === 'string' && id.trim() !== '' && id !== 'all'
+        );
+      }
+    }
 
-        // If user has no access to any warehouse, return empty
-        if (!canAccessAll && accessibleWarehouseIds.length === 0) {
+    // If user has no access to any warehouse, return empty
+    if (!canAccessAll && accessibleWarehouseIds.length === 0) {
+      commit('SET_SEARCH_RESULTS', { 
+        results: [], 
+        source: 'no_access', 
+        query: searchTerm 
+      });
+      commit('SET_SEARCH_LOADING', false);
+      return [];
+    }
+
+    const itemsRef = collection(db, 'items');
+    let firestoreQuery;
+    
+    // Build Firestore query based on permissions and warehouse filter
+    if (canAccessAll) {
+      if (targetWarehouse === 'all') {
+        // Superadmin searching all warehouses
+        firestoreQuery = query(
+          itemsRef,
+          orderBy('name'),
+          fsLimit(limit * 2) // Get more items for filtering
+        );
+      } else {
+        // Superadmin searching specific warehouse
+        firestoreQuery = query(
+          itemsRef,
+          where('warehouse_id', '==', targetWarehouse),
+          orderBy('name'),
+          fsLimit(limit * 2)
+        );
+      }
+    } else {
+      // Warehouse manager with specific warehouses
+      if (targetWarehouse === 'all') {
+        // Search in all accessible warehouses
+        firestoreQuery = query(
+          itemsRef,
+          where('warehouse_id', 'in', accessibleWarehouseIds.slice(0, 10)),
+          orderBy('name'),
+          fsLimit(limit * 2)
+        );
+      } else {
+        // Check if target warehouse is in accessible list
+        if (accessibleWarehouseIds.includes(targetWarehouse)) {
+          firestoreQuery = query(
+            itemsRef,
+            where('warehouse_id', '==', targetWarehouse),
+            orderBy('name'),
+            fsLimit(limit * 2)
+          );
+        } else {
+          // No access to this specific warehouse
           commit('SET_SEARCH_RESULTS', { 
             results: [], 
-            source: 'no_access', 
+            source: 'no_warehouse_access', 
             query: searchTerm 
           });
           commit('SET_SEARCH_LOADING', false);
           return [];
         }
-
-        const itemsRef = collection(db, 'items');
-        let firestoreQuery;
-        
-        // Build Firestore query based on permissions and warehouse filter
-        if (canAccessAll) {
-          if (targetWarehouse === 'all') {
-            // Superadmin searching all warehouses
-            firestoreQuery = query(
-              itemsRef,
-              orderBy('name'),
-              fsLimit(limit * 2) // Get more items for filtering
-            );
-          } else {
-            // Superadmin searching specific warehouse
-            firestoreQuery = query(
-              itemsRef,
-              where('warehouse_id', '==', targetWarehouse),
-              orderBy('name'),
-              fsLimit(limit * 2)
-            );
-          }
-        } else {
-          // Warehouse manager with specific warehouses
-          if (targetWarehouse === 'all') {
-            // Search in all accessible warehouses
-            firestoreQuery = query(
-              itemsRef,
-              where('warehouse_id', 'in', accessibleWarehouseIds.slice(0, 10)),
-              orderBy('name'),
-              fsLimit(limit * 2)
-            );
-          } else {
-            // Check if target warehouse is in accessible list
-            if (accessibleWarehouseIds.includes(targetWarehouse)) {
-              firestoreQuery = query(
-                itemsRef,
-                where('warehouse_id', '==', targetWarehouse),
-                orderBy('name'),
-                fsLimit(limit * 2)
-              );
-            } else {
-              // No access to this specific warehouse
-              commit('SET_SEARCH_RESULTS', { 
-                results: [], 
-                source: 'no_warehouse_access', 
-                query: searchTerm 
-              });
-              commit('SET_SEARCH_LOADING', false);
-              return [];
-            }
-          }
-        }
-
-        // Execute Firestore query
-        const snapshot = await getDocs(firestoreQuery);
-        console.log(`📡 Firestore search returned ${snapshot.size} items for filtering`);
-
-        if (snapshot.empty) {
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'firestore',
-            query: searchTerm
-          });
-          commit('SET_SEARCH_LOADING', false);
-          return [];
-        }
-
-        // Process and filter results locally with Arabic normalization
-        const normalizedSearchTerm = normalizeArabicText(searchTerm);
-        const firestoreResults = [];
-
-        snapshot.docs.forEach(doc => {
-          const itemData = doc.data();
-          
-          // Combine all searchable fields into one searchable text
-          const searchableText = [
-            itemData.name || '',
-            itemData.code || '',
-            itemData.color || '',
-            itemData.supplier || '',
-            itemData.item_location || ''
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString())
-            .join(' ');
-          
-          // Normalize the searchable text
-          const normalizedText = normalizeArabicText(searchableText);
-          
-          // Check if normalized text contains the normalized search term
-          if (normalizedText.includes(normalizedSearchTerm)) {
-            const item = InventoryService.convertForDisplay({
-              id: doc.id,
-              ...itemData
-            });
-            firestoreResults.push(item);
-          }
-        });
-
-        // Sort by relevance
-        const sortedResults = firestoreResults
-          .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
-          .slice(0, limit);
-
-        console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
-
-        commit('SET_SEARCH_RESULTS', {
-          results: sortedResults,
-          source: 'firestore',
-          query: searchTerm
-        });
-        commit('SET_SEARCH_LOADING', false);
-
-        return sortedResults;
-
-      } catch (error) {
-        console.error('❌ Error in live Arabic search:', error);
-        
-        // Fallback to local cache search
-        const effectiveSearchText = searchText ?? query ?? state.search.query || '';
-        const searchTerm = effectiveSearchText.trim();
-        
-        if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          console.log('🔄 Falling back to local cache search...');
-          
-          const normalizedSearchTerm = normalizeArabicText(searchTerm);
-          const localResults = state.inventory.filter(item => {
-            const searchableText = [
-              item.name || '',
-              item.code || '',
-              item.color || '',
-              item.supplier || '',
-              item.item_location || ''
-            ]
-              .filter(text => text && text.toString().trim())
-              .map(text => text.toString())
-              .join(' ');
-            
-            const normalizedText = normalizeArabicText(searchableText);
-            return normalizedText.includes(normalizedSearchTerm);
-          })
-          .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
-
-          commit('SET_SEARCH_RESULTS', {
-            results: localResults,
-            source: 'local_fallback',
-            query: searchTerm
-          });
-          commit('SET_SEARCH_LOADING', false);
-
-          return localResults;
-        }
-
-        // If no valid search term, return empty
-        commit('SET_SEARCH_RESULTS', {
-          results: [],
-          source: 'error',
-          query: ''
-        });
-        commit('SET_SEARCH_LOADING', false);
-
-        return [];
       }
-    },
+    }
+
+    // Execute Firestore query
+    const snapshot = await getDocs(firestoreQuery);
+    console.log(`📡 Firestore search returned ${snapshot.size} items for filtering`);
+
+    if (snapshot.empty) {
+      commit('SET_SEARCH_RESULTS', {
+        results: [],
+        source: 'firestore',
+        query: searchTerm
+      });
+      commit('SET_SEARCH_LOADING', false);
+      return [];
+    }
+
+    // Process and filter results locally with Arabic normalization
+    const normalizedSearchTerm = normalizeArabicText(searchTerm);
+    const firestoreResults = [];
+
+    snapshot.docs.forEach(doc => {
+      const itemData = doc.data();
+      
+      // Combine all searchable fields into one searchable text
+      const searchableText = [
+        itemData.name || '',
+        itemData.code || '',
+        itemData.color || '',
+        itemData.supplier || '',
+        itemData.item_location || ''
+      ]
+        .filter(text => text && text.toString().trim())
+        .map(text => text.toString())
+        .join(' ');
+      
+      // Normalize the searchable text
+      const normalizedText = normalizeArabicText(searchableText);
+      
+      // Check if normalized text contains the normalized search term
+      if (normalizedText.includes(normalizedSearchTerm)) {
+        const item = InventoryService.convertForDisplay({
+          id: doc.id,
+          ...itemData
+        });
+        firestoreResults.push(item);
+      }
+    });
+
+    // Sort by relevance
+    const sortedResults = firestoreResults
+      .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
+      .slice(0, limit);
+
+    console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
+
+    commit('SET_SEARCH_RESULTS', {
+      results: sortedResults,
+      source: 'firestore',
+      query: searchTerm
+    });
+    commit('SET_SEARCH_LOADING', false);
+
+    return sortedResults;
+
+  } catch (error) {
+    console.error('❌ Error in live Arabic search:', error);
+    
+    // Fallback to local cache search
+    // FIXED: Wrap the nullish coalescing expression with parentheses before using OR
+    const effectiveSearchText = (searchText ?? query ?? state.search.query) || '';
+    const searchTerm = effectiveSearchText.trim();
+    
+    if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      console.log('🔄 Falling back to local cache search...');
+      
+      const normalizedSearchTerm = normalizeArabicText(searchTerm);
+      const localResults = state.inventory.filter(item => {
+        const searchableText = [
+          item.name || '',
+          item.code || '',
+          item.color || '',
+          item.supplier || '',
+          item.item_location || ''
+        ]
+          .filter(text => text && text.toString().trim())
+          .map(text => text.toString())
+          .join(' ');
+        
+        const normalizedText = normalizeArabicText(searchableText);
+        return normalizedText.includes(normalizedSearchTerm);
+      })
+      .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
+
+      commit('SET_SEARCH_RESULTS', {
+        results: localResults,
+        source: 'local_fallback',
+        query: searchTerm
+      });
+      commit('SET_SEARCH_LOADING', false);
+
+      return localResults;
+    }
+
+    // If no valid search term, return empty
+    commit('SET_SEARCH_RESULTS', {
+      results: [],
+      source: 'error',
+      query: ''
+    });
+    commit('SET_SEARCH_LOADING', false);
+
+    return [];
+  }
+},
 
     async searchFirebaseInventory({ dispatch }, params) {
       return await dispatch('searchInventoryLive', params);
