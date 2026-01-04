@@ -921,6 +921,7 @@
     />
   </div>
 </template>
+
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -983,6 +984,7 @@ export default {
     const deleteLoading = ref(false);
     const refreshing = ref(false);
     const exportProgress = ref('');
+    const error = ref('');
     
     // Local filters
     const searchTerm = ref('');
@@ -1005,45 +1007,44 @@ export default {
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
     
+    // Loading states
+    const loadingMore = ref(false);
+    
     // UI state
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
     
     // ============================================
-    // CORRECTED COMPUTED PROPERTIES
+    // FIXED COMPUTED PROPERTIES - CORRECTED
     // ============================================
     
-    // Store getters - CORRECT
+    // Store getters
     const userRole = computed(() => store.getters.userRole);
     const userProfile = computed(() => store.state.userProfile);
     const currentUser = computed(() => store.state.user);
     
-    // Inventory - Use the enhanced filtered inventory from store
+    // ✅ FIXED: Use the ENHANCED filtered inventory getter that handles both search and warehouse filters
     const displayedItems = computed(() => {
-      // When we have an active search, use store's search results
-      if (store.state.search.query && store.state.search.query.length >= 2) {
-        return store.state.search.results;
-      }
-      
-      // Otherwise use the store's filtered inventory (which applies warehouse filter)
-      return store.getters.filteredInventory || [];
+      // Always use the store's enhanced filtered inventory getter
+      // This getter handles: search results + warehouse filtering + local filtering
+      return store.getters.filteredInventoryEnhanced || [];
     });
     
-    // Warehouses - CORRECT
+    // Warehouses
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.getters.warehouses || []);
     const allUsers = computed(() => store.getters.allUsers || []);
     
-    // Loading states - CORRECT
+    // Loading states
     const inventoryLoading = computed(() => store.state.inventoryLoading);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     
-    // Pagination - CORRECT
+    // Pagination
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
     const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
     
-    // Current user info - CORRECT
+    // Current user info
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
       if (currentUser.value?.displayName) return currentUser.value.displayName;
@@ -1052,7 +1053,7 @@ export default {
       return 'مستخدم النظام';
     });
     
-    // Permissions - CORRECT
+    // Permissions
     const canAddItem = computed(() => {
       return userRole.value === 'superadmin' ||
              (userRole.value === 'warehouse_manager' && 
@@ -1145,7 +1146,7 @@ export default {
     });
     
     // ============================================
-    // VISIBLE ITEMS FOR VIRTUAL SCROLLING
+    // ✅ FIXED: VISIBLE ITEMS FOR VIRTUAL SCROLLING
     // ============================================
     const visibleItems = computed(() => {
       let items = displayedItems.value;
@@ -1335,7 +1336,7 @@ export default {
     };
     
     // ============================================
-    // CORRECTED LIVE SEARCH - USING STORE PROPERLY
+    // ✅ FIXED: LIVE SEARCH - PROPERLY INTEGRATED
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1354,7 +1355,7 @@ export default {
       try {
         console.log(`🔍 Live search: "${term}"`);
         
-        // CORRECT: Use the main search action from store
+        // ✅ Use the store's enhanced search with warehouse filter
         const results = await store.dispatch('searchInventoryLive', {
           query: term,
           warehouseId: selectedWarehouse.value || undefined,
@@ -1404,7 +1405,7 @@ export default {
     }, 300);
     
     // ============================================
-    // CORRECTED LOAD MORE ITEMS
+    // LOAD MORE ITEMS
     // ============================================
     const loadMoreItems = async () => {
       // Only load more if not in live search mode
@@ -1414,9 +1415,9 @@ export default {
       
       if (hasMore.value && !isFetchingMore.value) {
         try {
+          loadingMore.value = true;
           console.log('📥 Loading more items...');
           
-          // CORRECT: Use the store action
           await store.dispatch('loadMoreInventory');
           
           console.log('✅ Loaded more items successfully');
@@ -1430,15 +1431,17 @@ export default {
             type: 'error',
             message: 'خطأ في تحميل المزيد من العناصر'
           });
+        } finally {
+          loadingMore.value = false;
         }
       }
     };
     
     // ============================================
-    // CORRECTED FILTER HANDLERS
+    // ✅ FIXED: FILTER HANDLERS
     // ============================================
     const handleWarehouseChange = async () => {
-      // CORRECT: Use the store action
+      // ✅ Update store warehouse filter
       await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
       
       // Reset scroll positions
@@ -1451,8 +1454,8 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
       
-      // If we're in live search mode, re-run search with new warehouse filter
-      if (useLiveSearch.value && searchTerm.value.trim()) {
+      // If we have a search term, re-run search with new warehouse filter
+      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
       }
     };
@@ -1479,7 +1482,7 @@ export default {
       statusFilter.value = '';
       showFilters.value = false;
       
-      // CORRECT: Clear search in store
+      // ✅ Clear search in store
       store.dispatch('clearSearch');
       
       // Reset warehouse filter if needed
@@ -1521,7 +1524,7 @@ export default {
     };
     
     // ============================================
-    // DATA REFRESH - CORRECTED
+    // DATA REFRESH
     // ============================================
     const refreshData = async () => {
       try {
@@ -1555,7 +1558,7 @@ export default {
     };
     
     // ============================================
-    // EXCEL EXPORT - CORRECTED
+    // EXCEL EXPORT
     // ============================================
     const exportToExcel = async () => {
       let items = displayedItems.value;
@@ -1838,9 +1841,9 @@ export default {
         await handleLiveSearch();
       }
       
-      store.dispatch('showNotification', {
+           store.dispatch('showNotification', {
         type: 'success',
-        message: 'تم نقل الصنف بنجاح!'
+        message: 'تم النقل بين المخازن بنجاح!'
       });
     };
     
@@ -1854,174 +1857,209 @@ export default {
       
       store.dispatch('showNotification', {
         type: 'success',
-        message: 'تم صرف الصنف بنجاح!'
+        message: 'تم الصرف الخارجي بنجاح!'
       });
     };
     
     // ============================================
-    // VIRTUAL SCROLLING HANDLERS (UNCHANGED)
+    // VIRTUAL SCROLLING HANDLERS
     // ============================================
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
       const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) return;
       lastScrollTime.value = now;
       
       if (scrollThrottle.value) {
-        cancelAnimationFrame(scrollThrottle.value);
+        clearTimeout(scrollThrottle.value);
       }
       
-      scrollThrottle.value = requestAnimationFrame(() => {
-        const scrollTop = scrollContainer.value.scrollTop;
-        const rowHeight = 80;
+      scrollThrottle.value = setTimeout(() => {
+        const container = scrollContainer.value;
+        if (!container) return;
+        
+        const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+        
+        // Calculate visible start index based on scroll position
+        const rowHeight = 80; // Approximate row height
         const newStartIndex = Math.floor(scrollTop / rowHeight);
         
         if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
-          visibleStartIndex.value = newStartIndex;
+          visibleStartIndex.value = Math.max(0, newStartIndex);
         }
         
-        // Load more when near bottom (only if not in live search mode)
-        if (!useLiveSearch.value) {
-          const scrollBottom = scrollContainer.value.scrollHeight - scrollTop - scrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !isFetchingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
-          }
+        // Check if we're near the bottom and need to load more
+        if (scrollHeight - scrollTop - clientHeight < 100 && 
+            !useLiveSearch.value && 
+            hasMore.value && 
+            !isFetchingMore.value && 
+            !loadingMore.value) {
+          loadMoreItems();
         }
-      });
+        
+        scrollThrottle.value = null;
+      }, SCROLL_THROTTLE_DELAY);
     };
     
     const onMobileScroll = () => {
       if (!mobileScrollContainer.value) return;
       
       const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
-        return;
-      }
-      
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) return;
       lastScrollTime.value = now;
       
-      requestAnimationFrame(() => {
-        const scrollTop = mobileScrollContainer.value.scrollTop;
-        const rowHeight = 120;
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
+      if (scrollThrottle.value) {
+        clearTimeout(scrollThrottle.value);
+      }
+      
+      scrollThrottle.value = setTimeout(() => {
+        const container = mobileScrollContainer.value;
+        if (!container) return;
+        
+        const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+        
+        // Calculate visible start index for mobile
+        const cardHeight = 120; // Approximate mobile card height
+        const newStartIndex = Math.floor(scrollTop / cardHeight);
         
         if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
-          mobileVisibleStartIndex.value = newStartIndex;
+          mobileVisibleStartIndex.value = Math.max(0, newStartIndex);
         }
         
-        // Load more when near bottom (only if not in live search mode)
-        if (!useLiveSearch.value) {
-          const scrollBottom = mobileScrollContainer.value.scrollHeight - scrollTop - mobileScrollContainer.value.clientHeight;
-          if (scrollBottom < 500 && hasMore.value && !isFetchingMore.value && inventoryLoaded.value) {
-            loadMoreItems();
-          }
+        // Check if we're near the bottom and need to load more
+        if (scrollHeight - scrollTop - clientHeight < 200 && 
+            !useLiveSearch.value && 
+            hasMore.value && 
+            !isFetchingMore.value && 
+            !loadingMore.value) {
+          loadMoreItems();
         }
-      });
+        
+        scrollThrottle.value = null;
+      }, SCROLL_THROTTLE_DELAY);
     };
     
     // ============================================
-    // LIFECYCLE HOOKS - CORRECTED
+    // INITIAL DATA LOADING
     // ============================================
-    onMounted(() => {
-      // Set initial loading
-      loading.value = true;
-      
-      // Load initial data
-      store.dispatch('loadAllInventory').then(() => {
+    const loadInitialData = async () => {
+      try {
+        loading.value = true;
+        
+        // Load warehouses and user data first
+        await Promise.all([
+          store.dispatch('loadWarehouses'),
+          store.dispatch('loadUsers')
+        ]);
+        
+        // Check route params for warehouse filter
+        const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
+        if (routeWarehouseId && accessibleWarehouses.value.some(w => w.id === routeWarehouseId)) {
+          selectedWarehouse.value = routeWarehouseId;
+        }
+        
+        // Set warehouse filter in store
+        if (selectedWarehouse.value) {
+          await store.dispatch('setWarehouseFilter', selectedWarehouse.value);
+        }
+        
+        // Load inventory data
+        await store.dispatch('loadAllInventory');
+        
+        // Mark data as fresh
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
         
-        // Setup real-time updates
-        if (store.state.realtimeMode) {
-          store.dispatch('setupRealtimeUpdatesForInventory');
-        }
-        
         // Reset scroll positions
+        await nextTick();
         visibleStartIndex.value = 0;
         mobileVisibleStartIndex.value = 0;
         
-        // Load users if admin
-        if (userRole.value === 'superadmin') {
-          store.dispatch('loadAllUsers');
-        }
-        
-      }).catch(error => {
-        console.error('❌ Error loading inventory:', error);
+      } catch (error) {
+        console.error('❌ Error loading initial data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تحميل البيانات'
+          message: 'خطأ في تحميل البيانات. يرجى المحاولة مرة أخرى'
         });
-      }).finally(() => {
+        error.value = 'فشل تحميل البيانات';
+      } finally {
         loading.value = false;
-      });
-      
-      // Load warehouses
-      if (allWarehouses.value.length === 0) {
-        store.dispatch('loadWarehousesEnhanced');
       }
-      
-      // Auto-select warehouse if only one accessible
-      if (accessibleWarehouses.value.length === 1) {
-        selectedWarehouse.value = accessibleWarehouses.value[0].id;
-        store.dispatch('setWarehouseFilter', selectedWarehouse.value);
+    };
+    
+    // ============================================
+    // WATCHERS
+    // ============================================
+    // Watch for loading state changes
+    watch(inventoryLoading, (newVal) => {
+      if (!newVal && inventoryLoaded.value) {
+        loading.value = false;
       }
-      
-      // Show add modal if route is AddInventory
-      if (route.name === 'AddInventory') {
-        showAddModal.value = true;
+    });
+    
+    // Watch for store search results to update UI
+    watch(liveSearchResults, (newResults) => {
+      if (newResults && newResults.length > 0) {
+        console.log('🔄 Search results updated:', newResults.length, 'items');
       }
+    });
+    
+    // Watch for warehouse filter changes from store
+    watch(() => store.state.filters.warehouse, (newWarehouseId) => {
+      if (newWarehouseId !== selectedWarehouse.value) {
+        selectedWarehouse.value = newWarehouseId || '';
+      }
+    });
+    
+    // Watch for route changes
+    watch(() => route.params.warehouseId, (newWarehouseId) => {
+      if (newWarehouseId && accessibleWarehouses.value.some(w => w.id === newWarehouseId)) {
+        selectedWarehouse.value = newWarehouseId;
+        store.dispatch('setWarehouseFilter', newWarehouseId);
+      }
+    });
+    
+    // ============================================
+    // LIFECYCLE HOOKS
+    // ============================================
+    onMounted(() => {
+      loadInitialData();
       
-      // Setup scroll listeners
-      nextTick(() => {
-        if (scrollContainer.value) {
-          scrollContainer.value.addEventListener('scroll', onScroll, { passive: true });
+      // Set up auto-refresh every 5 minutes
+      const autoRefreshInterval = setInterval(() => {
+        if (!loading.value && !isLiveSearching.value) {
+          refreshData();
         }
-        if (mobileScrollContainer.value) {
-          mobileScrollContainer.value.addEventListener('scroll', onMobileScroll, { passive: true });
-        }
-      });
+      }, 5 * 60 * 1000); // 5 minutes
+      
+      // Store interval for cleanup
+      window.__inventoryAutoRefresh = autoRefreshInterval;
     });
     
     onUnmounted(() => {
-      if (scrollContainer.value) {
-        scrollContainer.value.removeEventListener('scroll', onScroll);
+      // Clear auto-refresh interval
+      if (window.__inventoryAutoRefresh) {
+        clearInterval(window.__inventoryAutoRefresh);
+        delete window.__inventoryAutoRefresh;
       }
       
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.removeEventListener('scroll', onMobileScroll);
-      }
-      
+      // Clear any existing scroll throttle
       if (scrollThrottle.value) {
-        cancelAnimationFrame(scrollThrottle.value);
+        clearTimeout(scrollThrottle.value);
       }
       
-      // Clear store listeners
-      store.commit('CLEAR_REALTIME_LISTENERS');
+      // Clear search state when leaving page
+      store.dispatch('clearSearch');
+      store.dispatch('setWarehouseFilter', '');
     });
     
     // ============================================
-    // WATCHERS - CORRECTED
-    // ============================================
-    watch([searchTerm, statusFilter], () => {
-      handleFilterChange();
-    });
-    
-    watch(selectedWarehouse, () => {
-      handleWarehouseChange();
-    });
-    
-    // Watch for store search results changes
-    watch(() => store.state.search.results, () => {
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-    });
-    
-    // ============================================
-    // RETURN ALL PROPERTIES
+    // RETURN ALL REACTIVE VALUES AND METHODS
     // ============================================
     return {
       // State
@@ -2032,9 +2070,6 @@ export default {
       showDispatchModal,
       showDetailsModal,
       showDeleteConfirm,
-      searchTerm,
-      statusFilter,
-      selectedWarehouse,
       selectedItemForEdit,
       selectedItemForTransfer,
       selectedItemForDispatch,
@@ -2044,12 +2079,13 @@ export default {
       deleteLoading,
       refreshing,
       exportProgress,
-      
-      // Mobile UI State
+      error,
+      searchTerm,
+      statusFilter,
+      selectedWarehouse,
       showFilters,
-      
-      // UI State
       showActionMenu,
+      loadingMore,
       lastUpdate,
       isDataFresh,
       
@@ -2060,35 +2096,36 @@ export default {
       // Computed
       userRole,
       userProfile,
+      currentUser,
       displayedItems,
-      visibleItems,
-      mobileVisibleItems,
-      currentUserInfo,
       accessibleWarehouses,
-      canAddItem,
-      showActions,
-      readonly,
+      allWarehouses,
+      allUsers,
       inventoryLoading,
+      inventoryLoaded,
       hasMore,
       isFetchingMore,
       totalLoaded,
-      inventoryLoaded,
-      
-      // Search state
+      currentUserInfo,
+      canAddItem,
+      showActions,
+      readonly,
       useLiveSearch,
       isLiveSearching,
       liveSearchResults,
-      
-      // Stats
       totalQuantity,
       lowStockCount,
       warehouseCount,
       hasActiveFilters,
       activeFilterCount,
+      visibleItems,
+      mobileVisibleItems,
       
-      // Helper Methods
+      // Methods
       formatNumber,
       getWarehouseLabel,
+      getUserName,
+      getLastActionUser,
       getStatusLabel,
       getStockStatus,
       getStockStatusClass,
@@ -2099,25 +2136,14 @@ export default {
       formatTime,
       getPlaceholderImage,
       handleImageError,
-      getLastActionUser,
-      
-      // Excel Export
-      exportToExcel,
-      
-      // Permission Methods
-      canEditItem,
-      canTransferItem,
-      canDispatchItem,
-      canDeleteItem,
-      
-      // Action Methods
-      handleFilterChange,
-      handleWarehouseChange,
       handleLiveSearch,
+      loadMoreItems,
+      handleWarehouseChange,
+      handleFilterChange,
       resetToNormalView,
       clearAllFilters,
       refreshData,
-      loadMoreItems,
+      exportToExcel,
       toggleActionMenu,
       showItemDetails,
       closeDetailsModal,
@@ -2130,403 +2156,78 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
-      
-      // Virtual scrolling methods
       onScroll,
-      onMobileScroll
+      onMobileScroll,
+      
+      // Permission methods
+      canEditItem,
+      canTransferItem,
+      canDispatchItem,
+      canDeleteItem
     };
   }
 };
 </script>
 
 <style scoped>
-/* Performance optimized styles */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-/* Static header styling */
-thead {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background-color: #f9fafb;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
 }
-.dark thead {
-  background-color: rgba(55, 65, 81, 0.95);
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
 }
-/* Reduced animations */
-.transition-colors {
-  transition-property: background-color, border-color, color;
-  transition-duration: 200ms;
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
-.transition-all {
-  transition-property: all;
-  transition-duration: 200ms;
-}
-/* Optimized hover states */
-.hover\:bg-gray-50:hover {
-  background-color: #f9fafb;
-}
-.dark .hover\:bg-gray-700\/50:hover {
-  background-color: rgba(55, 65, 81, 0.5);
-}
-/* Scrollbar optimization */
-.overflow-x-auto {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
-  -webkit-overflow-scrolling: touch;
-}
-.overflow-x-auto::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.overflow-x-auto::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
-}
-.overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-.overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.dark .overflow-x-auto::-webkit-scrollbar-track {
+
+.dark ::-webkit-scrollbar-track {
   background: #374151;
 }
-.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+
+.dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
-.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+
+.dark ::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
-/* Image optimization */
-img {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  content-visibility: auto;
+
+/* Ensure table rows have proper height */
+tr {
+  height: 80px;
 }
-/* Mobile touch targets */
-@media (max-width: 768px) {
-  button {
-    min-height: 40px;
-  }
- 
-  input, select, textarea {
-    font-size: 16px; /* Prevent iOS zoom */
-  }
- 
-  /* Make sure text doesn't overflow */
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
- 
-  /* Better virtual scrolling performance on mobile */
-  .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
- 
-  /* Compact mobile layout */
-  .grid-cols-2 > * {
-    padding: 0.5rem;
-  }
- 
-  /* Responsive text sizes */
-  .text-xs {
-    font-size: 0.7rem;
-  }
- 
-  .text-sm {
-    font-size: 0.8rem;
-  }
- 
-  /* Adjust spacing for mobile */
-  .gap-2 {
-    gap: 0.5rem;
-  }
- 
-  .gap-3 {
-    gap: 0.75rem;
-  }
- 
-  .p-3 {
-    padding: 0.75rem;
-  }
- 
-  /* Better touch feedback */
-  .active\:bg-gray-100:active {
-    background-color: #f3f4f6;
-  }
- 
-  .dark .active\:bg-gray-700:active {
-    background-color: #374151;
-  }
-}
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  .transition-colors,
-  .transition-all,
-  .animate-spin,
-  .hover\:scale-110,
-  .active\:scale-95 {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    transform: none !important;
-  }
-}
-/* Table cell alignment fix */
-.whitespace-nowrap {
-  white-space: nowrap;
-}
-/* Ensure text doesn't overflow in table cells */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Modal z-index fix */
-.fixed {
-  isolation: isolate;
-}
-/* Virtual scrolling optimization */
-.virtual-scroll-container {
-  will-change: transform;
-  contain: content;
-}
-/* Optimize paint and composite layers */
-tbody tr {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-/* Loading animation */
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-/* Pulse animation */
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-/* Ensure smooth scrolling on the entire page */
-.min-h-screen {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-/* Better touch feedback for mobile */
-@media (max-width: 768px) {
-  .active\:scale-95:active {
-    transform: scale(0.95);
-  }
- 
-  .hover\:scale-110:hover {
-    transform: scale(1.1);
-  }
- 
-  /* Compact card layout */
-  .max-w-\[100px\] {
-    max-width: 100px;
-  }
- 
-  .max-w-\[120px\] {
-    max-width: 120px;
-  }
- 
-  .max-w-\[180px\] {
-    max-width: 180px;
-  }
-}
-/* Dark mode optimizations */
-.dark .border-gray-200 {
-  border-color: #374151;
-}
-.dark .bg-gray-50 {
-  background-color: rgba(17, 24, 39, 0.5);
-}
-/* Clickable cursor */
-.cursor-pointer {
-  cursor: pointer;
-}
-/* Smooth transitions for hover effects */
-.group-hover\:scale-105 {
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-/* Memory optimization */
+
+/* Smooth transitions */
 * {
-  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
+
+/* Mobile touch-friendly */
+@media (max-width: 768px) {
+  button, .clickable {
+    min-height: 44px; /* Apple touch target guidelines */
+  }
+}
+
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
   }
- 
-  table {
-    border-collapse: collapse;
+  
+  body {
+    background: white !important;
+    color: black !important;
   }
- 
-  th, td {
-    border: 1px solid #ddd;
-  }
-}
-/* Optimize for low-end devices */
-@media (max-width: 768px) and (max-device-width: 1024px) {
-  /* Add active state for mobile buttons */
-  .active\:scale-95:active {
-    transform: scale(0.95);
-  }
- 
-  /* Reduce animations on mobile */
-  .transition-colors {
-    transition-duration: 150ms;
-  }
- 
-  /* Optimize images for mobile */
-  img {
-    max-width: 100%;
-    height: auto;
-  }
-}
-/* Fix modal scrolling on mobile */
-@media (max-width: 768px) {
-  /* Prevent body scroll when modal is open */
-  body.modal-open {
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
-    height: 100%;
-  }
- 
-  /* Improve virtual scrolling container height */
-  [style*="max-height: calc(100vh - 320px)"] {
-    max-height: calc(100vh - 280px) !important;
-  }
-}
-/* Ensure proper spacing in mobile cards */
-.space-y-1 > * + * {
-  margin-top: 0.25rem;
-}
-.space-y-2 > * + * {
-  margin-top: 0.5rem;
-}
-/* Performance warning for large datasets */
-@media (max-width: 768px) {
-  .performance-warning {
-    display: none; /* Hide on mobile if needed */
-  }
-}
-/* Optimize dropdown menus */
-.absolute {
-  z-index: 9999;
-}
-/* Better focus states for accessibility */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-/* Improve virtual scrolling performance */
-[style*="transform: translateY"] {
-  will-change: transform;
-}
-/* Responsive utility classes */
-@media (max-width: 640px) {
-  .hidden.xs\:inline {
-    display: none;
-  }
- 
-  .xs\:inline {
-    display: inline;
-  }
- 
-  .block.sm\:hidden {
-    display: block;
-  }
-}
-/* Rotate transition for filters */
-.rotate-180 {
-  transform: rotate(180deg);
-}
-/* Compact mobile filters */
-@media (max-width: 768px) {
-  .order-1 {
-    order: 1;
-  }
- 
-  .order-2 {
-    order: 2;
-  }
- 
-  .order-3 {
-    order: 3;
-  }
- 
-  /* Adjust filter select height */
-  select {
-    min-height: 42px;
-  }
- 
-  /* Compact buttons */
-  button {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-}
-/* Virtual scrolling specific styles */
-[style*="transform: translateY"] {
-  will-change: transform;
-  contain: layout style paint;
-}
-/* Optimize virtual scrolling rows */
-tbody tr {
-  contain-intrinsic-size: 80px;
-  content-visibility: auto;
-}
-/* Mobile card virtualization */
-.lg\:hidden > div > div > div {
-  contain-intrinsic-size: 120px;
-  content-visibility: auto;
-}
-/* Smooth scroll behavior */
-.overflow-y-auto {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-/* Search info styling */
-.text-yellow-600 {
-  color: #d97706;
-}
-.dark .text-yellow-400 {
-  color: #fbbf24;
-}
-/* Live search indicator */
-.text-blue-600 {
-  color: #2563eb;
-}
-.dark .text-blue-400 {
-  color: #60a5fa;
 }
 </style>
-
