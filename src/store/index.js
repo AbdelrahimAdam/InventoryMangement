@@ -86,24 +86,26 @@ const FIELD_MAPPINGS = {
 function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
 
-  // First, normalize Unicode to combine characters
-  text = text.normalize('NFC');
-  
-  // Remove diacritics (tashkeel)
-  text = text.replace(/[\u064B-\u065F]/g, '');
-  
-  // Normalize Arabic letters (convert different forms to basic form)
-  text = text
+  return text
+    .normalize('NFC')              // Normalize Unicode
+    .toLowerCase()
+
+    // Remove Arabic diacritics (tashkeel)
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+
+    // Normalize Arabic letter variants
     .replace(/[إأآا]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
     .replace(/ة/g, 'ه')
-    .replace(/[يى]/g, 'ي')
-    .replace(/[ؤئ]/g, 'ء')
-    .replace(/[ـ]/g, '') // Remove tatweel
-    .replace(/\s+/g, ' ') // Normalize spaces
-    .trim()
-    .toLowerCase();
-  
-  return text;
+
+    // Remove tatweel
+    .replace(/ـ/g, '')
+
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ============================================
@@ -111,57 +113,60 @@ function normalizeArabicText(text) {
 // ============================================
 function matchArabicText(item, searchTerm, fields) {
   if (!searchTerm || !item) return false;
-  
+
   const normalizedSearchTerm = normalizeArabicText(searchTerm);
-  
+  if (!normalizedSearchTerm) return false;
+
   for (const field of fields) {
     const fieldValue = item[field];
-    if (fieldValue) {
-      const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-      
-      // Check for exact match
-      if (normalizedFieldValue === normalizedSearchTerm) {
-        return true;
-      }
-      
-      // Check for starts with
-      if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
-        return true;
-      }
-      
-      // Check for contains
-      if (normalizedFieldValue.includes(normalizedSearchTerm)) {
-        return true;
-      }
-      
-      // Check for word-by-word matching (for Arabic phrases)
-      const fieldWords = normalizedFieldValue.split(/\s+/);
-      const searchWords = normalizedSearchTerm.split(/\s+/);
-      
-      // Check if all search words are present in field words
-      const allWordsMatch = searchWords.every(searchWord => 
-        fieldWords.some(fieldWord => fieldWord.includes(searchWord))
-      );
-      
-      if (allWordsMatch) {
-        return true;
-      }
-      
-      // Check for partial word matching (for long Arabic words)
-      const fieldWordsJoined = fieldWords.join('');
-      if (fieldWordsJoined.includes(normalizedSearchTerm)) {
-        return true;
-      }
+    if (!fieldValue) continue;
+
+    const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+
+    // Exact match
+    if (normalizedFieldValue === normalizedSearchTerm) {
+      return true;
+    }
+
+    // Starts with
+    if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
+      return true;
+    }
+
+    // Contains
+    if (normalizedFieldValue.includes(normalizedSearchTerm)) {
+      return true;
+    }
+
+    // Word-by-word matching
+    const fieldWords = normalizedFieldValue.split(/\s+/);
+    const searchWords = normalizedSearchTerm.split(/\s+/);
+
+    const allWordsMatch = searchWords.every(searchWord =>
+      fieldWords.some(fieldWord => fieldWord.includes(searchWord))
+    );
+
+    if (allWordsMatch) {
+      return true;
+    }
+
+    // Joined-word partial matching (Arabic compound words)
+    if (fieldWords.join('').includes(normalizedSearchTerm)) {
+      return true;
     }
   }
-  
+
   return false;
 }
 
-// Calculate relevance score for sorting
+// ============================================
+// CALCULATE RELEVANCE SCORE FOR SORTING
+// ============================================
 function calculateRelevanceScore(item, searchTerm) {
   let score = 0;
   const normalizedSearchTerm = normalizeArabicText(searchTerm);
+
+  if (!normalizedSearchTerm) return score;
 
   // Exact code match (highest priority)
   if (item.code && normalizeArabicText(item.code) === normalizedSearchTerm) {
@@ -195,6 +200,9 @@ function calculateRelevanceScore(item, searchTerm) {
       score += 100;
     }
   });
+
+  return score;
+}
 
   // Bonus for items with higher quantity (better availability)
   score += Math.min(item.remaining_quantity || 0, 50);
