@@ -529,6 +529,7 @@ export default createStore({
       state.search.source = 'none';
     },
     SET_WAREHOUSE_FILTER(state, warehouseId) {
+      // Sync both state properties
       state.warehouseFilter = warehouseId;
       state.filters.warehouse = warehouseId;
     },
@@ -700,13 +701,10 @@ export default createStore({
         commit('SET_SEARCH_LOADING', true);
         commit('SET_SEARCH_QUERY', searchTerm);
 
-        // UNIVERSAL SEARCH ACCESS - All authenticated users can search ALL items
-        // Removed all warehouse permission checks for search
-
         const itemsRef = collection(db, 'items');
         let firestoreQuery;
         
-        // Build Firestore query (NO warehouse restrictions for search)
+        // Build Firestore query
         if (targetWarehouse && targetWarehouse !== 'all') {
           // If warehouse filter is specified, search only in that warehouse
           firestoreQuery = query(
@@ -797,7 +795,17 @@ export default createStore({
           console.log('🔄 Falling back to local cache search...');
           
           const normalizedSearchTerm = normalizeArabicText(searchTerm);
+          const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+          
           const localResults = state.inventory.filter(item => {
+            // Apply warehouse filter
+            if (targetWarehouse && targetWarehouse !== 'all') {
+              if (item.warehouse_id !== targetWarehouse) {
+                return false;
+              }
+            }
+            
+            // Apply search filter
             const searchableText = [
               item.name || '',
               item.code || '',
@@ -906,13 +914,15 @@ export default createStore({
       forceRefresh = false 
     } = {}) {
       commit('SET_INVENTORY_LOADING', true);
+      commit('SET_INVENTORY_ERROR', null);
 
       try {
+        // Use warehouseId from parameter or from state
         const targetWarehouse = warehouseId || state.warehouseFilter;
-
-        if (targetWarehouse) {
-          commit('SET_WAREHOUSE_FILTER', targetWarehouse);
-        }
+        
+        // Update both state properties to keep them synchronized
+        commit('SET_WAREHOUSE_FILTER', targetWarehouse);
+        commit('SET_FILTERS', { warehouse: targetWarehouse });
 
         let itemsQuery;
         const itemsRef = collection(db, 'items');
@@ -955,11 +965,18 @@ export default createStore({
           await dispatch('setupOptimizedRealtimeUpdates', inventory.map(item => item.id));
         }
 
+        console.log(`✅ Loaded ${inventory.length} items for warehouse: ${targetWarehouse}`);
         return inventory;
 
       } catch (error) {
         console.error('❌ Error loading inventory with warehouse filter:', error);
         commit('SET_INVENTORY_ERROR', error.message);
+        
+        dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل المخزون مع تصفية المخزن'
+        });
+        
         throw error;
       } finally {
         commit('SET_INVENTORY_LOADING', false);
@@ -1314,7 +1331,6 @@ export default createStore({
             const itemDoc = await getDoc(doc(db, 'items', itemId));
             if (itemDoc.exists()) {
               const itemData = safeGetDocData(itemDoc, {});
-              // REMOVED warehouse permission check for item viewing
               const convertedItem = InventoryService.convertForDisplay({
                 id: itemDoc.id,
                 ...itemData
@@ -1336,7 +1352,6 @@ export default createStore({
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              // REMOVED permission check - all users can view items
               return true;
             });
             if (validItems.length > 0) {
@@ -1361,7 +1376,6 @@ export default createStore({
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              // REMOVED permission check - all users can view items
               return true;
             });
             if (validItems.length > 0) {
@@ -1406,7 +1420,6 @@ export default createStore({
         if (!warehouseId) {
           throw new Error('معرف المخزن مطلوب');
         }
-        // REMOVED warehouse permission check for viewing items
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
         if (localItems.length >= limitResults) {
           console.log('✅ Found items in recent inventory:', localItems.length);
@@ -1487,7 +1500,6 @@ export default createStore({
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        // ALL users can view ALL inventory for searching purposes
         itemsQuery = query(
           itemsRef,
           orderBy('name'),
@@ -1554,7 +1566,6 @@ export default createStore({
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        // ALL users can load more inventory
         itemsQuery = query(
           itemsRef,
           orderBy('name'),
@@ -1616,8 +1627,6 @@ export default createStore({
         }
 
         console.log(`🔄 Loading warehouse items (${warehouseId})...`);
-
-        // REMOVED warehouse permission check - all users can view warehouse items
 
         const itemsRef = collection(db, 'items');
         let itemsQuery;
@@ -1859,6 +1868,9 @@ export default createStore({
         const { search, warehouse, searchField = 'name' } = searchParams || {};
 
         commit('SET_FILTERS', { search, warehouse, searchField });
+        if (warehouse) {
+          commit('SET_WAREHOUSE_FILTER', warehouse);
+        }
 
         if (!state.userProfile) {
           throw new Error('User not authenticated');
@@ -1885,7 +1897,6 @@ export default createStore({
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        // ALL users can search ALL inventory
         if (warehouse) {
           itemsQuery = query(
             itemsRef,
@@ -1970,7 +1981,6 @@ export default createStore({
 
         const data = safeGetDocData(itemDoc, {});
 
-        // REMOVED warehouse permission check - all users can view items
         const item = InventoryService.convertForDisplay({
           id: itemDoc.id,
           ...data
@@ -4044,16 +4054,23 @@ export default createStore({
           state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
           state.search.results.length > 0 &&
           Date.now() - new Date(state.search.timestamp).getTime() < 10000) {
-        return state.search.results;
+        // Apply warehouse filter to search results
+        let results = state.search.results;
+        if (state.warehouseFilter && state.warehouseFilter !== 'all') {
+          results = results.filter(item => item.warehouse_id === state.warehouseFilter);
+        }
+        return results;
       }
 
       // Otherwise, filter local inventory
       let inventory = state.inventory;
 
+      // Apply warehouse filter
       if (state.warehouseFilter && state.warehouseFilter !== 'all') {
         inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
       }
 
+      // Apply search filter
       if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
         const term = normalizeArabicText(state.search.query);
         inventory = inventory.filter(item => {
@@ -4162,32 +4179,32 @@ export default createStore({
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
 
-    // Original filtered inventory getter
+    // Original filtered inventory getter - UPDATED to use warehouseFilter
     filteredInventory: (state, getters) => {
       let inventory = state.inventory;
 
-      if (state.filters.warehouse) {
-        inventory = inventory.filter(item => item.warehouse_id === state.filters.warehouse);
+      // Apply warehouse filter
+      if (state.warehouseFilter && state.warehouseFilter !== 'all') {
+        inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
       }
 
-      if (state.filters.search && state.filters.search.length >= 2) {
-        const searchLower = state.filters.search.toLowerCase();
-        const searchField = state.filters.searchField;
-
+      // Apply search filter
+      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        const term = normalizeArabicText(state.search.query);
         inventory = inventory.filter(item => {
-          if (searchField === 'name') {
-            return item.name?.toLowerCase().includes(searchLower);
-          } else if (searchField === 'code') {
-            return item.code?.toLowerCase().includes(searchLower);
-          } else if (searchField === 'color') {
-            return item.color?.toLowerCase().includes(searchLower);
-          } else if (searchField === 'supplier') {
-            return item.supplier?.toLowerCase().includes(searchLower);
-          }
-          return item.name?.toLowerCase().includes(searchLower) ||
-                 item.code?.toLowerCase().includes(searchLower) ||
-                 item.color?.toLowerCase().includes(searchLower) ||
-                 item.supplier?.toLowerCase().includes(searchLower);
+          const searchableText = [
+            item.name || '',
+            item.code || '',
+            item.color || '',
+            item.supplier || '',
+            item.item_location || ''
+          ]
+            .filter(text => text && text.toString().trim())
+            .map(text => text.toString())
+            .join(' ');
+          
+          const normalizedText = normalizeArabicText(searchableText);
+          return normalizedText.includes(term);
         });
       }
 
