@@ -675,236 +675,236 @@ export default createStore({
 
   actions: {
     // ============================================
-    // UNIVERSAL SEARCH - ALL USERS CAN SEARCH ALL ITEMS
-    // ============================================
-    async searchInventoryLive({ commit, state, dispatch }, {
-      searchText = null,
-      query = null,
-      warehouseId = null,
-      limit = 25
-    }) {
-      try {
-        // Get the search term from any parameter
-        const effectiveSearchText = searchText ?? query ?? state.search.query;
-        
-        // Validate search term
-        if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          commit('CLEAR_SEARCH');
-          return [];
-        }
+// UNIVERSAL SEARCH - ALL USERS CAN SEARCH ALL ITEMS
+// ============================================
+async searchInventoryLive({ commit, state, dispatch }, {
+  searchText = null,
+  queryText = null, // ✅ FIXED (was: query)
+  warehouseId = null,
+  limit = 25
+}) {
+  try {
+    // Get the search term from any parameter
+    const effectiveSearchText = searchText ?? queryText ?? state.search.query;
+    
+    // Validate search term
+    if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      commit('CLEAR_SEARCH');
+      return [];
+    }
 
-        const searchTerm = effectiveSearchText.trim();
-        const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+    const searchTerm = effectiveSearchText.trim();
+    const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
 
-        console.log(`🔍 Starting universal search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
-        
-        commit('SET_SEARCH_LOADING', true);
-        commit('SET_SEARCH_QUERY', searchTerm);
+    console.log(`🔍 Starting universal search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
+    
+    commit('SET_SEARCH_LOADING', true);
+    commit('SET_SEARCH_QUERY', searchTerm);
 
-        const itemsRef = collection(db, 'items');
-        let firestoreQuery;
-        
-        // Build Firestore query
+    const itemsRef = collection(db, 'items');
+    let firestoreQuery;
+    
+    // Build Firestore query
+    if (targetWarehouse && targetWarehouse !== 'all') {
+      // If warehouse filter is specified, search only in that warehouse
+      firestoreQuery = query(
+        itemsRef,
+        where('warehouse_id', '==', targetWarehouse),
+        orderBy('name'),
+        fsLimit(limit * 2)
+      );
+    } else {
+      // Search all items (no warehouse restriction)
+      firestoreQuery = query(
+        itemsRef,
+        orderBy('name'),
+        fsLimit(limit * 2)
+      );
+    }
+
+    // Execute Firestore query
+    const snapshot = await getDocs(firestoreQuery);
+    console.log(`📡 Universal search returned ${snapshot.size} items for filtering`);
+
+    if (snapshot.empty) {
+      commit('SET_SEARCH_RESULTS', {
+        results: [],
+        source: 'firestore',
+        query: searchTerm
+      });
+      commit('SET_SEARCH_LOADING', false);
+      return [];
+    }
+
+    // Process and filter results locally with Arabic normalization
+    const normalizedSearchTerm = normalizeArabicText(searchTerm);
+    const firestoreResults = [];
+
+    snapshot.docs.forEach(doc => {
+      const itemData = safeGetDocData(doc, {});
+      
+      // Combine all searchable fields into one searchable text
+      const searchableText = [
+        itemData.name || '',
+        itemData.code || '',
+        itemData.color || '',
+        itemData.supplier || '',
+        itemData.item_location || ''
+      ]
+        .filter(text => text && text.toString().trim())
+        .map(text => text.toString())
+        .join(' ');
+      
+      // Normalize the searchable text
+      const normalizedText = normalizeArabicText(searchableText);
+      
+      // Check if normalized text contains the normalized search term
+      if (normalizedText.includes(normalizedSearchTerm)) {
+        const item = InventoryService.convertForDisplay({
+          id: doc.id,
+          ...itemData
+        });
+        firestoreResults.push(item);
+      }
+    });
+
+    // Sort by relevance
+    const sortedResults = firestoreResults
+      .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
+      .slice(0, limit);
+
+    console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
+
+    commit('SET_SEARCH_RESULTS', {
+      results: sortedResults,
+      source: 'firestore',
+      query: searchTerm
+    });
+    commit('SET_SEARCH_LOADING', false);
+
+    return sortedResults;
+
+  } catch (error) {
+    console.error('❌ Error in universal search:', error);
+    
+    // Fallback to local cache search
+    const effectiveSearchText = (searchText ?? queryText ?? state.search.query) || '';
+    const searchTerm = effectiveSearchText.trim();
+    
+    if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      console.log('🔄 Falling back to local cache search...');
+      
+      const normalizedSearchTerm = normalizeArabicText(searchTerm);
+      const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+      
+      const localResults = state.inventory.filter(item => {
+        // Apply warehouse filter
         if (targetWarehouse && targetWarehouse !== 'all') {
-          // If warehouse filter is specified, search only in that warehouse
-          firestoreQuery = query(
-            itemsRef,
-            where('warehouse_id', '==', targetWarehouse),
-            orderBy('name'),
-            fsLimit(limit * 2)
-          );
-        } else {
-          // Search all items (no warehouse restriction)
-          firestoreQuery = query(
-            itemsRef,
-            orderBy('name'),
-            fsLimit(limit * 2)
-          );
-        }
-
-        // Execute Firestore query
-        const snapshot = await getDocs(firestoreQuery);
-        console.log(`📡 Universal search returned ${snapshot.size} items for filtering`);
-
-        if (snapshot.empty) {
-          commit('SET_SEARCH_RESULTS', {
-            results: [],
-            source: 'firestore',
-            query: searchTerm
-          });
-          commit('SET_SEARCH_LOADING', false);
-          return [];
-        }
-
-        // Process and filter results locally with Arabic normalization
-        const normalizedSearchTerm = normalizeArabicText(searchTerm);
-        const firestoreResults = [];
-
-        snapshot.docs.forEach(doc => {
-          const itemData = safeGetDocData(doc, {});
-          
-          // Combine all searchable fields into one searchable text
-          const searchableText = [
-            itemData.name || '',
-            itemData.code || '',
-            itemData.color || '',
-            itemData.supplier || '',
-            itemData.item_location || ''
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString())
-            .join(' ');
-          
-          // Normalize the searchable text
-          const normalizedText = normalizeArabicText(searchableText);
-          
-          // Check if normalized text contains the normalized search term
-          if (normalizedText.includes(normalizedSearchTerm)) {
-            const item = InventoryService.convertForDisplay({
-              id: doc.id,
-              ...itemData
-            });
-            firestoreResults.push(item);
+          if (item.warehouse_id !== targetWarehouse) {
+            return false;
           }
-        });
-
-        // Sort by relevance
-        const sortedResults = firestoreResults
-          .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
-          .slice(0, limit);
-
-        console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
-
-        commit('SET_SEARCH_RESULTS', {
-          results: sortedResults,
-          source: 'firestore',
-          query: searchTerm
-        });
-        commit('SET_SEARCH_LOADING', false);
-
-        return sortedResults;
-
-      } catch (error) {
-        console.error('❌ Error in universal search:', error);
+        }
         
-        // Fallback to local cache search
-        const effectiveSearchText = (searchText ?? query ?? state.search.query) || '';
-        const searchTerm = effectiveSearchText.trim();
+        // Apply search filter
+        const searchableText = [
+          item.name || '',
+          item.code || '',
+          item.color || '',
+          item.supplier || '',
+          item.item_location || ''
+        ]
+          .filter(text => text && text.toString().trim())
+          .map(text => text.toString())
+          .join(' ');
         
-        if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          console.log('🔄 Falling back to local cache search...');
-          
-          const normalizedSearchTerm = normalizeArabicText(searchTerm);
-          const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-          
-          const localResults = state.inventory.filter(item => {
-            // Apply warehouse filter
-            if (targetWarehouse && targetWarehouse !== 'all') {
-              if (item.warehouse_id !== targetWarehouse) {
-                return false;
-              }
-            }
-            
-            // Apply search filter
-            const searchableText = [
-              item.name || '',
-              item.code || '',
-              item.color || '',
-              item.supplier || '',
-              item.item_location || ''
-            ]
-              .filter(text => text && text.toString().trim())
-              .map(text => text.toString())
-              .join(' ');
-            
-            const normalizedText = normalizeArabicText(searchableText);
-            return normalizedText.includes(normalizedSearchTerm);
-          })
-          .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
+        const normalizedText = normalizeArabicText(searchableText);
+        return normalizedText.includes(normalizedSearchTerm);
+      })
+      .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
 
-          commit('SET_SEARCH_RESULTS', {
-            results: localResults,
-            source: 'local_fallback',
-            query: searchTerm
-          });
-          commit('SET_SEARCH_LOADING', false);
+      commit('SET_SEARCH_RESULTS', {
+        results: localResults,
+        source: 'local_fallback',
+        query: searchTerm
+      });
+      commit('SET_SEARCH_LOADING', false);
 
-          return localResults;
-        }
+      return localResults;
+    }
 
-        // If no valid search term, return empty
-        commit('SET_SEARCH_RESULTS', {
-          results: [],
-          source: 'error',
-          query: ''
-        });
-        commit('SET_SEARCH_LOADING', false);
+    // If no valid search term, return empty
+    commit('SET_SEARCH_RESULTS', {
+      results: [],
+      source: 'error',
+      query: ''
+    });
+    commit('SET_SEARCH_LOADING', false);
 
-        return [];
-      }
-    },
+    return [];
+  }
+},
 
-    async searchFirebaseInventory({ dispatch }, params) {
-      return await dispatch('searchInventoryLive', params);
-    },
+async searchFirebaseInventory({ dispatch }, params) {
+  return await dispatch('searchInventoryLive', params);
+},
 
-    async searchItemsForTransactions({ dispatch }, { searchTerm, limitResults = 20 }) {
-      try {
-        if (!searchTerm || searchTerm.trim().length < 2) {
-          return [];
-        }
+async searchItemsForTransactions({ dispatch }, { searchTerm, limitResults = 20 }) {
+  try {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
 
-        return await dispatch('searchInventoryLive', {
-          query: searchTerm,
-          limit: limitResults
-        });
+    return await dispatch('searchInventoryLive', {
+      queryText: searchTerm, // ✅ FIXED
+      limit: limitResults
+    });
 
-      } catch (error) {
-        console.error('❌ Error in transaction search:', error);
-        return [];
-      }
-    },
+  } catch (error) {
+    console.error('❌ Error in transaction search:', error);
+    return [];
+  }
+},
 
-    async searchItemsForTransactionsEnhanced({ dispatch }, { 
-      searchTerm, 
-      limitResults = 20,
-      warehouseId = null 
-    }) {
-      try {
-        if (!searchTerm || searchTerm.trim().length < 2) {
-          return [];
-        }
+async searchItemsForTransactionsEnhanced({ dispatch }, { 
+  searchTerm, 
+  limitResults = 20,
+  warehouseId = null 
+}) {
+  try {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
 
-        const results = await dispatch('searchInventoryLive', {
-          query: searchTerm,
-          warehouseId,
-          limit: limitResults
-        });
+    const results = await dispatch('searchInventoryLive', {
+      queryText: searchTerm, // ✅ FIXED
+      warehouseId,
+      limit: limitResults
+    });
 
-        console.log(`✅ Found ${results.length} items for transactions`);
-        return results;
+    console.log(`✅ Found ${results.length} items for transactions`);
+    return results;
 
-      } catch (error) {
-        console.error('❌ Error in enhanced transaction search:', error);
-        return [];
-      }
-    },
+  } catch (error) {
+    console.error('❌ Error in enhanced transaction search:', error);
+    return [];
+  }
+},
 
-    async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
-      try {
-        if (!searchTerm || searchTerm.trim().length < 2) {
-          return [];
-        }
+async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
+  try {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
 
-        return await dispatch('searchInventoryLive', {
-          query: searchTerm,
-          limit: limitResults
-        });
-      } catch (error) {
-        console.error('❌ Error searching items:', error);
-        return [];
-      }
-    },
+    return await dispatch('searchInventoryLive', {
+      queryText: searchTerm, // ✅ FIXED
+      limit: limitResults
+    });
+  } catch (error) {
+    console.error('❌ Error searching items:', error);
+    return [];
+  }
+},
 
     // ============================================
     // INVENTORY LOADING (with warehouse restrictions for viewing)
