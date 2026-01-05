@@ -54,7 +54,7 @@
                 {{ (displayedItems || []).length }} عنصر • {{ formatTime(lastUpdate) }}
               </span>
               <!-- Live Search Indicator -->
-              <span v-if="isLiveSearching && searchTerm.length >= 3" class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+              <span v-if="isLiveSearching && searchTerm.length >= 2" class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
                 بحث مباشر...
               </span>
@@ -266,7 +266,7 @@
                   <!-- Clear Search Button -->
                   <button
                     v-if="searchTerm"
-                    @click="searchTerm = ''; resetToNormalView()"
+                    @click="clearSearch"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,8 +283,8 @@
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
-                  <div v-else-if="useLiveSearch && (liveSearchResults || []).length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
-                    ✓ تم العثور على {{ (liveSearchResults || []).length }} نتيجة
+                  <div v-else-if="useLiveSearch && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                    ✓ تم العثور على {{ searchResults.length }} نتيجة
                   </div>
                 </div>
               </div>
@@ -296,7 +296,7 @@
                     class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
                 <span class="hidden xs:inline">المخزن:</span>
                 <span class="font-medium truncate max-w-[80px]">{{ getWarehouseLabel(selectedWarehouse) }}</span>
-                <button @click="selectedWarehouse = ''" class="text-blue-600 hover:text-blue-800">
+                <button @click="clearWarehouseFilter" class="text-blue-600 hover:text-blue-800">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
@@ -316,7 +316,7 @@
                     class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
                 <span class="hidden xs:inline">البحث:</span>
                 <span class="font-medium truncate max-w-[60px]">{{ searchTerm }}</span>
-                <button @click="searchTerm = ''" class="text-yellow-600 hover:text-yellow-800">
+                <button @click="clearSearch" class="text-yellow-600 hover:text-yellow-800">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
@@ -333,16 +333,16 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch && (liveSearchResults || []).length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="useLiveSearch && searchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث المباشر: {{ (liveSearchResults || []).length }} عنصر</span>
+                <span class="text-sm">نتائج البحث المباشر: {{ searchResults.length }} عنصر</span>
               </div>
               <button
-                @click="resetToNormalView"
+                @click="clearSearch"
                 class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
               >
                 عودة للعرض العادي
@@ -1015,7 +1015,7 @@ export default {
     const isDataFresh = ref(false);
     
     // ============================================
-    // FIXED COMPUTED PROPERTIES - CORRECTED
+    // COMPUTED PROPERTIES
     // ============================================
     
     // Store getters
@@ -1023,10 +1023,14 @@ export default {
     const userProfile = computed(() => store.state.userProfile);
     const currentUser = computed(() => store.state.user);
     
-    // ✅ FIXED: Use the ENHANCED filtered inventory getter that handles both search and warehouse filters
+    // ✅ UPDATED: Properly use store search system
     const displayedItems = computed(() => {
-      // Always use the store's enhanced filtered inventory getter
-      // This getter handles: search results + warehouse filtering + local filtering
+      // If we have active search results from store, use them
+      if (useLiveSearch.value && searchResults.value.length > 0) {
+        return searchResults.value;
+      }
+      
+      // Otherwise use the store's filtered inventory
       return store.getters.filteredInventoryEnhanced || [];
     });
     
@@ -1063,29 +1067,12 @@ export default {
     const showActions = computed(() => userRole.value !== 'viewer');
     const readonly = computed(() => userRole.value === 'viewer');
     
-    // Permission methods
-    const canEditItem = (item) => {
-      if (userRole.value === 'superadmin') return true;
-      if (userRole.value !== 'warehouse_manager') return false;
-      
-      const allowedWarehouses = store.getters.allowedWarehouses || [];
-      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
-    };
-    
-    const canTransferItem = (item) => canEditItem(item);
-    const canDispatchItem = (item) => canEditItem(item);
-    
-    const canDeleteItem = (item) => {
-      return canEditItem(item) && userRole.value === 'superadmin';
-    };
-    
-    // Search state from store
-    const useLiveSearch = computed(() => {
-      return !!store.state.search.query && store.state.search.query.length >= 2;
-    });
-    
+    // ✅ UPDATED: Search state from store
+    const searchResults = computed(() => store.state.search.results || []);
     const isLiveSearching = computed(() => store.state.search.loading);
-    const liveSearchResults = computed(() => store.state.search.results);
+    const useLiveSearch = computed(() => {
+      return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
+    });
     
     // ============================================
     // STATS WITH LOCAL STATUS FILTER
@@ -1146,7 +1133,7 @@ export default {
     });
     
     // ============================================
-    // ✅ FIXED: VISIBLE ITEMS FOR VIRTUAL SCROLLING
+    // VISIBLE ITEMS FOR VIRTUAL SCROLLING
     // ============================================
     const visibleItems = computed(() => {
       let items = displayedItems.value;
@@ -1187,7 +1174,7 @@ export default {
     });
     
     // ============================================
-    // HELPER METHODS (UNCHANGED)
+    // HELPER METHODS
     // ============================================
     const formatNumber = (num) => {
       const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
@@ -1336,47 +1323,41 @@ export default {
     };
     
     // ============================================
-    // ✅ FIXED: LIVE SEARCH - PROPERLY INTEGRATED
+    // ✅ UPDATED: LIVE SEARCH - FULLY INTEGRATED WITH VUEX
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
-        resetToNormalView();
+        await store.dispatch('clearSearch');
+        resetScrollPositions();
         return;
       }
       
       // Only search if we have at least 2 characters
       if (term.length < 2) {
-        store.dispatch('clearSearch');
+        await store.dispatch('clearSearch');
         return;
       }
       
       try {
-        console.log(`🔍 Live search: "${term}"`);
+        console.log(`🔍 Searching: "${term}" with warehouse: ${selectedWarehouse.value || 'all'}`);
         
-        // ✅ Use the store's enhanced search with warehouse filter
-        const results = await store.dispatch('searchInventoryLive', {
-          query: term,
-          warehouseId: selectedWarehouse.value || undefined,
+        // ✅ Use the store's searchInventoryDirect action (which calls searchInventorySmart)
+        const results = await store.dispatch('searchInventoryDirect', {
+          searchQuery: term,
+          warehouseId: selectedWarehouse.value || 'all',
           limit: 50
         });
         
-        console.log(`✅ Live search found: ${results?.length || 0} items`);
+        console.log(`✅ Search found: ${results?.length || 0} items`);
         
-        // Data is fresh from Firestore search
+        // Data is fresh from search
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
         
         // Reset scroll positions
-        visibleStartIndex.value = 0;
-        mobileVisibleStartIndex.value = 0;
-        if (scrollContainer.value) {
-          scrollContainer.value.scrollTop = 0;
-        }
-        if (mobileScrollContainer.value) {
-          mobileScrollContainer.value.scrollTop = 0;
-        }
+        resetScrollPositions();
         
         // Show notification
         if (results && results.length > 0) {
@@ -1392,7 +1373,7 @@ export default {
         }
         
       } catch (error) {
-        console.error('❌ Error in live search:', error);
+        console.error('❌ Error in search:', error);
         
         store.dispatch('showNotification', {
           type: 'error',
@@ -1400,9 +1381,72 @@ export default {
         });
         
         // Reset to local view
-        store.dispatch('clearSearch');
+        await store.dispatch('clearSearch');
       }
     }, 300);
+    
+    // ============================================
+    // FILTER HANDLERS - FULLY INTEGRATED
+    // ============================================
+    const handleWarehouseChange = async () => {
+      // ✅ Update store warehouse filter
+      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
+      
+      // Reset scroll positions
+      resetScrollPositions();
+      
+      // If we have a search term, re-run search with new warehouse filter
+      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+        await handleLiveSearch();
+      }
+    };
+    
+    const handleFilterChange = () => {
+      // Reset scroll positions
+      resetScrollPositions();
+    };
+    
+    const clearSearch = async () => {
+      searchTerm.value = '';
+      await store.dispatch('clearSearch');
+      resetScrollPositions();
+    };
+    
+    const clearWarehouseFilter = async () => {
+      selectedWarehouse.value = '';
+      await store.dispatch('setWarehouseFilter', '');
+      resetScrollPositions();
+      
+      // If we have a search term, re-run search without warehouse filter
+      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+        await handleLiveSearch();
+      }
+    };
+    
+    const clearAllFilters = async () => {
+      searchTerm.value = '';
+      statusFilter.value = '';
+      selectedWarehouse.value = '';
+      showFilters.value = false;
+      
+      // Clear store filters and search
+      await store.dispatch('clearSearch');
+      await store.dispatch('setWarehouseFilter', '');
+      
+      // Reset scroll positions
+      resetScrollPositions();
+    };
+    
+    const resetScrollPositions = () => {
+      visibleStartIndex.value = 0;
+      mobileVisibleStartIndex.value = 0;
+      if (scrollContainer.value) {
+        scrollContainer.value.scrollTop = 0;
+      }
+      if (mobileScrollContainer.value) {
+        mobileScrollContainer.value.scrollTop = 0;
+      }
+    };
     
     // ============================================
     // LOAD MORE ITEMS
@@ -1434,92 +1478,6 @@ export default {
         } finally {
           loadingMore.value = false;
         }
-      }
-    };
-    
-    // ============================================
-    // ✅ FIXED: FILTER HANDLERS
-    // ============================================
-    const handleWarehouseChange = async () => {
-      // ✅ Update store warehouse filter
-      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
-      
-      // Reset scroll positions
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-      
-      // If we have a search term, re-run search with new warehouse filter
-      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-        await handleLiveSearch();
-      }
-    };
-    
-    const handleFilterChange = () => {
-      // Reset scroll positions
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-      
-      // If we have a search term, trigger live search
-      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-        handleLiveSearch();
-      }
-    };
-    
-    const resetToNormalView = () => {
-      searchTerm.value = '';
-      statusFilter.value = '';
-      showFilters.value = false;
-      
-      // ✅ Clear search in store
-      store.dispatch('clearSearch');
-      
-      // Reset warehouse filter if needed
-      if (selectedWarehouse.value) {
-        selectedWarehouse.value = '';
-        store.dispatch('setWarehouseFilter', '');
-      }
-      
-      // Reset scroll positions
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-    };
-    
-    const clearAllFilters = () => {
-      selectedWarehouse.value = '';
-      statusFilter.value = '';
-      searchTerm.value = '';
-      showFilters.value = false;
-      
-      // Clear store filters and search
-      store.dispatch('clearSearch');
-      store.dispatch('setWarehouseFilter', '');
-      
-      // Reset scroll positions
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
       }
     };
     
@@ -1689,7 +1647,7 @@ export default {
     };
     
     // ============================================
-    // UI ACTION HANDLERS (UNCHANGED)
+    // UI ACTION HANDLERS
     // ============================================
     const toggleActionMenu = (itemId) => {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
@@ -1709,6 +1667,22 @@ export default {
     const closeDetailsModal = () => {
       showDetailsModal.value = false;
       selectedItem.value = null;
+    };
+    
+    // Permission methods
+    const canEditItem = (item) => {
+      if (userRole.value === 'superadmin') return true;
+      if (userRole.value !== 'warehouse_manager') return false;
+      
+      const allowedWarehouses = store.getters.allowedWarehouses || [];
+      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
+    };
+    
+    const canTransferItem = (item) => canEditItem(item);
+    const canDispatchItem = (item) => canEditItem(item);
+    
+    const canDeleteItem = (item) => {
+      return canEditItem(item) && userRole.value === 'superadmin';
     };
     
     const handleTransfer = (item) => {
@@ -1841,7 +1815,7 @@ export default {
         await handleLiveSearch();
       }
       
-           store.dispatch('showNotification', {
+      store.dispatch('showNotification', {
         type: 'success',
         message: 'تم النقل بين المخازن بنجاح!'
       });
@@ -1977,8 +1951,7 @@ export default {
         
         // Reset scroll positions
         await nextTick();
-        visibleStartIndex.value = 0;
-        mobileVisibleStartIndex.value = 0;
+        resetScrollPositions();
         
       } catch (error) {
         console.error('❌ Error loading initial data:', error);
@@ -2003,14 +1976,17 @@ export default {
     });
     
     // Watch for store search results to update UI
-    watch(liveSearchResults, (newResults) => {
+    watch(searchResults, (newResults) => {
       if (newResults && newResults.length > 0) {
         console.log('🔄 Search results updated:', newResults.length, 'items');
+        // Mark data as fresh when search results come in
+        isDataFresh.value = true;
+        lastUpdate.value = Date.now();
       }
     });
     
     // Watch for warehouse filter changes from store
-    watch(() => store.state.filters.warehouse, (newWarehouseId) => {
+    watch(() => store.state.warehouseFilter, (newWarehouseId) => {
       if (newWarehouseId !== selectedWarehouse.value) {
         selectedWarehouse.value = newWarehouseId || '';
       }
@@ -2056,6 +2032,9 @@ export default {
       // Clear search state when leaving page
       store.dispatch('clearSearch');
       store.dispatch('setWarehouseFilter', '');
+      
+      // Cancel debounced search
+      handleLiveSearch.cancel();
     });
     
     // ============================================
@@ -2112,7 +2091,7 @@ export default {
       readonly,
       useLiveSearch,
       isLiveSearching,
-      liveSearchResults,
+      searchResults,
       totalQuantity,
       lowStockCount,
       warehouseCount,
@@ -2140,7 +2119,8 @@ export default {
       loadMoreItems,
       handleWarehouseChange,
       handleFilterChange,
-      resetToNormalView,
+      clearSearch,
+      clearWarehouseFilter,
       clearAllFilters,
       refreshData,
       exportToExcel,
