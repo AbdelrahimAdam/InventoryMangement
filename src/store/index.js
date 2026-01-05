@@ -1,20 +1,16 @@
 import { createStore } from 'vuex';
 import { auth, db } from '@/firebase/config';
-
 import {
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword
+  onAuthStateChanged
 } from 'firebase/auth';
-
 import {
   doc,
   getDoc,
   setDoc,
   collection,
   query,
-  query as fsQuery,
   where,
   addDoc,
   getDocs,
@@ -22,7 +18,7 @@ import {
   deleteDoc,
   orderBy,
   writeBatch,
-  limit as fsLimit,
+  limit,
   startAfter,
   onSnapshot,
   serverTimestamp,
@@ -30,7 +26,6 @@ import {
   increment,
   Timestamp
 } from 'firebase/firestore';
-
 import {
   InventoryService,
   WAREHOUSE_LABELS,
@@ -38,22 +33,21 @@ import {
   FIELD_LABELS,
   TRANSACTION_TYPES
 } from '@/services/inventoryService';
-
 import * as XLSX from 'xlsx';
 
-// Performance configuration
+// Performance configuration (REMOVED ALL CACHE SETTINGS)
 const PERFORMANCE_CONFIG = {
   INITIAL_LOAD: 50,
   SCROLL_LOAD: 20,
   SEARCH_LIMIT: 25,
   INVOICE_LOAD_LIMIT: 100,
-  SEARCH_DEBOUNCE: 300,
+  SEARCH_DEBOUNCE: 300, // ms
   MIN_SEARCH_CHARS: 2,
   MAX_REALTIME_LISTENERS: 30,
   BATCH_SIZE: 10
 };
 
-// Search configuration
+// Search configuration (NO CACHE)
 const SEARCH_CONFIG = {
   FIELDS: ['name', 'code', 'color', 'supplier', 'item_location', 'warehouse_id'],
   MAX_RESULTS: 25
@@ -87,70 +81,122 @@ const FIELD_MAPPINGS = {
 };
 
 // ============================================
-// ARABIC SEARCH HELPER FUNCTIONS
+// FIXED ARABIC TEXT NORMALIZATION FUNCTION
 // ============================================
-
-/**
- * Normalize Arabic text for searching (removes diacritics and normalizes letters)
- */
 function normalizeArabicText(text) {
-  if (!text) return '';
+  if (!text || typeof text !== 'string') return '';
+
+  // First, normalize Unicode to combine characters
+  text = text.normalize('NFC');
   
-  return text
-    .toString()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u064B-\u065F]/g, '') // Remove Arabic diacritics
-    .replace(/[إأآا]/g, 'ا') // Normalize Alef variations
-    .replace(/ة/g, 'ه') // Normalize Teh Marbuta
-    .replace(/ى/g, 'ي') // Normalize Alef Maqsura
-    .replace(/ئ/g, 'ي') // Normalize Yeh with Hamza
-    .replace(/ؤ/g, 'و') // Normalize Waw with Hamza
+  // Remove diacritics (tashkeel)
+  text = text.replace(/[\u064B-\u065F]/g, '');
+  
+  // Normalize Arabic letters (convert different forms to basic form)
+  text = text
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[يى]/g, 'ي')
+    .replace(/[ؤئ]/g, 'ء')
+    .replace(/[ـ]/g, '') // Remove tatweel
     .replace(/\s+/g, ' ') // Normalize spaces
-    .trim();
+    .trim()
+    .toLowerCase();
+  
+  return text;
 }
 
-/**
- * Calculate relevance score for search results
- */
+// ============================================
+// FIXED ARABIC MATCHING FUNCTION
+// ============================================
+function matchArabicText(item, searchTerm, fields) {
+  if (!searchTerm || !item) return false;
+  
+  const normalizedSearchTerm = normalizeArabicText(searchTerm);
+  
+  for (const field of fields) {
+    const fieldValue = item[field];
+    if (fieldValue) {
+      const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+      
+      // Check for exact match
+      if (normalizedFieldValue === normalizedSearchTerm) {
+        return true;
+      }
+      
+      // Check for starts with
+      if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
+        return true;
+      }
+      
+      // Check for contains
+      if (normalizedFieldValue.includes(normalizedSearchTerm)) {
+        return true;
+      }
+      
+      // Check for word-by-word matching (for Arabic phrases)
+      const fieldWords = normalizedFieldValue.split(/\s+/);
+      const searchWords = normalizedSearchTerm.split(/\s+/);
+      
+      // Check if all search words are present in field words
+      const allWordsMatch = searchWords.every(searchWord => 
+        fieldWords.some(fieldWord => fieldWord.includes(searchWord))
+      );
+      
+      if (allWordsMatch) {
+        return true;
+      }
+      
+      // Check for partial word matching (for long Arabic words)
+      const fieldWordsJoined = fieldWords.join('');
+      if (fieldWordsJoined.includes(normalizedSearchTerm)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+// Calculate relevance score for sorting
 function calculateRelevanceScore(item, searchTerm) {
   let score = 0;
-  const term = normalizeArabicText(searchTerm);
+  const normalizedSearchTerm = normalizeArabicText(searchTerm);
 
   // Exact code match (highest priority)
-  if (item.code && normalizeArabicText(item.code) === term) {
+  if (item.code && normalizeArabicText(item.code) === normalizedSearchTerm) {
     score += 1000;
   }
 
   // Code starts with search term
-  if (item.code && normalizeArabicText(item.code).startsWith(term)) {
+  if (item.code && normalizeArabicText(item.code).startsWith(normalizedSearchTerm)) {
     score += 500;
   }
 
   // Name exact match
-  if (item.name && normalizeArabicText(item.name) === term) {
+  if (item.name && normalizeArabicText(item.name) === normalizedSearchTerm) {
     score += 400;
   }
 
   // Name starts with search term
-  if (item.name && normalizeArabicText(item.name).startsWith(term)) {
+  if (item.name && normalizeArabicText(item.name).startsWith(normalizedSearchTerm)) {
     score += 300;
   }
 
   // Name contains search term
-  if (item.name && normalizeArabicText(item.name).includes(term)) {
+  if (item.name && normalizeArabicText(item.name).includes(normalizedSearchTerm)) {
     score += 200;
   }
 
   // Other fields contain search term
-  const otherFields = ['color', 'supplier', 'item_location'];
+  const otherFields = [item.color, item.supplier, item.item_location];
   otherFields.forEach(field => {
-    if (item[field] && normalizeArabicText(item[field]).includes(term)) {
+    if (field && normalizeArabicText(field).includes(normalizedSearchTerm)) {
       score += 100;
     }
   });
 
-  // Bonus for items with higher quantity (in-stock items are more relevant)
+  // Bonus for items with higher quantity (better availability)
   score += Math.min(item.remaining_quantity || 0, 50);
 
   // Bonus for recently updated items
@@ -163,6 +209,28 @@ function calculateRelevanceScore(item, searchTerm) {
   }
 
   return score;
+}
+
+// Remove duplicates and sort by relevance
+function removeDuplicatesAndSortByRelevance(items, searchTerm, limit) {
+  const seen = new Set();
+  const uniqueItems = [];
+
+  for (const item of items) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      uniqueItems.push(item);
+    }
+  }
+
+  // Sort by relevance score (descending)
+  uniqueItems.sort((a, b) => {
+    const scoreA = calculateRelevanceScore(a, searchTerm);
+    const scoreB = calculateRelevanceScore(b, searchTerm);
+    return scoreB - scoreA;
+  });
+
+  return uniqueItems.slice(0, limit);
 }
 
 // Helper function to get auth error message
@@ -223,13 +291,6 @@ function getPaymentMethodLabel(method) {
   return labels[method] || method;
 }
 
-// Safe Firebase data extraction
-function safeGetDocData(docSnapshot, fallback = {}) {
-  if (!docSnapshot || !docSnapshot.exists()) return fallback;
-  const data = docSnapshot.data();
-  return data || fallback;
-}
-
 export default createStore({
   state: () => ({
     user: null,
@@ -267,6 +328,7 @@ export default createStore({
     requiresCompositeIndex: false,
     allUsers: [],
     usersLoading: false,
+    // REMOVED ALL CACHE OBJECTS
     fieldMappings: FIELD_MAPPINGS,
     inventoryLastFetched: null,
     isFetchingInventory: false,
@@ -274,13 +336,13 @@ export default createStore({
     recentTransactionsLoading: false,
     activeItemListeners: new Set(),
 
-    // Search State
+    // Search State (SIMPLIFIED - NO CACHE)
     search: {
       query: '',
       results: [],
       loading: false,
       error: null,
-      source: 'none',
+      source: 'none', // 'firebase' | 'local'
       timestamp: null
     },
     warehouseFilter: '',
@@ -505,7 +567,7 @@ export default createStore({
       state.activeItemListeners.clear();
     },
 
-    // Search Mutations
+    // Search Mutations (SIMPLIFIED)
     SET_SEARCH_QUERY(state, query) {
       state.search.query = query;
     },
@@ -529,7 +591,6 @@ export default createStore({
       state.search.source = 'none';
     },
     SET_WAREHOUSE_FILTER(state, warehouseId) {
-      // Sync both state properties
       state.warehouseFilter = warehouseId;
       state.filters.warehouse = warehouseId;
     },
@@ -675,254 +736,610 @@ export default createStore({
 
   actions: {
     // ============================================
-// UNIVERSAL SEARCH - ALL USERS CAN SEARCH ALL ITEMS
-// ============================================
-async searchInventoryLive({ commit, state, dispatch }, {
-  searchText = null,
-  queryText = null, // ✅ FIXED (was: query)
-  warehouseId = null,
-  limit = 25
-}) {
-  try {
-    // Get the search term from any parameter
-    const effectiveSearchText = searchText ?? queryText ?? state.search.query;
-    
-    // Validate search term
-    if (!effectiveSearchText || effectiveSearchText.trim().length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-      commit('CLEAR_SEARCH');
-      return [];
-    }
-
-    const searchTerm = effectiveSearchText.trim();
-    const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-
-    console.log(`🔍 Starting universal search for: "${searchTerm}"${targetWarehouse !== 'all' ? ` in warehouse: ${targetWarehouse}` : ''}`);
-    
-    commit('SET_SEARCH_LOADING', true);
-    commit('SET_SEARCH_QUERY', searchTerm);
-
-    const itemsRef = collection(db, 'items');
-    let firestoreQuery;
-    
-    // Build Firestore query
-    if (targetWarehouse && targetWarehouse !== 'all') {
-      // If warehouse filter is specified, search only in that warehouse
-      firestoreQuery = query(
-        itemsRef,
-        where('warehouse_id', '==', targetWarehouse),
-        orderBy('name'),
-        fsLimit(limit * 2)
-      );
-    } else {
-      // Search all items (no warehouse restriction)
-      firestoreQuery = query(
-        itemsRef,
-        orderBy('name'),
-        fsLimit(limit * 2)
-      );
-    }
-
-    // Execute Firestore query
-    const snapshot = await getDocs(firestoreQuery);
-    console.log(`📡 Universal search returned ${snapshot.size} items for filtering`);
-
-    if (snapshot.empty) {
-      commit('SET_SEARCH_RESULTS', {
-        results: [],
-        source: 'firestore',
-        query: searchTerm
-      });
-      commit('SET_SEARCH_LOADING', false);
-      return [];
-    }
-
-    // Process and filter results locally with Arabic normalization
-    const normalizedSearchTerm = normalizeArabicText(searchTerm);
-    const firestoreResults = [];
-
-    snapshot.docs.forEach(doc => {
-      const itemData = safeGetDocData(doc, {});
+    // FIXED SMART SEARCH ACTION FOR ARABIC
+    // ============================================
+    async searchInventorySmart({ commit, state }, {
+      searchQuery,
+      warehouseId = null,
+      limit = 50
+    }) {
+      let searchTerm = '';
+      let targetWarehouse = 'all';
       
-      // Combine all searchable fields into one searchable text
-      const searchableText = [
-        itemData.name || '',
-        itemData.code || '',
-        itemData.color || '',
-        itemData.supplier || '',
-        itemData.item_location || ''
-      ]
-        .filter(text => text && text.toString().trim())
-        .map(text => text.toString())
-        .join(' ');
-      
-      // Normalize the searchable text
-      const normalizedText = normalizeArabicText(searchableText);
-      
-      // Check if normalized text contains the normalized search term
-      if (normalizedText.includes(normalizedSearchTerm)) {
-        const item = InventoryService.convertForDisplay({
-          id: doc.id,
-          ...itemData
+      try {
+        // Validate search query
+        if (!searchQuery || searchQuery.trim().length < 2) {
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
+          return [];
+        }
+        
+        searchTerm = searchQuery.trim();
+        targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+        
+        console.log(`🔍 Smart search for Arabic: "${searchTerm}"`, {
+          warehouse: targetWarehouse,
+          length: searchTerm.length
         });
-        firestoreResults.push(item);
-      }
-    });
-
-    // Sort by relevance
-    const sortedResults = firestoreResults
-      .sort((a, b) => calculateRelevanceScore(b, searchTerm) - calculateRelevanceScore(a, searchTerm))
-      .slice(0, limit);
-
-    console.log(`✅ Found ${sortedResults.length} items after Arabic filtering`);
-
-    commit('SET_SEARCH_RESULTS', {
-      results: sortedResults,
-      source: 'firestore',
-      query: searchTerm
-    });
-    commit('SET_SEARCH_LOADING', false);
-
-    return sortedResults;
-
-  } catch (error) {
-    console.error('❌ Error in universal search:', error);
-    
-    // Fallback to local cache search
-    const effectiveSearchText = (searchText ?? queryText ?? state.search.query) || '';
-    const searchTerm = effectiveSearchText.trim();
-    
-    if (searchTerm.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-      console.log('🔄 Falling back to local cache search...');
-      
-      const normalizedSearchTerm = normalizeArabicText(searchTerm);
-      const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-      
-      const localResults = state.inventory.filter(item => {
-        // Apply warehouse filter
-        if (targetWarehouse && targetWarehouse !== 'all') {
-          if (item.warehouse_id !== targetWarehouse) {
-            return false;
+        
+        commit('SET_SEARCH_LOADING', true);
+        commit('SET_SEARCH_QUERY', searchTerm);
+        
+        // ===== User permissions check =====
+        let canAccessAll = false;
+        let accessibleWarehouseIds = [];
+        
+        const userRole = state.userProfile?.role || '';
+        const allowedFromProfile = state.userProfile?.allowed_warehouses || [];
+        
+        if (userRole === 'superadmin' || userRole === 'company_manager') {
+          canAccessAll = true;
+        } else if (userRole === 'warehouse_manager') {
+          if (Array.isArray(allowedFromProfile)) {
+            if (allowedFromProfile.includes('all')) {
+              canAccessAll = true;
+            } else {
+              accessibleWarehouseIds = allowedFromProfile.filter(
+                id => typeof id === 'string' && id.trim() !== '' && id !== 'all'
+              );
+            }
           }
         }
         
-        // Apply search filter
-        const searchableText = [
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          item.supplier || '',
-          item.item_location || ''
-        ]
-          .filter(text => text && text.toString().trim())
-          .map(text => text.toString())
-          .join(' ');
+        // Define searchable fields
+        const SEARCH_FIELDS = [
+          'name', 
+          'code', 
+          'color', 
+          'supplier', 
+          'item_location', 
+          'warehouse_id'
+        ];
         
-        const normalizedText = normalizeArabicText(searchableText);
-        return normalizedText.includes(normalizedSearchTerm);
-      })
-      .slice(0, PERFORMANCE_CONFIG.SEARCH_LIMIT);
+        // ===== Try Firebase Search First =====
+        console.log('🔄 Trying Firebase search...');
+        
+        const itemsRef = collection(db, 'items');
+        let itemsQuery;
+        
+        if (canAccessAll) {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('remaining_quantity', 'desc'),
+            limit(100) // Get more items for better Arabic matching
+          );
+        } else if (accessibleWarehouseIds.length > 0) {
+          const warehousesToQuery = accessibleWarehouseIds.slice(0, 10);
+          
+          if (warehousesToQuery.length === 0) {
+            console.log('⚠️ No accessible warehouses');
+            commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
+            return [];
+          }
+          
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', 'in', warehousesToQuery),
+            orderBy('remaining_quantity', 'desc'),
+            limit(100)
+          );
+        } else {
+          console.log('⚠️ User has no access permissions');
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
+          return [];
+        }
+        
+        const snapshot = await getDocs(itemsQuery);
+        
+        if (snapshot.empty) {
+          console.log('📭 Firebase returned no items');
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'firebase', query: searchTerm });
+          return [];
+        }
+        
+        console.log(`📥 Firebase returned ${snapshot.size} items`);
+        
+        // Process all items
+        const allItems = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            name: data.name || '',
+            code: data.code || '',
+            color: data.color || '',
+            supplier: data.supplier || '',
+            item_location: data.item_location || '',
+            warehouse_id: data.warehouse_id || '',
+            remaining_quantity: data.remaining_quantity || 0,
+            cartons_count: data.cartons_count || 0,
+            per_carton_count: data.per_carton_count || 0,
+            single_bottles_count: data.single_bottles_count || 0,
+            total_added: data.total_added || 0,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            created_by: data.created_by,
+            updated_by: data.updated_by
+          });
+        });
+        
+        // Filter by warehouse if specified
+        let filteredItems = allItems;
+        if (targetWarehouse && targetWarehouse !== 'all') {
+          filteredItems = filteredItems.filter(i => i.warehouse_id === targetWarehouse);
+          console.log(`🏭 Filtered to warehouse ${targetWarehouse}: ${filteredItems.length} items`);
+        }
+        
+        // Apply Arabic text matching
+        console.log('🔍 Applying Arabic text matching...');
+        const normalizedSearchTerm = normalizeArabicText(searchTerm);
+        
+        const searchResults = filteredItems.filter(item => {
+          // Try exact field matching first
+          for (const field of SEARCH_FIELDS) {
+            const fieldValue = item[field];
+            if (!fieldValue) continue;
+            
+            const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+            
+            // Exact match
+            if (normalizedFieldValue === normalizedSearchTerm) {
+              console.log(`✅ Exact match in field ${field}: ${fieldValue}`);
+              return true;
+            }
+            
+            // Starts with
+            if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
+              console.log(`✅ Starts with match in field ${field}: ${fieldValue}`);
+              return true;
+            }
+            
+            // Contains
+            if (normalizedFieldValue.includes(normalizedSearchTerm)) {
+              console.log(`✅ Contains match in field ${field}: ${fieldValue}`);
+              return true;
+            }
+            
+            // Word-by-word matching for Arabic phrases
+            const fieldWords = normalizedFieldValue.split(/\s+/);
+            const searchWords = normalizedSearchTerm.split(/\s+/);
+            
+            if (searchWords.length > 1) {
+              const allWordsMatch = searchWords.every(searchWord => 
+                fieldWords.some(fieldWord => fieldWord.includes(searchWord))
+              );
+              
+              if (allWordsMatch) {
+                console.log(`✅ Word-by-word match in field ${field}: ${fieldValue}`);
+                return true;
+              }
+            }
+          }
+          
+          return false;
+        });
+        
+        console.log(`✅ Arabic search found ${searchResults.length} matches`);
+        
+        // Sort by relevance
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults,
+          searchTerm,
+          limit
+        );
+        
+        console.log(`📊 Final results after sorting: ${finalResults.length} items`);
+        
+        // Update store with results
+        commit('SET_SEARCH_RESULTS', {
+          results: finalResults,
+          source: 'firebase',
+          query: searchTerm
+        });
+        
+        return finalResults;
+        
+      } catch (error) {
+        console.error('❌ Error in Arabic smart search:', error);
+        
+        // Fallback to local search
+        console.log('🔄 Falling back to local Arabic search...');
+        
+        try {
+          const normTerm = normalizeArabicText(searchTerm.toLowerCase());
+          let localItems = [...state.inventory];
+          
+          if (targetWarehouse && targetWarehouse !== 'all') {
+            localItems = localItems.filter(i => i.warehouse_id === targetWarehouse);
+          }
+          
+          const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location'];
+          const localMatches = localItems.filter(item => 
+            matchArabicText(item, normTerm, SEARCH_FIELDS)
+          );
+          
+          const localFinal = removeDuplicatesAndSortByRelevance(
+            localMatches,
+            searchTerm,
+            limit
+          );
+          
+          console.log(`✅ Local Arabic fallback found: ${localFinal.length} items`);
+          
+          commit('SET_SEARCH_RESULTS', {
+            results: localFinal,
+            source: 'local',
+            query: searchTerm
+          });
+          
+          return localFinal;
+          
+        } catch (fallbackError) {
+          console.error('❌ Local fallback also failed:', fallbackError);
+          
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'error',
+            query: searchTerm
+          });
+          
+          return [];
+        }
+        
+      } finally {
+        commit('SET_SEARCH_LOADING', false);
+      }
+    },
 
-      commit('SET_SEARCH_RESULTS', {
-        results: localResults,
-        source: 'local_fallback',
-        query: searchTerm
+    // ============================================
+    // FIXED DIRECT SEARCH ACTION - SIMPLER VERSION
+    // ============================================
+    async searchInventoryDirect({ dispatch }, params) {
+      try {
+        // Use the new smart search function
+        return await dispatch('searchInventorySmart', params);
+      } catch (error) {
+        console.error('❌ Error in direct search:', error);
+        return [];
+      }
+    },
+
+    // ============================================
+    // FIXED LOCAL ARABIC SEARCH
+    // ============================================
+    async searchLocalInventorySmart({ state }, { 
+      query, 
+      warehouseId, 
+      limit = 50 
+    }) {
+      try {
+        if (!query || query.trim().length < 2) {
+          return [];
+        }
+        
+        const searchTerm = query.trim();
+        const normalizedSearchTerm = normalizeArabicText(searchTerm);
+        
+        console.log(`🔍 Local smart Arabic search: "${searchTerm}"`);
+        
+        let localItems = [...state.inventory];
+        
+        // Apply warehouse filter if specified
+        if (warehouseId && warehouseId !== 'all') {
+          localItems = localItems.filter(item => item.warehouse_id === warehouseId);
+        }
+        
+        const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location'];
+        
+        // Apply Arabic text matching
+        const searchResults = localItems.filter(item => {
+          for (const field of SEARCH_FIELDS) {
+            const fieldValue = item[field];
+            if (fieldValue) {
+              const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+              
+              // Check for exact match
+              if (normalizedFieldValue === normalizedSearchTerm) {
+                return true;
+              }
+              
+              // Check for starts with
+              if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
+                return true;
+              }
+              
+              // Check for contains
+              if (normalizedFieldValue.includes(normalizedSearchTerm)) {
+                return true;
+              }
+              
+              // Check for word-by-word matching
+              const fieldWords = normalizedFieldValue.split(/\s+/);
+              const searchWords = normalizedSearchTerm.split(/\s+/);
+              
+              if (searchWords.every(searchWord => 
+                fieldWords.some(fieldWord => fieldWord.includes(searchWord))
+              )) {
+                return true;
+              }
+            }
+          }
+          return false;
+        });
+        
+        // Sort by relevance
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults,
+          searchTerm,
+          limit
+        );
+        
+        console.log(`✅ Local Arabic search found: ${finalResults.length} items`);
+        return finalResults;
+        
+      } catch (error) {
+        console.error('❌ Error in local Arabic search:', error);
+        return [];
+      }
+    },
+
+    // ============================================
+    // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
+    // ============================================
+    async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
+      try {
+        console.log(`🔍 Firebase smart search for: "${query}"`);
+
+        const searchTerm = normalizeArabicText(query.toLowerCase());
+
+        // === SAFE: Direct state access, no getters ===
+        let canAccessAll = false;
+        let allowedWarehouseIds = [];
+        const role = state.userProfile?.role || '';
+        const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+        if (role === 'superadmin' || role === 'company_manager') {
+          canAccessAll = true;
+        } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+          if (profileWarehouses.includes('all')) {
+            canAccessAll = true;
+          } else {
+            // Filter out invalid IDs including 'all' and empty strings
+            allowedWarehouseIds = profileWarehouses.filter(id => 
+              typeof id === 'string' && id.trim() !== '' && id !== 'all'
+            );
+          }
+        }
+        // =========================================
+
+        const itemsRef = collection(db, 'items');
+        let itemsQuery;
+
+        if (canAccessAll) {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('remaining_quantity', 'desc'),
+            limit(50)
+          );
+        } else if (allowedWarehouseIds.length > 0) {
+          // Check for valid warehouse IDs
+          const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
+          if (validWarehouseIds.length === 0) {
+            console.log('⚠️ No valid warehouse IDs to query');
+            return [];
+          }
+
+          itemsQuery = query(
+            itemsRef,
+            where('warehouse_id', 'in', validWarehouseIds),
+            orderBy('remaining_quantity', 'desc'),
+            limit(50)
+          );
+        } else {
+          console.log('⚠️ User has no accessible warehouses');
+          return [];
+        }
+
+        // Fetch data
+        const snapshot = await getDocs(itemsQuery);
+
+        if (snapshot.empty) {
+          return [];
+        }
+
+        // Convert all items
+        const allItems = snapshot.docs.map(doc => {
+          const itemData = doc.data();
+          return InventoryService.convertForDisplay({
+            id: doc.id,
+            ...itemData
+          });
+        });
+
+        // Filter by warehouse locally
+        let filteredItems = allItems;
+        if (warehouseId && warehouseId !== 'all') {
+          filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
+        }
+
+        // Apply smart Arabic search filtering (SAFE implementation)
+        const searchResults = filteredItems.filter(item => {
+          if (!searchTerm) return false;
+
+          for (const field of SEARCH_CONFIG.FIELDS) {
+            const fieldValue = item[field];
+            if (fieldValue) {
+              const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+
+              if (normalizedFieldValue.includes(searchTerm)) {
+                return true;
+              }
+
+              const fieldWords = normalizedFieldValue.split(/\s+/);
+              const searchWords = searchTerm.split(/\s+/);
+
+              if (searchWords.every(word =>
+                fieldWords.some(fieldWord => fieldWord.includes(word))
+              )) {
+                return true;
+              }
+            }
+          }
+          return false;
+        });
+
+        // Sort by relevance
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults,
+          query,
+          limit || SEARCH_CONFIG.MAX_RESULTS
+        );
+
+        console.log(`✅ Firebase search found: ${finalResults.length} items`);
+        return finalResults;
+
+      } catch (error) {
+        console.error('❌ Firebase search error:', error);
+
+        // Log specific error for debugging
+        if (error.message && error.message.includes('in') && error.message.includes('array')) {
+          console.error('Firebase "in" query array error detected');
+        } else if (error.code === 'failed-precondition') {
+          console.error('Firestore index error - composite index might be needed');
+        }
+
+        return [];
+      }
+    },
+
+    async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
+      commit('SET_WAREHOUSE_FILTER', warehouseId);
+
+      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        await dispatch('searchInventoryDirect', {
+          query: state.search.query,
+          warehouseId
+        });
+      }
+    },
+
+    async clearSearch({ commit }) {
+      commit('CLEAR_SEARCH');
+    },
+
+    // ============================================
+    // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
+    // ============================================
+
+    async searchInventoryEnhanced({ dispatch }, params) {
+      return await dispatch('searchInventoryDirect', params);
+    },
+
+    async searchLocalInventory({ state, dispatch }, { query, warehouseId, fields, limit }) {
+      // For backward compatibility, use smart local search
+      return await dispatch('searchLocalInventorySmart', {
+        query,
+        warehouseId,
+        limit
       });
-      commit('SET_SEARCH_LOADING', false);
+    },
 
-      return localResults;
-    }
+    async searchFirebaseInventory({ dispatch }, params) {
+      return await dispatch('searchFirebaseInventorySmart', params);
+    },
 
-    // If no valid search term, return empty
-    commit('SET_SEARCH_RESULTS', {
-      results: [],
-      source: 'error',
-      query: ''
-    });
-    commit('SET_SEARCH_LOADING', false);
+    async searchItemsForTransactions({ state, dispatch }, { searchTerm, limitResults = 20 }) {
+      try {
+        console.log('🔍 REAL-TIME SEARCH:', searchTerm);
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          return [];
+        }
 
-    return [];
-  }
-},
+        return await dispatch('searchInventoryDirect', {
+          query: searchTerm,
+          limit: limitResults
+        });
 
-async searchFirebaseInventory({ dispatch }, params) {
-  return await dispatch('searchInventoryLive', params);
-},
+      } catch (error) {
+        console.error('❌ Error in real-time search:', error);
+        const term = searchTerm?.trim().toLowerCase() || '';
+        const fallbackResults = state.inventory.filter(item =>
+          matchArabicText(item, term, ['name', 'code', 'color'])
+        ).slice(0, 10);
 
-async searchItemsForTransactions({ dispatch }, { searchTerm, limitResults = 20 }) {
-  try {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      return [];
-    }
+        console.log('🔄 Fallback to local search due to error:', error.message);
+        return fallbackResults;
+      }
+    },
 
-    return await dispatch('searchInventoryLive', {
-      queryText: searchTerm, // ✅ FIXED
-      limit: limitResults
-    });
+    async searchItemsForTransactionsEnhanced({ state, dispatch }, { 
+      searchTerm, 
+      limitResults = 20,
+      warehouseId = null 
+    }) {
+      try {
+        console.log('🔍 Enhanced transaction search:', { searchTerm, warehouseId });
 
-  } catch (error) {
-    console.error('❌ Error in transaction search:', error);
-    return [];
-  }
-},
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          return [];
+        }
 
-async searchItemsForTransactionsEnhanced({ dispatch }, { 
-  searchTerm, 
-  limitResults = 20,
-  warehouseId = null 
-}) {
-  try {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      return [];
-    }
+        const term = searchTerm.trim().toLowerCase();
+        const targetWarehouse = warehouseId || state.warehouseFilter;
 
-    const results = await dispatch('searchInventoryLive', {
-      queryText: searchTerm, // ✅ FIXED
-      warehouseId,
-      limit: limitResults
-    });
+        const results = await dispatch('searchInventoryDirect', {
+          query: term,
+          warehouseId: targetWarehouse,
+          limit: limitResults
+        });
 
-    console.log(`✅ Found ${results.length} items for transactions`);
-    return results;
+        console.log(`✅ Found ${results.length} items for transactions`);
+        return results;
 
-  } catch (error) {
-    console.error('❌ Error in enhanced transaction search:', error);
-    return [];
-  }
-},
+      } catch (error) {
+        console.error('❌ Error in enhanced transaction search:', error);
 
-async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
-  try {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      return [];
-    }
+        const term = searchTerm?.trim().toLowerCase() || '';
+        const fallbackResults = state.inventory.filter(item => {
+          if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+            return false;
+          }
 
-    return await dispatch('searchInventoryLive', {
-      queryText: searchTerm, // ✅ FIXED
-      limit: limitResults
-    });
-  } catch (error) {
-    console.error('❌ Error searching items:', error);
-    return [];
-  }
-},
+          return matchArabicText(item, term, ['name', 'code', 'color']);
+        }).slice(0, 10);
 
-    // ============================================
-    // INVENTORY LOADING (with warehouse restrictions for viewing)
-    // ============================================
+        return fallbackResults;
+      }
+    },
+
+    async searchItems({ state, dispatch }, { searchTerm, limitResults = 5 }) {
+      try {
+        console.log('🔍 General search:', searchTerm);
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          return [];
+        }
+
+        // Use direct search for better results
+        return await dispatch('searchInventoryDirect', {
+          query: searchTerm,
+          limit: limitResults
+        });
+      } catch (error) {
+        console.error('❌ Error searching items:', error);
+        // Don't dispatch notification here to avoid infinite loops
+        return [];
+      }
+    },
+
     async loadInventoryWithWarehouse({ commit, state, dispatch }, { 
       warehouseId = null,
       forceRefresh = false 
     } = {}) {
       commit('SET_INVENTORY_LOADING', true);
-      commit('SET_INVENTORY_ERROR', null);
 
       try {
-        // Use warehouseId from parameter or from state
         const targetWarehouse = warehouseId || state.warehouseFilter;
-        
-        // Update both state properties to keep them synchronized
-        commit('SET_WAREHOUSE_FILTER', targetWarehouse);
-        commit('SET_FILTERS', { warehouse: targetWarehouse });
+
+        if (targetWarehouse) {
+          commit('SET_WAREHOUSE_FILTER', targetWarehouse);
+        }
 
         let itemsQuery;
         const itemsRef = collection(db, 'items');
@@ -932,19 +1349,19 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
             itemsRef,
             where('warehouse_id', '==', targetWarehouse),
             orderBy('name'),
-            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
           );
         } else {
           itemsQuery = query(
             itemsRef,
             orderBy('name'),
-            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
           );
         }
 
         const snapshot = await getDocs(itemsQuery);
         const inventory = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -965,18 +1382,11 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           await dispatch('setupOptimizedRealtimeUpdates', inventory.map(item => item.id));
         }
 
-        console.log(`✅ Loaded ${inventory.length} items for warehouse: ${targetWarehouse}`);
         return inventory;
 
       } catch (error) {
         console.error('❌ Error loading inventory with warehouse filter:', error);
         commit('SET_INVENTORY_ERROR', error.message);
-        
-        dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل المخزون مع تصفية المخزن'
-        });
-        
         throw error;
       } finally {
         commit('SET_INVENTORY_LOADING', false);
@@ -1015,7 +1425,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           const unsubscribe = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach(change => {
               if (change.type === 'modified' || change.type === 'added') {
-                const data = safeGetDocData(change.doc, {});
+                const data = change.doc.data();
                 const updatedItem = InventoryService.convertForDisplay({
                   id: change.doc.id,
                   ...data
@@ -1037,7 +1447,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
             const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
               if (docSnapshot.exists()) {
-                const data = safeGetDocData(docSnapshot, {});
+                const data = docSnapshot.data();
                 const updatedItem = InventoryService.convertForDisplay({
                   id: docSnapshot.id,
                   ...data
@@ -1074,7 +1484,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const warehouses = snapshot.docs
           .map(doc => ({
             id: doc.id,
-            ...safeGetDocData(doc, {})
+            ...doc.data()
           }))
           .filter(warehouse => {
             return warehouse.type !== 'dispatch';
@@ -1106,7 +1516,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const snapshot = await getDocs(q);
         const dispatchWarehouses = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
 
         console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
@@ -1118,6 +1528,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       }
     },
 
+    // ✅ Original Dashboard Count Actions
     async getTotalItemCount({ state }, warehouseId = 'all') {
       try {
         console.log(`📊 Getting total item count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
@@ -1330,7 +1741,15 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           try {
             const itemDoc = await getDoc(doc(db, 'items', itemId));
             if (itemDoc.exists()) {
-              const itemData = safeGetDocData(itemDoc, {});
+              const itemData = itemDoc.data();
+              if (state.user && state.userProfile?.role === 'warehouse_manager') {
+                const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+                if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+                  if (!allowedWarehouses.includes(itemData.warehouse_id)) {
+                    throw new Error('ليس لديك صلاحية للوصول إلى هذا الصنف من هذا المخزن');
+                  }
+                }
+              }
               const convertedItem = InventoryService.convertForDisplay({
                 id: itemDoc.id,
                 ...itemData
@@ -1347,16 +1766,21 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           const q = query(
             itemsRef,
             where('code', '==', itemCode),
-            fsLimit(5)
+            limit(5)
           );
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              return true;
+              if (!state.user) return true;
+              const itemData = doc.data();
+              if (state.userProfile.role === 'superadmin') return true;
+              const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+              if (allowedWarehouses.includes('all')) return true;
+              return allowedWarehouses.includes(itemData.warehouse_id);
             });
             if (validItems.length > 0) {
               const doc = validItems[0];
-              const itemData = safeGetDocData(doc, {});
+              const itemData = doc.data();
               const convertedItem = InventoryService.convertForDisplay({
                 id: doc.id,
                 ...itemData
@@ -1371,16 +1795,21 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           const q = query(
             itemsRef,
             where('name', '==', itemName),
-            fsLimit(10)
+            limit(10)
           );
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const validItems = snapshot.docs.filter(doc => {
-              return true;
+              if (!state.user) return true;
+              const itemData = doc.data();
+              if (state.userProfile.role === 'superadmin') return true;
+              const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+              if (allowedWarehouses.includes('all')) return true;
+              return allowedWarehouses.includes(itemData.warehouse_id);
             });
             if (validItems.length > 0) {
               const doc = validItems[0];
-              const itemData = safeGetDocData(doc, {});
+              const itemData = doc.data();
               const convertedItem = InventoryService.convertForDisplay({
                 id: doc.id,
                 ...itemData
@@ -1393,7 +1822,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         console.log('🔄 Using direct search...');
         const searchTerm = itemCode || itemName || '';
         if (searchTerm.length >= 2) {
-          const searchResults = await dispatch('searchInventoryLive', {
+          const searchResults = await dispatch('searchInventoryDirect', {
             query: searchTerm,
             limitResults: 10
           });
@@ -1420,6 +1849,14 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         if (!warehouseId) {
           throw new Error('معرف المخزن مطلوب');
         }
+        if (state.user && state.userProfile?.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (!allowedWarehouses.includes(warehouseId)) {
+              throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
+            }
+          }
+        }
         const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
         if (localItems.length >= limitResults) {
           console.log('✅ Found items in recent inventory:', localItems.length);
@@ -1431,11 +1868,11 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
             itemsRef,
             where('warehouse_id', '==', warehouseId),
             orderBy('createdAt', 'desc'),
-            fsLimit(limitResults)
+            limit(limitResults)
           );
           const snapshot = await getDocs(q);
           const items = snapshot.docs.map(doc => {
-            const itemData = safeGetDocData(doc, {});
+            const itemData = doc.data();
             return InventoryService.convertForDisplay({
               id: doc.id,
               ...itemData
@@ -1448,11 +1885,11 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           const q = query(
             itemsRef,
             where('warehouse_id', '==', warehouseId),
-            fsLimit(limitResults)
+            limit(limitResults)
           );
           const snapshot = await getDocs(q);
           const items = snapshot.docs.map(doc => {
-            const itemData = safeGetDocData(doc, {});
+            const itemData = doc.data();
             return InventoryService.convertForDisplay({
               id: doc.id,
               ...itemData
@@ -1500,17 +1937,42 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        itemsQuery = query(
-          itemsRef,
-          orderBy('name'),
-          fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-        );
+        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('name'),
+            limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          );
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.length === 0) {
+            throw new Error('No warehouses assigned to this manager');
+          }
+
+          if (allowedWarehouses.includes('all')) {
+            itemsQuery = query(
+              itemsRef,
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            );
+          } else {
+            itemsQuery = query(
+              itemsRef,
+              where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            );
+          }
+        } else {
+          throw new Error('User role not authorized for inventory access');
+        }
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`✅ Initial inventory loaded: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1566,12 +2028,35 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        itemsQuery = query(
-          itemsRef,
-          orderBy('name'),
-          startAfter(state.pagination.lastDoc),
-          fsLimit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-        );
+        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
+          itemsQuery = query(
+            itemsRef,
+            orderBy('name'),
+            startAfter(state.pagination.lastDoc),
+            limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+          );
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.includes('all')) {
+            itemsQuery = query(
+              itemsRef,
+              orderBy('name'),
+              startAfter(state.pagination.lastDoc),
+              limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+            );
+          } else {
+            itemsQuery = query(
+              itemsRef,
+              where('warehouse_id', 'in', allowedWarehouses.slice(0, 10)),
+              orderBy('name'),
+              startAfter(state.pagination.lastDoc),
+              limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+            );
+          }
+        } else {
+          return [];
+        }
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`📥 Loaded ${snapshot.size} more items`);
@@ -1582,7 +2067,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         }
 
         const newItems = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1628,6 +2113,15 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
         console.log(`🔄 Loading warehouse items (${warehouseId})...`);
 
+        if (state.user && state.userProfile?.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (!allowedWarehouses.includes(warehouseId)) {
+              throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
+            }
+          }
+        }
+
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
@@ -1637,14 +2131,14 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
             where('warehouse_id', '==', warehouseId),
             orderBy('created_at', 'desc'),
             startAfter(lastDoc),
-            fsLimit(limit)
+            limit(limit)
           );
         } else {
           itemsQuery = query(
             itemsRef,
             where('warehouse_id', '==', warehouseId),
             orderBy('created_at', 'desc'),
-            fsLimit(limit)
+            limit(limit)
           );
         }
 
@@ -1652,7 +2146,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         console.log(`✅ Loaded ${snapshot.size} items from warehouse ${warehouseId}`);
 
         const items = snapshot.docs.map(doc => {
-          const itemData = safeGetDocData(doc, {});
+          const itemData = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...itemData
@@ -1791,7 +2285,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
           const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
             if (docSnapshot.exists()) {
-              const data = safeGetDocData(docSnapshot, {});
+              const data = docSnapshot.data();
               const updatedItem = InventoryService.convertForDisplay({
                 id: docSnapshot.id,
                 ...data
@@ -1835,7 +2329,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
           const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
             if (docSnapshot.exists()) {
-              const data = safeGetDocData(docSnapshot, {});
+              const data = docSnapshot.data();
               const updatedItem = InventoryService.convertForDisplay({
                 id: docSnapshot.id,
                 ...data
@@ -1868,17 +2362,14 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const { search, warehouse, searchField = 'name' } = searchParams || {};
 
         commit('SET_FILTERS', { search, warehouse, searchField });
-        if (warehouse) {
-          commit('SET_WAREHOUSE_FILTER', warehouse);
-        }
 
         if (!state.userProfile) {
           throw new Error('User not authenticated');
         }
 
-        // Use the enhanced live search for better Arabic support
+        // Use direct search for better Arabic support
         if (search && search.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          const results = await dispatch('searchInventoryLive', {
+          const results = await dispatch('searchInventoryDirect', {
             query: search,
             warehouseId: warehouse
           });
@@ -1897,26 +2388,67 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const itemsRef = collection(db, 'items');
         let itemsQuery;
 
-        if (warehouse) {
-          itemsQuery = query(
-            itemsRef,
-            where('warehouse_id', '==', warehouse),
-            orderBy('name'),
-            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-          );
+        if (state.userProfile.role === 'superadmin' || state.userProfile.role === 'company_manager') {
+          if (warehouse) {
+            itemsQuery = query(
+              itemsRef,
+              where('warehouse_id', '==', warehouse),
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            );
+          } else {
+            itemsQuery = query(
+              itemsRef,
+              orderBy('name'),
+              limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+            );
+          }
+        } else if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+
+          if (allowedWarehouses.includes('all')) {
+            if (warehouse) {
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', '==', warehouse),
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+              );
+            } else {
+              itemsQuery = query(
+                itemsRef,
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+              );
+            }
+          } else {
+            const warehousesFilter = allowedWarehouses.slice(0, 10);
+
+            if (warehouse && warehousesFilter.includes(warehouse)) {
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', '==', warehouse),
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+              );
+            } else {
+              itemsQuery = query(
+                itemsRef,
+                where('warehouse_id', 'in', warehousesFilter),
+                orderBy('name'),
+                limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+              );
+            }
+          }
         } else {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('name'),
-            fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
-          );
+          throw new Error('User role not authorized');
         }
 
         const snapshot = await getDocs(itemsQuery);
         console.log(`🔍 Search found: ${snapshot.size} items`);
 
         const inventory = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -1979,7 +2511,16 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الصنف غير موجود');
         }
 
-        const data = safeGetDocData(itemDoc, {});
+        const data = itemDoc.data();
+
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (!allowedWarehouses.includes(data.warehouse_id)) {
+              throw new Error('ليس لديك صلاحية للوصول إلى هذا الصنف');
+            }
+          }
+        }
 
         const item = InventoryService.convertForDisplay({
           id: itemDoc.id,
@@ -2049,20 +2590,6 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           notes: itemData.notes?.trim() || '',
           remaining_quantity: totalQuantity,
           total_added: totalQuantity,
-          // Add searchable field for new items
-          searchable: [
-            itemData.name.trim(),
-            itemData.code.trim(),
-            itemData.color?.trim() || '',
-            itemData.supplier?.trim() || '',
-            itemData.item_location?.trim() || '',
-            itemData.warehouse_id
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString().trim())
-            .join(' ')
-            .toLowerCase()
-            .trim(),
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
           created_by: state.user.uid,
@@ -2140,7 +2667,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الصنف غير موجود');
         }
 
-        const existingItem = safeGetDocData(itemDoc, {});
+        const existingItem = itemDoc.data();
 
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -2177,20 +2704,6 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           supplier: itemData.supplier?.trim() || existingItem.supplier || '',
           item_location: itemData.item_location?.trim() || existingItem.item_location || '',
           notes: itemData.notes?.trim() || existingItem.notes || '',
-          // Update searchable field when item is updated
-          searchable: [
-            itemData.name?.trim() || existingItem.name,
-            itemData.code?.trim() || existingItem.code,
-            itemData.color?.trim() || existingItem.color || '',
-            itemData.supplier?.trim() || existingItem.supplier || '',
-            itemData.item_location?.trim() || existingItem.item_location || '',
-            itemData.warehouse_id || existingItem.warehouse_id
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString().trim())
-            .join(' ')
-            .toLowerCase()
-            .trim(),
           updated_at: serverTimestamp(),
           updated_by: state.user.uid
         };
@@ -2258,9 +2771,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('يجب تسجيل الدخول أولاً');
         }
 
-        // FIXED: Syntax error was here - corrected the if/else chain
         if (state.userProfile.role === 'superadmin') {
-          // superadmin can delete
         } else if (state.userProfile.role === 'warehouse_manager') {
           const canDelete = state.userProfile.permissions?.includes('full_access') || 
                            state.userProfile.permissions?.includes('delete_items');
@@ -2278,7 +2789,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = safeGetDocData(itemDoc, {});
+        const itemData = itemDoc.data();
 
         if (state.userProfile.role === 'warehouse_manager') {
           const allowedWarehouses = state.userProfile.allowed_warehouses || [];
@@ -2374,7 +2885,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = safeGetDocData(itemDoc, {});
+        const itemData = itemDoc.data();
 
         if (itemData.warehouse_id !== transferData.from_warehouse_id) {
           throw new Error('الصنف ليس في المخزن المصدر المحدد');
@@ -2393,20 +2904,6 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const updateData = {
           warehouse_id: transferData.to_warehouse_id,
           remaining_quantity: newQuantity,
-          // Update searchable field with new warehouse
-          searchable: [
-            itemData.name || '',
-            itemData.code || '',
-            itemData.color || '',
-            itemData.supplier || '',
-            itemData.item_location || '',
-            transferData.to_warehouse_id
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString().trim())
-            .join(' ')
-            .toLowerCase()
-            .trim(),
           updated_at: serverTimestamp(),
           updated_by: state.user.uid
         };
@@ -2497,7 +2994,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الصنف غير موجود');
         }
 
-        const itemData = safeGetDocData(itemDoc, {});
+        const itemData = itemDoc.data();
 
         if (itemData.warehouse_id !== dispatchData.from_warehouse_id) {
           throw new Error('الصنف ليس في المخزن المصدر المحدد');
@@ -2582,7 +3079,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
         const warehouses = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
 
         return warehouses;
@@ -2608,13 +3105,13 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const transactionsQuery = query(
           collection(db, 'transactions'),
           orderBy('timestamp', 'desc'),
-          fsLimit(100)
+          limit(100)
         );
 
         const snapshot = await getDocs(transactionsQuery);
         const transactions = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
 
         commit('SET_TRANSACTIONS', transactions);
@@ -2640,13 +3137,13 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           collection(db, 'transactions'),
           where('timestamp', '>=', oneDayAgo),
           orderBy('timestamp', 'desc'),
-          fsLimit(30)
+          limit(30)
         );
 
         const snapshot = await getDocs(transactionsQuery);
         const transactions = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
 
         commit('SET_RECENT_TRANSACTIONS', transactions);
@@ -2667,7 +3164,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
             try {
               const userDoc = await getDoc(doc(db, 'users', user.uid));
               if (userDoc.exists()) {
-                const userProfile = safeGetDocData(userDoc, {});
+                const userProfile = userDoc.data();
 
                 if (userProfile.is_active === false) {
                   dispatch('showNotification', {
@@ -2836,12 +3333,12 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const q = query(
           itemsRef,
           orderBy('name'),
-          fsLimit(PERFORMANCE_CONFIG.INITIAL_LOAD)
+          limit(PERFORMANCE_CONFIG.INITIAL_LOAD)
         );
 
         const snapshot = await getDocs(q);
         const inventory = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return InventoryService.convertForDisplay({
             id: doc.id,
             ...data
@@ -2876,12 +3373,12 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           transactionsRef,
           where('item_id', '==', itemId),
           orderBy('timestamp', 'desc'),
-          fsLimit(50)
+          limit(50)
         );
         const snapshot = await getDocs(q);
         const history = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
         commit('SET_ITEM_HISTORY', history);
         console.log('✅ Item history loaded:', history.length);
@@ -2907,7 +3404,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const snapshot = await getDocs(q);
         const users = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...safeGetDocData(doc, {})
+          ...doc.data()
         }));
         commit('SET_ALL_USERS', users);
         console.log('✅ Users loaded:', users.length);
@@ -2931,6 +3428,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         }
         commit('SET_OPERATION_LOADING', true);
 
+        const { createUserWithEmailAndPassword } = await import('firebase/auth');
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
 
         const userProfile = {
@@ -3074,17 +3572,13 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
 
         const totalUsers = usersSnapshot.size;
-        const activeUsers = usersSnapshot.docs.filter(doc => {
-          const data = safeGetDocData(doc, {});
-          return data.is_active === true;
-        }).length;
+        const activeUsers = usersSnapshot.docs.filter(doc => doc.data().is_active === true).length;
         const totalItems = itemsSnapshot.size;
         const totalTransactions = transactionsSnapshot.size;
 
         const transactionsByType = {};
         transactionsSnapshot.docs.forEach(doc => {
-          const data = safeGetDocData(doc, {});
-          const type = data.type;
+          const type = doc.data().type;
           transactionsByType[type] = (transactionsByType[type] || 0) + 1;
         });
 
@@ -3197,7 +3691,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         if (!confirmDelete) return;
 
         const itemsRef = collection(db, 'items');
-        const q = query(itemsRef, where('warehouse_id', '==', warehouseId), fsLimit(1));
+        const q = query(itemsRef, where('warehouse_id', '==', warehouseId), limit(1));
         const itemsSnapshot = await getDocs(q);
 
         if (!itemsSnapshot.empty) {
@@ -3285,6 +3779,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
     // ============================================
     // INVOICE SYSTEM ACTIONS
     // ============================================
+
     async loadAllInvoices({ commit, state, dispatch }, { forceRefresh = false } = {}) {
       if (state.invoicesLoading) {
         console.log('Invoice load already in progress');
@@ -3315,14 +3810,14 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         const q = query(
           invoicesRef,
           orderBy('createdAt', 'desc'),
-          fsLimit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
+          limit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
         );
 
         const snapshot = await getDocs(q);
         console.log(`✅ Initial invoices loaded: ${snapshot.size} invoices`);
 
         const invoices = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return {
             id: doc.id,
             ...data,
@@ -3384,13 +3879,13 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           invoicesQuery = query(
             invoicesRef,
             orderBy('invoiceNumber'),
-            fsLimit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
+            limit(PERFORMANCE_CONFIG.SEARCH_LIMIT)
           );
         } else {
           invoicesQuery = query(
             invoicesRef,
             orderBy('createdAt', 'desc'),
-            fsLimit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
+            limit(PERFORMANCE_CONFIG.INVOICE_LOAD_LIMIT)
           );
         }
 
@@ -3398,7 +3893,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
         console.log(`🔍 Invoice search found: ${snapshot.size} invoices`);
 
         let invoices = snapshot.docs.map(doc => {
-          const data = safeGetDocData(doc, {});
+          const data = doc.data();
           return {
             id: doc.id,
             ...data,
@@ -3641,7 +4136,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = safeGetDocData(invoiceDoc, {});
+        const existingInvoice = invoiceDoc.data();
 
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن تعديل فاتورة غير مسودة');
@@ -3756,7 +4251,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = safeGetDocData(invoiceDoc, {});
+        const existingInvoice = invoiceDoc.data();
 
         if (existingInvoice.status !== 'draft') {
           throw new Error('لا يمكن حذف فاتورة غير مسودة');
@@ -3829,7 +4324,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const existingInvoice = safeGetDocData(invoiceDoc, {});
+        const existingInvoice = invoiceDoc.data();
 
         await updateDoc(invoiceRef, {
           status,
@@ -3891,7 +4386,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
           throw new Error('الفاتورة غير موجودة');
         }
 
-        const invoiceData = safeGetDocData(invoiceDoc, {});
+        const invoiceData = invoiceDoc.data();
 
         return {
           id: invoiceDoc.id,
@@ -4037,106 +4532,6 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
   },
 
   getters: {
-    // ============================================
-    // SEARCH GETTERS
-    // ============================================
-    searchQuery: state => state.search.query,
-    searchResults: state => state.search.results,
-    searchLoading: state => state.search.loading,
-    searchError: state => state.search.error,
-    searchSource: state => state.search.source,
-    warehouseFilter: state => state.warehouseFilter,
-
-    // Enhanced search getter with fallback
-    filteredInventoryEnhanced: (state, getters) => {
-      // If we have recent search results, use them
-      if (state.search.query && 
-          state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
-          state.search.results.length > 0 &&
-          Date.now() - new Date(state.search.timestamp).getTime() < 10000) {
-        // Apply warehouse filter to search results
-        let results = state.search.results;
-        if (state.warehouseFilter && state.warehouseFilter !== 'all') {
-          results = results.filter(item => item.warehouse_id === state.warehouseFilter);
-        }
-        return results;
-      }
-
-      // Otherwise, filter local inventory
-      let inventory = state.inventory;
-
-      // Apply warehouse filter
-      if (state.warehouseFilter && state.warehouseFilter !== 'all') {
-        inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
-      }
-
-      // Apply search filter
-      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        const term = normalizeArabicText(state.search.query);
-        inventory = inventory.filter(item => {
-          const searchableText = [
-            item.name || '',
-            item.code || '',
-            item.color || '',
-            item.supplier || '',
-            item.item_location || ''
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString())
-            .join(' ');
-          
-          const normalizedText = normalizeArabicText(searchableText);
-          return normalizedText.includes(term);
-        });
-      }
-
-      return inventory;
-    },
-
-    // Real-time search availability
-    getRealTimeSearchAvailable: (state) => {
-      return state.search.query && 
-             state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
-             state.search.results.length > 0 && 
-             state.search.source === 'firestore';
-    },
-
-    // Search statistics
-    getSearchStats: (state) => {
-      const localResults = state.inventory.filter(item => {
-        if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-          return false;
-        }
-        
-        const searchableText = [
-          item.name || '',
-          item.code || '',
-          item.color || '',
-          item.supplier || '',
-          item.item_location || ''
-        ]
-          .filter(text => text && text.toString().trim())
-          .map(text => text.toString())
-          .join(' ');
-        
-        const normalizedText = normalizeArabicText(searchableText);
-        const normalizedQuery = normalizeArabicText(state.search.query);
-        
-        return normalizedText.includes(normalizedQuery);
-      }).length;
-
-      return {
-        localResults,
-        firestoreResults: state.search.results.length,
-        queryLength: state.search.query?.length || 0,
-        isSearching: state.search.loading,
-        lastSearchSource: state.search.source
-      };
-    },
-
-    // ============================================
-    // ORIGINAL GETTERS (Preserved exactly as in your code)
-    // ============================================
     isAuthenticated: state => !!state.user,
     userRole: state => state.userProfile?.role || '',
     userName: state => state.userProfile?.name || '',
@@ -4179,33 +4574,37 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
 
-    // Original filtered inventory getter - UPDATED to use warehouseFilter
-    filteredInventory: (state, getters) => {
+    // Enhanced Search Getters
+    searchQuery: state => state.search.query,
+    searchResults: state => state.search.results,
+    searchLoading: state => state.search.loading,
+    searchError: state => state.search.error,
+    searchSource: state => state.search.source,
+    searchSuggestions: state => state.search.suggestions,
+    warehouseFilter: state => state.warehouseFilter,
+
+    // Enhanced Filtered Inventory
+    filteredInventoryEnhanced: (state, getters) => {
       let inventory = state.inventory;
 
-      // Apply warehouse filter
       if (state.warehouseFilter && state.warehouseFilter !== 'all') {
         inventory = inventory.filter(item => item.warehouse_id === state.warehouseFilter);
       }
 
-      // Apply search filter
       if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        const term = normalizeArabicText(state.search.query);
-        inventory = inventory.filter(item => {
-          const searchableText = [
-            item.name || '',
-            item.code || '',
-            item.color || '',
-            item.supplier || '',
-            item.item_location || ''
-          ]
-            .filter(text => text && text.toString().trim())
-            .map(text => text.toString())
-            .join(' ');
-          
-          const normalizedText = normalizeArabicText(searchableText);
-          return normalizedText.includes(term);
-        });
+        if (state.search.results.length > 0 && 
+            state.search.source !== 'none' &&
+            Date.now() - new Date(state.search.timestamp).getTime() < 10000) {
+          return state.search.results;
+        }
+
+        const searchTerm = state.search.query.toLowerCase();
+        inventory = inventory.filter(item => 
+          item.name?.toLowerCase().includes(searchTerm) ||
+          item.code?.toLowerCase().includes(searchTerm) ||
+          item.color?.toLowerCase().includes(searchTerm) ||
+          item.supplier?.toLowerCase().includes(searchTerm)
+        );
       }
 
       return inventory;
@@ -4415,7 +4814,36 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
 
       return [];
     },
+    filteredInventory: (state, getters) => {
+      let inventory = state.inventory;
 
+      if (state.filters.warehouse) {
+        inventory = inventory.filter(item => item.warehouse_id === state.filters.warehouse);
+      }
+
+      if (state.filters.search && state.filters.search.length >= 2) {
+        const searchLower = state.filters.search.toLowerCase();
+        const searchField = state.filters.searchField;
+
+        inventory = inventory.filter(item => {
+          if (searchField === 'name') {
+            return item.name?.toLowerCase().includes(searchLower);
+          } else if (searchField === 'code') {
+            return item.code?.toLowerCase().includes(searchLower);
+          } else if (searchField === 'color') {
+            return item.color?.toLowerCase().includes(searchLower);
+          } else if (searchField === 'supplier') {
+            return item.supplier?.toLowerCase().includes(searchLower);
+          }
+          return item.name?.toLowerCase().includes(searchLower) ||
+                 item.code?.toLowerCase().includes(searchLower) ||
+                 item.color?.toLowerCase().includes(searchLower) ||
+                 item.supplier?.toLowerCase().includes(searchLower);
+        });
+      }
+
+      return inventory;
+    },
     dashboardStats: (state, getters) => {
       const inventory = getters.filteredInventory;
       const recentTransactions = getters.recentTransactions;
@@ -4448,6 +4876,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       };
     },
 
+    // FIXED: Remove cache reference since state.cache doesn't exist
     dashboardRealStats: (state) => (warehouseId = 'all') => {
       // Calculate real-time stats without cache
       const inventory = state.inventory;
@@ -4463,6 +4892,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       };
     },
 
+    // FIXED: Get warehouse label from warehouses array, not from non-existent cache
     getWarehouseLabel: (state) => (warehouseId) => {
       if (!warehouseId) return '';
 
@@ -4642,6 +5072,7 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       return counts;
     },
 
+    // FIXED: Remove cache reference for item details
     getCachedItem: (state) => (itemId) => {
       // Simply return the item from inventory if found
       return state.inventory.find(item => item.id === itemId) || null;
@@ -4677,6 +5108,22 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       return labels[status] || status;
     },
 
+    // ============================================
+    // NEW GETTERS ADDED AS REQUESTED
+    // ============================================
+
+    // Note: primaryWarehouses and dispatchWarehouses already exist above
+    // Note: accessibleWarehouses already exists above with different logic
+    // Note: canManageUsers already exists above
+
+    // Add any missing getters from your request that don't already exist:
+    getRealTimeSearchAvailable: (state) => {
+      return state.search.query && 
+             state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+             state.search.results.length > 0 && 
+             state.search.source === 'firebase';
+    },
+
     getManualLoadStatus: (state) => {
       return {
         hasMore: state.pagination.hasMore,
@@ -4687,6 +5134,59 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
       };
     },
 
+    getFilteredSearchSuggestions: (state) => {
+      if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        return [];
+      }
+
+      const query = state.search.query.toLowerCase();
+      return state.search.suggestions.filter(suggestion => 
+        suggestion.toLowerCase().includes(query)
+      ).slice(0, 10);
+    },
+
+    getSearchStats: (state) => {
+      const localResults = state.inventory.filter(item => 
+        state.search.query && 
+        state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+        (
+          item.name?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.code?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.color?.toLowerCase().includes(state.search.query.toLowerCase()) ||
+          item.supplier?.toLowerCase().includes(state.search.query.toLowerCase())
+        )
+      ).length;
+
+      return {
+        localResults,
+        firebaseResults: state.search.results.length,
+        queryLength: state.search.query?.length || 0,
+        isSearching: state.search.loading,
+        lastSearchSource: state.search.source
+      };
+    },
+
+    getWarehouseSearchResults: (state) => {
+      if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        return [];
+      }
+
+      const query = state.search.query.toLowerCase();
+      const recentFirebaseResults = state.search.results.length > 0 && 
+                                    state.search.source === 'firebase';
+
+      if (recentFirebaseResults) {
+        return state.search.results;
+      }
+
+      return state.inventory.filter(item => 
+        item.name?.toLowerCase().includes(query) ||
+        item.code?.toLowerCase().includes(query) ||
+        item.color?.toLowerCase().includes(query) ||
+        item.supplier?.toLowerCase().includes(query)
+      );
+    },
+
     getSearchReady: (state) => {
       return state.inventoryLoaded || 
              (state.search.query && 
@@ -4695,3 +5195,4 @@ async searchItems({ dispatch }, { searchTerm, limitResults = 5 }) {
     }
   }
 });
+
