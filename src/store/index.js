@@ -1116,6 +1116,7 @@ async clearSearch({ commit }) {
   commit('CLEAR_SEARCH');
 },
 
+
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
     // ============================================
