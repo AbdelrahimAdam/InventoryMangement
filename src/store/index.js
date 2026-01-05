@@ -1116,21 +1116,27 @@ async searchInventoryLive({ commit, dispatch, state }, {
     commit('SET_SEARCH_LOADING', false);
   }
 },
-
 // ============================================
-// ENHANCED FIREBASE INVENTORY SEARCH
+// FIXED FIREBASE INVENTORY SEARCH (WITH DYNAMIC IMPORTS)
 // ============================================
 async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
   try {
     console.log(`🌐 Firebase smart search for: "${query}"`);
+    
+    // Validate Firebase is available
+    if (!db) {
+      console.error('❌ Firebase database not available');
+      return [];
+    }
 
     const searchTerm = normalizeArabicText(query.toLowerCase());
     
-    // Check user permissions and accessible warehouses
-    let canAccessAll = false;
-    let allowedWarehouseIds = [];
+    // Check user permissions
     const role = state.userProfile?.role || '';
     const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+    
+    let canAccessAll = false;
+    let allowedWarehouseIds = [];
     
     if (role === 'superadmin' || role === 'company_manager') {
       canAccessAll = true;
@@ -1144,124 +1150,80 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       }
     }
 
+    // IMPORTANT: Dynamic import to prevent "o is not a function" error
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      collection,
+      query: firestoreQuery,
+      where,
+      orderBy,
+      limit: firestoreLimit,
+      getDocs
+    } = firebaseFirestore;
+
     const itemsRef = collection(db, 'items');
     let itemsQuery;
     let searchResults = [];
 
-    // Build query based on permissions and warehouse filter
+    // Build query based on permissions
     if (canAccessAll) {
+      // Superadmin or company manager - access all warehouses
       if (warehouseId && warehouseId !== 'all') {
-        // Specific warehouse for superadmin/company_manager
-        try {
-          itemsQuery = query(
-            itemsRef,
-            where('warehouse_id', '==', warehouseId),
-            orderBy('remaining_quantity', 'desc'),
-            limit(limit || SEARCH_CONFIG.MAX_RESULTS)
-          );
-        } catch (error) {
-          console.warn('Warehouse-specific query failed, trying general query:', error);
-          itemsQuery = query(
-            itemsRef,
-            orderBy('remaining_quantity', 'desc'),
-            limit(limit || SEARCH_CONFIG.MAX_RESULTS)
-          );
-        }
+        // Specific warehouse
+        itemsQuery = firestoreQuery(
+          itemsRef,
+          where('warehouse_id', '==', warehouseId),
+          firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
+        );
       } else {
         // All warehouses
-        itemsQuery = query(
+        itemsQuery = firestoreQuery(
           itemsRef,
-          orderBy('remaining_quantity', 'desc'),
-          limit(limit || SEARCH_CONFIG.MAX_RESULTS)
+          firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
         );
       }
     } else if (allowedWarehouseIds.length > 0) {
-      const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
+      // Warehouse manager with specific warehouses
+      const validWarehouseIds = allowedWarehouseIds.slice(0, 10); // Firebase limit
       
       if (warehouseId && warehouseId !== 'all') {
-        // Specific warehouse within allowed warehouses
+        // Specific warehouse within allowed list
         if (validWarehouseIds.includes(warehouseId)) {
-          try {
-            itemsQuery = query(
-              itemsRef,
-              where('warehouse_id', '==', warehouseId),
-              orderBy('remaining_quantity', 'desc'),
-              limit(limit || SEARCH_CONFIG.MAX_RESULTS)
-            );
-          } catch (error) {
-            console.warn('Specific warehouse query failed:', error);
-            // Fall back to querying all allowed warehouses
-            itemsQuery = query(
-              itemsRef,
-              where('warehouse_id', 'in', validWarehouseIds),
-              orderBy('remaining_quantity', 'desc'),
-              limit(limit || SEARCH_CONFIG.MAX_RESULTS)
-            );
-          }
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
+          );
         } else {
-          // Requested warehouse not in allowed list
-          console.warn('Warehouse not in allowed list, returning empty');
+          console.warn('Warehouse not in allowed list');
           return [];
         }
       } else {
         // All allowed warehouses
-        try {
-          itemsQuery = query(
+        if (validWarehouseIds.length === 1) {
+          // Single warehouse - use simple where
+          itemsQuery = firestoreQuery(
             itemsRef,
-            where('warehouse_id', 'in', validWarehouseIds),
-            orderBy('remaining_quantity', 'desc'),
-            limit(limit || SEARCH_CONFIG.MAX_RESULTS)
+            where('warehouse_id', '==', validWarehouseIds[0]),
+            firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
           );
-        } catch (error) {
-          console.error('"in" query error, trying individual queries:', error);
-          
-          // Fallback: Try individual warehouse queries
-          const allItems = [];
-          for (const whId of validWarehouseIds.slice(0, 3)) { // Limit to 3 for performance
-            try {
-              const whQuery = query(
-                itemsRef,
-                where('warehouse_id', '==', whId),
-                limit(Math.ceil((limit || SEARCH_CONFIG.MAX_RESULTS) / 3))
-              );
-              const snapshot = await getDocs(whQuery);
-              const items = snapshot.docs.map(doc =>
-                InventoryService.convertForDisplay({
-                  id: doc.id,
-                  ...doc.data()
-                })
-              );
-              allItems.push(...items);
-            } catch (whError) {
-              console.warn(`Error querying warehouse ${whId}:`, whError);
-            }
+        } else {
+          // Multiple warehouses - use "in" query
+          try {
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', 'in', validWarehouseIds),
+              firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
+            );
+          } catch (inError) {
+            console.warn('"in" query failed, falling back:', inError);
+            // Fallback to first warehouse only
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', '==', validWarehouseIds[0]),
+              firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
+            );
           }
-          
-          // Apply search filtering
-          searchResults = allItems.filter(item => {
-            for (const field of SEARCH_CONFIG.FIELDS) {
-              const fieldValue = item[field];
-              if (fieldValue) {
-                const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-                
-                if (normalizedFieldValue.includes(searchTerm)) return true;
-                
-                const fieldWords = normalizedFieldValue.split(/\s+/);
-                const searchWords = searchTerm.split(/\s+/);
-                
-                if (searchWords.every(word =>
-                  fieldWords.some(fieldWord => fieldWord.includes(word))
-                )) return true;
-              }
-            }
-            return false;
-          });
-          
-          return removeDuplicatesAndSortByRelevance(
-            searchResults,
-            query,
-            limit || SEARCH_CONFIG.MAX_RESULTS
-          );
         }
       }
     } else {
@@ -1269,58 +1231,104 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       return [];
     }
 
-    // Execute the query
-    const snapshot = await getDocs(itemsQuery);
-    if (snapshot.empty) {
+    // Execute query
+    let snapshot;
+    try {
+      snapshot = await getDocs(itemsQuery);
+      console.log(`📊 Firebase query returned ${snapshot.size} documents`);
+    } catch (queryError) {
+      console.error('❌ Firestore query failed:', queryError);
+      
+      // Try a simpler query as fallback
+      try {
+        const simpleQuery = firestoreQuery(
+          itemsRef,
+          firestoreLimit(Math.min(limit || 20, 30))
+        );
+        snapshot = await getDocs(simpleQuery);
+        console.log('🔄 Using simple query fallback');
+      } catch (simpleError) {
+        console.error('❌ Simple query also failed:', simpleError);
+        return [];
+      }
+    }
+
+    if (!snapshot || snapshot.empty) {
       console.log('📭 No items found in Firebase');
       return [];
     }
 
-    const allItems = snapshot.docs.map(doc =>
-      InventoryService.convertForDisplay({
-        id: doc.id,
-        ...doc.data()
-      })
-    );
+    // Process documents
+    const allItems = [];
+    snapshot.forEach(doc => {
+      try {
+        const data = doc.data();
+        
+        // Simple conversion without InventoryService dependency
+        const item = {
+          id: doc.id,
+          name: data.name || '',
+          code: data.code || '',
+          color: data.color || '',
+          supplier: data.supplier || '',
+          item_location: data.item_location || '',
+          warehouse_id: data.warehouse_id || '',
+          remaining_quantity: data.remaining_quantity || 0,
+          cartons_count: data.cartons_count || 0,
+          per_carton_count: data.per_carton_count || 0,
+          single_bottles_count: data.single_bottles_count || 0,
+          total_added: data.total_added || 0,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          created_by: data.created_by,
+          updated_by: data.updated_by
+        };
+        
+        // Add photo_url if available
+        if (data.photo_url) {
+          item.photo_url = data.photo_url;
+        }
+        
+        allItems.push(item);
+      } catch (docError) {
+        console.warn('⚠️ Error processing document:', docError);
+      }
+    });
 
-    console.log(`📊 Firebase returned ${allItems.length} items before filtering`);
+    console.log(`✅ Processed ${allItems.length} items from Firebase`);
 
-    // Apply warehouse filter if needed
+    // Apply warehouse filter (in case query didn't filter)
     let filteredItems = allItems;
     if (warehouseId && warehouseId !== 'all') {
       filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
+      console.log(`🏭 After warehouse filter: ${filteredItems.length} items`);
     }
 
     // Apply Arabic text search
     searchResults = filteredItems.filter(item => {
       if (!searchTerm) return false;
 
-      for (const field of SEARCH_CONFIG.FIELDS) {
+      const fieldsToCheck = ['name', 'code', 'color', 'supplier', 'item_location'];
+      
+      for (const field of fieldsToCheck) {
         const fieldValue = item[field];
-        if (fieldValue) {
-          const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+        if (!fieldValue) continue;
 
-          // Exact match (highest priority)
-          if (normalizedFieldValue === searchTerm) return true;
-          
-          // Starts with match
-          if (normalizedFieldValue.startsWith(searchTerm)) return true;
-          
-          // Contains match
-          if (normalizedFieldValue.includes(searchTerm)) return true;
-
-          // Word-by-word matching
-          const fieldWords = normalizedFieldValue.split(/\s+/);
-          const searchWords = searchTerm.split(/\s+/);
-
-          if (searchWords.every(word =>
-            fieldWords.some(fieldWord => fieldWord.includes(word))
-          )) return true;
-          
-          // Check if any search word appears in any field word
-          for (const word of searchWords) {
-            for (const fieldWord of fieldWords) {
-              if (fieldWord.includes(word)) return true;
+        const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+        
+        // Check for matches
+        if (normalizedFieldValue.includes(searchTerm)) {
+          return true;
+        }
+        
+        // Check word by word
+        const fieldWords = normalizedFieldValue.split(/\s+/);
+        const searchWords = searchTerm.split(/\s+/);
+        
+        for (const searchWord of searchWords) {
+          for (const fieldWord of fieldWords) {
+            if (fieldWord.includes(searchWord)) {
+              return true;
             }
           }
         }
@@ -1328,43 +1336,36 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       return false;
     });
 
-    console.log(`🔍 Firebase search filtered to ${searchResults.length} matching items`);
+    console.log(`🔍 Found ${searchResults.length} matching items`);
 
-    // Apply relevance scoring and deduplication
+    // Apply relevance scoring
     const finalResults = removeDuplicatesAndSortByRelevance(
       searchResults,
       query,
       limit || SEARCH_CONFIG.MAX_RESULTS
     );
 
-    console.log(`✅ Firebase search found: ${finalResults.length} relevant items`);
+    console.log(`🎯 Returning ${finalResults.length} relevant items from Firebase`);
     return finalResults;
 
   } catch (error) {
     console.error('❌ Firebase search error:', error);
-
-    // Check for specific error types
-    if (error.message && error.message.includes('in') && error.message.includes('array')) {
-      console.error('Firebase "in" query array limit exceeded (max 10)');
-    } else if (error.code === 'failed-precondition') {
-      console.error('Firestore index error - composite index might be needed');
-      console.error('Required index for this query:');
-      console.error('Collection: items');
-      console.error('Fields: warehouse_id Ascending, remaining_quantity Descending');
-    } else if (error.code === 'permission-denied') {
-      console.error('Permission denied for Firebase query');
-    } else if (error.code === 'unavailable') {
-      console.error('Firebase service unavailable');
-    }
-
-    // Return empty array so local search can still work
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    });
+    
+    // Return empty array - local search will handle it
     return [];
   }
 },
+
 // ============================================
 // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
 // ============================================
-async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
+async searchFirebaseInventorySmartLegacy({ state }, { query, warehouseId, limit }) {
   try {
     console.log(`🔍 Firebase smart search for: "${query}"`);
 
@@ -1386,14 +1387,25 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
       }
     }
 
+    // Dynamic import
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      collection,
+      query: firestoreQuery,
+      where,
+      orderBy,
+      limit: firestoreLimit,
+      getDocs
+    } = firebaseFirestore;
+
     const itemsRef = collection(db, 'items');
     let itemsQuery;
 
     if (canAccessAll) {
-      itemsQuery = query(
+      itemsQuery = firestoreQuery(
         itemsRef,
         orderBy('remaining_quantity', 'desc'),
-        limit(50)
+        firestoreLimit(50)
       );
     } else if (allowedWarehouseIds.length > 0) {
       const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
@@ -1402,11 +1414,11 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
         return [];
       }
 
-      itemsQuery = query(
+      itemsQuery = firestoreQuery(
         itemsRef,
         where('warehouse_id', 'in', validWarehouseIds),
         orderBy('remaining_quantity', 'desc'),
-        limit(50)
+        firestoreLimit(50)
       );
     } else {
       console.log('⚠️ User has no accessible warehouses');
@@ -1416,12 +1428,27 @@ async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
     const snapshot = await getDocs(itemsQuery);
     if (snapshot.empty) return [];
 
-    const allItems = snapshot.docs.map(doc =>
-      InventoryService.convertForDisplay({
+    const allItems = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
         id: doc.id,
-        ...doc.data()
-      })
-    );
+        name: data.name || '',
+        code: data.code || '',
+        color: data.color || '',
+        supplier: data.supplier || '',
+        item_location: data.item_location || '',
+        warehouse_id: data.warehouse_id || '',
+        remaining_quantity: data.remaining_quantity || 0,
+        cartons_count: data.cartons_count || 0,
+        per_carton_count: data.per_carton_count || 0,
+        single_bottles_count: data.single_bottles_count || 0,
+        total_added: data.total_added || 0,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        created_by: data.created_by,
+        updated_by: data.updated_by
+      };
+    });
 
     let filteredItems = allItems;
     if (warehouseId && warehouseId !== 'all') {
@@ -1476,7 +1503,7 @@ async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
 
   if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
     await dispatch('searchInventoryDirect', {
-      query: state.search.query,
+      searchQuery: state.search.query,
       warehouseId
     });
   }
@@ -1486,6 +1513,42 @@ async clearSearch({ commit }) {
   commit('CLEAR_SEARCH');
 },
 
+// ============================================
+// FIREBASE CONNECTION TEST ACTION
+// ============================================
+async testFirebaseConnection({ state }) {
+  try {
+    console.log('🔧 Testing Firebase connection...');
+    
+    // Test if db is available
+    if (!db) {
+      console.error('❌ db is undefined');
+      return false;
+    }
+    
+    // Import Firebase dynamically
+    const firebaseFirestore = await import('firebase/firestore');
+    const { collection, query, limit, getDocs } = firebaseFirestore;
+    
+    // Simple test query
+    const testRef = collection(db, 'items');
+    const testQuery = query(testRef, limit(1));
+    const snapshot = await getDocs(testQuery);
+    
+    console.log(`✅ Firebase test: ${snapshot.empty ? 'Connected (no items)' : 'Connected with items'}`);
+    console.log(`📊 Firebase test details:`, {
+      dbType: typeof db,
+      hasCollection: typeof collection === 'function',
+      snapshotSize: snapshot.size
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase connection test failed:', error);
+    console.error('Full error:', error);
+    return false;
+  }
+},
 
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
