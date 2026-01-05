@@ -990,7 +990,6 @@ async searchInventoryLive({ commit, dispatch, state }, {
     commit('SET_SEARCH_LOADING', false);
   }
 },
-
 // ============================================
 // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
 // ============================================
