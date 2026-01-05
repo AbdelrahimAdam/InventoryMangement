@@ -738,7 +738,7 @@ export default createStore({
   },
 
   actions: {
-   // ============================================
+// ============================================
 // SMART PRODUCTION ARABIC SEARCH (FINAL)
 // ============================================
 async searchInventorySmart({ commit, state }, {
@@ -933,148 +933,188 @@ async searchLocalInventorySmart({ state }, {
   return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
 },
 
-    // ============================================
-    // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
-    // ============================================
-    async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
-      try {
-        console.log(`🔍 Firebase smart search for: "${query}"`);
+// ============================================
+// NEW LIVE SEARCH (REAL-TIME SMART SEARCH)
+// ============================================
+async searchInventoryLive({ commit, dispatch, state }, {
+  searchQuery,
+  warehouseId = null,
+  limit = 50
+}) {
+  if (!searchQuery || searchQuery.trim().length < 2) {
+    commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
+    return [];
+  }
 
-        const searchTerm = normalizeArabicText(query.toLowerCase());
+  commit('SET_SEARCH_LOADING', true);
+  const searchTerm = searchQuery.trim();
+  const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
 
-        // === SAFE: Direct state access, no getters ===
-        let canAccessAll = false;
-        let allowedWarehouseIds = [];
-        const role = state.userProfile?.role || '';
-        const profileWarehouses = state.userProfile?.allowed_warehouses || [];
-        if (role === 'superadmin' || role === 'company_manager') {
-          canAccessAll = true;
-        } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
-          if (profileWarehouses.includes('all')) {
-            canAccessAll = true;
-          } else {
-            // Filter out invalid IDs including 'all' and empty strings
-            allowedWarehouseIds = profileWarehouses.filter(id => 
-              typeof id === 'string' && id.trim() !== '' && id !== 'all'
-            );
-          }
-        }
-        // =========================================
+  try {
+    console.log(`⚡ Live Arabic search: "${searchTerm}"`);
 
-        const itemsRef = collection(db, 'items');
-        let itemsQuery;
+    // Merge local + firebase results
+    const localResults = await dispatch('searchLocalInventorySmart', {
+      query: searchTerm,
+      warehouseId: targetWarehouse,
+      limit
+    });
 
-        if (canAccessAll) {
-          itemsQuery = query(
-            itemsRef,
-            orderBy('remaining_quantity', 'desc'),
-            limit(50)
-          );
-        } else if (allowedWarehouseIds.length > 0) {
-          // Check for valid warehouse IDs
-          const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
-          if (validWarehouseIds.length === 0) {
-            console.log('⚠️ No valid warehouse IDs to query');
-            return [];
-          }
+    let firebaseResults = [];
+    if (localResults.length < limit) {
+      firebaseResults = await dispatch('searchFirebaseInventorySmart', {
+        query: searchTerm,
+        warehouseId: targetWarehouse,
+        limit: limit - localResults.length
+      });
+    }
 
-          itemsQuery = query(
-            itemsRef,
-            where('warehouse_id', 'in', validWarehouseIds),
-            orderBy('remaining_quantity', 'desc'),
-            limit(50)
-          );
-        } else {
-          console.log('⚠️ User has no accessible warehouses');
-          return [];
-        }
+    const combinedResults = removeDuplicatesAndSortByRelevance(
+      [...localResults, ...firebaseResults],
+      searchTerm,
+      limit
+    );
 
-        // Fetch data
-        const snapshot = await getDocs(itemsQuery);
+    commit('SET_SEARCH_RESULTS', {
+      results: combinedResults,
+      source: 'live',
+      query: searchTerm
+    });
 
-        if (snapshot.empty) {
-          return [];
-        }
+    return combinedResults;
+  } catch (error) {
+    console.error('❌ Live search failed:', error);
+    commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
+    return [];
+  } finally {
+    commit('SET_SEARCH_LOADING', false);
+  }
+},
 
-        // Convert all items
-        const allItems = snapshot.docs.map(doc => {
-          const itemData = doc.data();
-          return InventoryService.convertForDisplay({
-            id: doc.id,
-            ...itemData
-          });
-        });
+// ============================================
+// SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
+// ============================================
+async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
+  try {
+    console.log(`🔍 Firebase smart search for: "${query}"`);
 
-        // Filter by warehouse locally
-        let filteredItems = allItems;
-        if (warehouseId && warehouseId !== 'all') {
-          filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
-        }
+    const searchTerm = normalizeArabicText(query.toLowerCase());
 
-        // Apply smart Arabic search filtering (SAFE implementation)
-        const searchResults = filteredItems.filter(item => {
-          if (!searchTerm) return false;
-
-          for (const field of SEARCH_CONFIG.FIELDS) {
-            const fieldValue = item[field];
-            if (fieldValue) {
-              const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-
-              if (normalizedFieldValue.includes(searchTerm)) {
-                return true;
-              }
-
-              const fieldWords = normalizedFieldValue.split(/\s+/);
-              const searchWords = searchTerm.split(/\s+/);
-
-              if (searchWords.every(word =>
-                fieldWords.some(fieldWord => fieldWord.includes(word))
-              )) {
-                return true;
-              }
-            }
-          }
-          return false;
-        });
-
-        // Sort by relevance
-        const finalResults = removeDuplicatesAndSortByRelevance(
-          searchResults,
-          query,
-          limit || SEARCH_CONFIG.MAX_RESULTS
+    let canAccessAll = false;
+    let allowedWarehouseIds = [];
+    const role = state.userProfile?.role || '';
+    const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+    if (role === 'superadmin' || role === 'company_manager') {
+      canAccessAll = true;
+    } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+      if (profileWarehouses.includes('all')) {
+        canAccessAll = true;
+      } else {
+        allowedWarehouseIds = profileWarehouses.filter(id => 
+          typeof id === 'string' && id.trim() !== '' && id !== 'all'
         );
+      }
+    }
 
-        console.log(`✅ Firebase search found: ${finalResults.length} items`);
-        return finalResults;
+    const itemsRef = collection(db, 'items');
+    let itemsQuery;
 
-      } catch (error) {
-        console.error('❌ Firebase search error:', error);
-
-        // Log specific error for debugging
-        if (error.message && error.message.includes('in') && error.message.includes('array')) {
-          console.error('Firebase "in" query array error detected');
-        } else if (error.code === 'failed-precondition') {
-          console.error('Firestore index error - composite index might be needed');
-        }
-
+    if (canAccessAll) {
+      itemsQuery = query(
+        itemsRef,
+        orderBy('remaining_quantity', 'desc'),
+        limit(50)
+      );
+    } else if (allowedWarehouseIds.length > 0) {
+      const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
+      if (validWarehouseIds.length === 0) {
+        console.log('⚠️ No valid warehouse IDs to query');
         return [];
       }
-    },
 
-    async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
-      commit('SET_WAREHOUSE_FILTER', warehouseId);
+      itemsQuery = query(
+        itemsRef,
+        where('warehouse_id', 'in', validWarehouseIds),
+        orderBy('remaining_quantity', 'desc'),
+        limit(50)
+      );
+    } else {
+      console.log('⚠️ User has no accessible warehouses');
+      return [];
+    }
 
-      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        await dispatch('searchInventoryDirect', {
-          query: state.search.query,
-          warehouseId
-        });
+    const snapshot = await getDocs(itemsQuery);
+    if (snapshot.empty) return [];
+
+    const allItems = snapshot.docs.map(doc =>
+      InventoryService.convertForDisplay({
+        id: doc.id,
+        ...doc.data()
+      })
+    );
+
+    let filteredItems = allItems;
+    if (warehouseId && warehouseId !== 'all') {
+      filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
+    }
+
+    const searchResults = filteredItems.filter(item => {
+      if (!searchTerm) return false;
+
+      for (const field of SEARCH_CONFIG.FIELDS) {
+        const fieldValue = item[field];
+        if (fieldValue) {
+          const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+
+          if (normalizedFieldValue.includes(searchTerm)) return true;
+
+          const fieldWords = normalizedFieldValue.split(/\s+/);
+          const searchWords = searchTerm.split(/\s+/);
+
+          if (searchWords.every(word =>
+            fieldWords.some(fieldWord => fieldWord.includes(word))
+          )) return true;
+        }
       }
-    },
+      return false;
+    });
 
-    async clearSearch({ commit }) {
-      commit('CLEAR_SEARCH');
-    },
+    const finalResults = removeDuplicatesAndSortByRelevance(
+      searchResults,
+      query,
+      limit || SEARCH_CONFIG.MAX_RESULTS
+    );
+
+    console.log(`✅ Firebase search found: ${finalResults.length} items`);
+    return finalResults;
+
+  } catch (error) {
+    console.error('❌ Firebase search error:', error);
+
+    if (error.message && error.message.includes('in') && error.message.includes('array')) {
+      console.error('Firebase "in" query array error detected');
+    } else if (error.code === 'failed-precondition') {
+      console.error('Firestore index error - composite index might be needed');
+    }
+
+    return [];
+  }
+},
+
+async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
+  commit('SET_WAREHOUSE_FILTER', warehouseId);
+
+  if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+    await dispatch('searchInventoryDirect', {
+      query: state.search.query,
+      warehouseId
+    });
+  }
+},
+
+async clearSearch({ commit }) {
+  commit('CLEAR_SEARCH');
+},
 
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
