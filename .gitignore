@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+npm/
 
 # build output
 dist/
@@ -7,3 +8,6 @@ dist/
 # environment & secrets
 .env
 service-account-key.json
+
+# accidental / local files
+perfume-inventory@1.0.0/

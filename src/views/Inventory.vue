@@ -969,6 +969,7 @@ export default {
     
     // State
     const loading = ref(false);
+    const loadingMore = ref(false);
     const showAddModal = ref(false);
     const showEditModal = ref(false);
     const showTransferModal = ref(false);
@@ -1007,37 +1008,44 @@ export default {
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
     
-    // Loading states
-    const loadingMore = ref(false);
-    
     // UI state
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
     
     // ============================================
-    // COMPUTED PROPERTIES
+    // COMPUTED PROPERTIES - INTEGRATED WITH STORE
     // ============================================
     
     // Store getters
-    const userRole = computed(() => store.getters.userRole);
+    const userRole = computed(() => {
+      return store.state.userProfile?.role || '';
+    });
+    
     const userProfile = computed(() => store.state.userProfile);
     const currentUser = computed(() => store.state.user);
     
-    // ✅ UPDATED: Properly use store search system
+    // ✅ FIXED: Use store's filtered inventory system
     const displayedItems = computed(() => {
       // If we have active search results from store, use them
       if (useLiveSearch.value && searchResults.value.length > 0) {
         return searchResults.value;
       }
       
-      // Otherwise use the store's filtered inventory
-      return store.getters.filteredInventoryEnhanced || [];
+      // Otherwise use the store's inventory with warehouse filter
+      let inventory = store.state.inventory || [];
+      
+      // Apply warehouse filter from store
+      if (store.state.warehouseFilter && store.state.warehouseFilter !== 'all') {
+        inventory = inventory.filter(item => item.warehouse_id === store.state.warehouseFilter);
+      }
+      
+      return inventory;
     });
     
     // Warehouses
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.getters.warehouses || []);
-    const allUsers = computed(() => store.getters.allUsers || []);
+    const allUsers = computed(() => store.state.allUsers || []);
     
     // Loading states
     const inventoryLoading = computed(() => store.state.inventoryLoading);
@@ -1067,7 +1075,7 @@ export default {
     const showActions = computed(() => userRole.value !== 'viewer');
     const readonly = computed(() => userRole.value === 'viewer');
     
-    // ✅ UPDATED: Search state from store
+    // ✅ FIXED: Search state from store
     const searchResults = computed(() => store.state.search.results || []);
     const isLiveSearching = computed(() => store.state.search.loading);
     const useLiveSearch = computed(() => {
@@ -1183,7 +1191,7 @@ export default {
     
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
-      return store.getters.getWarehouseLabel(warehouseId) || warehouseId;
+      return store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(warehouseId) : warehouseId;
     };
     
     const getUserName = (userId) => {
@@ -1323,7 +1331,7 @@ export default {
     };
     
     // ============================================
-    // ✅ UPDATED: LIVE SEARCH - FULLY INTEGRATED WITH VUEX
+    // ✅ FIXED: LIVE SEARCH - FULLY INTEGRATED WITH VUEX
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1343,8 +1351,8 @@ export default {
       try {
         console.log(`🔍 Searching: "${term}" with warehouse: ${selectedWarehouse.value || 'all'}`);
         
-        // ✅ Use the store's searchInventoryDirect action (which calls searchInventorySmart)
-        const results = await store.dispatch('searchInventoryDirect', {
+        // ✅ Use the store's searchInventorySmart action
+        const results = await store.dispatch('searchInventorySmart', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
           limit: 50
@@ -1449,7 +1457,7 @@ export default {
     };
     
     // ============================================
-    // LOAD MORE ITEMS
+    // LOAD MORE ITEMS - FIXED TO USE STORE ACTION
     // ============================================
     const loadMoreItems = async () => {
       // Only load more if not in live search mode
@@ -1457,7 +1465,7 @@ export default {
         return;
       }
       
-      if (hasMore.value && !isFetchingMore.value) {
+      if (hasMore.value && !isFetchingMore.value && !loadingMore.value) {
         try {
           loadingMore.value = true;
           console.log('📥 Loading more items...');
@@ -1482,7 +1490,7 @@ export default {
     };
     
     // ============================================
-    // DATA REFRESH
+    // DATA REFRESH - FIXED TO USE STORE ACTIONS
     // ============================================
     const refreshData = async () => {
       try {
@@ -1835,206 +1843,486 @@ export default {
       });
     };
     
+       // ============================================
+    // VIRTUAL SCROLLING HANDLERS - OPTIMIZED VERSION
     // ============================================
-    // VIRTUAL SCROLLING HANDLERS
-    // ============================================
+    const calculateVisibleItems = () => {
+      // Get container dimensions
+      if (!scrollContainer.value) return;
+      
+      const container = scrollContainer.value;
+      const scrollTop = container.scrollTop;
+      const clientHeight = container.clientHeight;
+      
+      // Calculate approximate row height based on first few rows
+      const rows = container.querySelectorAll('tbody tr');
+      let rowHeight = 80; // Default fallback
+      
+      if (rows.length > 0) {
+        // Sample first 5 rows for better accuracy
+        const sampleRows = Math.min(5, rows.length);
+        let totalHeight = 0;
+        for (let i = 0; i < sampleRows; i++) {
+          const rect = rows[i].getBoundingClientRect();
+          totalHeight += rect.height;
+        }
+        rowHeight = Math.floor(totalHeight / sampleRows);
+      }
+      
+      // Calculate visible range with buffer
+      const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - scrollBuffer);
+      const endIndex = Math.min(
+        displayedItems.value.length,
+        startIndex + Math.ceil(clientHeight / rowHeight) + (scrollBuffer * 2)
+      );
+      
+      // Only update if the change is significant (performance optimization)
+      const newIndex = Math.max(0, startIndex);
+      if (Math.abs(newIndex - visibleStartIndex.value) > scrollBuffer / 2) {
+        visibleStartIndex.value = newIndex;
+      }
+      
+      // Return the calculated end index for load more checking
+      return { startIndex, endIndex, rowHeight };
+    };
+    
     const onScroll = () => {
       if (!scrollContainer.value) return;
       
       const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) return;
+      
+      // Throttle scroll events for performance
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
+        return;
+      }
       lastScrollTime.value = now;
       
+      // Clear any existing throttle timeout
       if (scrollThrottle.value) {
-        clearTimeout(scrollThrottle.value);
+        cancelAnimationFrame(scrollThrottle.value);
       }
       
-      scrollThrottle.value = setTimeout(() => {
+      // Use requestAnimationFrame for smoother performance
+      scrollThrottle.value = requestAnimationFrame(() => {
         const container = scrollContainer.value;
         if (!container) return;
         
+        // Calculate visible items
+        const result = calculateVisibleItems();
+        if (!result) return;
+        
+        const { rowHeight } = result;
+        
+        // Check if we need to load more items (near bottom 20%)
         const scrollTop = container.scrollTop;
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
+        const scrollBottom = scrollTop + clientHeight;
         
-        // Calculate visible start index based on scroll position
-        const rowHeight = 80; // Approximate row height
-        const newStartIndex = Math.floor(scrollTop / rowHeight);
+        // Load more when we're within 3 screen heights from the bottom
+        const loadMoreThreshold = scrollHeight - (clientHeight * 3);
         
-        if (Math.abs(newStartIndex - visibleStartIndex.value) > scrollBuffer / 2) {
-          visibleStartIndex.value = Math.max(0, newStartIndex);
-        }
-        
-        // Check if we're near the bottom and need to load more
-        if (scrollHeight - scrollTop - clientHeight < 100 && 
-            !useLiveSearch.value && 
+        if (scrollBottom > loadMoreThreshold && 
             hasMore.value && 
-            !isFetchingMore.value && 
-            !loadingMore.value) {
+            !useLiveSearch.value && 
+            !loadingMore.value && 
+            !isFetchingMore.value) {
           loadMoreItems();
         }
         
         scrollThrottle.value = null;
-      }, SCROLL_THROTTLE_DELAY);
+      });
+    };
+    
+    const calculateMobileVisibleItems = () => {
+      if (!mobileScrollContainer.value) return;
+      
+      const container = mobileScrollContainer.value;
+      const scrollTop = container.scrollTop;
+      const clientHeight = container.clientHeight;
+      
+      // Calculate approximate card height for mobile
+      const cards = container.querySelectorAll('div[data-mobile-card]');
+      let cardHeight = 120; // Default mobile card height
+      
+      if (cards.length > 0) {
+        const sampleCards = Math.min(3, cards.length);
+        let totalHeight = 0;
+        for (let i = 0; i < sampleCards; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          totalHeight += rect.height;
+        }
+        cardHeight = Math.floor(totalHeight / sampleCards);
+      }
+      
+      // Calculate visible range with buffer
+      const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - scrollBuffer);
+      const endIndex = Math.min(
+        displayedItems.value.length,
+        startIndex + Math.ceil(clientHeight / cardHeight) + (scrollBuffer * 2)
+      );
+      
+      // Only update if the change is significant
+      const newIndex = Math.max(0, startIndex);
+      if (Math.abs(newIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
+        mobileVisibleStartIndex.value = newIndex;
+      }
+      
+      return { startIndex, endIndex, cardHeight };
     };
     
     const onMobileScroll = () => {
       if (!mobileScrollContainer.value) return;
       
       const now = Date.now();
-      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) return;
+      
+      // Throttle scroll events
+      if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
+        return;
+      }
       lastScrollTime.value = now;
       
       if (scrollThrottle.value) {
-        clearTimeout(scrollThrottle.value);
+        cancelAnimationFrame(scrollThrottle.value);
       }
       
-      scrollThrottle.value = setTimeout(() => {
+      scrollThrottle.value = requestAnimationFrame(() => {
         const container = mobileScrollContainer.value;
         if (!container) return;
         
+        // Calculate visible items
+        const result = calculateMobileVisibleItems();
+        if (!result) return;
+        
+        // Check if we need to load more items
         const scrollTop = container.scrollTop;
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
+        const scrollBottom = scrollTop + clientHeight;
         
-        // Calculate visible start index for mobile
-        const cardHeight = 120; // Approximate mobile card height
-        const newStartIndex = Math.floor(scrollTop / cardHeight);
+        // Load more when we're within 2 screen heights from the bottom
+        const loadMoreThreshold = scrollHeight - (clientHeight * 2);
         
-        if (Math.abs(newStartIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
-          mobileVisibleStartIndex.value = Math.max(0, newStartIndex);
-        }
-        
-        // Check if we're near the bottom and need to load more
-        if (scrollHeight - scrollTop - clientHeight < 200 && 
-            !useLiveSearch.value && 
+        if (scrollBottom > loadMoreThreshold && 
             hasMore.value && 
-            !isFetchingMore.value && 
-            !loadingMore.value) {
+            !useLiveSearch.value && 
+            !loadingMore.value && 
+            !isFetchingMore.value) {
           loadMoreItems();
         }
         
         scrollThrottle.value = null;
-      }, SCROLL_THROTTLE_DELAY);
+      });
     };
     
     // ============================================
-    // INITIAL DATA LOADING
+    // OPTIMIZED DATA LOADING AND INITIALIZATION
     // ============================================
     const loadInitialData = async () => {
       try {
         loading.value = true;
         
-        // Load warehouses and user data first
-        await Promise.all([
+        // Step 1: Load essential data in parallel where possible
+        const loadPromises = [
           store.dispatch('loadWarehouses'),
           store.dispatch('loadUsers')
-        ]);
+        ];
         
-        // Check route params for warehouse filter
+        await Promise.all(loadPromises);
+        
+        // Step 2: Check for route parameters
         const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
-        if (routeWarehouseId && accessibleWarehouses.value.some(w => w.id === routeWarehouseId)) {
-          selectedWarehouse.value = routeWarehouseId;
+        if (routeWarehouseId) {
+          // Verify warehouse is accessible
+          const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
+          if (warehouseExists) {
+            selectedWarehouse.value = routeWarehouseId;
+            await store.dispatch('setWarehouseFilter', routeWarehouseId);
+          }
         }
         
-        // Set warehouse filter in store
-        if (selectedWarehouse.value) {
-          await store.dispatch('setWarehouseFilter', selectedWarehouse.value);
+        // Step 3: Load inventory with intelligent caching
+        if (!inventoryLoaded.value || shouldForceRefresh()) {
+          console.log('🔄 Loading fresh inventory data...');
+          await store.dispatch('loadAllInventory', { 
+            forceRefresh: true,
+            warehouseId: selectedWarehouse.value || undefined
+          });
+          isDataFresh.value = true;
+        } else {
+          console.log('✅ Using cached inventory data');
+          isDataFresh.value = false;
+          
+          // Apply warehouse filter to cached data if needed
+          if (selectedWarehouse.value) {
+            await store.dispatch('applyWarehouseFilter', selectedWarehouse.value);
+          }
         }
         
-        // Load inventory data
-        await store.dispatch('loadAllInventory');
-        
-        // Mark data as fresh
-        isDataFresh.value = true;
         lastUpdate.value = Date.now();
         
-        // Reset scroll positions
+        // Step 4: Initialize virtual scrolling after data is loaded
         await nextTick();
         resetScrollPositions();
         
+        // Step 5: Pre-calculate row heights for better performance
+        setTimeout(() => {
+          if (scrollContainer.value) {
+            calculateVisibleItems();
+          }
+          if (mobileScrollContainer.value) {
+            calculateMobileVisibleItems();
+          }
+        }, 100);
+        
       } catch (error) {
-        console.error('❌ Error loading initial data:', error);
+        console.error('❌ Error in loadInitialData:', error);
+        
+        error.value = 'فشل تحميل البيانات. الرجاء التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+        
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في تحميل البيانات. يرجى المحاولة مرة أخرى'
+          message: 'خطأ في تحميل البيانات. جاري إعادة المحاولة...'
         });
-        error.value = 'فشل تحميل البيانات';
+        
+        // Auto-retry after 5 seconds
+        setTimeout(() => {
+          if (!inventoryLoaded.value) {
+            loadInitialData();
+          }
+        }, 5000);
+        
       } finally {
         loading.value = false;
       }
     };
     
+    const shouldForceRefresh = () => {
+      // Force refresh if data is older than 5 minutes
+      if (!lastUpdate.value) return true;
+      
+      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+      return lastUpdate.value < fiveMinutesAgo;
+    };
+    
     // ============================================
-    // WATCHERS
+    // ENHANCED WATCHERS WITH DEBOUNCING
     // ============================================
-    // Watch for loading state changes
-    watch(inventoryLoading, (newVal) => {
+    
+    // Watch for loading state changes with debouncing
+    watch(inventoryLoading, debounce((newVal) => {
       if (!newVal && inventoryLoaded.value) {
         loading.value = false;
-      }
-    });
-    
-    // Watch for store search results to update UI
-    watch(searchResults, (newResults) => {
-      if (newResults && newResults.length > 0) {
-        console.log('🔄 Search results updated:', newResults.length, 'items');
-        // Mark data as fresh when search results come in
+        
+        // Update data freshness
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
+        
+        // Recalculate virtual scrolling after data loads
+        nextTick(() => {
+          if (scrollContainer.value) {
+            calculateVisibleItems();
+          }
+        });
+      }
+    }, 100));
+    
+    // Watch for search results with visual feedback
+    watch(searchResults, (newResults) => {
+      if (newResults && newResults.length > 0) {
+        console.log(`🔍 Search results: ${newResults.length} items`);
+        
+        // Mark as fresh search data
+        isDataFresh.value = true;
+        lastUpdate.value = Date.now();
+        
+        // Reset scroll positions for search results
+        resetScrollPositions();
+        
+        // Update virtual scrolling for search results
+        nextTick(() => {
+          if (useLiveSearch.value) {
+            if (scrollContainer.value) calculateVisibleItems();
+            if (mobileScrollContainer.value) calculateMobileVisibleItems();
+          }
+        });
       }
     });
     
-    // Watch for warehouse filter changes from store
-    watch(() => store.state.warehouseFilter, (newWarehouseId) => {
+    // Watch for warehouse filter changes with smoother transitions
+    watch(() => store.state.warehouseFilter, debounce((newWarehouseId) => {
       if (newWarehouseId !== selectedWarehouse.value) {
         selectedWarehouse.value = newWarehouseId || '';
+        
+        // Reset scroll positions for new filter
+        resetScrollPositions();
+        
+        // If we're in search mode, re-run search with new warehouse
+        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+          handleLiveSearch();
+        }
       }
-    });
+    }, 150));
     
-    // Watch for route changes
+    // Watch for route changes with proper cleanup
     watch(() => route.params.warehouseId, (newWarehouseId) => {
       if (newWarehouseId && accessibleWarehouses.value.some(w => w.id === newWarehouseId)) {
+        // Clear any existing search when changing warehouses via route
+        if (searchTerm.value) {
+          clearSearch();
+        }
+        
         selectedWarehouse.value = newWarehouseId;
         store.dispatch('setWarehouseFilter', newWarehouseId);
       }
     });
     
+    // Watch for displayed items changes to optimize rendering
+    watch(displayedItems, debounce((newItems) => {
+      if (newItems.length > 0) {
+        // Reset scroll positions when items change significantly
+        resetScrollPositions();
+        
+        // Recalculate virtual scrolling on next tick
+        nextTick(() => {
+          if (scrollContainer.value) {
+            calculateVisibleItems();
+          }
+          if (mobileScrollContainer.value) {
+            calculateMobileVisibleItems();
+          }
+        });
+      }
+    }, 50));
+    
     // ============================================
-    // LIFECYCLE HOOKS
+    // LIFECYCLE HOOKS WITH IMPROVED RESOURCE MANAGEMENT
     // ============================================
-    onMounted(() => {
-      loadInitialData();
+    onMounted(async () => {
+      console.log('📱 Inventory Production mounted');
       
-      // Set up auto-refresh every 5 minutes
-      const autoRefreshInterval = setInterval(() => {
-        if (!loading.value && !isLiveSearching.value) {
+      // Set up resize observer for responsive virtual scrolling
+      const resizeObserver = new ResizeObserver(debounce(() => {
+        if (scrollContainer.value) calculateVisibleItems();
+        if (mobileScrollContainer.value) calculateMobileVisibleItems();
+      }, 100));
+      
+      // Observe both scroll containers
+      if (scrollContainer.value) {
+        resizeObserver.observe(scrollContainer.value);
+      }
+      if (mobileScrollContainer.value) {
+        resizeObserver.observe(mobileScrollContainer.value);
+      }
+      
+      // Store for cleanup
+      window.__inventoryResizeObserver = resizeObserver;
+      
+      // Load initial data
+      await loadInitialData();
+      
+      // Set up auto-refresh with intelligent timing
+      const setupAutoRefresh = () => {
+        if (window.__inventoryAutoRefresh) {
+          clearInterval(window.__inventoryAutoRefresh);
+        }
+        
+        // Only auto-refresh if page is visible and user is active
+        const autoRefreshInterval = setInterval(() => {
+          const isPageVisible = document.visibilityState === 'visible';
+          const isUserActive = Date.now() - lastScrollTime.value < 5 * 60 * 1000; // 5 minutes
+          
+          if (isPageVisible && isUserActive && !loading.value && !isLiveSearching.value) {
+            refreshData();
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+        
+        window.__inventoryAutoRefresh = autoRefreshInterval;
+      };
+      
+      setupAutoRefresh();
+      
+      // Re-setup auto-refresh when page becomes visible again
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          setupAutoRefresh();
+        }
+      });
+      
+      // Keyboard shortcuts for better UX
+      const handleKeyPress = (e) => {
+        // Ctrl/Cmd + F for search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          document.querySelector('input[type="text"]')?.focus();
+        }
+        
+        // Escape to clear filters and close modals
+        if (e.key === 'Escape') {
+          if (showActionMenu.value) {
+            showActionMenu.value = null;
+          } else if (showFilters.value) {
+            showFilters.value = false;
+          } else {
+            clearAllFilters();
+          }
+        }
+        
+        // Ctrl/Cmd + E for export
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && !exporting.value) {
+          e.preventDefault();
+          exportToExcel();
+        }
+        
+        // Ctrl/Cmd + R for refresh
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+          e.preventDefault();
           refreshData();
         }
-      }, 5 * 60 * 1000); // 5 minutes
+        
+        // Ctrl/Cmd + N for new item
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n' && canAddItem.value) {
+          e.preventDefault();
+          showAddModal.value = true;
+        }
+      };
       
-      // Store interval for cleanup
-      window.__inventoryAutoRefresh = autoRefreshInterval;
+      window.addEventListener('keydown', handleKeyPress);
+      window.__inventoryKeyboardHandler = handleKeyPress;
     });
     
     onUnmounted(() => {
-      // Clear auto-refresh interval
+      console.log('🧹 Cleaning up Inventory Production');
+      
+      // Cleanup resize observer
+      if (window.__inventoryResizeObserver) {
+        window.__inventoryResizeObserver.disconnect();
+        delete window.__inventoryResizeObserver;
+      }
+      
+      // Cleanup auto-refresh
       if (window.__inventoryAutoRefresh) {
         clearInterval(window.__inventoryAutoRefresh);
         delete window.__inventoryAutoRefresh;
       }
       
-      // Clear any existing scroll throttle
-      if (scrollThrottle.value) {
-        clearTimeout(scrollThrottle.value);
+      // Cleanup keyboard handler
+      if (window.__inventoryKeyboardHandler) {
+        window.removeEventListener('keydown', window.__inventoryKeyboardHandler);
+        delete window.__inventoryKeyboardHandler;
       }
       
-      // Clear search state when leaving page
+      // Cleanup scroll throttle
+      if (scrollThrottle.value) {
+        cancelAnimationFrame(scrollThrottle.value);
+      }
+      
+      // Cleanup debounced functions
+      handleLiveSearch.cancel();
+      
+      // Reset store state
       store.dispatch('clearSearch');
       store.dispatch('setWarehouseFilter', '');
-      
-      // Cancel debounced search
-      handleLiveSearch.cancel();
     });
     
     // ============================================
@@ -2043,6 +2331,7 @@ export default {
     return {
       // State
       loading,
+      loadingMore,
       showAddModal,
       showEditModal,
       showTransferModal,
@@ -2059,16 +2348,17 @@ export default {
       refreshing,
       exportProgress,
       error,
+      
+      // Local filters
       searchTerm,
       statusFilter,
       selectedWarehouse,
+      
+      // Mobile UI
       showFilters,
       showActionMenu,
-      loadingMore,
-      lastUpdate,
-      isDataFresh,
       
-      // Refs
+      // Virtual scrolling refs
       scrollContainer,
       mobileScrollContainer,
       
@@ -2089,9 +2379,9 @@ export default {
       canAddItem,
       showActions,
       readonly,
-      useLiveSearch,
-      isLiveSearching,
       searchResults,
+      isLiveSearching,
+      useLiveSearch,
       totalQuantity,
       lowStockCount,
       warehouseCount,
@@ -2115,18 +2405,31 @@ export default {
       formatTime,
       getPlaceholderImage,
       handleImageError,
+      
+      // Filter handlers
       handleLiveSearch,
-      loadMoreItems,
       handleWarehouseChange,
       handleFilterChange,
       clearSearch,
       clearWarehouseFilter,
       clearAllFilters,
+      resetScrollPositions,
+      
+      // Data loading
+      loadMoreItems,
       refreshData,
+      
+      // Excel export
       exportToExcel,
+      
+      // UI actions
       toggleActionMenu,
       showItemDetails,
       closeDetailsModal,
+      canEditItem,
+      canTransferItem,
+      canDispatchItem,
+      canDeleteItem,
       handleTransfer,
       handleDispatch,
       handleEdit,
@@ -2136,78 +2439,374 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
+      
+      // Virtual scrolling
       onScroll,
       onMobileScroll,
       
-      // Permission methods
-      canEditItem,
-      canTransferItem,
-      canDispatchItem,
-      canDeleteItem
+      // Timestamps
+      lastUpdate,
+      isDataFresh
     };
   }
 };
 </script>
 
 <style scoped>
-/* Custom scrollbar styles */
+/* Enhanced Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  margin: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: #94a3b8;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #64748b;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #475569;
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: #374151;
+  background: #1e293b;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #475569;
+  border-color: #1e293b;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #64748b;
 }
 
-/* Ensure table rows have proper height */
-tr {
-  height: 80px;
+.dark ::-webkit-scrollbar-thumb:active {
+  background: #94a3b8;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+/* Smooth Table Transitions */
+.table-transition-enter-active,
+.table-transition-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Mobile touch-friendly */
-@media (max-width: 768px) {
-  button, .clickable {
-    min-height: 44px; /* Apple touch target guidelines */
+.table-transition-enter-from,
+.table-transition-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Card Hover Effects */
+.hover-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .hover-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3),
+              0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* Loading Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
   }
 }
 
-/* Print styles */
+.shimmer-effect {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.dark .shimmer-effect {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Status Indicators with Animation */
+.status-pulse {
+  position: relative;
+}
+
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-50%) scale(1.2);
+  }
+}
+
+.status-in-stock::after {
+  background-color: #10b981;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite,
+             glow-green 2s infinite alternate;
+}
+
+.status-low-stock::after {
+  background-color: #f59e0b;
+  box-shadow: 0 0 0 rgba(245, 158, 11, 0.4);
+  animation: pulse 2s infinite,
+             glow-orange 2s infinite alternate;
+}
+
+.status-out-of-stock::after {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 rgba(239, 68, 68, 0.4);
+  animation: pulse 2s infinite,
+             glow-red 2s infinite alternate;
+}
+
+@keyframes glow-green {
+  from { box-shadow: 0 0 0 rgba(16, 185, 129, 0.4); }
+  to { box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
+}
+
+@keyframes glow-orange {
+  from { box-shadow: 0 0 0 rgba(245, 158, 11, 0.4); }
+  to { box-shadow: 0 0 10px rgba(245, 158, 11, 0.6); }
+}
+
+@keyframes glow-red {
+  from { box-shadow: 0 0 0 rgba(239, 68, 68, 0.4); }
+  to { box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+}
+
+/* Responsive Typography */
+@media (max-width: 640px) {
+  .responsive-text {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .responsive-heading {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+}
+
+/* Touch-friendly Elements */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.75rem;
+}
+
+.touch-target-sm {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0.5rem;
+}
+
+/* Focus States */
+.focus-ring:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5);
+  transition: box-shadow 0.2s ease;
+}
+
+.dark .focus-ring:focus {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.7);
+}
+
+/* Print Optimizations */
 @media print {
-  .no-print {
+  .print-hidden {
     display: none !important;
   }
   
-  body {
-    background: white !important;
-    color: black !important;
+  .print-only {
+    display: block !important;
+  }
+  
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+  
+  .print-page-break-before {
+    page-break-before: always;
+  }
+  
+  .print-page-break-after {
+    page-break-after: always;
+  }
+  
+  .print-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  .print-table th,
+  .print-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: right;
+  }
+  
+  .print-table th {
+    background-color: #f3f4f6;
+    font-weight: bold;
   }
 }
-</style>
+
+/* Loading Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.375rem;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+}
+
+/* Gradient Borders */
+.gradient-border {
+  position: relative;
+  border-radius: 0.75rem;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(to right, #3b82f6, #8b5cf6) border-box;
+  border: 2px solid transparent;
+}
+
+.dark .gradient-border {
+  background: linear-gradient(#1f2937, #1f2937) padding-box,
+              linear-gradient(to right, #3b82f6, #8b5cf6) border-box;
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+  .mobile-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  .mobile-no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .mobile-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .mobile-tap-highlight {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .mobile-tap-highlight:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .mobile-tap-highlight:active {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-transition-fast {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-transition-slow {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+</style> 

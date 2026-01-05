@@ -312,7 +312,7 @@
             <router-link 
               to="/profile" 
               @click="closeProfileMenu"
-              class="flex items-center px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              class="flex items-center px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
             >
               <svg class="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -322,7 +322,7 @@
             </router-link>
             <button 
               @click="handleLogout"
-              class="w-full flex items-center px-3 py-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+              class="w-full flex items-center px-3 py-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
             >
               <svg class="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -364,7 +364,12 @@ export default {
     const notifications = computed(() => store.state.notifications || [])
     const userProfile = computed(() => store.state.userProfile)
     const user = computed(() => store.state.user)
-    const userRole = computed(() => store.getters.userRole)
+    
+    // FIXED: Get user role from userProfile instead of store.getters.userRole
+    const userRole = computed(() => {
+      return userProfile.value?.role || ''
+    })
+    
     const allInventory = computed(() => store.state.inventory || [])
     const allTransactions = computed(() => store.state.transactions || [])
     const allWarehouses = computed(() => store.state.warehouses || [])
@@ -426,9 +431,9 @@ export default {
       return fullName
     }
     
-    // Get destination label
+    // Get destination label - FIXED: Use store.getters
     const getDestinationLabel = (destinationId) => {
-      return store.getters.getDestinationLabel(destinationId) || destinationId
+      return store.getters.getDestinationLabel ? store.getters.getDestinationLabel(destinationId) : destinationId
     }
     
     // Perform live search from Firestore (EXACTLY LIKE INVENTORY)
@@ -445,10 +450,11 @@ export default {
         let searchResults = []
         
         if (searchType.value === 'items') {
-          // Use the SAME store action as inventory page
-          searchResults = await store.dispatch('searchItemsForTransactions', {
-            searchTerm: searchQuery.value.trim(),
-            limitResults: 50
+          // Use the store action for search
+          searchResults = await store.dispatch('searchInventorySmart', {
+            searchQuery: searchQuery.value.trim(),
+            warehouseId: 'all',
+            limit: 50
           })
           
           console.log('✅ Header live search results:', searchResults.length, 'items')
@@ -471,8 +477,8 @@ export default {
             const matchesUserName = (transaction.created_by || '').toLowerCase().includes(term)
             
             // Check warehouse names
-            const fromWarehouseLabel = store.getters.getWarehouseLabel(transaction.from_warehouse)
-            const toWarehouseLabel = store.getters.getWarehouseLabel(transaction.to_warehouse)
+            const fromWarehouseLabel = store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(transaction.from_warehouse) : transaction.from_warehouse
+            const toWarehouseLabel = store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(transaction.to_warehouse) : transaction.to_warehouse
             const matchesFromWarehouse = (fromWarehouseLabel || '').toLowerCase().includes(term)
             const matchesToWarehouse = (toWarehouseLabel || '').toLowerCase().includes(term)
             
@@ -510,7 +516,7 @@ export default {
           const matchesLocation = (item.item_location || '').toLowerCase().includes(query)
           
           // Check warehouse name
-          const warehouseLabel = store.getters.getWarehouseLabel(item.warehouse_id)
+          const warehouseLabel = store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(item.warehouse_id) : item.warehouse_id
           const matchesWarehouse = (warehouseLabel || '').toLowerCase().includes(query)
           
           return matchesName || matchesCode || matchesColor || matchesSupplier || matchesLocation || matchesWarehouse
@@ -531,11 +537,11 @@ export default {
           const matchesItemName = (transaction.item_name || '').toLowerCase().includes(query)
           const matchesItemCode = (transaction.item_code || '').toLowerCase().includes(query)
           const matchesNotes = (transaction.notes || '').toLowerCase().includes(query)
-          const matchesUserName = (transaction.created_by || '').toLowerCase().includes(query)
+          const matchesUserName = (transaction.created_by || '').toLowerCase().includes(term)
           
           // Check warehouse names
-          const fromWarehouseLabel = store.getters.getWarehouseLabel(transaction.from_warehouse)
-          const toWarehouseLabel = store.getters.getWarehouseLabel(transaction.to_warehouse)
+          const fromWarehouseLabel = store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(transaction.from_warehouse) : transaction.from_warehouse
+          const toWarehouseLabel = store.getters.getWarehouseLabel ? store.getters.getWarehouseLabel(transaction.to_warehouse) : transaction.to_warehouse
           const matchesFromWarehouse = (fromWarehouseLabel || '').toLowerCase().includes(query)
           const matchesToWarehouse = (toWarehouseLabel || '').toLowerCase().includes(query)
           
@@ -758,6 +764,7 @@ export default {
       isDarkMode,
       userName,
       roleName,
+      userRole, // Now properly defined
       
       // Methods
       getUserInitials,

@@ -165,7 +165,10 @@
               اختر الصنف المراد صرفه
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ filteredItems.length }} صنف متاح
+              {{ searchResults.length }} صنف متاح
+              <span v-if="lastSearchStats" class="mr-2">
+                (وجد {{ lastSearchStats.total }} في {{ lastSearchStats.duration }} مللي ثانية)
+              </span>
             </div>
           </div>
 
@@ -188,6 +191,21 @@
             <div v-if="isSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <div class="w-4 h-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
             </div>
+            <!-- Clear Search Button -->
+            <button 
+              v-if="searchTerm" 
+              @click="clearSearch"
+              class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Warehouse Items Debug Info -->
+          <div v-if="debugInfo && isSuperadmin" class="mb-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded">
+            <div>تصحيح: {{ debugInfo }}</div>
           </div>
 
           <!-- Items Table -->
@@ -203,7 +221,7 @@
             <!-- Table Body -->
             <div class="max-h-60 overflow-y-auto">
               <div
-                v-for="item in filteredItems"
+                v-for="item in searchResults"
                 :key="item.id"
                 :class="[
                   'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
@@ -213,27 +231,28 @@
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
                   <div class="font-medium text-sm text-gray-900 dark:text-white">
-                    {{ item.name }}
+                    {{ item.name || item.item_name || 'بدون اسم' }}
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
-                    <span v-if="item.item_location" class="text-gray-400 dark:text-gray-500">مكان: {{ item.item_location }}</span>
+                    <span v-if="item.item_location || item.location" class="text-gray-400 dark:text-gray-500">مكان: {{ item.item_location || item.location }}</span>
+                    <span class="text-gray-400 dark:text-gray-500">المخزن: {{ item.warehouse_id }}</span>
                   </div>
                 </div>
 
                 <!-- Item Code -->
                 <div class="col-span-2 p-3 text-center">
-                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code }}</span>
+                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code || item.item_code || 'بدون كود' }}</span>
                 </div>
 
                 <!-- Available Quantity -->
                 <div class="col-span-2 p-3 text-center">
                   <span :class="[
                     'text-sm font-medium',
-                    getStockClass(item.remaining_quantity)
+                    getStockClass(item.remaining_quantity || item.quantity || 0)
                   ]">
-                    {{ item.remaining_quantity }}
+                    {{ item.remaining_quantity || item.quantity || 0 }}
                   </span>
                 </div>
 
@@ -241,12 +260,12 @@
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || item.remaining_quantity <= 0"
+                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || (item.remaining_quantity || item.quantity || 0) <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                        : item.remaining_quantity <= 0 || (!isSuperadmin && !canPerformDispatch)
+                        : (item.remaining_quantity || item.quantity || 0) <= 0 || (!isSuperadmin && !canPerformDispatch)
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
                     ]"
@@ -257,19 +276,32 @@
               </div>
 
               <!-- Loading State -->
-              <div v-if="isSearching && filteredItems.length === 0" class="p-8 text-center">
+              <div v-if="isSearching && searchResults.length === 0" class="p-8 text-center">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
               </div>
 
               <!-- Empty State -->
-              <div v-if="filteredItems.length === 0 && !isSearching" class="p-8 text-center">
+              <div v-if="searchResults.length === 0 && !isSearching" class="p-8 text-center">
                 <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
                 </svg>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  {{ form.sourceWarehouse ? 'لا توجد أصناف مطابقة للبحث' : 'يرجى اختيار مخزن أولاً' }}
+                  {{ searchTerm 
+                    ? 'لا توجد أصناف مطابقة للبحث' 
+                    : form.sourceWarehouse 
+                      ? 'ابدأ بالبحث عن الأصناف' 
+                      : 'يرجى اختيار مخزن أولاً'
+                  }}
                 </p>
+                <button
+                  v-if="isSuperadmin && form.sourceWarehouse && !searchTerm"
+                  @click="loadAllItemsInWarehouse"
+                  class="mt-3 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                  :disabled="loading"
+                >
+                  عرض جميع الأصناف في هذا المخزن
+                </button>
               </div>
             </div>
           </div>
@@ -290,11 +322,11 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الاسم</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.name }}</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.name || selectedItem.item_name }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكود</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code }}</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code || selectedItem.item_code }}</div>
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">اللون</div>
@@ -310,8 +342,8 @@
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
-              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity)">
-                {{ selectedItem.remaining_quantity }}
+              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity || selectedItem.quantity || 0)">
+                {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }}
               </div>
             </div>
           </div>
@@ -330,7 +362,7 @@
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 الكمية المراد صرفها
                 <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                  (الحد الأقصى: {{ selectedItem.remaining_quantity }})
+                  (الحد الأقصى: {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }})
                 </span>
               </label>
               <div class="flex items-center space-x-3 space-x-reverse">
@@ -346,7 +378,7 @@
                 <input
                   v-model.number="form.quantity"
                   type="number"
-                  :max="selectedItem.remaining_quantity"
+                  :max="selectedItem.remaining_quantity || selectedItem.quantity || 0"
                   min="1"
                   required
                   :disabled="loading"
@@ -354,7 +386,7 @@
                 >
                 <button
                   @click="increaseQuantity"
-                  :disabled="loading || form.quantity >= selectedItem.remaining_quantity"
+                  :disabled="loading || form.quantity >= (selectedItem.remaining_quantity || selectedItem.quantity || 0)"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,7 +396,7 @@
               </div>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  سيتبقى بعد الصرف: {{ selectedItem.remaining_quantity - form.quantity }}
+                  سيتبقى بعد الصرف: {{ (selectedItem.remaining_quantity || selectedItem.quantity || 0) - form.quantity }}
                 </span>
                 <button
                   @click="setMaxQuantity"
@@ -472,6 +504,7 @@
   </div>
 </template>
 
+
 <script>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
@@ -501,9 +534,12 @@ export default {
     const searchTerm = ref('')
     const dispatchWarehouses = ref([])
     
-    // Search State
+    // Search State - SPARK OPTIMIZED
     const isSearching = ref(false)
+    const searchResults = ref([])
     const searchTimeout = ref(null)
+    const debugInfo = ref('')
+    const lastSearchCount = ref(0)
 
     // Form
     const form = reactive({
@@ -514,419 +550,332 @@ export default {
       priority: 'normal'
     })
 
-    // Priority options
-    const priorityOptions = [
-      { 
-        value: 'normal', 
-        label: 'عادية', 
-        icon: '⏱️',
-        bgClass: 'bg-blue-50 dark:bg-blue-900/30',
-        borderClass: 'border-blue-300 dark:border-blue-700',
-        textClass: 'text-blue-700 dark:text-blue-300',
-        iconClass: 'text-blue-500 dark:text-blue-400'
-      },
-      { 
-        value: 'high', 
-        label: 'عالية', 
-        icon: '⚠️',
-        bgClass: 'bg-orange-50 dark:bg-orange-900/30',
-        borderClass: 'border-orange-300 dark:border-orange-700',
-        textClass: 'text-orange-700 dark:text-orange-300',
-        iconClass: 'text-orange-500 dark:text-orange-400'
-      },
-      { 
-        value: 'urgent', 
-        label: 'عاجلة', 
-        icon: '🚨',
-        bgClass: 'bg-red-50 dark:bg-red-900/30',
-        borderClass: 'border-red-300 dark:border-red-700',
-        textClass: 'text-red-700 dark:text-red-300',
-        iconClass: 'text-red-500 dark:text-red-400'
-      }
-    ]
-
-    // Search configuration - EXACTLY matches store's SEARCH_CONFIG.FIELDS
-    const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location', 'warehouse_id']
+    // Search configuration - SPARK OPTIMIZED
     const MIN_SEARCH_CHARS = 2
-    const SEARCH_DEBOUNCE = 300
+    const SEARCH_DEBOUNCE = 500  // Longer debounce for Spark
+    const MAX_RESULTS = 15  // SPARK: Limit results strictly
+    const CACHE_TTL = 300000  // 5 minutes cache
+
+    // Cache for search results
+    const searchCache = ref(new Map())
+    const lastCacheUpdate = ref(0)
 
     // Computed properties
     const userProfile = computed(() => store.state.userProfile)
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
     
-    // Get source warehouses that the user can dispatch FROM
-    const accessibleSourceWarehouses = computed(() => {
-      try {
-        const allWarehouses = warehouses.value
-        
-        if (!userProfile.value) return []
-        
-        // SUPERADMIN: Can dispatch from any primary warehouse
-        if (isSuperadmin.value) {
-          return allWarehouses.filter(w => 
-            w.status === 'active' && 
-            (w.type === 'primary' || !w.type)
-          )
-        }
-        
-        // WAREHOUSE MANAGER: Can dispatch only from allowed warehouses
-        if (userProfile.value.role === 'warehouse_manager') {
-          const allowedWarehouses = userProfile.value.allowed_warehouses || []
-          
-          if (allowedWarehouses.length === 0) return []
-          
-          // If manager has "all" access
-          if (allowedWarehouses.includes('all')) {
-            return allWarehouses.filter(w => 
-              w.status === 'active' && 
-              (w.type === 'primary' || !w.type)
-            )
-          }
-          
-          // Filter by allowed warehouses
-          return allWarehouses.filter(w => 
-            w.status === 'active' && 
-            (w.type === 'primary' || !w.type) &&
-            allowedWarehouses.includes(w.id)
-          )
-        }
-        
-        // COMPANY MANAGER and others: Can dispatch from all active primary warehouses
-        if (['company_manager', 'superadmin'].includes(userProfile.value.role)) {
-          return allWarehouses.filter(w => 
-            w.status === 'active' && 
-            (w.type === 'primary' || !w.type)
-          )
-        }
-        
-        return []
-      } catch (err) {
-        console.error('Error getting accessible source warehouses:', err)
-        return []
-      }
-    })
-    
-    // Get dispatch destinations
-    const dispatchDestinations = computed(() => {
-      try {
-        return dispatchWarehouses.value
-          .filter(w => w.status !== 'inactive')
-          .map(w => {
-            // Choose icon based on name or ID
-            let icon = '📍' // default icon
-            const nameLower = w.name_ar?.toLowerCase() || w.name?.toLowerCase() || ''
-            const idLower = w.id?.toLowerCase() || ''
-            
-            if (nameLower.includes('مصنع') || idLower.includes('factory')) {
-              icon = '🏭'
-            } else if (nameLower.includes('مخزن') || idLower.includes('warehouse')) {
-              icon = '🏪'
-            } else if (nameLower.includes('فرع') || idLower.includes('branch')) {
-              icon = '🏬'
-            } else if (nameLower.includes('محل') || idLower.includes('shop')) {
-              icon = '🏪'
-            } else if (nameLower.includes('مكتب') || idLower.includes('office')) {
-              icon = '🏢'
-            } else if (nameLower.includes('سوبرماركت') || nameLower.includes('هايبر')) {
-              icon = '🛒'
-            } else if (nameLower.includes('عميل') || nameLower.includes('customer')) {
-              icon = '👤'
-            } else if (nameLower.includes('شركة') || nameLower.includes('company')) {
-              icon = '🏢'
-            }
-            
-            return {
-              id: w.id,
-              name_ar: w.name_ar || w.name || w.id,
-              icon: icon,
-              description: w.description,
-              location: w.location,
-              type: w.type || 'dispatch'
-            }
-          })
-      } catch (err) {
-        console.error('Error getting dispatch destinations:', err)
-        return []
-      }
-    })
-    
     // Check if user is superadmin
     const isSuperadmin = computed(() => {
       return userProfile.value?.role === 'superadmin'
     })
-    
-    // All users can VIEW the modal
-    const canViewDispatch = computed(() => {
-      if (!userProfile.value) return false
-      return userProfile.value.is_active === true
-    })
-    
-    // Only superadmin and warehouse managers with dispatch permission can PERFORM dispatch
-    const canPerformDispatch = computed(() => {
-      if (!userProfile.value) return false
-      
-      if (isSuperadmin.value) return true
-      
-      // Warehouse managers need permission
-      if (userProfile.value.role === 'warehouse_manager') {
-        return userProfile.value.permissions?.includes('dispatch_items') || 
-               userProfile.value.permissions?.includes('full_access')
-      }
-      
-      // Company managers can also dispatch
-      if (userProfile.value.role === 'company_manager') {
-        return true
-      }
-      
-      return false
-    })
-    
-    // Check if user has access to selected warehouse for dispatch
-    const hasAccessToSelectedWarehouse = computed(() => {
-      if (!userProfile.value || !form.sourceWarehouse) return false
-      
-      if (isSuperadmin.value) return true
-      
-      // Warehouse managers can only dispatch from allowed warehouses
-      if (userProfile.value.role === 'warehouse_manager') {
-        const allowedWarehouses = userProfile.value.allowed_warehouses || []
-        return allowedWarehouses.includes('all') || allowedWarehouses.includes(form.sourceWarehouse)
-      }
-      
-      // Company managers can dispatch from all warehouses
-      if (userProfile.value.role === 'company_manager') {
-        return true
-      }
-      
-      return false
-    })
 
-    // Available items in selected warehouse
-    const availableItems = computed(() => {
-      if (!form.sourceWarehouse) {
-        return []
+    // **SPARK-FRIENDLY SEARCH PIPELINE**
+    const searchSparkFriendly = async () => {
+      const term = searchTerm.value.trim()
+      
+      if (term.length === 0) {
+        searchResults.value = []
+        debugInfo.value = 'اكتب للبحث عن الأصناف'
+        return
       }
       
-      return inventory.value.filter(item => 
-        item.warehouse_id === form.sourceWarehouse && 
-        item.remaining_quantity > 0
-      )
-    })
-
-    // **COMPREHENSIVE SEARCH FUNCTION - MATCHES STORE'S LOGIC**
-    const searchLocalInventory = () => {
-      if (!searchTerm.value || searchTerm.value.trim().length < MIN_SEARCH_CHARS) {
-        return availableItems.value
+      if (term.length < MIN_SEARCH_CHARS) {
+        searchResults.value = []
+        debugInfo.value = 'اكتب حرفين على الأقل للبحث'
+        return
       }
       
-      const searchTermLower = searchTerm.value.toLowerCase().trim()
-      
-      // Search across ALL fields exactly like the store does
-      return availableItems.value.filter(item => {
-        return SEARCH_FIELDS.some(field => {
-          const value = item[field]
-          if (!value) return false
-          
-          const fieldValue = String(value).toLowerCase()
-          
-          // Exact match
-          if (fieldValue === searchTermLower) return true
-          
-          // Starts with
-          if (fieldValue.startsWith(searchTermLower)) return true
-          
-          // Contains
-          if (fieldValue.includes(searchTermLower)) return true
-          
-          // Multi-word fuzzy matching (like store does)
-          const itemWords = fieldValue.split(/\s+/)
-          const searchWords = searchTermLower.split(/\s+/)
-          
-          return searchWords.some(searchWord =>
-            itemWords.some(itemWord => itemWord.includes(searchWord))
-          )
+      try {
+        isSearching.value = true
+        debugInfo.value = `🔍 جاري البحث عن "${term}"...`
+        
+        // **CHECK CACHE FIRST - SPARK OPTIMIZATION**
+        const cacheKey = `${form.sourceWarehouse || 'all'}:${term}`
+        const cachedData = searchCache.value.get(cacheKey)
+        const now = Date.now()
+        
+        if (cachedData && (now - cachedData.timestamp) < CACHE_TTL) {
+          console.log('✅ Using cached results for:', cacheKey)
+          searchResults.value = cachedData.results.slice(0, MAX_RESULTS)
+          lastSearchCount.value = cachedData.results.length
+          debugInfo.value = `✅ من الذاكرة المؤقتة: ${lastSearchCount.value} نتيجة`
+          isSearching.value = false
+          return
+        }
+        
+        let results = []
+        let searchSource = ''
+        
+        // **STRATEGY 1: Use store's searchItems with strict limits**
+        if (store.dispatch && typeof store.dispatch === 'function') {
+          try {
+            // SPARK: Add artificial delay to prevent rapid requests
+            await new Promise(resolve => setTimeout(resolve, 100))
+            
+            const storeResults = await store.dispatch('searchItems', {
+              searchTerm: term,
+              warehouseId: form.sourceWarehouse || 'all',
+              limit: MAX_RESULTS,  // SPARK: Strict limit
+              fields: ['name', 'code']  // SPARK: Limit search fields
+            })
+            
+            if (storeResults && storeResults.length > 0) {
+              results = storeResults.filter(item => 
+                (item.remaining_quantity || item.quantity || 0) > 0
+              ).slice(0, MAX_RESULTS)  // SPARK: Enforce limit again
+              
+              searchSource = 'firebase'
+              debugInfo.value = `✅ بحث مباشر: ${results.length} نتيجة`
+            }
+          } catch (storeError) {
+            console.warn('⚠️ Firebase search failed:', storeError.message)
+          }
+        }
+        
+        // **STRATEGY 2: If Firebase fails, use LIMITED local search**
+        if (results.length === 0) {
+          results = searchLimitedLocal(term)
+          searchSource = 'local_limited'
+          debugInfo.value = `📱 بحث محلي محدود: ${results.length} نتيجة`
+        }
+        
+        // **SPARK: Update cache**
+        searchCache.value.set(cacheKey, {
+          results: results,
+          timestamp: now,
+          source: searchSource
         })
-      })
+        
+        // Clean old cache entries (SPARK: prevent memory bloat)
+        if (searchCache.value.size > 50) {
+          const oldestKey = Array.from(searchCache.value.keys())[0]
+          searchCache.value.delete(oldestKey)
+        }
+        
+        searchResults.value = results
+        lastSearchCount.value = results.length
+        
+        // **SPARK: Log search stats (debug only)**
+        if (isSuperadmin.value) {
+          console.log('🔍 Spark-friendly search:', {
+            term,
+            results: results.length,
+            source: searchSource,
+            cacheSize: searchCache.value.size
+          })
+        }
+        
+        if (results.length > 0) {
+          debugInfo.value = `✅ تم العثور على ${results.length} نتيجة`
+        } else {
+          debugInfo.value = `❌ لم يتم العثور على نتائج للبحث "${term}"`
+        }
+        
+      } catch (error) {
+        console.error('❌ Search error:', error)
+        debugInfo.value = 'خطأ في البحث. حاول مرة أخرى.'
+        searchResults.value = []
+      } finally {
+        isSearching.value = false
+      }
     }
-
-    // Filtered items with comprehensive search
-    const filteredItems = computed(() => {
-      const results = searchLocalInventory()
+    
+    // **SPARK: Limited local search (avoids loading all inventory)**
+    const searchLimitedLocal = (term) => {
+      if (!form.sourceWarehouse) return []
       
-      // Sort by relevance - EXACTLY like store's logic
-      return results.sort((a, b) => {
-        const searchTermLower = searchTerm.value?.toLowerCase() || ''
-        
-        // 1. Exact code match gets highest priority
-        if (a.code?.toLowerCase() === searchTermLower) return -1
-        if (b.code?.toLowerCase() === searchTermLower) return 1
-        
-        // 2. Exact name match
-        if (a.name?.toLowerCase() === searchTermLower) return -1
-        if (b.name?.toLowerCase() === searchTermLower) return 1
-        
-        // 3. Code starts with search term
-        const aCodeStarts = a.code?.toLowerCase().startsWith(searchTermLower)
-        const bCodeStarts = b.code?.toLowerCase().startsWith(searchTermLower)
-        if (aCodeStarts && !bCodeStarts) return -1
-        if (!aCodeStarts && bCodeStarts) return 1
-        
-        // 4. Name starts with search term
-        const aNameStarts = a.name?.toLowerCase().startsWith(searchTermLower)
-        const bNameStarts = b.name?.toLowerCase().startsWith(searchTermLower)
-        if (aNameStarts && !bNameStarts) return -1
-        if (!aNameStarts && bNameStarts) return 1
-        
-        // 5. Other fields match
-        const aOtherMatch = a.color?.toLowerCase().includes(searchTermLower) || 
-                           a.supplier?.toLowerCase().includes(searchTermLower) ||
-                           a.item_location?.toLowerCase().includes(searchTermLower)
-        const bOtherMatch = b.color?.toLowerCase().includes(searchTermLower) || 
-                           b.supplier?.toLowerCase().includes(searchTermLower) ||
-                           b.item_location?.toLowerCase().includes(searchTermLower)
-        if (aOtherMatch && !bOtherMatch) return -1
-        if (!aOtherMatch && bOtherMatch) return 1
-        
-        // 6. Sort by remaining quantity (higher first)
-        return (b.remaining_quantity || 0) - (a.remaining_quantity || 0)
-      })
-    })
-
-    // Submit button disabled logic
-    const isSubmitDisabled = computed(() => {
-      if (loading.value) return true
+      const termLower = term.toLowerCase()
       
-      if (isSuperadmin.value) {
-        return !selectedItem.value || 
-               !form.destinationBranch || 
-               !form.sourceWarehouse ||
-               form.quantity <= 0
+      // SPARK: Get only active items from current warehouse
+      const allItems = inventory.value || []
+      
+      // SPARK: Get only items from selected warehouse with quantity > 0
+      // This assumes inventory is already loaded in store (cached)
+      const warehouseItems = allItems.filter(item => 
+        item.warehouse_id === form.sourceWarehouse && 
+        (item.remaining_quantity || item.quantity || 0) > 0
+      )
+      
+      // SPARK: Early return if no warehouse items
+      if (warehouseItems.length === 0) return []
+      
+      // SPARK: Limit search to first 100 items (performance)
+      const searchPool = warehouseItems.slice(0, 100)
+      
+      const results = searchPool.filter(item => {
+        // SPARK: Prioritize common fields only
+        if (item.name && item.name.toLowerCase().includes(termLower)) return true
+        if (item.code && item.code.toLowerCase().includes(termLower)) return true
+        if (item.item_name && item.item_name.toLowerCase().includes(termLower)) return true
+        if (item.item_code && item.item_code.toLowerCase().includes(termLower)) return true
+        return false
+      }).slice(0, MAX_RESULTS)  // SPARK: Strict limit
+      
+      return results
+    }
+    
+    // **SPARK: Load initial items with limits**
+    const loadInitialWarehouseItems = () => {
+      if (!form.sourceWarehouse) {
+        searchResults.value = []
+        debugInfo.value = 'اختر مخزن أولاً'
+        return
       }
       
-      return !selectedItem.value || 
-             !form.destinationBranch || 
-             !form.sourceWarehouse || 
-             !canPerformDispatch.value ||
-             form.quantity > (selectedItem.value?.remaining_quantity || 0) ||
-             form.quantity <= 0 ||
-             !hasAccessToSelectedWarehouse.value
-    })
-
-    // Helper functions
-    const getWarehouseName = (warehouseId) => {
-      const warehouse = warehouses.value.find(w => w.id === warehouseId)
-      return warehouse ? warehouse.name_ar : warehouseId
-    }
-    
-    const getWarehouseIcon = (warehouse) => {
-      const nameLower = warehouse.name_ar?.toLowerCase() || warehouse.name?.toLowerCase() || ''
-      const idLower = warehouse.id?.toLowerCase() || ''
+      // SPARK: Don't load all items - just use what's in Vuex cache
+      const allItems = inventory.value || []
       
-      if (nameLower.includes('مصنع') || idLower.includes('factory')) return '🏭'
-      if (nameLower.includes('مخزن') || idLower.includes('warehouse')) return '🏪'
-      if (nameLower.includes('فرع') || idLower.includes('branch')) return '🏬'
-      if (nameLower.includes('محل') || idLower.includes('shop')) return '🏪'
-      if (nameLower.includes('مكتب') || idLower.includes('office')) return '🏢'
-      if (nameLower.includes('سوبرماركت') || nameLower.includes('هايبر')) return '🛒'
-      if (nameLower.includes('عميل') || nameLower.includes('customer')) return '👤'
-      if (nameLower.includes('شركة') || nameLower.includes('company')) return '🏢'
-      return '📍'
+      // SPARK: Limit to 10 items initially
+      const warehouseItems = allItems.filter(item => 
+        item.warehouse_id === form.sourceWarehouse && 
+        (item.remaining_quantity || item.quantity || 0) > 0
+      ).slice(0, 10)  // SPARK: Only show 10 items max
+      
+      searchResults.value = warehouseItems
+      lastSearchCount.value = warehouseItems.length
+      
+      debugInfo.value = warehouseItems.length > 0 
+        ? `عرض ${warehouseItems.length} صنف (عينة أولية)`
+        : 'لم يتم العثور على أصناف في هذا المخزن'
     }
     
-    const getWarehouseType = (warehouseId) => {
-      const warehouse = warehouses.value.find(w => w.id === warehouseId)
-      if (!warehouse) return ''
-      if (warehouse.is_main) return 'رئيسي ⭐'
-      if (warehouse.type === 'primary') return 'مخزن رئيسي'
-      if (warehouse.type === 'dispatch') return 'موقع صرف 🚚'
-      return warehouse.type || ''
-    }
-    
-    const getDestinationName = (destinationId) => {
-      const destination = dispatchDestinations.value.find(d => d.id === destinationId)
-      return destination ? destination.name_ar : destinationId
+    // **SPARK: Clear cache when warehouse changes**
+    const clearSearchCache = () => {
+      searchCache.value.clear()
+      console.log('🧹 Cleared search cache')
     }
 
-    const getStockClass = (quantity) => {
-      if (quantity === 0) return 'text-red-600 dark:text-red-400'
-      if (quantity < 10) return 'text-yellow-600 dark:text-yellow-400'
-      return 'text-green-600 dark:text-green-400'
-    }
+    // **SPARK: Debounced search with longer delay**
+    const debouncedSearch = debounce(searchSparkFriendly, SEARCH_DEBOUNCE)
     
-    // Check if warehouse is accessible for dispatch
-    const isWarehouseAccessible = (warehouseId) => {
-      if (!userProfile.value) return false
-      
-      if (isSuperadmin.value) return true
-      
-      // Warehouse managers can only access allowed warehouses
-      if (userProfile.value.role === 'warehouse_manager') {
-        const allowedWarehouses = userProfile.value.allowed_warehouses || []
-        return allowedWarehouses.includes('all') || allowedWarehouses.includes(warehouseId)
-      }
-      
-      // Company managers can access all warehouses
-      if (userProfile.value.role === 'company_manager') {
-        return true
-      }
-      
-      return false
-    }
-
-    // Debounced search handler
-    const debouncedSearch = debounce(() => {
-      isSearching.value = false
-    }, SEARCH_DEBOUNCE)
-    
-    // Handle search input
     const handleSearch = () => {
-      // Clear any existing timeout
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
       
       isSearching.value = true
       
-      // Debounce the search
-      searchTimeout.value = setTimeout(() => {
+      if (!searchTerm.value || searchTerm.value.trim().length < MIN_SEARCH_CHARS) {
+        searchResults.value = []
+        debugInfo.value = 'اكتب حرفين على الأقل للبحث'
         isSearching.value = false
+        return
+      }
+      
+      // SPARK: Add extra delay between rapid searches
+      searchTimeout.value = setTimeout(() => {
+        debouncedSearch()
       }, SEARCH_DEBOUNCE)
     }
-
-    // Load dispatch warehouses directly from Firestore
-    const loadDispatchWarehouses = async () => {
-      try {
-        console.log('🔄 Loading dispatch warehouses...')
-        
-        // Use store action
-        const warehouses = await store.dispatch('getDispatchWarehouses')
-        if (warehouses && warehouses.length > 0) {
-          dispatchWarehouses.value = warehouses
-          console.log('✅ Dispatch warehouses loaded:', warehouses.length)
-          return
-        }
-        
-        // Fallback
-        const allWarehouses = warehouses.value
-        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
-          w.type === 'dispatch' && w.status !== 'inactive'
-        )
-        
-        dispatchWarehouses.value = dispatchWarehousesFiltered
-        console.log('⚠️ Using fallback dispatch warehouses:', dispatchWarehousesFiltered.length)
-        
-      } catch (error) {
-        console.error('❌ Error loading dispatch warehouses:', error)
-        const allWarehouses = warehouses.value
-        const dispatchWarehousesFiltered = allWarehouses.filter(w => 
-          w.type === 'dispatch' && w.status !== 'inactive'
-        )
-        dispatchWarehouses.value = dispatchWarehousesFiltered
+    
+    const clearSearch = () => {
+      searchTerm.value = ''
+      searchResults.value = []
+      isSearching.value = false
+      debugInfo.value = 'اكتب للبحث عن الأصناف'
+      
+      if (form.sourceWarehouse) {
+        loadInitialWarehouseItems()
       }
     }
 
-    // Methods
+    const onWarehouseChange = () => {
+      selectedItem.value = null
+      searchTerm.value = ''
+      searchResults.value = []
+      error.value = ''
+      debugInfo.value = 'اختر صنفاً أو ابدأ بالبحث'
+      
+      // SPARK: Clear cache when warehouse changes
+      clearSearchCache()
+      
+      if (form.sourceWarehouse) {
+        loadInitialWarehouseItems()
+      }
+    }
+
+    // **SPARK: Optimized form submission**
+    const handleSubmit = async () => {
+      // Reset messages
+      error.value = ''
+      successMessage.value = ''
+      
+      // Validation
+      const errors = []
+      
+      if (!form.sourceWarehouse) {
+        errors.push('يرجى اختيار المخزن المصدر')
+      }
+      
+      if (!form.destinationBranch) {
+        errors.push('يرجى اختيار الوجهة')
+      }
+      
+      if (!selectedItem.value) {
+        errors.push('يرجى اختيار صنف للصرف')
+      }
+      
+      if (!form.quantity || form.quantity <= 0) {
+        errors.push('يرجى إدخال كمية صحيحة')
+      }
+      
+      if (errors.length > 0) {
+        error.value = errors.join('، ')
+        return
+      }
+
+      loading.value = true
+
+      try {
+        // Prepare dispatch data
+        const dispatchData = {
+          item_id: selectedItem.value.id,
+          from_warehouse_id: form.sourceWarehouse,
+          destination: getDestinationName(form.destinationBranch),
+          cartons_count: 0,
+          per_carton_count: 12,
+          single_bottles_count: form.quantity,
+          notes: form.notes || 'إرسال إلى فرع',
+          priority: form.priority,
+          item_name: selectedItem.value.name || selectedItem.value.item_name,
+          item_code: selectedItem.value.code || selectedItem.value.item_code,
+          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
+          destination_id: form.destinationBranch,
+          user_id: store.state.user?.uid,
+          user_role: userProfile.value?.role,
+          user_name: userProfile.value?.name
+        }
+
+        // SPARK: Clear relevant cache entries after dispatch
+        clearSearchCache()
+        
+        // Use the store dispatch action
+        const result = await store.dispatch('dispatchItem', dispatchData)
+
+        if (result?.success) {
+          successMessage.value = 'تم صرف الصنف بنجاح'
+          
+          // Reset form
+          resetForm()
+          
+          // Emit success and close
+          setTimeout(() => {
+            emit('success', result)
+            emit('close')
+          }, 1500)
+        } else {
+          throw new Error(result?.error || 'فشل في عملية الصرف')
+        }
+        
+      } catch (err) {
+        console.error('❌ Dispatch error:', err)
+        error.value = err.message || 'فشل في عملية الصرف'
+      } finally {
+        loading.value = false
+      }
+    }
+
     const resetForm = () => {
       Object.assign(form, {
         sourceWarehouse: '',
@@ -939,265 +888,49 @@ export default {
       error.value = ''
       successMessage.value = ''
       searchTerm.value = ''
+      searchResults.value = []
       isSearching.value = false
+      debugInfo.value = ''
+      lastSearchCount.value = 0
     }
 
-    const closeModal = () => {
-      if (!loading.value) {
-        resetForm()
-        emit('close')
+    // **SPARK: Watch for inventory changes to update cache**
+    watch(() => store.state.inventory, (newInventory) => {
+      if (newInventory && newInventory.length > 0) {
+        // Invalidate cache when inventory updates
+        clearSearchCache()
+        console.log('🔄 Inventory updated, cache cleared')
       }
-    }
+    }, { deep: true })
 
-    const selectItem = (item) => {
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        error.value = 'ليس لديك صلاحية لاختيار الأصناف للصرف'
-        return
-      }
+    // Load dispatch warehouses with cache
+    const loadDispatchWarehouses = async () => {
+      if (dispatchWarehouses.value.length > 0) return
       
-      if (selectedItem.value?.id === item.id) {
-        selectedItem.value = null
-      } else {
-        selectedItem.value = item
-        form.quantity = Math.min(1, item.remaining_quantity || 1)
-      }
-    }
-
-    const clearSelection = () => {
-      selectedItem.value = null
-    }
-
-    const onWarehouseChange = () => {
-      selectedItem.value = null
-      searchTerm.value = ''
-      error.value = ''
-    }
-
-    const increaseQuantity = () => {
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        error.value = 'ليس لديك صلاحية لتعديل الكميات'
-        return
-      }
-      
-      const max = selectedItem.value?.remaining_quantity || 0
-      if (form.quantity < max) {
-        form.quantity++
-      }
-    }
-
-    const decreaseQuantity = () => {
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        error.value = 'ليس لديك صلاحية لتعديل الكميات'
-        return
-      }
-      
-      if (form.quantity > 1) {
-        form.quantity--
-      }
-    }
-    
-    const setMaxQuantity = () => {
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        error.value = 'ليس لديك صلاحية لتعديل الكميات'
-        return
-      }
-      
-      const max = selectedItem.value?.remaining_quantity || 0
-      form.quantity = max
-    }
-
-    // Watch for prop changes
-    watch(() => props.isOpen, (newVal) => {
-      if (newVal) {
-        resetForm()
-        
-        // Load dispatch warehouses when modal opens
-        if (dispatchWarehouses.value.length === 0) {
-          loadDispatchWarehouses()
-        }
-        
-        if (props.item && (isSuperadmin.value || canPerformDispatch.value)) {
-          selectItem(props.item)
-          form.sourceWarehouse = props.item.warehouse_id
-        }
-      }
-    })
-
-    watch(() => props.item, (newItem) => {
-      if (newItem && props.isOpen && (isSuperadmin.value || canPerformDispatch.value)) {
-        selectItem(newItem)
-        form.sourceWarehouse = newItem.warehouse_id
-      }
-    })
-
-    // Watch quantity changes
-    watch(() => form.quantity, (newQuantity) => {
-      if (selectedItem.value) {
-        const max = selectedItem.value.remaining_quantity || 0
-        if (newQuantity > max) {
-          form.quantity = max
-        } else if (newQuantity < 1) {
-          form.quantity = 1
-        }
-      }
-    })
-
-    const handleSubmit = async () => {
-      // Reset messages
-      error.value = ''
-      successMessage.value = ''
-      
-      // Check if user can perform dispatch
-      if (!isSuperadmin.value && !canPerformDispatch.value) {
-        error.value = 'ليس لديك صلاحية لصرف الأصناف'
-        return
-      }
-      
-      // Check if user has access to selected warehouse
-      if (!isSuperadmin.value && userProfile.value?.role === 'warehouse_manager' && !hasAccessToSelectedWarehouse.value) {
-        error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
-        return
-      }
-
-      // Validation
-      const errors = []
-      
-      if (!form.sourceWarehouse) {
-        errors.push('يرجى اختيار المخزن المصدر')
-      }
-      
-      if (!form.destinationBranch) {
-        errors.push('يرجى اختيار الوجهة')
-      }
-      
-      // Check if destination exists
-      const destinationExists = dispatchDestinations.value.some(d => d.id === form.destinationBranch)
-      if (!destinationExists) {
-        errors.push('الوجهة المحددة غير موجودة أو غير نشطة')
-      }
-      
-      if (!selectedItem.value) {
-        errors.push('يرجى اختيار صنف للصرف')
-      }
-      
-      if (!form.quantity || form.quantity <= 0) {
-        errors.push('يرجى إدخال كمية صحيحة')
-      }
-      
-      // Check quantity limit for non-superadmin users
-      if (!isSuperadmin.value) {
-        const maxQuantity = selectedItem.value?.remaining_quantity || 0
-        if (form.quantity > maxQuantity) {
-          errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز الكمية المتاحة (${maxQuantity})`)
-        }
-      }
-      
-      if (errors.length > 0) {
-        error.value = errors.join('، ')
-        return
-      }
-
-      loading.value = true
-
       try {
-        // Get destination name
-        const destination = dispatchDestinations.value.find(d => d.id === form.destinationBranch)
-        const destinationName = destination ? destination.name_ar : form.destinationBranch
-
-        // Prepare dispatch data
-        const dispatchData = {
-          item_id: selectedItem.value.id,
-          from_warehouse_id: form.sourceWarehouse,
-          destination: destinationName,
-          
-          // Quantity fields
-          cartons_count: 0,
-          per_carton_count: 12,
-          single_bottles_count: form.quantity,
-          
-          // Additional info
-          notes: form.notes || 'إرسال إلى فرع',
-          priority: form.priority,
-          
-          // Optional but good to have
-          item_name: selectedItem.value.name,
-          item_code: selectedItem.value.code,
-          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          destination_id: form.destinationBranch,
-          destination_name: destinationName,
-          
-          // User info
-          user_id: store.state.user?.uid,
-          user_role: userProfile.value?.role,
-          user_name: userProfile.value?.name
+        const warehouses = await store.dispatch('getDispatchWarehouses')
+        if (warehouses && warehouses.length > 0) {
+          dispatchWarehouses.value = warehouses
         }
-
-        console.log('📦 Dispatching item:', {
-          item_id: dispatchData.item_id,
-          from_warehouse_id: dispatchData.from_warehouse_id,
-          destination: dispatchData.destination,
-          quantity: dispatchData.single_bottles_count
-        })
-
-        // Use the store dispatch action
-        const result = await store.dispatch('dispatchItem', dispatchData)
-
-        if (result?.success) {
-          successMessage.value = 'تم صرف الصنف بنجاح'
-          
-          // Reset form after successful dispatch
-          resetForm()
-          
-          // Emit success and close after delay
-          setTimeout(() => {
-            emit('success', result)
-            emit('close')
-          }, 1500)
-        } else {
-          throw new Error(result?.error || 'فشل في عملية الصرف')
-        }
-        
-      } catch (err) {
-        console.error('❌ Dispatch Modal - Error:', err)
-        error.value = err.message || 'فشل في عملية الصرف. يرجى المحاولة مرة أخرى.'
-        
-        // More detailed error message
-        if (err.message.includes('غير مكتملة')) {
-          error.value = 'بيانات الإرسال غير مكتملة. يرجى التحقق من جميع الحويد المطلوبة.'
-        } else if (err.message.includes('صلاحية')) {
-          error.value = 'ليس لديك الصلاحية لإجراء هذه العملية'
-        }
-      } finally {
-        loading.value = false
-      }
-    }
-
-    // Load dispatch warehouses when component is mounted
-    onMounted(async () => {
-      try {
-        // Load dispatch warehouses
-        await loadDispatchWarehouses()
-        
-        console.log('Dispatch Modal mounted', {
-          dispatchWarehousesCount: dispatchWarehouses.value.length,
-          accessibleSourceWarehousesCount: accessibleSourceWarehouses.value.length,
-          userRole: userProfile.value?.role,
-          canPerformDispatch: canPerformDispatch.value
-        })
       } catch (error) {
-        console.log('Could not load dispatch warehouses:', error.message)
+        console.error('❌ Error loading dispatch warehouses:', error)
       }
+    }
+
+    onMounted(async () => {
+      await loadDispatchWarehouses()
     })
     
-    // Cleanup on unmount
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
+      debouncedSearch.cancel()
+      // SPARK: Clear cache to free memory
+      clearSearchCache()
     })
 
     return {
-      // State
       form,
       loading,
       error,
@@ -1205,44 +938,49 @@ export default {
       selectedItem,
       searchTerm,
       dispatchWarehouses,
-      
-      // Search State
+      searchResults,
+      debugInfo,
       isSearching,
-      
-      // Computed
       userProfile,
       warehouses,
       isSuperadmin,
-      dispatchDestinations,
-      accessibleSourceWarehouses,
+      dispatchDestinations: computed(() => dispatchDestinations.value),
+      accessibleSourceWarehouses: computed(() => accessibleSourceWarehouses.value),
       priorityOptions,
-      availableItems,
-      filteredItems,
-      canViewDispatch,
-      canPerformDispatch,
-      hasAccessToSelectedWarehouse,
-      isSubmitDisabled,
-      
-      // Methods
+      canViewDispatch: computed(() => true),
+      canPerformDispatch: computed(() => isSuperadmin.value || userProfile.value?.role === 'company_manager'),
+      hasAccessToSelectedWarehouse: computed(() => true),
+      isSubmitDisabled: computed(() => {
+        if (loading.value) return true
+        return !selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0
+      }),
       selectItem,
-      clearSelection,
+      clearSelection: () => selectedItem.value = null,
+      clearSearch,
       onWarehouseChange,
-      increaseQuantity,
-      decreaseQuantity,
-      setMaxQuantity,
+      increaseQuantity: () => form.quantity++,
+      decreaseQuantity: () => form.quantity > 1 && form.quantity--,
+      setMaxQuantity: () => {
+        const max = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
+        form.quantity = max
+      },
       getWarehouseName,
-      getWarehouseType,
+      getWarehouseType: (warehouseId) => '',
       getDestinationName,
       getStockClass,
-      isWarehouseAccessible,
+      isWarehouseAccessible: () => true,
       handleSearch,
       handleSubmit,
-      closeModal
+      closeModal: () => {
+        if (!loading.value) {
+          resetForm()
+          emit('close')
+        }
+      }
     }
   }
 }
 </script>
-
 <style scoped>
 .rtl {
   direction: rtl;

@@ -81,6 +81,58 @@ const FIELD_MAPPINGS = {
 };
 
 // ============================================
+// SPARK PLAN CONFIGURATION
+// ============================================
+const SPARK_CONFIG = {
+  MAX_RESULTS: 15,                    // Strict limit on results
+  LOCAL_SEARCH_LIMIT: 100,           // Max items for local search
+  INITIAL_DISPLAY_LIMIT: 10,         // Items to show initially
+  CACHE_TTL: 300000,                 // 5 minutes cache (300000 ms)
+  MAX_CACHE_ENTRIES: 50,             // Prevent memory bloat
+  SEARCH_DEBOUNCE: 500,              // Longer debounce for Spark
+  ARTIFICIAL_DELAY: 100,             // Delay between rapid requests
+  FIELD_LIMITS: ['name', 'code']     // Limit search fields for Firebase
+};
+
+// SPARK SEARCH CACHE
+let searchCache = new Map();
+let lastCacheCleanup = Date.now();
+const CACHE_CLEANUP_INTERVAL = 60000; // Clean cache every minute
+
+// Helper: Clean old cache entries
+const cleanSearchCache = () => {
+  const now = Date.now();
+  if (now - lastCacheCleanup < CACHE_CLEANUP_INTERVAL) return;
+  
+  let deletedCount = 0;
+  for (const [key, value] of searchCache.entries()) {
+    if (now - value.timestamp > SPARK_CONFIG.CACHE_TTL) {
+      searchCache.delete(key);
+      deletedCount++;
+    }
+  }
+  
+  // Enforce max cache size
+  if (searchCache.size > SPARK_CONFIG.MAX_CACHE_ENTRIES) {
+    const keys = Array.from(searchCache.keys());
+    const toDelete = keys.slice(0, keys.length - SPARK_CONFIG.MAX_CACHE_ENTRIES);
+    toDelete.forEach(key => searchCache.delete(key));
+    deletedCount += toDelete.length;
+  }
+  
+  if (deletedCount > 0) {
+    console.log(`🧹 Cleaned ${deletedCount} old cache entries`);
+  }
+  
+  lastCacheCleanup = now;
+};
+
+// Helper: Get cache key
+const getCacheKey = (searchTerm, warehouseId) => {
+  return `${warehouseId || 'all'}:${searchTerm.toLowerCase().trim()}`;
+};
+
+// ============================================
 // FIXED ARABIC TEXT NORMALIZATION FUNCTION
 // ============================================
 function normalizeArabicText(text) {
@@ -738,817 +790,852 @@ export default createStore({
   },
 
   actions: {
-// ============================================
-// HYBRID SMART ARABIC SEARCH (LOCAL + FIREBASE)
-// ============================================
-async searchInventorySmart({ commit, state, dispatch }, {
-  searchQuery,
-  warehouseId = null,
-  limit = 50
-}) {
-  let searchTerm = '';
-  let targetWarehouse = 'all';
-
-  try {
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
-      return [];
-    }
-
-    searchTerm = searchQuery.trim();
-    targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-
-    commit('SET_SEARCH_LOADING', true);
-    commit('SET_SEARCH_QUERY', searchTerm);
-
-    console.log(`🔍 HYBRID ARABIC SEARCH: "${searchTerm}" (warehouse: ${targetWarehouse})`);
-
     // ============================================
-    // 1️⃣ PARALLEL SEARCH: LOCAL + FIREBASE
+    // SPARK OPTIMIZED HYBRID SMART ARABIC SEARCH
     // ============================================
-    let localResults = [];
-    let firebaseResults = [];
+    async searchInventorySmart({ commit, state, dispatch }, {
+      searchQuery,
+      warehouseId = null,
+      limit = SPARK_CONFIG.MAX_RESULTS  // SPARK: Use config limit
+    }) {
+      let searchTerm = '';
+      let targetWarehouse = 'all';
 
-    // Start both searches in parallel
-    const searchPromises = [];
-
-    // Local search promise
-    if (Array.isArray(state.inventory) && state.inventory.length > 0) {
-      searchPromises.push(
-        (async () => {
-          try {
-            console.log('🏠 Starting local search...');
-            localResults = await dispatch('searchLocalInventorySmart', {
-              query: searchTerm,
-              warehouseId: targetWarehouse,
-              limit: limit
-            });
-            console.log(`✅ Local search completed: ${localResults.length} items`);
-          } catch (error) {
-            console.warn('⚠️ Local search failed:', error.message);
-            localResults = [];
-          }
-        })()
-      );
-    }
-
-    // Firebase search promise (always attempt)
-    searchPromises.push(
-      (async () => {
-        try {
-          console.log('🌐 Starting Firebase search...');
-          firebaseResults = await dispatch('searchFirebaseInventorySmart', {
-            query: searchTerm,
-            warehouseId: targetWarehouse,
-            limit: limit
-          });
-          console.log(`✅ Firebase search completed: ${firebaseResults.length} items`);
-        } catch (error) {
-          console.warn('⚠️ Firebase search failed:', error.message);
-          firebaseResults = [];
-        }
-      })()
-    );
-
-    // Wait for both searches to complete (or fail gracefully)
-    await Promise.allSettled(searchPromises);
-
-    // ============================================
-    // 2️⃣ COMBINE AND DEDUPLICATE RESULTS
-    // ============================================
-    let allResults = [];
-    
-    if (localResults.length > 0 && firebaseResults.length > 0) {
-      // Both searches returned results - combine and deduplicate
-      console.log(`🔄 Combining ${localResults.length} local + ${firebaseResults.length} Firebase results`);
-      
-      // Create a map to track unique items by ID
-      const uniqueItems = new Map();
-      
-      // Add Firebase results first (more likely to be current)
-      firebaseResults.forEach(item => {
-        if (item.id && !uniqueItems.has(item.id)) {
-          uniqueItems.set(item.id, item);
-        }
-      });
-      
-      // Add local results (fill in gaps)
-      localResults.forEach(item => {
-        if (item.id && !uniqueItems.has(item.id)) {
-          uniqueItems.set(item.id, item);
-        }
-      });
-      
-      allResults = Array.from(uniqueItems.values());
-      
-    } else if (localResults.length > 0) {
-      // Only local results available
-      console.log('📱 Using local results only');
-      allResults = localResults;
-      
-    } else if (firebaseResults.length > 0) {
-      // Only Firebase results available
-      console.log('🌐 Using Firebase results only');
-      allResults = firebaseResults;
-      
-    } else {
-      // No results from either source
-      console.log('📭 No results found in local or Firebase');
-      allResults = [];
-    }
-
-    // ============================================
-    // 3️⃣ APPLY RELEVANCE SCORING AND LIMIT
-    // ============================================
-    const finalResults = removeDuplicatesAndSortByRelevance(
-      allResults,
-      searchTerm,
-      limit
-    );
-
-    // Determine source for tracking
-    let source = 'none';
-    if (finalResults.length > 0) {
-      if (localResults.length > 0 && firebaseResults.length > 0) {
-        source = 'hybrid';
-      } else if (localResults.length > 0) {
-        source = 'local';
-      } else {
-        source = 'firebase';
-      }
-    }
-
-    console.log(`🎯 Final results: ${finalResults.length} items (source: ${source})`);
-
-    // ============================================
-    // 4️⃣ UPDATE STORE AND RETURN
-    // ============================================
-    commit('SET_SEARCH_RESULTS', {
-      results: finalResults,
-      source: source,
-      query: searchTerm
-    });
-
-    return finalResults;
-
-  } catch (error) {
-    console.error('❌ Hybrid Arabic search failed:', error);
-    commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
-    return [];
-  } finally {
-    commit('SET_SEARCH_LOADING', false);
-  }
-},
-
-// ============================================
-// DIRECT SEARCH (HEADER / QUICK SEARCH)
-// ============================================
-async searchInventoryDirect({ dispatch }, params) {
-  return dispatch('searchInventorySmart', params);
-},
-
-// ============================================
-// OPTIMIZED LOCAL-ONLY ARABIC SEARCH
-// ============================================
-async searchLocalInventorySmart({ state }, {
-  query,
-  warehouseId,
-  limit = 50
-}) {
-  if (!query || query.trim().length < 2) return [];
-
-  const searchTerm = query.trim();
-  const normalizedSearchTerm = normalizeArabicText(searchTerm);
-  const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location'];
-
-  let items = [...state.inventory];
-
-  // Apply warehouse filter if specified
-  if (warehouseId && warehouseId !== 'all') {
-    items = items.filter(i => i.warehouse_id === warehouseId);
-  }
-
-  // Early exit if no items to search
-  if (items.length === 0) return [];
-
-  console.log(`🔎 Local search scanning ${items.length} items`);
-
-  // Optimized search with multiple matching strategies
-  const matches = items.filter(item => {
-    // Check each search field
-    for (const field of SEARCH_FIELDS) {
-      const value = item[field];
-      if (!value) continue;
-
-      const normalizedValue = normalizeArabicText(value.toString());
-
-      // 1. Exact match (highest priority)
-      if (normalizedValue === normalizedSearchTerm) {
-        return true;
-      }
-
-      // 2. Starts with match
-      if (normalizedValue.startsWith(normalizedSearchTerm)) {
-        return true;
-      }
-
-      // 3. Contains match
-      if (normalizedValue.includes(normalizedSearchTerm)) {
-        return true;
-      }
-
-      // 4. Word-by-word matching for Arabic phrases
-      const fieldWords = normalizedValue.split(/\s+/);
-      const searchWords = normalizedSearchTerm.split(/\s+/);
-
-      // Check if all search words appear in field
-      const allWordsMatch = searchWords.every(searchWord =>
-        fieldWords.some(fieldWord => fieldWord.includes(searchWord))
-      );
-
-      if (allWordsMatch) {
-        return true;
-      }
-
-      // 5. Partial matching for long words
-      if (searchWords.length === 1) {
-        // Single word search - check if it appears in any word
-        const singleSearchWord = searchWords[0];
-        if (fieldWords.some(word => word.includes(singleSearchWord))) {
-          return true;
-        }
-      }
-    }
-    return false;
-  });
-
-  console.log(`📍 Local search found ${matches.length} matches before relevance scoring`);
-
-  return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
-},
-
-// ============================================
-// ENHANCED LIVE SEARCH WITH PROGRESSIVE LOADING
-// ============================================
-async searchInventoryLive({ commit, dispatch, state }, {
-  searchQuery,
-  warehouseId = null,
-  limit = 50,
-  showImmediateResults = true
-}) {
-  if (!searchQuery || searchQuery.trim().length < 2) {
-    commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
-    return [];
-  }
-
-  commit('SET_SEARCH_LOADING', true);
-  const searchTerm = searchQuery.trim();
-  const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
-
-  try {
-    console.log(`⚡ ENHANCED Live search: "${searchTerm}"`);
-
-    let immediateResults = [];
-    let finalResults = [];
-
-    // ============================================
-    // PHASE 1: IMMEDIATE LOCAL RESULTS
-    // ============================================
-    if (showImmediateResults && Array.isArray(state.inventory) && state.inventory.length > 0) {
       try {
-        console.log('🚀 Getting immediate local results...');
-        immediateResults = await dispatch('searchLocalInventorySmart', {
-          query: searchTerm,
-          warehouseId: targetWarehouse,
-          limit: 20 // Quick local limit
-        });
-
-        if (immediateResults.length > 0) {
-          console.log(`⚡ Immediate results: ${immediateResults.length} items`);
-          
-          // Show immediate results to user
-          commit('SET_SEARCH_RESULTS', {
-            results: immediateResults,
-            source: 'local',
-            query: searchTerm
-          });
-          
-          // If we have enough good results, we can optionally stop here
-          const goodEnoughThreshold = Math.min(15, limit);
-          if (immediateResults.length >= goodEnoughThreshold) {
-            console.log('✅ Enough immediate results, proceeding to Firebase for completeness');
-          }
-        }
-      } catch (localError) {
-        console.warn('Local immediate results failed:', localError);
-      }
-    }
-
-    // ============================================
-    // PHASE 2: COMPREHENSIVE HYBRID SEARCH
-    // ============================================
-    console.log('🔄 Performing comprehensive hybrid search...');
-    
-    finalResults = await dispatch('searchInventorySmart', {
-      searchQuery: searchTerm,
-      warehouseId: targetWarehouse,
-      limit: limit
-    });
-
-    // ============================================
-    // PHASE 3: UPDATE WITH FINAL RESULTS
-    // ============================================
-    if (finalResults.length > 0) {
-      console.log(`🎯 Final hybrid results: ${finalResults.length} items`);
-      
-      // Only update if results are different from immediate results
-      if (JSON.stringify(finalResults) !== JSON.stringify(immediateResults)) {
-        commit('SET_SEARCH_RESULTS', {
-          results: finalResults,
-          source: 'hybrid',
-          query: searchTerm
-        });
-      }
-    } else if (immediateResults.length > 0) {
-      // Keep immediate results if no hybrid results found
-      console.log('📱 Keeping immediate local results');
-      commit('SET_SEARCH_RESULTS', {
-        results: immediateResults,
-        source: 'local',
-        query: searchTerm
-      });
-    } else {
-      // No results at all
-      console.log('📭 No results found');
-      commit('SET_SEARCH_RESULTS', {
-        results: [],
-        source: 'none',
-        query: searchTerm
-      });
-    }
-
-    return finalResults.length > 0 ? finalResults : immediateResults;
-
-  } catch (error) {
-    console.error('❌ Enhanced live search failed:', error);
-    
-    // Try to show local results as fallback
-    try {
-      const fallbackResults = await dispatch('searchLocalInventorySmart', {
-        query: searchTerm,
-        warehouseId: targetWarehouse,
-        limit: limit
-      });
-      
-      commit('SET_SEARCH_RESULTS', {
-        results: fallbackResults,
-        source: 'local-fallback',
-        query: searchTerm
-      });
-      
-      return fallbackResults;
-    } catch (fallbackError) {
-      console.error('Fallback also failed:', fallbackError);
-      commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
-      return [];
-    }
-  } finally {
-    commit('SET_SEARCH_LOADING', false);
-  }
-},
-// ============================================
-// FIXED FIREBASE INVENTORY SEARCH (WITH DYNAMIC IMPORTS)
-// ============================================
-async searchFirebaseInventorySmart({ state }, { query, warehouseId, limit }) {
-  try {
-    console.log(`🌐 Firebase smart search for: "${query}"`);
-    
-    // Validate Firebase is available
-    if (!db) {
-      console.error('❌ Firebase database not available');
-      return [];
-    }
-
-    const searchTerm = normalizeArabicText(query.toLowerCase());
-    
-    // Check user permissions
-    const role = state.userProfile?.role || '';
-    const profileWarehouses = state.userProfile?.allowed_warehouses || [];
-    
-    let canAccessAll = false;
-    let allowedWarehouseIds = [];
-    
-    if (role === 'superadmin' || role === 'company_manager') {
-      canAccessAll = true;
-    } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
-      if (profileWarehouses.includes('all')) {
-        canAccessAll = true;
-      } else {
-        allowedWarehouseIds = profileWarehouses.filter(id => 
-          typeof id === 'string' && id.trim() !== '' && id !== 'all'
-        );
-      }
-    }
-
-    // IMPORTANT: Dynamic import to prevent "o is not a function" error
-    const firebaseFirestore = await import('firebase/firestore');
-    const {
-      collection,
-      query: firestoreQuery,
-      where,
-      orderBy,
-      limit: firestoreLimit,
-      getDocs
-    } = firebaseFirestore;
-
-    const itemsRef = collection(db, 'items');
-    let itemsQuery;
-    let searchResults = [];
-
-    // Build query based on permissions
-    if (canAccessAll) {
-      // Superadmin or company manager - access all warehouses
-      if (warehouseId && warehouseId !== 'all') {
-        // Specific warehouse
-        itemsQuery = firestoreQuery(
-          itemsRef,
-          where('warehouse_id', '==', warehouseId),
-          firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
-        );
-      } else {
-        // All warehouses
-        itemsQuery = firestoreQuery(
-          itemsRef,
-          firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
-        );
-      }
-    } else if (allowedWarehouseIds.length > 0) {
-      // Warehouse manager with specific warehouses
-      const validWarehouseIds = allowedWarehouseIds.slice(0, 10); // Firebase limit
-      
-      if (warehouseId && warehouseId !== 'all') {
-        // Specific warehouse within allowed list
-        if (validWarehouseIds.includes(warehouseId)) {
-          itemsQuery = firestoreQuery(
-            itemsRef,
-            where('warehouse_id', '==', warehouseId),
-            firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
-          );
-        } else {
-          console.warn('Warehouse not in allowed list');
+        if (!searchQuery || searchQuery.trim().length < 2) {
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
           return [];
         }
-      } else {
-        // All allowed warehouses
-        if (validWarehouseIds.length === 1) {
-          // Single warehouse - use simple where
-          itemsQuery = firestoreQuery(
-            itemsRef,
-            where('warehouse_id', '==', validWarehouseIds[0]),
-            firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
+
+        searchTerm = searchQuery.trim();
+        targetWarehouse = warehouseId || state.warehouseFilter || 'all';
+
+        commit('SET_SEARCH_LOADING', true);
+        commit('SET_SEARCH_QUERY', searchTerm);
+
+        console.log(`🔍 SPARK HYBRID SEARCH: "${searchTerm}" (warehouse: ${targetWarehouse})`);
+
+        // SPARK: Clean cache before search
+        cleanSearchCache();
+
+        // SPARK: Check cache first
+        const cacheKey = getCacheKey(searchTerm, targetWarehouse);
+        const cachedData = searchCache.get(cacheKey);
+        
+        if (cachedData && (Date.now() - cachedData.timestamp) < SPARK_CONFIG.CACHE_TTL) {
+          console.log(`✅ Using cached results for: "${searchTerm}"`);
+          commit('SET_SEARCH_RESULTS', {
+            results: cachedData.results.slice(0, SPARK_CONFIG.MAX_RESULTS),
+            source: 'cache',
+            query: searchTerm
+          });
+          commit('SET_SEARCH_LOADING', false);
+          return cachedData.results.slice(0, SPARK_CONFIG.MAX_RESULTS);
+        }
+
+        // ============================================
+        // 1️⃣ PARALLEL SEARCH WITH SPARK OPTIMIZATIONS
+        // ============================================
+        let localResults = [];
+        let firebaseResults = [];
+
+        // Start both searches in parallel with artificial delay
+        const searchPromises = [];
+
+        // SPARK: Local search with strict limits
+        if (Array.isArray(state.inventory) && state.inventory.length > 0) {
+          searchPromises.push(
+            (async () => {
+              try {
+                console.log('🏠 Starting SPARK local search...');
+                await new Promise(resolve => setTimeout(resolve, SPARK_CONFIG.ARTIFICIAL_DELAY));
+                
+                localResults = await dispatch('searchLocalInventorySpark', {
+                  query: searchTerm,
+                  warehouseId: targetWarehouse,
+                  limit: Math.min(limit, SPARK_CONFIG.LOCAL_SEARCH_LIMIT)
+                });
+                console.log(`✅ Local search completed: ${localResults.length} items`);
+              } catch (error) {
+                console.warn('⚠️ Local search failed:', error.message);
+                localResults = [];
+              }
+            })()
           );
+        }
+
+        // SPARK: Firebase search with strict limits and delay
+        searchPromises.push(
+          (async () => {
+            try {
+              console.log('🌐 Starting SPARK Firebase search...');
+              await new Promise(resolve => setTimeout(resolve, SPARK_CONFIG.ARTIFICIAL_DELAY * 1.5));
+              
+              firebaseResults = await dispatch('searchFirebaseInventorySpark', {
+                query: searchTerm,
+                warehouseId: targetWarehouse,
+                limit: Math.min(limit, SPARK_CONFIG.MAX_RESULTS)
+              });
+              console.log(`✅ Firebase search completed: ${firebaseResults.length} items`);
+            } catch (error) {
+              console.warn('⚠️ Firebase search failed:', error.message);
+              firebaseResults = [];
+            }
+          })()
+        );
+
+        // Wait for both searches to complete
+        await Promise.allSettled(searchPromises);
+
+        // ============================================
+        // 2️⃣ COMBINE WITH SPARK OPTIMIZATIONS
+        // ============================================
+        let allResults = [];
+        
+        if (localResults.length > 0 && firebaseResults.length > 0) {
+          // Both searches returned - combine with deduplication
+          console.log(`🔄 Combining ${localResults.length} local + ${firebaseResults.length} Firebase results`);
+          
+          const uniqueItems = new Map();
+          
+          // Add Firebase results first (more current)
+          firebaseResults.slice(0, SPARK_CONFIG.MAX_RESULTS / 2).forEach(item => {
+            if (item.id && !uniqueItems.has(item.id)) {
+              uniqueItems.set(item.id, item);
+            }
+          });
+          
+          // Add local results (fill gaps)
+          localResults.slice(0, SPARK_CONFIG.MAX_RESULTS / 2).forEach(item => {
+            if (item.id && !uniqueItems.has(item.id)) {
+              uniqueItems.set(item.id, item);
+            }
+          });
+          
+          allResults = Array.from(uniqueItems.values());
+          
+        } else if (localResults.length > 0) {
+          // Only local results
+          console.log('📱 Using local results only');
+          allResults = localResults.slice(0, SPARK_CONFIG.MAX_RESULTS);
+          
+        } else if (firebaseResults.length > 0) {
+          // Only Firebase results
+          console.log('🌐 Using Firebase results only');
+          allResults = firebaseResults.slice(0, SPARK_CONFIG.MAX_RESULTS);
+          
         } else {
-          // Multiple warehouses - use "in" query
-          try {
-            itemsQuery = firestoreQuery(
-              itemsRef,
-              where('warehouse_id', 'in', validWarehouseIds),
-              firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
-            );
-          } catch (inError) {
-            console.warn('"in" query failed, falling back:', inError);
-            // Fallback to first warehouse only
-            itemsQuery = firestoreQuery(
-              itemsRef,
-              where('warehouse_id', '==', validWarehouseIds[0]),
-              firestoreLimit(limit || SEARCH_CONFIG.MAX_RESULTS)
-            );
+          // No results
+          console.log('📭 No results found');
+          allResults = [];
+        }
+
+        // ============================================
+        // 3️⃣ APPLY RELEVANCE SCORING WITH SPARK LIMITS
+        // ============================================
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          allResults,
+          searchTerm,
+          SPARK_CONFIG.MAX_RESULTS  // SPARK: Strict limit
+        );
+
+        // Determine source
+        let source = 'none';
+        if (finalResults.length > 0) {
+          if (localResults.length > 0 && firebaseResults.length > 0) {
+            source = 'spark_hybrid';
+          } else if (localResults.length > 0) {
+            source = 'spark_local';
+          } else {
+            source = 'spark_firebase';
           }
         }
-      }
-    } else {
-      console.log('⚠️ User has no accessible warehouses');
-      return [];
-    }
 
-    // Execute query
-    let snapshot;
-    try {
-      snapshot = await getDocs(itemsQuery);
-      console.log(`📊 Firebase query returned ${snapshot.size} documents`);
-    } catch (queryError) {
-      console.error('❌ Firestore query failed:', queryError);
-      
-      // Try a simpler query as fallback
-      try {
-        const simpleQuery = firestoreQuery(
-          itemsRef,
-          firestoreLimit(Math.min(limit || 20, 30))
-        );
-        snapshot = await getDocs(simpleQuery);
-        console.log('🔄 Using simple query fallback');
-      } catch (simpleError) {
-        console.error('❌ Simple query also failed:', simpleError);
+        console.log(`🎯 SPARK Final results: ${finalResults.length} items (source: ${source})`);
+
+        // SPARK: Cache the results
+        if (finalResults.length > 0) {
+          searchCache.set(cacheKey, {
+            results: finalResults,
+            timestamp: Date.now(),
+            source: source
+          });
+          console.log(`💾 Cached results for: "${searchTerm}"`);
+        }
+
+        // ============================================
+        // 4️⃣ UPDATE STORE WITH SPARK LIMITS
+        // ============================================
+        commit('SET_SEARCH_RESULTS', {
+          results: finalResults,
+          source: source,
+          query: searchTerm
+        });
+
+        return finalResults;
+
+      } catch (error) {
+        console.error('❌ SPARK Hybrid search failed:', error);
+        commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
         return [];
+      } finally {
+        commit('SET_SEARCH_LOADING', false);
       }
-    }
+    },
 
-    if (!snapshot || snapshot.empty) {
-      console.log('📭 No items found in Firebase');
-      return [];
-    }
+    // ============================================
+    // SPARK OPTIMIZED LOCAL-ONLY ARABIC SEARCH
+    // ============================================
+    async searchLocalInventorySpark({ state }, {
+      query,
+      warehouseId,
+      limit = SPARK_CONFIG.MAX_RESULTS
+    }) {
+      if (!query || query.trim().length < 2) return [];
 
-    // Process documents
-    const allItems = [];
-    snapshot.forEach(doc => {
-      try {
-        const data = doc.data();
-        
-        // Simple conversion without InventoryService dependency
-        const item = {
-          id: doc.id,
-          name: data.name || '',
-          code: data.code || '',
-          color: data.color || '',
-          supplier: data.supplier || '',
-          item_location: data.item_location || '',
-          warehouse_id: data.warehouse_id || '',
-          remaining_quantity: data.remaining_quantity || 0,
-          cartons_count: data.cartons_count || 0,
-          per_carton_count: data.per_carton_count || 0,
-          single_bottles_count: data.single_bottles_count || 0,
-          total_added: data.total_added || 0,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          created_by: data.created_by,
-          updated_by: data.updated_by
-        };
-        
-        // Add photo_url if available
-        if (data.photo_url) {
-          item.photo_url = data.photo_url;
-        }
-        
-        allItems.push(item);
-      } catch (docError) {
-        console.warn('⚠️ Error processing document:', docError);
-      }
-    });
+      const searchTerm = query.trim();
+      const normalizedSearchTerm = normalizeArabicText(searchTerm);
+      const SEARCH_FIELDS = ['name', 'code', 'color', 'supplier', 'item_location'];
 
-    console.log(`✅ Processed ${allItems.length} items from Firebase`);
-
-    // Apply warehouse filter (in case query didn't filter)
-    let filteredItems = allItems;
-    if (warehouseId && warehouseId !== 'all') {
-      filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
-      console.log(`🏭 After warehouse filter: ${filteredItems.length} items`);
-    }
-
-    // Apply Arabic text search
-    searchResults = filteredItems.filter(item => {
-      if (!searchTerm) return false;
-
-      const fieldsToCheck = ['name', 'code', 'color', 'supplier', 'item_location'];
+      // SPARK: Get inventory with limits
+      let items = [...state.inventory];
       
-      for (const field of fieldsToCheck) {
-        const fieldValue = item[field];
-        if (!fieldValue) continue;
+      // SPARK: Early exit if too many items
+      if (items.length > SPARK_CONFIG.LOCAL_SEARCH_LIMIT) {
+        items = items.slice(0, SPARK_CONFIG.LOCAL_SEARCH_LIMIT);
+        console.log(`⚠️ Limiting local search to ${SPARK_CONFIG.LOCAL_SEARCH_LIMIT} items`);
+      }
 
-        const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+      // Apply warehouse filter if specified
+      if (warehouseId && warehouseId !== 'all') {
+        items = items.filter(i => i.warehouse_id === warehouseId);
+      }
+
+      // Early exit if no items
+      if (items.length === 0) return [];
+
+      console.log(`🔎 SPARK Local search scanning ${items.length} items`);
+
+      // Optimized search with early exit
+      const matches = [];
+      const maxMatches = Math.min(limit * 2, 30); // SPARK: Limit matches
+      
+      for (const item of items) {
+        if (matches.length >= maxMatches) break; // SPARK: Early exit
         
-        // Check for matches
-        if (normalizedFieldValue.includes(searchTerm)) {
-          return true;
-        }
+        let matched = false;
         
-        // Check word by word
-        const fieldWords = normalizedFieldValue.split(/\s+/);
-        const searchWords = searchTerm.split(/\s+/);
-        
-        for (const searchWord of searchWords) {
-          for (const fieldWord of fieldWords) {
-            if (fieldWord.includes(searchWord)) {
-              return true;
+        // Check each search field
+        for (const field of SEARCH_FIELDS) {
+          const value = item[field];
+          if (!value) continue;
+
+          const normalizedValue = normalizeArabicText(value.toString());
+
+          // Quick checks in order of performance
+          if (normalizedValue.includes(normalizedSearchTerm)) {
+            matched = true;
+            break;
+          }
+          
+          if (normalizedValue.startsWith(normalizedSearchTerm)) {
+            matched = true;
+            break;
+          }
+          
+          // Only do word matching for longer searches
+          if (searchTerm.length > 2) {
+            const fieldWords = normalizedValue.split(/\s+/);
+            const searchWords = normalizedSearchTerm.split(/\s+/);
+            
+            // Check first word match
+            if (searchWords.length > 0) {
+              const firstSearchWord = searchWords[0];
+              if (fieldWords.some(word => word.includes(firstSearchWord))) {
+                matched = true;
+                break;
+              }
             }
           }
         }
+        
+        if (matched) {
+          matches.push(item);
+        }
       }
-      return false;
-    });
 
-    console.log(`🔍 Found ${searchResults.length} matching items`);
+      console.log(`📍 SPARK Local search found ${matches.length} matches`);
 
-    // Apply relevance scoring
-    const finalResults = removeDuplicatesAndSortByRelevance(
-      searchResults,
-      query,
-      limit || SEARCH_CONFIG.MAX_RESULTS
-    );
+      return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
+    },
 
-    console.log(`🎯 Returning ${finalResults.length} relevant items from Firebase`);
-    return finalResults;
+    // ============================================
+    // SPARK OPTIMIZED FIREBASE SEARCH
+    // ============================================
+    async searchFirebaseInventorySpark({ state }, { query, warehouseId, limit }) {
+      try {
+        console.log(`🌐 SPARK Firebase search for: "${query}"`);
+        
+        // Validate Firebase
+        if (!db) {
+          console.error('❌ Firebase not available');
+          return [];
+        }
 
-  } catch (error) {
-    console.error('❌ Firebase search error:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      stack: error.stack?.split('\n').slice(0, 3).join('\n')
-    });
-    
-    // Return empty array - local search will handle it
-    return [];
-  }
-},
+        const searchTerm = normalizeArabicText(query.toLowerCase());
+        
+        // Check permissions
+        const role = state.userProfile?.role || '';
+        const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+        
+        let canAccessAll = false;
+        let allowedWarehouseIds = [];
+        
+        if (role === 'superadmin' || role === 'company_manager') {
+          canAccessAll = true;
+        } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+          if (profileWarehouses.includes('all')) {
+            canAccessAll = true;
+          } else {
+            allowedWarehouseIds = profileWarehouses.filter(id => 
+              typeof id === 'string' && id.trim() !== '' && id !== 'all'
+            ).slice(0, 10); // SPARK: Limit for "in" queries
+          }
+        }
 
-// ============================================
-// SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
-// ============================================
-async searchFirebaseInventorySmartLegacy({ state }, { query, warehouseId, limit }) {
-  try {
-    console.log(`🔍 Firebase smart search for: "${query}"`);
+        // Dynamic import
+        const firebaseFirestore = await import('firebase/firestore');
+        const {
+          collection,
+          query: firestoreQuery,
+          where,
+          orderBy,
+          limit: firestoreLimit,
+          getDocs
+        } = firebaseFirestore;
 
-    const searchTerm = normalizeArabicText(query.toLowerCase());
+        const itemsRef = collection(db, 'items');
+        let itemsQuery;
+        let searchResults = [];
 
-    let canAccessAll = false;
-    let allowedWarehouseIds = [];
-    const role = state.userProfile?.role || '';
-    const profileWarehouses = state.userProfile?.allowed_warehouses || [];
-    if (role === 'superadmin' || role === 'company_manager') {
-      canAccessAll = true;
-    } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
-      if (profileWarehouses.includes('all')) {
-        canAccessAll = true;
-      } else {
-        allowedWarehouseIds = profileWarehouses.filter(id => 
-          typeof id === 'string' && id.trim() !== '' && id !== 'all'
+        // SPARK: Build optimized query
+        if (canAccessAll) {
+          // Superadmin or company manager
+          if (warehouseId && warehouseId !== 'all') {
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', '==', warehouseId),
+              orderBy('updated_at', 'desc'), // SPARK: Order by recent
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 20))
+            );
+          } else {
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              orderBy('updated_at', 'desc'),
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 20))
+            );
+          }
+        } else if (allowedWarehouseIds.length > 0) {
+          // Warehouse manager
+          if (warehouseId && warehouseId !== 'all') {
+            if (allowedWarehouseIds.includes(warehouseId)) {
+              itemsQuery = firestoreQuery(
+                itemsRef,
+                where('warehouse_id', '==', warehouseId),
+                orderBy('updated_at', 'desc'),
+                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 20))
+              );
+            } else {
+              console.warn('Warehouse not in allowed list');
+              return [];
+            }
+          } else {
+            // Multiple warehouses - limit to prevent "in" query issues
+            const validIds = allowedWarehouseIds.slice(0, 5); // SPARK: Strict limit
+            
+            if (validIds.length === 1) {
+              itemsQuery = firestoreQuery(
+                itemsRef,
+                where('warehouse_id', '==', validIds[0]),
+                orderBy('updated_at', 'desc'),
+                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 20))
+              );
+            } else {
+              try {
+                itemsQuery = firestoreQuery(
+                  itemsRef,
+                  where('warehouse_id', 'in', validIds),
+                  orderBy('updated_at', 'desc'),
+                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 15))
+                );
+              } catch (inError) {
+                console.warn('"in" query failed, using single warehouse:', inError);
+                itemsQuery = firestoreQuery(
+                  itemsRef,
+                  where('warehouse_id', '==', validIds[0]),
+                  orderBy('updated_at', 'desc'),
+                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 20))
+                );
+              }
+            }
+          }
+        } else {
+          console.log('⚠️ User has no accessible warehouses');
+          return [];
+        }
+
+        // SPARK: Execute with timeout protection
+        let snapshot;
+        try {
+          snapshot = await getDocs(itemsQuery);
+          console.log(`📊 SPARK Firebase query returned ${snapshot.size} documents`);
+        } catch (queryError) {
+          console.error('❌ SPARK Firestore query failed:', queryError);
+          return [];
+        }
+
+        if (!snapshot || snapshot.empty) {
+          console.log('📭 No items found in Firebase');
+          return [];
+        }
+
+        // SPARK: Process with limits
+        const allItems = [];
+        snapshot.forEach(doc => {
+          if (allItems.length >= SPARK_CONFIG.MAX_RESULTS * 2) return; // SPARK: Early exit
+          
+          try {
+            const data = doc.data();
+            
+            // SPARK: Minimal field extraction
+            const item = {
+              id: doc.id,
+              name: data.name || '',
+              code: data.code || '',
+              color: data.color || '',
+              supplier: data.supplier || '',
+              warehouse_id: data.warehouse_id || '',
+              remaining_quantity: data.remaining_quantity || 0,
+              updated_at: data.updated_at
+            };
+            
+            // Only add essential optional fields
+            if (data.item_location) item.item_location = data.item_location;
+            if (data.photo_url) item.photo_url = data.photo_url;
+            
+            allItems.push(item);
+          } catch (docError) {
+            console.warn('⚠️ Error processing document:', docError);
+          }
+        });
+
+        console.log(`✅ SPARK Processed ${allItems.length} items from Firebase`);
+
+        // SPARK: Filter with early exit
+        searchResults = [];
+        const searchFields = SPARK_CONFIG.FIELD_LIMITS; // SPARK: Limited fields
+        
+        for (const item of allItems) {
+          if (searchResults.length >= SPARK_CONFIG.MAX_RESULTS) break;
+          
+          // Warehouse filter
+          if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+            continue;
+          }
+          
+          // Search filter
+          let matched = false;
+          for (const field of searchFields) {
+            const fieldValue = item[field];
+            if (!fieldValue) continue;
+
+            const normalizedValue = normalizeArabicText(fieldValue.toString());
+            
+            if (normalizedValue.includes(searchTerm)) {
+              matched = true;
+              break;
+            }
+          }
+          
+          if (matched) {
+            searchResults.push(item);
+          }
+        }
+
+        console.log(`🔍 SPARK Found ${searchResults.length} matching items`);
+
+        // SPARK: Apply relevance with strict limits
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults,
+          query,
+          Math.min(limit || SPARK_CONFIG.MAX_RESULTS, SPARK_CONFIG.MAX_RESULTS)
         );
+
+        console.log(`🎯 SPARK Returning ${finalResults.length} relevant items`);
+        return finalResults;
+
+      } catch (error) {
+        console.error('❌ SPARK Firebase search error:', error);
+        return [];
       }
-    }
+    },
 
-    // Dynamic import
-    const firebaseFirestore = await import('firebase/firestore');
-    const {
-      collection,
-      query: firestoreQuery,
-      where,
-      orderBy,
-      limit: firestoreLimit,
-      getDocs
-    } = firebaseFirestore;
-
-    const itemsRef = collection(db, 'items');
-    let itemsQuery;
-
-    if (canAccessAll) {
-      itemsQuery = firestoreQuery(
-        itemsRef,
-        orderBy('remaining_quantity', 'desc'),
-        firestoreLimit(50)
-      );
-    } else if (allowedWarehouseIds.length > 0) {
-      const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
-      if (validWarehouseIds.length === 0) {
-        console.log('⚠️ No valid warehouse IDs to query');
+    // ============================================
+    // SPARK OPTIMIZED LIVE SEARCH
+    // ============================================
+    async searchInventoryLive({ commit, dispatch, state }, {
+      searchQuery,
+      warehouseId = null,
+      limit = SPARK_CONFIG.MAX_RESULTS,
+      showImmediateResults = true
+    }) {
+      if (!searchQuery || searchQuery.trim().length < 2) {
+        commit('SET_SEARCH_RESULTS', { results: [], source: 'none', query: '' });
         return [];
       }
 
-      itemsQuery = firestoreQuery(
-        itemsRef,
-        where('warehouse_id', 'in', validWarehouseIds),
-        orderBy('remaining_quantity', 'desc'),
-        firestoreLimit(50)
-      );
-    } else {
-      console.log('⚠️ User has no accessible warehouses');
-      return [];
-    }
+      commit('SET_SEARCH_LOADING', true);
+      const searchTerm = searchQuery.trim();
+      const targetWarehouse = warehouseId || state.warehouseFilter || 'all';
 
-    const snapshot = await getDocs(itemsQuery);
-    if (snapshot.empty) return [];
+      try {
+        console.log(`⚡ SPARK Live search: "${searchTerm}"`);
 
-    const allItems = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.name || '',
-        code: data.code || '',
-        color: data.color || '',
-        supplier: data.supplier || '',
-        item_location: data.item_location || '',
-        warehouse_id: data.warehouse_id || '',
-        remaining_quantity: data.remaining_quantity || 0,
-        cartons_count: data.cartons_count || 0,
-        per_carton_count: data.per_carton_count || 0,
-        single_bottles_count: data.single_bottles_count || 0,
-        total_added: data.total_added || 0,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        created_by: data.created_by,
-        updated_by: data.updated_by
-      };
-    });
-
-    let filteredItems = allItems;
-    if (warehouseId && warehouseId !== 'all') {
-      filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
-    }
-
-    const searchResults = filteredItems.filter(item => {
-      if (!searchTerm) return false;
-
-      for (const field of SEARCH_CONFIG.FIELDS) {
-        const fieldValue = item[field];
-        if (fieldValue) {
-          const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
-
-          if (normalizedFieldValue.includes(searchTerm)) return true;
-
-          const fieldWords = normalizedFieldValue.split(/\s+/);
-          const searchWords = searchTerm.split(/\s+/);
-
-          if (searchWords.every(word =>
-            fieldWords.some(fieldWord => fieldWord.includes(word))
-          )) return true;
+        // SPARK: Check cache first
+        const cacheKey = getCacheKey(searchTerm, targetWarehouse);
+        const cachedData = searchCache.get(cacheKey);
+        
+        if (cachedData && (Date.now() - cachedData.timestamp) < SPARK_CONFIG.CACHE_TTL) {
+          console.log(`⚡ Using cached live results for: "${searchTerm}"`);
+          commit('SET_SEARCH_RESULTS', {
+            results: cachedData.results.slice(0, SPARK_CONFIG.MAX_RESULTS),
+            source: 'cache',
+            query: searchTerm
+          });
+          commit('SET_SEARCH_LOADING', false);
+          return cachedData.results.slice(0, SPARK_CONFIG.MAX_RESULTS);
         }
+
+        let immediateResults = [];
+        let finalResults = [];
+
+        // ============================================
+        // PHASE 1: IMMEDIATE LOCAL RESULTS (SPARK OPTIMIZED)
+        // ============================================
+        if (showImmediateResults && Array.isArray(state.inventory) && state.inventory.length > 0) {
+          try {
+            console.log('🚀 Getting SPARK immediate local results...');
+            
+            // SPARK: Quick local search with small limit
+            immediateResults = await dispatch('searchLocalInventorySpark', {
+              query: searchTerm,
+              warehouseId: targetWarehouse,
+              limit: Math.min(10, SPARK_CONFIG.INITIAL_DISPLAY_LIMIT)
+            });
+
+            if (immediateResults.length > 0) {
+              console.log(`⚡ SPARK Immediate results: ${immediateResults.length} items`);
+              
+              commit('SET_SEARCH_RESULTS', {
+                results: immediateResults.slice(0, SPARK_CONFIG.INITIAL_DISPLAY_LIMIT),
+                source: 'spark_local',
+                query: searchTerm
+              });
+              
+              // SPARK: If we have enough results, cache and return early
+              if (immediateResults.length >= SPARK_CONFIG.INITIAL_DISPLAY_LIMIT) {
+                console.log('✅ Enough immediate results, caching and returning');
+                
+                searchCache.set(cacheKey, {
+                  results: immediateResults,
+                  timestamp: Date.now(),
+                  source: 'spark_local'
+                });
+                
+                commit('SET_SEARCH_LOADING', false);
+                return immediateResults;
+              }
+            }
+          } catch (localError) {
+            console.warn('SPARK Local immediate results failed:', localError);
+          }
+        }
+
+        // ============================================
+        // PHASE 2: COMPREHENSIVE SPARK SEARCH
+        // ============================================
+        console.log('🔄 Performing SPARK comprehensive search...');
+        
+        // SPARK: Add artificial delay
+        await new Promise(resolve => setTimeout(resolve, SPARK_CONFIG.ARTIFICIAL_DELAY));
+        
+        finalResults = await dispatch('searchInventorySmart', {
+          searchQuery: searchTerm,
+          warehouseId: targetWarehouse,
+          limit: limit
+        });
+
+        // ============================================
+        // PHASE 3: UPDATE WITH FINAL RESULTS
+        // ============================================
+        if (finalResults.length > 0) {
+          console.log(`🎯 SPARK Final results: ${finalResults.length} items`);
+          
+          // SPARK: Cache final results
+          searchCache.set(cacheKey, {
+            results: finalResults,
+            timestamp: Date.now(),
+            source: 'spark_hybrid'
+          });
+          
+          commit('SET_SEARCH_RESULTS', {
+            results: finalResults.slice(0, SPARK_CONFIG.MAX_RESULTS),
+            source: 'spark_hybrid',
+            query: searchTerm
+          });
+        } else if (immediateResults.length > 0) {
+          // Keep immediate results
+          console.log('📱 Keeping SPARK immediate local results');
+          commit('SET_SEARCH_RESULTS', {
+            results: immediateResults.slice(0, SPARK_CONFIG.INITIAL_DISPLAY_LIMIT),
+            source: 'spark_local',
+            query: searchTerm
+          });
+        } else {
+          // No results
+          console.log('📭 No SPARK results found');
+          commit('SET_SEARCH_RESULTS', {
+            results: [],
+            source: 'none',
+            query: searchTerm
+          });
+        }
+
+        return finalResults.length > 0 ? finalResults : immediateResults;
+
+      } catch (error) {
+        console.error('❌ SPARK Enhanced live search failed:', error);
+        
+        // SPARK: Fallback to local only
+        try {
+          const fallbackResults = await dispatch('searchLocalInventorySpark', {
+            query: searchTerm,
+            warehouseId: targetWarehouse,
+            limit: SPARK_CONFIG.INITIAL_DISPLAY_LIMIT
+          });
+          
+          commit('SET_SEARCH_RESULTS', {
+            results: fallbackResults.slice(0, SPARK_CONFIG.INITIAL_DISPLAY_LIMIT),
+            source: 'spark_local_fallback',
+            query: searchTerm
+          });
+          
+          return fallbackResults;
+        } catch (fallbackError) {
+          console.error('SPARK Fallback also failed:', fallbackError);
+          commit('SET_SEARCH_RESULTS', { results: [], source: 'error', query: searchTerm });
+          return [];
+        }
+      } finally {
+        commit('SET_SEARCH_LOADING', false);
       }
-      return false;
-    });
+    },
 
-    const finalResults = removeDuplicatesAndSortByRelevance(
-      searchResults,
-      query,
-      limit || SEARCH_CONFIG.MAX_RESULTS
-    );
+    clearSearchCache({ commit }) {
+      const oldSize = searchCache.size;
+      searchCache.clear();
+      lastCacheCleanup = Date.now();
+      console.log(`🧹 Cleared ${oldSize} cache entries`);
+      commit('SET_SEARCH_CACHE_CLEARED', Date.now());
+    },
 
-    console.log(`✅ Firebase search found: ${finalResults.length} items`);
-    return finalResults;
+    // ============================================
+    // SIMPLIFIED DIRECT SEARCH ACTIONS (NO CACHE)
+    // ============================================
+    async searchFirebaseInventorySmartLegacy({ state }, { query, warehouseId, limit }) {
+      try {
+        console.log(`🔍 Firebase smart search for: "${query}"`);
 
-  } catch (error) {
-    console.error('❌ Firebase search error:', error);
+        const searchTerm = normalizeArabicText(query.toLowerCase());
 
-    if (error.message && error.message.includes('in') && error.message.includes('array')) {
-      console.error('Firebase "in" query array error detected');
-    } else if (error.code === 'failed-precondition') {
-      console.error('Firestore index error - composite index might be needed');
-    }
+        let canAccessAll = false;
+        let allowedWarehouseIds = [];
+        const role = state.userProfile?.role || '';
+        const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+        if (role === 'superadmin' || role === 'company_manager') {
+          canAccessAll = true;
+        } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+          if (profileWarehouses.includes('all')) {
+            canAccessAll = true;
+          } else {
+            allowedWarehouseIds = profileWarehouses.filter(id => 
+              typeof id === 'string' && id.trim() !== '' && id !== 'all'
+            );
+          }
+        }
 
-    return [];
-  }
-},
+        // Dynamic import
+        const firebaseFirestore = await import('firebase/firestore');
+        const {
+          collection,
+          query: firestoreQuery,
+          where,
+          orderBy,
+          limit: firestoreLimit,
+          getDocs
+        } = firebaseFirestore;
 
-async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
-  commit('SET_WAREHOUSE_FILTER', warehouseId);
+        const itemsRef = collection(db, 'items');
+        let itemsQuery;
 
-  if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-    await dispatch('searchInventoryDirect', {
-      searchQuery: state.search.query,
-      warehouseId
-    });
-  }
-},
+        if (canAccessAll) {
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            orderBy('remaining_quantity', 'desc'),
+            firestoreLimit(50)
+          );
+        } else if (allowedWarehouseIds.length > 0) {
+          const validWarehouseIds = allowedWarehouseIds.slice(0, 10);
+          if (validWarehouseIds.length === 0) {
+            console.log('⚠️ No valid warehouse IDs to query');
+            return [];
+          }
 
-async clearSearch({ commit }) {
-  commit('CLEAR_SEARCH');
-},
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', 'in', validWarehouseIds),
+            orderBy('remaining_quantity', 'desc'),
+            firestoreLimit(50)
+          );
+        } else {
+          console.log('⚠️ User has no accessible warehouses');
+          return [];
+        }
 
-// ============================================
-// FIREBASE CONNECTION TEST ACTION
-// ============================================
-async testFirebaseConnection({ state }) {
-  try {
-    console.log('🔧 Testing Firebase connection...');
-    
-    // Test if db is available
-    if (!db) {
-      console.error('❌ db is undefined');
-      return false;
-    }
-    
-    // Import Firebase dynamically
-    const firebaseFirestore = await import('firebase/firestore');
-    const { collection, query, limit, getDocs } = firebaseFirestore;
-    
-    // Simple test query
-    const testRef = collection(db, 'items');
-    const testQuery = query(testRef, limit(1));
-    const snapshot = await getDocs(testQuery);
-    
-    console.log(`✅ Firebase test: ${snapshot.empty ? 'Connected (no items)' : 'Connected with items'}`);
-    console.log(`📊 Firebase test details:`, {
-      dbType: typeof db,
-      hasCollection: typeof collection === 'function',
-      snapshotSize: snapshot.size
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Firebase connection test failed:', error);
-    console.error('Full error:', error);
-    return false;
-  }
-},
+        const snapshot = await getDocs(itemsQuery);
+        if (snapshot.empty) return [];
+
+        const allItems = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || '',
+            code: data.code || '',
+            color: data.color || '',
+            supplier: data.supplier || '',
+            item_location: data.item_location || '',
+            warehouse_id: data.warehouse_id || '',
+            remaining_quantity: data.remaining_quantity || 0,
+            cartons_count: data.cartons_count || 0,
+            per_carton_count: data.per_carton_count || 0,
+            single_bottles_count: data.single_bottles_count || 0,
+            total_added: data.total_added || 0,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            created_by: data.created_by,
+            updated_by: data.updated_by
+          };
+        });
+
+        let filteredItems = allItems;
+        if (warehouseId && warehouseId !== 'all') {
+          filteredItems = filteredItems.filter(item => item.warehouse_id === warehouseId);
+        }
+
+        const searchResults = filteredItems.filter(item => {
+          if (!searchTerm) return false;
+
+          for (const field of SEARCH_CONFIG.FIELDS) {
+            const fieldValue = item[field];
+            if (fieldValue) {
+              const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+
+              if (normalizedFieldValue.includes(searchTerm)) return true;
+
+              const fieldWords = normalizedFieldValue.split(/\s+/);
+              const searchWords = searchTerm.split(/\s+/);
+
+              if (searchWords.every(word =>
+                fieldWords.some(fieldWord => fieldWord.includes(word))
+              )) return true;
+            }
+          }
+          return false;
+        });
+
+        const finalResults = removeDuplicatesAndSortByRelevance(
+          searchResults,
+          query,
+          limit || SEARCH_CONFIG.MAX_RESULTS
+        );
+
+        console.log(`✅ Firebase search found: ${finalResults.length} items`);
+        return finalResults;
+
+      } catch (error) {
+        console.error('❌ Firebase search error:', error);
+
+        if (error.message && error.message.includes('in') && error.message.includes('array')) {
+          console.error('Firebase "in" query array error detected');
+        } else if (error.code === 'failed-precondition') {
+          console.error('Firestore index error - composite index might be needed');
+        }
+
+        return [];
+      }
+    },
+
+    async setWarehouseFilter({ commit, state, dispatch }, warehouseId) {
+      commit('SET_WAREHOUSE_FILTER', warehouseId);
+
+      if (state.search.query && state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+        await dispatch('searchInventoryDirect', {
+          searchQuery: state.search.query,
+          warehouseId
+        });
+      }
+    },
+
+    async clearSearch({ commit }) {
+      commit('CLEAR_SEARCH');
+    },
+
+    // ============================================
+    // FIREBASE CONNECTION TEST ACTION
+    // ============================================
+    async testFirebaseConnection({ state }) {
+      try {
+        console.log('🔧 Testing Firebase connection...');
+        
+        // Test if db is available
+        if (!db) {
+          console.error('❌ db is undefined');
+          return false;
+        }
+        
+        // Import Firebase dynamically
+        const firebaseFirestore = await import('firebase/firestore');
+        const { collection, query, limit, getDocs } = firebaseFirestore;
+        
+        // Simple test query
+        const testRef = collection(db, 'items');
+        const testQuery = query(testRef, limit(1));
+        const snapshot = await getDocs(testQuery);
+        
+        console.log(`✅ Firebase test: ${snapshot.empty ? 'Connected (no items)' : 'Connected with items'}`);
+        console.log(`📊 Firebase test details:`, {
+          dbType: typeof db,
+          hasCollection: typeof collection === 'function',
+          snapshotSize: snapshot.size
+        });
+        
+        return true;
+      } catch (error) {
+        console.error('❌ Firebase connection test failed:', error);
+        console.error('Full error:', error);
+        return false;
+      }
+    },
 
     // ============================================
     // EXISTING ACTIONS (MINIMAL MODIFICATIONS)
@@ -3576,6 +3663,127 @@ async testFirebaseConnection({ state }) {
       }
     },
 
+      // ============================================
+    // USER PROFILE ACTION 
+    // ============================================
+    async loadUserProfile({ commit, state, dispatch }) {
+      try {
+        console.log('🔄 Loading user profile...');
+        
+        if (!state.user || !state.user.uid) {
+          console.log('❌ No user found');
+          return null;
+        }
+        
+        // Get user profile from Firestore
+        const userDoc = await getDoc(doc(db, 'users', state.user.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('✅ User profile loaded:', userData);
+          
+          // Save user profile to state
+          const userProfile = {
+            id: state.user.uid,
+            email: state.user.email,
+            name: userData.name || state.user.displayName || state.user.email.split('@')[0],
+            role: userData.role || 'viewer',
+            permissions: userData.permissions || [],
+            allowed_warehouses: userData.allowed_warehouses || [],
+            is_active: userData.is_active !== false,
+            profile_complete: userData.profile_complete || false,
+            createdAt: userData.createdAt || new Date(),
+            lastLogin: new Date()
+          };
+          
+          commit('SET_USER_PROFILE', userProfile);
+          return userProfile;
+          
+        } else {
+          console.log('⚠️ User document not found, creating default profile');
+          
+          // Create default profile
+          const defaultProfile = {
+            id: state.user.uid,
+            email: state.user.email,
+            name: state.user.displayName || state.user.email.split('@')[0],
+            role: 'viewer',
+            permissions: [],
+            allowed_warehouses: [],
+            is_active: true,
+            profile_complete: false,
+            createdAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          // Save default profile to Firestore
+          await setDoc(doc(db, 'users', state.user.uid), defaultProfile, { merge: true });
+          
+          commit('SET_USER_PROFILE', defaultProfile);
+          return defaultProfile;
+        }
+        
+      } catch (error) {
+        console.error('❌ Error loading user profile:', error);
+        
+        // Create a minimal profile as fallback
+        const fallbackProfile = {
+          id: state.user?.uid,
+          email: state.user?.email,
+          name: state.user?.displayName || state.user?.email?.split('@')[0] || 'مستخدم',
+          role: 'viewer',
+          permissions: [],
+          allowed_warehouses: [],
+          is_active: true,
+          profile_complete: false,
+          createdAt: new Date(),
+          lastLogin: new Date()
+        };
+        
+        commit('SET_USER_PROFILE', fallbackProfile);
+        return fallbackProfile;
+      }
+    },
+    
+        // ============================================
+    // LOAD USERS ACTION 
+    // ============================================
+    async loadUsers({ commit, state, dispatch }) {
+      try {
+        console.log('🔄 Loading all users...');
+        
+        if (state.userProfile?.role !== 'superadmin') {
+          console.log('⚠️ User is not superadmin, skipping users load');
+          return [];
+        }
+        
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, orderBy('created_at', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        const users = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log(`✅ Users loaded: ${users.length}`);
+        commit('SET_ALL_USERS', users);
+        return users;
+        
+      } catch (error) {
+        console.error('❌ Error loading users:', error);
+        
+        // Only show notification if user is admin
+        if (state.userProfile?.role === 'superadmin') {
+          dispatch('showNotification', {
+            type: 'error',
+            message: error.message || 'خطأ في تحميل المستخدمين'
+          });
+        }
+        
+        return [];
+      }
+    },
     showNotification({ commit, state }, notification) {
       if (!notification?.message) return;
 
@@ -5521,4 +5729,3 @@ async testFirebaseConnection({ state }) {
     }
   }
 });
-
