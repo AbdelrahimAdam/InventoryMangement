@@ -738,8 +738,9 @@ export default createStore({
   },
 
   actions: {
-// ============================================
-// SMART PRODUCTION ARABIC SEARCH (FINAL)
+
+   // ============================================
+// SMART ARABIC SEARCH (FINAL)
 // ============================================
 async searchInventorySmart({ commit, state }, {
   searchQuery,
@@ -787,14 +788,15 @@ async searchInventorySmart({ commit, state }, {
 
           const normalizedValue = normalizeArabicText(value.toString());
 
+          // Try more flexible matching logic
           if (
-            normalizedValue === normalizedSearchTerm ||
-            normalizedValue.startsWith(normalizedSearchTerm) ||
-            normalizedValue.includes(normalizedSearchTerm)
+            normalizedValue.includes(normalizedSearchTerm) ||  // Partial matches
+            normalizedValue.startsWith(normalizedSearchTerm)   // Starts with search term
           ) {
             return true;
           }
 
+          // Split the terms for more detailed comparison (word-by-word)
           const fieldWords = normalizedValue.split(/\s+/);
           const searchWords = normalizedSearchTerm.split(/\s+/);
 
