@@ -199,9 +199,6 @@ function calculateRelevanceScore(item, searchTerm) {
     }
   });
 
-  return score;
-}
-
   // Bonus for items with higher quantity (better availability)
   score += Math.min(item.remaining_quantity || 0, 50);
 
