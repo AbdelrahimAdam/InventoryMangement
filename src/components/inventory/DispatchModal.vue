@@ -504,9 +504,8 @@
   </div>
 </template>
 
-
 <script>
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { debounce } from 'lodash'
 
@@ -526,22 +525,38 @@ export default {
   setup(props, { emit }) {
     const store = useStore()
     
-    // State
-    const loading = ref(false)
-    const error = ref('')
-    const successMessage = ref('')
-    const selectedItem = ref(null)
-    const searchTerm = ref('')
-    const dispatchWarehouses = ref([])
-    
-    // Search State - SPARK OPTIMIZED
-    const isSearching = ref(false)
-    const searchResults = ref([])
-    const searchTimeout = ref(null)
-    const debugInfo = ref('')
-    const lastSearchCount = ref(0)
+    // FIXED: Define priorityOptions FIRST
+    const priorityOptions = [
+      {
+        value: 'low',
+        label: 'منخفضة',
+        icon: '📝',
+        iconClass: 'text-gray-500',
+        borderClass: 'border-gray-300',
+        bgClass: 'bg-gray-50 dark:bg-gray-800',
+        textClass: 'text-gray-700 dark:text-gray-300'
+      },
+      {
+        value: 'normal',
+        label: 'عادية',
+        icon: '⚡',
+        iconClass: 'text-blue-500',
+        borderClass: 'border-blue-300',
+        bgClass: 'bg-blue-50 dark:bg-blue-900/30',
+        textClass: 'text-blue-700 dark:text-blue-300'
+      },
+      {
+        value: 'high',
+        label: 'عالية',
+        icon: '🚨',
+        iconClass: 'text-red-500',
+        borderClass: 'border-red-300',
+        bgClass: 'bg-red-50 dark:bg-red-900/30',
+        textClass: 'text-red-700 dark:text-red-300'
+      }
+    ]
 
-    // Form
+    // FIXED: Initialize form IMMEDIATELY
     const form = reactive({
       sourceWarehouse: '',
       destinationBranch: '',
@@ -550,39 +565,143 @@ export default {
       priority: 'normal'
     })
 
-    // Search configuration - SPARK OPTIMIZED
-    const MIN_SEARCH_CHARS = 2
-    const SEARCH_DEBOUNCE = 500  // Longer debounce for Spark
-    const MAX_RESULTS = 15  // SPARK: Limit results strictly
-    const CACHE_TTL = 300000  // 5 minutes cache
+    // State
+    const loading = ref(false)
+    const error = ref('')
+    const successMessage = ref('')
+    const selectedItem = ref(null)
+    const searchTerm = ref('')
+    const dispatchWarehouses = ref([])
+    
+    // Search State
+    const isSearching = ref(false)
+    const searchResults = ref([])
+    const searchTimeout = ref(null)
+    const debugInfo = ref('')
+    const lastSearchCount = ref(0)
+    const lastSearchStats = ref(null)
+
+    // Search configuration - MORE RELAXED FOR BETTER RESULTS
+    const MIN_SEARCH_CHARS = 1  // Changed from 2 to 1 for better search
+    const SEARCH_DEBOUNCE = 300  // Reduced from 500 for faster response
+    const MAX_RESULTS = 50  // Increased from 15 for better results
+    const CACHE_TTL = 60000  // Reduced to 1 minute
 
     // Cache for search results
     const searchCache = ref(new Map())
-    const lastCacheUpdate = ref(0)
 
     // Computed properties
-    const userProfile = computed(() => store.state.userProfile)
+    const userProfile = computed(() => store.state.userProfile || {})
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
+    const branches = computed(() => store.state.branches || [])
     
     // Check if user is superadmin
     const isSuperadmin = computed(() => {
       return userProfile.value?.role === 'superadmin'
     })
 
-    // **SPARK-FRIENDLY SEARCH PIPELINE**
+    // FIXED: Compute dispatch destinations - Use ALL warehouses, not just branches
+    const dispatchDestinations = computed(() => {
+      // Use dispatch warehouses if available, otherwise use all warehouses
+      if (dispatchWarehouses.value.length > 0) {
+        return dispatchWarehouses.value.map(warehouse => ({
+          ...warehouse,
+          icon: '🏢'
+        }))
+      }
+      
+      // Fallback to all warehouses filtered by type
+      const allWarehouses = warehouses.value || []
+      return allWarehouses
+        .filter(w => w.type === 'dispatch' || w.is_dispatch)
+        .map(warehouse => ({
+          ...warehouse,
+          icon: '🏢'
+        }))
+    })
+
+    // FIXED: Compute accessible source warehouses - Show ALL warehouses for selection
+    const accessibleSourceWarehouses = computed(() => {
+      if (isSuperadmin.value) {
+        return warehouses.value.filter(w => w.type !== 'dispatch' && !w.is_dispatch)
+      }
+      
+      // For non-superadmin users, filter by user's accessible warehouses
+      const userWarehouseIds = userProfile.value?.accessible_warehouses || []
+      return warehouses.value.filter(warehouse => 
+        userWarehouseIds.includes(warehouse.id) && 
+        warehouse.type !== 'dispatch' && 
+        !warehouse.is_dispatch
+      )
+    })
+
+    // FIXED: Helper function to get warehouse name
+    const getWarehouseName = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId)
+      return warehouse ? warehouse.name_ar : 'مخزن غير معروف'
+    }
+
+    // FIXED: Helper function to get destination name
+    const getDestinationName = (destinationId) => {
+      const destination = dispatchDestinations.value.find(d => d.id === destinationId)
+      return destination ? destination.name_ar : 'وجهة غير معروفة'
+    }
+
+    // FIXED: Helper function to check warehouse access
+    const isWarehouseAccessible = (warehouseId) => {
+      if (isSuperadmin.value) return true
+      const userWarehouseIds = userProfile.value?.accessible_warehouses || []
+      return userWarehouseIds.includes(warehouseId)
+    }
+
+    // FIXED: Check if user has access to selected warehouse
+    const hasAccessToSelectedWarehouse = computed(() => {
+      if (!form.sourceWarehouse || isSuperadmin.value) return true
+      return isWarehouseAccessible(form.sourceWarehouse)
+    })
+
+    // FIXED: Check if user can view dispatch
+    const canViewDispatch = computed(() => {
+      return isSuperadmin.value || 
+             userProfile.value?.role === 'warehouse_manager' ||
+             userProfile.value?.role === 'company_manager'
+    })
+
+    // FIXED: Check if user can perform dispatch
+    const canPerformDispatch = computed(() => {
+      return isSuperadmin.value || 
+             userProfile.value?.role === 'warehouse_manager' ||
+             (userProfile.value?.role === 'company_manager' && 
+              hasAccessToSelectedWarehouse.value)
+    })
+
+    // FIXED: Get stock class for styling
+    const getStockClass = (quantity) => {
+      if (quantity <= 0) return 'text-red-600 dark:text-red-400'
+      if (quantity <= 10) return 'text-yellow-600 dark:text-yellow-400'
+      return 'text-green-600 dark:text-green-400'
+    }
+
+    // FIXED: Select item function
+    const selectItem = (item) => {
+      if ((!isSuperadmin.value && !canPerformDispatch.value) || 
+          (item.remaining_quantity || item.quantity || 0) <= 0) {
+        return
+      }
+      selectedItem.value = item
+      // Reset quantity to 1 when selecting new item
+      form.quantity = 1
+    }
+
+    // **IMPROVED SEARCH FUNCTION WITH BETTER RESULTS**
     const searchSparkFriendly = async () => {
       const term = searchTerm.value.trim()
       
       if (term.length === 0) {
         searchResults.value = []
         debugInfo.value = 'اكتب للبحث عن الأصناف'
-        return
-      }
-      
-      if (term.length < MIN_SEARCH_CHARS) {
-        searchResults.value = []
-        debugInfo.value = 'اكتب حرفين على الأقل للبحث'
+        lastSearchStats.value = null
         return
       }
       
@@ -590,7 +709,9 @@ export default {
         isSearching.value = true
         debugInfo.value = `🔍 جاري البحث عن "${term}"...`
         
-        // **CHECK CACHE FIRST - SPARK OPTIMIZATION**
+        const startTime = performance.now()
+        
+        // **CHECK CACHE FIRST**
         const cacheKey = `${form.sourceWarehouse || 'all'}:${term}`
         const cachedData = searchCache.value.get(cacheKey)
         const now = Date.now()
@@ -599,6 +720,14 @@ export default {
           console.log('✅ Using cached results for:', cacheKey)
           searchResults.value = cachedData.results.slice(0, MAX_RESULTS)
           lastSearchCount.value = cachedData.results.length
+          
+          const searchTime = performance.now() - startTime
+          lastSearchStats.value = {
+            total: lastSearchCount.value,
+            duration: Math.round(searchTime),
+            source: 'cache'
+          }
+          
           debugInfo.value = `✅ من الذاكرة المؤقتة: ${lastSearchCount.value} نتيجة`
           isSearching.value = false
           return
@@ -607,146 +736,218 @@ export default {
         let results = []
         let searchSource = ''
         
-        // **STRATEGY 1: Use store's searchItems with strict limits**
-        if (store.dispatch && typeof store.dispatch === 'function') {
+        // **STRATEGY 1: Try multiple search actions for better results**
+        const searchActions = [
+          'searchInventorySmart',
+          'searchItemsForTransactions',
+          'searchItems',
+          'searchInventoryLive'
+        ]
+        
+        for (const actionName of searchActions) {
           try {
-            // SPARK: Add artificial delay to prevent rapid requests
-            await new Promise(resolve => setTimeout(resolve, 100))
-            
-            const storeResults = await store.dispatch('searchItems', {
-              searchTerm: term,
-              warehouseId: form.sourceWarehouse || 'all',
-              limit: MAX_RESULTS,  // SPARK: Strict limit
-              fields: ['name', 'code']  // SPARK: Limit search fields
-            })
-            
-            if (storeResults && storeResults.length > 0) {
-              results = storeResults.filter(item => 
-                (item.remaining_quantity || item.quantity || 0) > 0
-              ).slice(0, MAX_RESULTS)  // SPARK: Enforce limit again
+            if (store._actions[actionName]) {
+              console.log(`🔍 Trying search action: ${actionName}`)
               
-              searchSource = 'firebase'
-              debugInfo.value = `✅ بحث مباشر: ${results.length} نتيجة`
+              const storeResults = await store.dispatch(actionName, {
+                searchQuery: term,
+                searchTerm: term,
+                warehouseId: form.sourceWarehouse || 'all',
+                limit: MAX_RESULTS
+              })
+              
+              if (storeResults && storeResults.length > 0) {
+                results = storeResults.filter(item => 
+                  (item.remaining_quantity || item.quantity || 0) > 0
+                ).slice(0, MAX_RESULTS)
+                
+                searchSource = actionName
+                debugInfo.value = `✅ ${actionName}: ${results.length} نتيجة`
+                console.log(`✅ Found ${results.length} items using ${actionName}`)
+                break
+              }
             }
           } catch (storeError) {
-            console.warn('⚠️ Firebase search failed:', storeError.message)
+            console.warn(`⚠️ Search action ${actionName} failed:`, storeError.message)
+            continue
           }
         }
         
-        // **STRATEGY 2: If Firebase fails, use LIMITED local search**
+        // **STRATEGY 2: If all store searches fail, use comprehensive local search**
         if (results.length === 0) {
-          results = searchLimitedLocal(term)
-          searchSource = 'local_limited'
-          debugInfo.value = `📱 بحث محلي محدود: ${results.length} نتيجة`
+          results = searchComprehensiveLocal(term)
+          searchSource = 'local_comprehensive'
+          debugInfo.value = `📱 بحث محلي شامل: ${results.length} نتيجة`
         }
         
-        // **SPARK: Update cache**
-        searchCache.value.set(cacheKey, {
-          results: results,
-          timestamp: now,
-          source: searchSource
-        })
-        
-        // Clean old cache entries (SPARK: prevent memory bloat)
-        if (searchCache.value.size > 50) {
-          const oldestKey = Array.from(searchCache.value.keys())[0]
-          searchCache.value.delete(oldestKey)
+        // **Update cache**
+        if (results.length > 0) {
+          searchCache.value.set(cacheKey, {
+            results: results,
+            timestamp: now,
+            source: searchSource
+          })
+          
+          // Clean old cache entries
+          if (searchCache.value.size > 50) {
+            const oldestKey = Array.from(searchCache.value.keys())[0]
+            searchCache.value.delete(oldestKey)
+          }
         }
         
         searchResults.value = results
         lastSearchCount.value = results.length
         
-        // **SPARK: Log search stats (debug only)**
-        if (isSuperadmin.value) {
-          console.log('🔍 Spark-friendly search:', {
-            term,
-            results: results.length,
-            source: searchSource,
-            cacheSize: searchCache.value.size
-          })
+        const searchTime = performance.now() - startTime
+        lastSearchStats.value = {
+          total: results.length,
+          duration: Math.round(searchTime),
+          source: searchSource
         }
+        
+        // Log search stats for debugging
+        console.log('🔍 Search completed:', {
+          term,
+          results: results.length,
+          source: searchSource,
+          duration: searchTime,
+          warehouse: form.sourceWarehouse || 'all',
+          hasFormWarehouse: !!form.sourceWarehouse
+        })
         
         if (results.length > 0) {
           debugInfo.value = `✅ تم العثور على ${results.length} نتيجة`
         } else {
           debugInfo.value = `❌ لم يتم العثور على نتائج للبحث "${term}"`
+          console.log('🔍 Search debug:', {
+            inventoryCount: inventory.value.length,
+            warehouseFilter: form.sourceWarehouse,
+            term
+          })
         }
         
       } catch (error) {
         console.error('❌ Search error:', error)
         debugInfo.value = 'خطأ في البحث. حاول مرة أخرى.'
         searchResults.value = []
+        lastSearchStats.value = null
       } finally {
         isSearching.value = false
       }
     }
     
-    // **SPARK: Limited local search (avoids loading all inventory)**
-    const searchLimitedLocal = (term) => {
-      if (!form.sourceWarehouse) return []
-      
+    // **Comprehensive local search - searches ALL fields**
+    const searchComprehensiveLocal = (term) => {
       const termLower = term.toLowerCase()
       
-      // SPARK: Get only active items from current warehouse
+      // Get all items
       const allItems = inventory.value || []
       
-      // SPARK: Get only items from selected warehouse with quantity > 0
-      // This assumes inventory is already loaded in store (cached)
-      const warehouseItems = allItems.filter(item => 
-        item.warehouse_id === form.sourceWarehouse && 
-        (item.remaining_quantity || item.quantity || 0) > 0
-      )
+      // Apply warehouse filter if specified
+      let filteredItems = allItems
+      if (form.sourceWarehouse) {
+        filteredItems = filteredItems.filter(item => 
+          item.warehouse_id === form.sourceWarehouse
+        )
+      }
       
-      // SPARK: Early return if no warehouse items
-      if (warehouseItems.length === 0) return []
+      // Early return if no items
+      if (filteredItems.length === 0) {
+        console.log('📭 No items in local inventory')
+        return []
+      }
       
-      // SPARK: Limit search to first 100 items (performance)
-      const searchPool = warehouseItems.slice(0, 100)
+      console.log(`🔍 Local search scanning ${filteredItems.length} items`)
       
-      const results = searchPool.filter(item => {
-        // SPARK: Prioritize common fields only
-        if (item.name && item.name.toLowerCase().includes(termLower)) return true
-        if (item.code && item.code.toLowerCase().includes(termLower)) return true
-        if (item.item_name && item.item_name.toLowerCase().includes(termLower)) return true
-        if (item.item_code && item.item_code.toLowerCase().includes(termLower)) return true
-        return false
-      }).slice(0, MAX_RESULTS)  // SPARK: Strict limit
+      // Define all possible search fields
+      const SEARCH_FIELDS = [
+        'name', 'item_name',
+        'code', 'item_code',
+        'color',
+        'supplier',
+        'item_location', 'location',
+        'warehouse_id',
+        'notes'
+      ]
       
-      return results
+      // Search with fuzzy matching
+      const matches = []
+      
+      for (const item of filteredItems) {
+        let matched = false
+        
+        // Check each search field
+        for (const field of SEARCH_FIELDS) {
+          const value = item[field]
+          if (!value) continue
+
+          const stringValue = value.toString().toLowerCase()
+          
+          // Multiple matching strategies
+          if (stringValue.includes(termLower)) {
+            matched = true
+            break
+          }
+          
+          // Partial word matching
+          if (termLower.length > 1) {
+            const valueWords = stringValue.split(/\s+/)
+            const searchWords = termLower.split(/\s+/)
+            
+            // Check if all search words are found in any order
+            if (searchWords.every(word => 
+              valueWords.some(valueWord => valueWord.includes(word))
+            )) {
+              matched = true
+              break
+            }
+          }
+        }
+        
+        if (matched) {
+          matches.push(item)
+          if (matches.length >= MAX_RESULTS) break
+        }
+      }
+      
+      console.log(`📍 Local search found ${matches.length} matches`)
+      
+      return matches.slice(0, MAX_RESULTS)
     }
     
-    // **SPARK: Load initial items with limits**
+    // **Load initial items with limits**
     const loadInitialWarehouseItems = () => {
       if (!form.sourceWarehouse) {
         searchResults.value = []
         debugInfo.value = 'اختر مخزن أولاً'
+        lastSearchStats.value = null
         return
       }
       
-      // SPARK: Don't load all items - just use what's in Vuex cache
       const allItems = inventory.value || []
       
-      // SPARK: Limit to 10 items initially
+      // Get items from selected warehouse
       const warehouseItems = allItems.filter(item => 
         item.warehouse_id === form.sourceWarehouse && 
         (item.remaining_quantity || item.quantity || 0) > 0
-      ).slice(0, 10)  // SPARK: Only show 10 items max
+      ).slice(0, 20)  // Show more items initially
       
       searchResults.value = warehouseItems
       lastSearchCount.value = warehouseItems.length
+      lastSearchStats.value = null
       
       debugInfo.value = warehouseItems.length > 0 
-        ? `عرض ${warehouseItems.length} صنف (عينة أولية)`
+        ? `عرض ${warehouseItems.length} صنف`
         : 'لم يتم العثور على أصناف في هذا المخزن'
     }
     
-    // **SPARK: Clear cache when warehouse changes**
+    // **Clear cache when warehouse changes**
     const clearSearchCache = () => {
       searchCache.value.clear()
       console.log('🧹 Cleared search cache')
     }
 
-    // **SPARK: Debounced search with longer delay**
+    // **Debounced search with optimized delay**
     const debouncedSearch = debounce(searchSparkFriendly, SEARCH_DEBOUNCE)
     
     const handleSearch = () => {
@@ -756,23 +957,25 @@ export default {
       
       isSearching.value = true
       
-      if (!searchTerm.value || searchTerm.value.trim().length < MIN_SEARCH_CHARS) {
+      if (!searchTerm.value || searchTerm.value.trim().length === 0) {
         searchResults.value = []
-        debugInfo.value = 'اكتب حرفين على الأقل للبحث'
+        debugInfo.value = 'اكتب للبحث عن الأصناف'
+        lastSearchStats.value = null
         isSearching.value = false
         return
       }
       
-      // SPARK: Add extra delay between rapid searches
+      // Start search immediately for better UX
       searchTimeout.value = setTimeout(() => {
         debouncedSearch()
-      }, SEARCH_DEBOUNCE)
+      }, 150)  // Faster response
     }
     
     const clearSearch = () => {
       searchTerm.value = ''
       searchResults.value = []
       isSearching.value = false
+      lastSearchStats.value = null
       debugInfo.value = 'اكتب للبحث عن الأصناف'
       
       if (form.sourceWarehouse) {
@@ -785,9 +988,10 @@ export default {
       searchTerm.value = ''
       searchResults.value = []
       error.value = ''
+      lastSearchStats.value = null
       debugInfo.value = 'اختر صنفاً أو ابدأ بالبحث'
       
-      // SPARK: Clear cache when warehouse changes
+      // Clear cache when warehouse changes
       clearSearchCache()
       
       if (form.sourceWarehouse) {
@@ -795,7 +999,7 @@ export default {
       }
     }
 
-    // **SPARK: Optimized form submission**
+    // **Optimized form submission**
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -847,7 +1051,7 @@ export default {
           user_name: userProfile.value?.name
         }
 
-        // SPARK: Clear relevant cache entries after dispatch
+        // Clear relevant cache entries after dispatch
         clearSearchCache()
         
         // Use the store dispatch action
@@ -892,9 +1096,10 @@ export default {
       isSearching.value = false
       debugInfo.value = ''
       lastSearchCount.value = 0
+      lastSearchStats.value = null
     }
 
-    // **SPARK: Watch for inventory changes to update cache**
+    // **Watch for inventory changes to update cache**
     watch(() => store.state.inventory, (newInventory) => {
       if (newInventory && newInventory.length > 0) {
         // Invalidate cache when inventory updates
@@ -903,57 +1108,113 @@ export default {
       }
     }, { deep: true })
 
-    // Load dispatch warehouses with cache
-    const loadDispatchWarehouses = async () => {
-      if (dispatchWarehouses.value.length > 0) return
-      
-      try {
-        const warehouses = await store.dispatch('getDispatchWarehouses')
-        if (warehouses && warehouses.length > 0) {
-          dispatchWarehouses.value = warehouses
+    // FIXED: Improved dispatch warehouses loading
+    watch(() => props.isOpen, async (isOpen) => {
+      if (isOpen) {
+        // Reset form when modal opens
+        resetForm()
+        
+        // Load dispatch warehouses if not already loaded
+        if (dispatchWarehouses.value.length === 0) {
+          try {
+            loading.value = true
+            console.log('🔄 Loading dispatch warehouses for modal...')
+            
+            // Try multiple ways to get dispatch warehouses
+            let warehouses = []
+            
+            // Method 1: Use getDispatchWarehouses action
+            try {
+              warehouses = await store.dispatch('getDispatchWarehouses')
+              console.log('✅ Dispatch warehouses from action:', warehouses.length)
+            } catch (error) {
+              console.warn('⚠️ Failed to get dispatch warehouses from action:', error.message)
+              
+              // Method 2: Filter from all warehouses
+              const allWarehouses = store.state.warehouses || []
+              warehouses = allWarehouses.filter(w => 
+                w.type === 'dispatch' || w.is_dispatch
+              )
+              console.log('✅ Dispatch warehouses filtered:', warehouses.length)
+            }
+            
+            if (warehouses && warehouses.length > 0) {
+              dispatchWarehouses.value = warehouses
+              console.log('✅ Dispatch warehouses loaded in modal:', warehouses.length)
+              
+              // Log warehouse details for debugging
+              warehouses.forEach((wh, idx) => {
+                console.log(`🏢 Warehouse ${idx + 1}:`, {
+                  id: wh.id,
+                  name: wh.name_ar || wh.name,
+                  type: wh.type,
+                  is_dispatch: wh.is_dispatch
+                })
+              })
+            } else {
+              console.log('⚠️ No dispatch warehouses found')
+            }
+          } catch (error) {
+            console.error('❌ Error loading dispatch warehouses:', error)
+          } finally {
+            loading.value = false
+          }
+        } else {
+          console.log('✅ Using cached dispatch warehouses:', dispatchWarehouses.value.length)
         }
-      } catch (error) {
-        console.error('❌ Error loading dispatch warehouses:', error)
       }
-    }
+    }, { immediate: true })
 
-    onMounted(async () => {
-      await loadDispatchWarehouses()
-    })
-    
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
       debouncedSearch.cancel()
-      // SPARK: Clear cache to free memory
+      // Clear cache to free memory
       clearSearchCache()
     })
 
+    // Add a debug function to check available actions
+    const debugStoreActions = () => {
+      console.log('🔍 Available store actions:', Object.keys(store._actions || {}))
+    }
+
+    // Call debug on mount for troubleshooting
+    setTimeout(() => {
+      if (props.isOpen) {
+        debugStoreActions()
+      }
+    }, 1000)
+
+    // FIXED: Return ALL required properties
     return {
+      // Form and state
       form,
       loading,
       error,
       successMessage,
       selectedItem,
       searchTerm,
-      dispatchWarehouses,
+      isSearching,
       searchResults,
       debugInfo,
-      isSearching,
+      lastSearchStats,
+      
+      // Data
+      dispatchWarehouses,
+      priorityOptions,
+      
+      // Computed properties
       userProfile,
       warehouses,
       isSuperadmin,
-      dispatchDestinations: computed(() => dispatchDestinations.value),
-      accessibleSourceWarehouses: computed(() => accessibleSourceWarehouses.value),
-      priorityOptions,
-      canViewDispatch: computed(() => true),
-      canPerformDispatch: computed(() => isSuperadmin.value || userProfile.value?.role === 'company_manager'),
-      hasAccessToSelectedWarehouse: computed(() => true),
-      isSubmitDisabled: computed(() => {
-        if (loading.value) return true
-        return !selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0
-      }),
+      dispatchDestinations,
+      accessibleSourceWarehouses,
+      canViewDispatch,
+      canPerformDispatch,
+      hasAccessToSelectedWarehouse,
+      
+      // Methods
       selectItem,
       clearSelection: () => selectedItem.value = null,
       clearSearch,
@@ -965,12 +1226,37 @@ export default {
         form.quantity = max
       },
       getWarehouseName,
-      getWarehouseType: (warehouseId) => '',
+      getWarehouseType: (warehouseId) => {
+        const warehouse = warehouses.value.find(w => w.id === warehouseId)
+        return warehouse?.type || ''
+      },
       getDestinationName,
       getStockClass,
-      isWarehouseAccessible: () => true,
+      isWarehouseAccessible,
       handleSearch,
       handleSubmit,
+      
+      // Load all items button function
+      loadAllItemsInWarehouse: () => {
+        if (form.sourceWarehouse) {
+          searchTerm.value = ''
+          const allItems = inventory.value || []
+          const warehouseItems = allItems.filter(item => 
+            item.warehouse_id === form.sourceWarehouse && 
+            (item.remaining_quantity || item.quantity || 0) > 0
+          )
+          searchResults.value = warehouseItems
+          debugInfo.value = `عرض جميع الأصناف: ${warehouseItems.length} صنف`
+        }
+      },
+      
+      // Computed for submit button
+      isSubmitDisabled: computed(() => {
+        if (loading.value) return true
+        return !selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0
+      }),
+      
+      // Modal control
       closeModal: () => {
         if (!loading.value) {
           resetForm()

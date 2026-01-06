@@ -51,7 +51,7 @@
               >
                 <option value="all">🏢 جميع المخازن</option>
                 <option 
-                  v-for="warehouse in warehouses" 
+                  v-for="warehouse in accessibleWarehouses" 
                   :key="warehouse.id" 
                   :value="warehouse.id"
                   class="py-2"
@@ -97,7 +97,8 @@
               <div>
                 <div class="text-sm text-gray-500 dark:text-gray-400">النسبة من الكمية الكلية</div>
                 <div class="font-bold text-gray-900 dark:text-white">
-                  {{ dashboardStats.totalQuantity > 0 && allWarehouseStats.totalQuantity > 0 ? ((dashboardStats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
+                  {{ dashboardStats.totalQuantity > 0 && allWarehouseStats.totalQuantity > 0 ? 
+                    ((dashboardStats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
                 </div>
               </div>
             </div>
@@ -133,7 +134,8 @@
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                   </svg>
-                  {{ dashboardStats.totalItems > 0 && allWarehouseStats.totalItems > 0 ? ((dashboardStats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) : '0' }}% من المجموع
+                  {{ dashboardStats.totalItems > 0 && allWarehouseStats.totalItems > 0 ? 
+                    ((dashboardStats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) : '0' }}% من المجموع
                 </span>
               </div>
             </div>
@@ -283,7 +285,7 @@
         </div>
       </div>
 
-      <!-- QUICK ACTIONS SECTION (MOVED HERE) -->
+      <!-- QUICK ACTIONS SECTION -->
       <div class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
@@ -499,7 +501,7 @@
                 v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
                 :key="transaction.id"
                 class="group p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer fade-in"
-                @click="openTransactionModal?.(transaction)"
+                @click="openTransactionModal(transaction)"
               >
                 <div class="flex items-center gap-3">
                   <!-- Transaction Icon -->
@@ -572,7 +574,7 @@
         </div>
       </div>
 
-      <!-- WAREHOUSE STATISTICS SECTION (MOVED TO BOTTOM) -->
+      <!-- WAREHOUSE STATISTICS SECTION -->
       <div v-if="selectedWarehouse === 'all'" class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
@@ -607,7 +609,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="(stats, warehouseId) in allWarehousesStats" :key="warehouseId" 
+                <tr v-for="warehouse in accessibleWarehouses" :key="warehouse.id" 
                     class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
                   <td class="px-4 py-4 whitespace-nowrap">
                     <div class="flex items-center">
@@ -618,38 +620,38 @@
                       </div>
                       <div>
                         <div class="text-sm font-medium text-gray-900 dark:text-white">
-                          {{ getWarehouseLabel(warehouseId) }}
+                          {{ warehouse.name_ar || warehouse.name }}
                         </div>
                         <div class="text-xs text-gray-500 dark:text-gray-400">
-                          {{ formatEnglishNumber(stats.totalItems) }} صنف
+                          {{ getWarehouseStats(warehouse.id).totalItems }} صنف
                         </div>
                       </div>
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
                     <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(stats.totalItems) }}
+                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).totalItems) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ allWarehouseStats.totalItems > 0 ? ((stats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) : '0' }}%
+                      {{ getWarehousePercentage('totalItems', warehouse.id) }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
                     <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(stats.totalQuantity) }}
+                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).totalQuantity) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ allWarehouseStats.totalQuantity > 0 ? ((stats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
+                      {{ getWarehousePercentage('totalQuantity', warehouse.id) }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="stats.lowStockItems > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(stats.lowStockItems) }}
+                    <div class="text-sm font-medium" :class="getWarehouseStats(warehouse.id).lowStockItems > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).lowStockItems) }}
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="stats.outOfStockItems > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(stats.outOfStockItems) }}
+                    <div class="text-sm font-medium" :class="getWarehouseStats(warehouse.id).outOfStockItems > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).outOfStockItems) }}
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
@@ -657,14 +659,14 @@
                       <div class="flex-1">
                         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div 
-                            :class="getHealthColorClass(stats.healthPercentage)"
+                            :class="getHealthColorClass(getWarehouseStats(warehouse.id).healthPercentage)"
                             class="h-full rounded-full"
-                            :style="{ width: stats.healthPercentage + '%' }"
+                            :style="{ width: getWarehouseStats(warehouse.id).healthPercentage + '%' }"
                           ></div>
                         </div>
                       </div>
-                      <span class="text-sm font-medium" :class="getHealthTextClass(stats.healthPercentage)">
-                        {{ stats.healthPercentage }}%
+                      <span class="text-sm font-medium" :class="getHealthTextClass(getWarehouseStats(warehouse.id).healthPercentage)">
+                        {{ getWarehouseStats(warehouse.id).healthPercentage }}%
                       </span>
                     </div>
                   </td>
@@ -1041,20 +1043,18 @@ export default {
       outOfStockItems: 0
     });
 
-    // Warehouse-specific stats
-    const allWarehousesStats = ref({});
+    // Warehouse-specific stats cache
+    const warehouseStatsCache = ref({});
 
-    // Cache for stats calculation
-    const statsCache = ref({});
-    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
-
-    // ========== OPTIMIZED COMPUTED PROPERTIES ==========
+    // ========== COMPUTED PROPERTIES ==========
     
     const userRole = computed(() => store.getters.userRole || '');
+    const userName = computed(() => store.getters.userName || '');
+    const userProfile = computed(() => store.getters.userProfile || {});
     
-    const warehouses = computed(() => {
+    const accessibleWarehouses = computed(() => {
       try {
-        return store.getters.warehouses || [];
+        return store.getters.accessibleWarehouses || [];
       } catch {
         return [];
       }
@@ -1088,16 +1088,16 @@ export default {
     const canModifyItems = computed(() => {
       try {
         const role = userRole.value;
-        const userProfile = store.state.userProfile || {};
+        const profile = userProfile.value;
         
         if (role === 'superadmin') return true;
         
         if (role === 'warehouse_manager') {
-          const allowedWarehouses = userProfile?.allowed_warehouses || [];
+          const allowedWarehouses = profile?.allowed_warehouses || [];
           const hasWarehouses = allowedWarehouses.length > 0;
-          const hasPermission = userProfile?.permissions?.includes('full_access') || 
-                                userProfile?.permissions?.includes('manage_inventory') ||
-                                userProfile?.permissions?.includes('add_items');
+          const hasPermission = profile?.permissions?.includes('full_access') || 
+                                profile?.permissions?.includes('manage_inventory') ||
+                                profile?.permissions?.includes('add_items');
           return hasWarehouses && hasPermission;
         }
         
@@ -1107,13 +1107,13 @@ export default {
       }
     });
 
-    // Get total items count (cached)
+    // Get total items count
     const totalItemsCount = computed(() => {
       const stats = store.getters.dashboardRealStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
       return stats.totalItems || 0;
     });
     
-    // Today's transactions with caching
+    // Today's transactions
     const todayTransactions = computed(() => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1211,7 +1211,6 @@ export default {
 
     // ========== OPTIMIZED CALCULATIONS ==========
     
-    // Memoized calculations for better performance
     const calculatedTotals = computed(() => {
       const inventory = filteredInventory.value;
       
@@ -1356,6 +1355,54 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
+    // Calculate warehouse stats with caching
+    const getWarehouseStats = (warehouseId) => {
+      if (!warehouseId) {
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          healthPercentage: 0
+        };
+      }
+
+      // Check cache first
+      const cacheKey = `${warehouseId}_${lastUpdated.value.getTime()}`;
+      if (warehouseStatsCache.value[cacheKey]) {
+        return warehouseStatsCache.value[cacheKey];
+      }
+
+      const warehouseItems = inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
+      const totalItems = warehouseItems.length;
+      const totalQuantity = warehouseItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      const lowStockItems = warehouseItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      const outOfStockItems = warehouseItems.filter(item => (item.remaining_quantity || 0) === 0).length;
+      const healthyItems = totalItems - lowStockItems - outOfStockItems;
+      const healthPercentage = totalItems > 0 ? Math.round((healthyItems / totalItems) * 100) : 0;
+
+      const stats = {
+        totalItems,
+        totalQuantity,
+        lowStockItems,
+        outOfStockItems,
+        healthPercentage
+      };
+
+      // Cache the result
+      warehouseStatsCache.value[cacheKey] = stats;
+      
+      return stats;
+    };
+
+    const getWarehousePercentage = (statType, warehouseId) => {
+      const warehouseStat = getWarehouseStats(warehouseId);
+      const allStat = allWarehouseStats.value[statType] || 0;
+      
+      if (allStat === 0) return '0';
+      return ((warehouseStat[statType] / allStat) * 100).toFixed(1);
+    };
+
     // ========== MODAL FUNCTIONS ==========
     
     const openItemModal = async (item) => {
@@ -1394,6 +1441,11 @@ export default {
       }
     };
 
+    const openTransactionModal = (transaction) => {
+      // You can implement a transaction modal here if needed
+      console.log('Transaction clicked:', transaction);
+    };
+
     // ========== TIME UPDATES ==========
     
     const updateTime = () => {
@@ -1413,101 +1465,12 @@ export default {
 
     // ========== OPTIMIZED STATS LOADING ==========
     
-    const loadWarehouseStats = async (warehouseId) => {
-      // Check cache first
-      const cacheKey = `warehouse_${warehouseId}_${lastUpdated.value.getTime()}`;
-      if (statsCache.value[cacheKey] && 
-          Date.now() - statsCache.value[cacheKey].timestamp < CACHE_TTL) {
-        return statsCache.value[cacheKey].data;
-      }
-
-      try {
-        const inventory = inventoryItems.value;
-        const warehouseInventory = warehouseId === 'all' 
-          ? inventory 
-          : inventory.filter(item => item.warehouse_id === warehouseId);
-        
-        let totalQuantity = 0;
-        let lowStockItems = 0;
-        let outOfStockItems = 0;
-        
-        for (let i = 0; i < warehouseInventory.length; i++) {
-          const item = warehouseInventory[i];
-          const cartons = item.cartons_count || 0;
-          const perCarton = item.per_carton_count || 12;
-          const singles = item.single_bottles_count || 0;
-          const remaining = item.remaining_quantity || 0;
-          
-          totalQuantity += (cartons * perCarton) + singles;
-          
-          if (remaining === 0) {
-            outOfStockItems++;
-          } else if (remaining < 10) {
-            lowStockItems++;
-          }
-        }
-        
-        const healthyItems = warehouseInventory.length - lowStockItems - outOfStockItems;
-        const healthPercentage = warehouseInventory.length > 0 
-          ? Math.round((healthyItems / warehouseInventory.length) * 100) 
-          : 0;
-        
-        const result = {
-          totalItems: warehouseInventory.length,
-          totalQuantity: totalQuantity,
-          lowStockItems: lowStockItems,
-          outOfStockItems: outOfStockItems,
-          healthPercentage: healthPercentage,
-          lastUpdated: new Date()
-        };
-        
-        // Cache the result
-        statsCache.value[cacheKey] = {
-          data: result,
-          timestamp: Date.now()
-        };
-        
-        return result;
-      } catch {
-        return {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          outOfStockItems: 0,
-          healthPercentage: 0,
-          lastUpdated: new Date()
-        };
-      }
-    };
-
-    const loadAllWarehousesStats = async () => {
-      warehouseStatsLoading.value = true;
-      try {
-        const warehousesList = warehouses.value;
-        const stats = {};
-        
-        // Use Promise.all for parallel loading
-        const promises = warehousesList.map(async (warehouse) => {
-          stats[warehouse.id] = await loadWarehouseStats(warehouse.id);
-        });
-        
-        await Promise.all(promises);
-        
-        allWarehousesStats.value = stats;
-      } catch {
-        allWarehousesStats.value = {};
-      } finally {
-        warehouseStatsLoading.value = false;
-      }
-    };
-
-    // Optimized dashboard stats loading
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
-        // Use store getter for real stats (cached)
+        // Use store getter for real stats
         const realStats = store.getters.dashboardRealStats(warehouseId);
         
         dashboardStats.value = {
@@ -1531,13 +1494,13 @@ export default {
         }
         dashboardStats.value.outOfStockItems = outOfStockCount;
         
-        // Load "all" stats for comparison (cached)
+        // Load "all" stats for comparison
         const allStats = store.getters.dashboardRealStats('all');
         allWarehouseStats.value = {
           totalItems: allStats.totalItems,
           totalQuantity: allStats.totalQuantity,
           lowStockItems: allStats.lowStockItems,
-          outOfStockItems: 0 // We'll calculate this on demand
+          outOfStockItems: 0
         };
         
         // Calculate all out of stock items
@@ -1549,13 +1512,8 @@ export default {
         }
         allWarehouseStats.value.outOfStockItems = allOutOfStockCount;
         
-        // Load stats for all warehouses if "all" is selected (deferred)
-        if (warehouseId === 'all') {
-          // Load in background for better UX
-          setTimeout(() => {
-            loadAllWarehousesStats();
-          }, 100);
-        }
+        // Clear warehouse stats cache
+        warehouseStatsCache.value = {};
         
         console.log('✅ Dashboard stats loaded:', dashboardStats.value);
         
@@ -1657,7 +1615,7 @@ export default {
       loading.value = true;
       try {
         // Clear cache
-        statsCache.value = {};
+        warehouseStatsCache.value = {};
         
         // Refresh all data in parallel
         const [inventoryPromise, transactionsPromise] = await Promise.allSettled([
@@ -1710,10 +1668,15 @@ export default {
           return;
         }
         
+        // Load user profile if not loaded
+        if (!userProfile.value.id) {
+          await store.dispatch('loadUserProfile');
+        }
+        
         // Load initial data in parallel for faster loading
         const [warehousesData, inventoryData, transactionsData] = await Promise.allSettled([
-          !warehouses.value || warehouses.value.length === 0 
-            ? store.dispatch('loadWarehouses')
+          !accessibleWarehouses.value || accessibleWarehouses.value.length === 0 
+            ? store.dispatch('loadWarehousesEnhanced')
             : Promise.resolve(),
           store.dispatch('loadAllInventory', { forceRefresh: true }),
           store.dispatch('getRecentTransactions')
@@ -1824,11 +1787,12 @@ export default {
       // Stats
       dashboardStats,
       allWarehouseStats,
-      allWarehousesStats,
       
       // Computed
       userRole,
-      warehouses,
+      userName,
+      userProfile,
+      accessibleWarehouses,
       canModifyItems,
       filteredRecentInventory,
       filteredRecentTransactions,
@@ -1865,11 +1829,14 @@ export default {
       calculateTotalQuantity,
       handleImageError,
       handleModalImageError,
+      getWarehouseStats,
+      getWarehousePercentage,
       
       // Modal functions
       openItemModal,
       closeItemModal,
       editItem,
+      openTransactionModal,
       
       // Actions
       refreshDashboard,

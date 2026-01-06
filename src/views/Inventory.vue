@@ -2809,4 +2809,4 @@ export default {
 .animate-scale-in {
   animation: scaleIn 0.2s ease-out;
 }
-</style> 
+</style>

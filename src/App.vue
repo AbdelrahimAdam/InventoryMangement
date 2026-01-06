@@ -278,7 +278,7 @@ export default {
 
     // Methods
     const removeNotification = (notificationId) => {
-      store.commit('REMOVE_NOTIFICATION', notificationId);
+      store.dispatch('removeNotification', notificationId);
     };
 
     const toggleSidebar = () => {
@@ -385,20 +385,20 @@ export default {
         store.dispatch('loadAllInventory', { forceRefresh: false });
         
         // 2. Load recent transactions using store action
-        store.dispatch('getRecentTransactions');
+        store.dispatch('fetchTransactions');
         
         // 3. Load invoices if user has permission
         if (store.getters.canManageInvoices) {
           store.dispatch('loadAllInvoices');
         }
         
-        // 4. Load users if superadmin
+        // 4. Load users if superadmin - Use loadUsers instead of loadAllUsers
         if (userRole.value === 'superadmin') {
-          store.dispatch('loadAllUsers');
+          store.dispatch('loadUsers');
         }
         
-        // 5. Refresh dashboard counts
-        store.dispatch('refreshDashboardCounts');
+        // 5. Refresh dashboard counts - Use refreshDashboardCounts with warehouse parameter
+        store.dispatch('refreshDashboardCounts', 'all');
         
       } catch (error) {
         console.error('Background load error:', error);
@@ -430,6 +430,7 @@ export default {
         // Check if user has access to dashboard
         if (!hasDashboardAccess.value) {
           console.warn('⚠️ User does not have dashboard access');
+          // Use store dispatch instead of commit for notification
           store.dispatch('showNotification', {
             type: 'warning',
             message: 'ليس لديك صلاحية للوصول إلى لوحة التحكم. يرجى التواصل مع المشرف.',
