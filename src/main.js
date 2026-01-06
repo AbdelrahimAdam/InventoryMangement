@@ -5,8 +5,14 @@ import router from './router';
 import store from './store';
 import './styles/globals.css';
 
-// Import Firebase
-import { auth } from './firebase/config';
+// Import Firebase - Use the new initialization pattern
+import { 
+  auth, 
+  db, 
+  isFirebaseInitialized, 
+  initializeFirebase,
+  getInitializationError 
+} from './firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Import Performance Directives and Services
@@ -86,14 +92,66 @@ function showLoadingScreen() {
   `;
 }
 
-// ==================== 2. INITIALIZE FIREBASE AUTH ====================
+// ==================== 2. WAIT FOR FIREBASE INITIALIZATION ====================
+async function waitForFirebaseInitialization() {
+  console.log('🔥 Checking Firebase initialization...');
+  
+  // Check if Firebase is already initialized
+  if (isFirebaseInitialized()) {
+    console.log('✅ Firebase already initialized');
+    return true;
+  }
+  
+  // Try to initialize Firebase
+  try {
+    console.log('🔄 Initializing Firebase...');
+    await initializeFirebase();
+    
+    // Verify services are available
+    if (!db || !auth) {
+      throw new Error('Firebase services not available after initialization');
+    }
+    
+    console.log('✅ Firebase initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    
+    // Try to get initialization error
+    const initError = getInitializationError();
+    if (initError) {
+      console.error('Initialization error details:', initError);
+    }
+    
+    throw new Error(`Firebase initialization failed: ${error.message}`);
+  }
+}
+
+// ==================== 3. INITIALIZE FIREBASE AUTH ====================
 async function initializeFirebaseAuth() {
   return new Promise((resolve, reject) => {
     console.log('🔐 Initializing Firebase authentication...');
+    
+    // First, ensure Firebase services are available
+    if (!db || !auth) {
+      console.error('❌ Firebase services not available');
+      reject(new Error('Firebase services not available'));
+      return;
+    }
+    
+    console.log('📦 Firestore DB status:', db ? 'Available ✅' : 'Missing ❌');
+    console.log('👤 Firebase Auth status:', auth ? 'Available ✅' : 'Missing ❌');
+
+    // Set timeout for auth initialization
+    const authTimeout = setTimeout(() => {
+      console.log('⚠️ Auth initialization timeout, proceeding without user');
+      resolve({ user: null, isAuthenticated: false });
+    }, 8000); // 8 second timeout
 
     const unsubscribe = onAuthStateChanged(
       auth,
       async (user) => {
+        clearTimeout(authTimeout);
         console.log('✅ Firebase auth state:', user ? `User: ${user.email}` : 'No user');
 
         if (user) {
@@ -116,6 +174,7 @@ async function initializeFirebaseAuth() {
         unsubscribe();
       },
       (error) => {
+        clearTimeout(authTimeout);
         console.error('❌ Firebase auth error:', error);
         store.commit('SET_USER', null);
         reject(error);
@@ -124,16 +183,36 @@ async function initializeFirebaseAuth() {
   });
 }
 
-// ==================== 3. INITIALIZE APP ====================
+// ==================== 4. INITIALIZE APP ====================
 async function initializeApp() {
   try {
     showLoadingScreen();
 
+    // CRITICAL: Wait for Firebase to initialize first
+    console.log('🔄 Step 1: Initializing Firebase...');
+    await waitForFirebaseInitialization();
+    
+    console.log('🔄 Step 2: Initializing Firebase auth...');
     const authResult = await initializeFirebaseAuth();
 
+    console.log('🔄 Step 3: Creating Vue app...');
     const app = createApp(App);
     app.use(store);
     app.use(router);
+
+    // ==================== PROVIDE FIRESTORE DB TO ALL COMPONENTS ====================
+    // Make db available globally so all components can access it
+    app.config.globalProperties.$db = db;
+    app.config.globalProperties.$auth = auth;
+    
+    // Also provide via Vue's dependency injection system
+    app.provide('firebaseDb', db);
+    app.provide('firebaseAuth', auth);
+    
+    console.log('🔥 Firebase services provided to app:');
+    console.log('  - Firestore DB:', db ? 'Available ✅' : 'Missing ❌');
+    console.log('  - Firebase Auth:', auth ? 'Available ✅' : 'Missing ❌');
+    console.log('  - Firebase Initialized:', isFirebaseInitialized() ? 'Yes ✅' : 'No ❌');
 
     // ==================== REGISTER PERFORMANCE DIRECTIVES ====================
     // Register lazy image directive
@@ -151,6 +230,7 @@ async function initializeApp() {
     // Performance monitoring
     app.config.performance = true;
 
+    console.log('🔄 Step 4: Mounting app...');
     app.mount('#app');
 
     // Remove loading screen
@@ -209,6 +289,10 @@ async function initializeApp() {
           <div style="max-width: 500px;">
             <h2 style="color: #e74c3c; margin-bottom: 20px;">⚠️ خطأ في التحميل</h2>
             <p style="margin-bottom: 20px; color: #666;">${error.message || 'حدث خطأ في تحميل التطبيق'}</p>
+            <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 5px; color: #856404;">
+              <strong>تفاصيل الخطأ:</strong><br>
+              ${error.toString()}
+            </div>
             <button onclick="window.location.reload()" style="
               padding: 12px 24px;
               background: #3498db;
@@ -230,16 +314,25 @@ async function initializeApp() {
   }
 }
 
-// ==================== 4. START APP ====================
+// ==================== 5. START APP ====================
 initializeApp().catch(console.error);
 
-// ==================== 5. GLOBAL HELPERS ====================
+// ==================== 6. GLOBAL HELPERS ====================
 if (process.env.NODE_ENV === 'development') {
   window.debug = {
     auth: () => ({
-      currentUser: auth.currentUser,
+      currentUser: auth?.currentUser,
       storeUser: store.state.user,
       isAuthenticated: store.getters.isAuthenticated
+    }),
+    db: () => db,
+    firebaseStatus: () => ({
+      db: db ? 'Initialized ✅' : 'Not initialized ❌',
+      auth: auth ? 'Initialized ✅' : 'Not initialized ❌',
+      firestoreAvailable: typeof db === 'object' && db !== null,
+      authAvailable: typeof auth === 'object' && auth !== null,
+      isInitialized: isFirebaseInitialized(),
+      initError: getInitializationError?.() || null
     }),
     store: () => store.state,
     reload: () => window.location.reload(),
@@ -256,11 +349,58 @@ if (process.env.NODE_ENV === 'development') {
         'Page Load': metrics.loadEventEnd - metrics.loadEventStart,
         'Total Load': metrics.loadEventEnd - metrics.fetchStart
       });
+    },
+    // Firebase debug helper
+    testFirebase: async () => {
+      try {
+        const { collection, getDocs, limit, query } = await import('firebase/firestore');
+        
+        if (!db) {
+          console.error('❌ Firebase DB is not available');
+          return null;
+        }
+        
+        const testRef = collection(db, 'items');
+        const testQuery = query(testRef, limit(1));
+        const snapshot = await getDocs(testQuery);
+        console.log('✅ Firebase test successful. Items count:', snapshot.size);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (error) {
+        console.error('❌ Firebase test failed:', error);
+        return null;
+      }
+    },
+    // Search debug helper
+    debugSearch: async (searchTerm) => {
+      try {
+        console.log('🔍 Debugging search for:', searchTerm);
+        const results = await store.dispatch('searchInventorySpark', {
+          searchQuery: searchTerm,
+          limit: 5
+        });
+        console.log('Search results:', results);
+        return results;
+      } catch (error) {
+        console.error('Search debug error:', error);
+        return null;
+      }
+    },
+    // Reinitialize Firebase (useful for testing)
+    reinitializeFirebase: async () => {
+      try {
+        console.log('🔄 Reinitializing Firebase...');
+        await initializeFirebase();
+        console.log('✅ Firebase reinitialized');
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to reinitialize Firebase:', error);
+        return false;
+      }
     }
   };
 }
 
-// ==================== 6. OFFLINE SUPPORT ====================
+// ==================== 7. OFFLINE SUPPORT ====================
 // Listen for offline/online events
 window.addEventListener('offline', () => {
   console.log('📶 App is offline');
@@ -278,9 +418,17 @@ window.addEventListener('online', () => {
     message: 'تم استعادة الاتصال بالإنترنت. يتم تحديث البيانات.',
     duration: 3000
   });
+  
+  // Refresh data when coming back online
+  if (store.state.user) {
+    setTimeout(() => {
+      store.dispatch('refreshInventory');
+      store.dispatch('getRecentTransactions');
+    }, 2000);
+  }
 });
 
-// ==================== 7. MEMORY MANAGEMENT ====================
+// ==================== 8. MEMORY MANAGEMENT ====================
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   // Clear any temporary data
@@ -288,7 +436,7 @@ window.addEventListener('beforeunload', () => {
   console.log('🧹 Cleaning up before unload');
 });
 
-// ==================== 8. ERROR BOUNDARY ====================
+// ==================== 9. ERROR BOUNDARY ====================
 // Global error listener for unhandled errors
 window.addEventListener('error', (event) => {
   console.error('🌍 Global error:', event.error);

@@ -1,5 +1,11 @@
+// In your store/index.js - Update the imports and utility functions
 import { createStore } from 'vuex';
-import { auth, db } from '@/firebase/config';
+import { 
+  auth, 
+  db, 
+  initializeFirebase,  // Use initializeFirebase instead
+  isFirebaseInitialized  // Keep this to check status
+} from '@/firebase/config';
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -79,6 +85,59 @@ const FIELD_MAPPINGS = {
   },
   englishToArabic: FIELD_LABELS
 };
+
+// ============================================
+// FIREBASE INITIALIZATION UTILITY
+// ============================================
+/**
+ * Ensures Firebase is fully initialized before performing operations
+ * @returns {Promise<Object>} Firebase services
+ */
+async function ensureFirebaseReady() {
+  try {
+    console.log('⏳ Ensuring Firebase is ready...');
+    
+    // Check if Firebase is already initialized
+    if (isFirebaseInitialized()) {
+      console.log('✅ Firebase is already initialized');
+      return { auth, db };
+    }
+    
+    // If not initialized, initialize it
+    console.log('🔥 Initializing Firebase...');
+    const services = await initializeFirebase();
+    console.log('✅ Firebase initialized successfully');
+    return services;
+    
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    throw new Error('Firebase is not available. Please try again.');
+  }
+}
+
+/**
+ * Get Firestore database with safety check
+ * @returns {Promise<Object>} Firestore database instance
+ */
+async function getFirestoreDb() {
+  await ensureFirebaseReady();
+  if (!db) {
+    throw new Error('Firestore database not available');
+  }
+  return db;
+}
+
+/**
+ * Get Firebase auth with safety check
+ * @returns {Promise<Object>} Firebase auth instance
+ */
+async function getFirebaseAuth() {
+  await ensureFirebaseReady();
+  if (!auth) {
+    throw new Error('Firebase authentication not available');
+  }
+  return auth;
+}
 
 // ============================================
 // SPARK PLAN ENHANCED CONFIGURATION
@@ -280,83 +339,174 @@ function normalizeArabicText(text) {
 }
 
 // ============================================
-// ENHANCED ARABIC MATCHING FUNCTION
+// ENHANCED ARABIC MATCHING WITH SCORING
 // ============================================
-function matchArabicText(item, searchTerm, fields) {
-  if (!searchTerm || !item) return false;
+function matchArabicTextWithScore(item, searchTerm, fields) {
+  if (!searchTerm || !item) return { matched: false, score: 0 };
   
-  const normalizedSearchTerm = normalizeArabicText(searchTerm);
+  const preparedSearchTerm = normalizeArabicText(searchTerm);
+  let bestScore = 0;
+  let matched = false;
   
-  for (const field of fields) {
+  // Define all possible searchable fields
+  const allSearchFields = [
+    'name', 'code', 'color', 'supplier', 'item_location',
+    'warehouse_id', 'notes', 'barcode', 'sku', 'category'
+  ];
+  
+  // Use provided fields or all search fields
+  const searchFields = fields && fields.length > 0 ? fields : allSearchFields;
+  
+  for (const field of searchFields) {
     const fieldValue = item[field];
-    if (fieldValue) {
-      const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+    if (!fieldValue) continue;
+    
+    const preparedFieldValue = normalizeArabicText(fieldValue.toString());
+    let fieldScore = 0;
+    
+    // 1. EXACT MATCH (highest score: 100)
+    if (preparedFieldValue === preparedSearchTerm) {
+      fieldScore = 100;
+      matched = true;
+    }
+    
+    // 2. STARTS WITH (score: 80-95 based on field importance)
+    else if (preparedFieldValue.startsWith(preparedSearchTerm)) {
+      fieldScore = 85;
+      // Bonus for important fields
+      if (field === 'code') fieldScore = 95;
+      if (field === 'name') fieldScore = 90;
+      matched = true;
+    }
+    
+    // 3. CONTAINS (score: 60-85)
+    else if (preparedFieldValue.includes(preparedSearchTerm)) {
+      fieldScore = 70;
+      // Bonus for important fields
+      if (field === 'name') fieldScore = 85;
+      if (field === 'code') fieldScore = 80;
+      if (field === 'supplier') fieldScore = 75;
+      matched = true;
+    }
+    
+    // 4. WORD-BY-WORD MATCHING (for multi-word searches)
+    else if (preparedSearchTerm.includes(' ')) {
+      const searchWords = preparedSearchTerm.split(/\s+/);
+      const fieldWords = preparedFieldValue.split(/\s+/);
       
-      // Check for exact match
-      if (normalizedFieldValue === normalizedSearchTerm) {
-        return true;
+      let matchedWords = 0;
+      for (const searchWord of searchWords) {
+        for (const fieldWord of fieldWords) {
+          if (fieldWord.includes(searchWord)) {
+            matchedWords++;
+            break;
+          }
+        }
       }
       
-      // Check for starts with
-      if (normalizedFieldValue.startsWith(normalizedSearchTerm)) {
-        return true;
+      // Score based on percentage of words matched
+      if (matchedWords > 0) {
+        const matchRatio = matchedWords / searchWords.length;
+        fieldScore = Math.floor(40 + (matchRatio * 40)); // 40-80 range
+        if (field === 'name') fieldScore += 10;
+        matched = true;
+      }
+    }
+    
+    // 5. PARTIAL WORD MATCHING (fuzzy)
+    else if (preparedSearchTerm.length >= 2) {
+      // Check if search term appears within words
+      const fieldWords = preparedFieldValue.split(/\s+/);
+      for (const fieldWord of fieldWords) {
+        if (fieldWord.includes(preparedSearchTerm)) {
+          fieldScore = 50;
+          if (field === 'name') fieldScore = 60;
+          matched = true;
+          break;
+        }
       }
       
-      // Check for contains
-      if (normalizedFieldValue.includes(normalizedSearchTerm)) {
-        return true;
-      }
-      
-      // Check for word-by-word matching
-      const fieldWords = normalizedFieldValue.split(/\s+/);
-      const searchWords = normalizedSearchTerm.split(/\s+/);
-      
-      // Check if all search words are present in field words
-      const allWordsMatch = searchWords.every(searchWord => 
-        fieldWords.some(fieldWord => fieldWord.includes(searchWord))
-      );
-      
-      if (allWordsMatch) {
-        return true;
-      }
-      
-      // Check for partial word matching
-      const fieldWordsJoined = fieldWords.join('');
-      if (fieldWordsJoined.includes(normalizedSearchTerm)) {
-        return true;
-      }
-      
-      // Enhanced: Check for character similarity (fuzzy matching)
-      if (normalizedSearchTerm.length >= 3) {
-        const similarity = calculateArabicSimilarity(normalizedFieldValue, normalizedSearchTerm);
+      // Character-by-character similarity for short terms
+      if (!matched && preparedSearchTerm.length >= 3) {
+        const similarity = calculateArabicSimilarity(preparedFieldValue, preparedSearchTerm);
         if (similarity > 0.7) {
-          return true;
+          fieldScore = Math.floor(similarity * 60); // 42-60 range
+          if (field === 'name') fieldScore += 10;
+          matched = true;
         }
       }
     }
+    
+    // Update best score if this field scored higher
+    if (fieldScore > bestScore) {
+      bestScore = fieldScore;
+    }
   }
   
-  return false;
+  // Apply bonuses
+  if (matched) {
+    // Bonus for quantity availability
+    const quantity = item.remaining_quantity || 0;
+    if (quantity > 0) {
+      bestScore += Math.min(quantity / 10, 5); // Up to 5 points for quantity
+    }
+    
+    // Bonus for recent updates
+    if (item.updated_at) {
+      const updateDate = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
+      const daysAgo = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysAgo < 7) {
+        bestScore += 5; // Recent items get bonus
+      }
+    }
+    
+    // Bonus for exact code match
+    if (item.code && normalizeArabicText(item.code) === preparedSearchTerm) {
+      bestScore += 15;
+    }
+  }
+  
+  return { matched, score: bestScore };
 }
 
 // ============================================
-// ARABIC SIMILARITY CALCULATION
+// IMPROVED ARABIC SIMILARITY CALCULATION
 // ============================================
 function calculateArabicSimilarity(str1, str2) {
   if (!str1 || !str2) return 0;
   
-  // Convert to arrays of characters
-  const chars1 = str1.split('');
-  const chars2 = str2.split('');
+  const prep1 = normalizeArabicText(str1);
+  const prep2 = normalizeArabicText(str2);
   
-  // Calculate intersection
-  const intersection = chars1.filter(char => chars2.includes(char)).length;
+  // Quick checks
+  if (prep1 === prep2) return 1.0;
+  if (prep1.includes(prep2) || prep2.includes(prep1)) return 0.9;
   
-  // Calculate union
-  const union = new Set([...chars1, ...chars2]).size;
+  // Calculate Levenshtein-like similarity for Arabic
+  const len1 = prep1.length;
+  const len2 = prep2.length;
+  const maxLen = Math.max(len1, len2);
   
-  // Return Jaccard similarity coefficient
-  return union > 0 ? intersection / union : 0;
+  if (maxLen === 0) return 1.0;
+  
+  // Count matching characters in order
+  let matches = 0;
+  let i = 0, j = 0;
+  
+  while (i < len1 && j < len2) {
+    if (prep1[i] === prep2[j]) {
+      matches++;
+      i++;
+      j++;
+    } else if (len1 > len2) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  
+  // Calculate similarity ratio
+  return matches / maxLen;
 }
 
 // ============================================
@@ -393,15 +543,22 @@ function calculateRelevanceScore(item, searchTerm) {
   }
 
   // Other fields contain search term
-  const otherFields = [item.color, item.supplier, item.item_location];
+  const otherFields = [
+    'color', 'supplier', 'item_location', 'warehouse_id', 
+    'notes', 'category', 'barcode', 'sku'
+  ];
+  
   otherFields.forEach(field => {
-    if (field && normalizeArabicText(field).includes(normalizedSearchTerm)) {
+    if (item[field] && normalizeArabicText(item[field]).includes(normalizedSearchTerm)) {
       score += weights.OTHER_FIELDS;
     }
   });
 
   // Bonus for items with higher quantity (better availability)
-  score += Math.min(item.remaining_quantity || 0, weights.QUANTITY_BONUS);
+  const quantity = item.remaining_quantity || 0;
+  if (quantity > 0) {
+    score += Math.min(quantity, weights.QUANTITY_BONUS);
+  }
 
   // Bonus for recently updated items
   if (item.updated_at) {
@@ -414,7 +571,17 @@ function calculateRelevanceScore(item, searchTerm) {
 
   // Additional weight for search term length
   if (searchTerm.length >= 4) {
-    score += 20;
+    score += 25; // Increased bonus for longer searches
+  }
+
+  // Bonus for exact matches in any field
+  const allFields = ['name', 'code', 'color', 'supplier', 'item_location'];
+  const hasExactMatch = allFields.some(field => 
+    item[field] && normalizeArabicText(item[field]) === normalizedSearchTerm
+  );
+  
+  if (hasExactMatch) {
+    score += 30;
   }
 
   return score;
@@ -502,44 +669,277 @@ function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
 }
 
 // ============================================
-// FUZZY LOCAL SEARCH FALLBACK
+// ENHANCED FUZZY LOCAL SEARCH
 // ============================================
 function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
   const normalizedTerm = normalizeArabicText(searchTerm);
   const terms = normalizedTerm.split(' ');
   
-  return items.filter(item => {
-    // Check warehouse
+  const scoredItems = [];
+  
+  for (const item of items) {
+    // Check warehouse filter
     if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
-      return false;
+      continue;
     }
     
-    // Fuzzy match across multiple fields
-    const fields = ['name', 'code', 'color', 'supplier'];
-    for (const field of fields) {
-      const value = item[field];
-      if (value) {
-        const normalizedValue = normalizeArabicText(value.toString());
-        
-        // Check for term inclusion
-        if (terms.every(term => normalizedValue.includes(term))) {
-          return true;
-        }
-        
-        // Check for partial matches
-        if (terms.some(term => normalizedValue.includes(term))) {
-          return true;
-        }
-        
-        // Check for character similarity (simple fuzzy)
-        if (calculateArabicSimilarity(normalizedTerm, normalizedValue) > 0.6) {
-          return true;
-        }
+    // Get match score using enhanced matching
+    const { matched, score } = matchArabicTextWithScore(item, searchTerm, [
+      'name', 'code', 'color', 'supplier', 'item_location'
+    ]);
+    
+    if (matched && score > 30) { // Minimum score threshold
+      scoredItems.push({ item, score });
+    }
+  }
+  
+  // Sort by score and limit
+  scoredItems.sort((a, b) => b.score - a.score);
+  return scoredItems.slice(0, limit).map(scored => scored.item);
+}
+
+// ============================================
+// ENHANCED LOCAL SEARCH ACTION
+// ============================================
+async function searchLocalSpark({ state }, {
+  query,
+  warehouseId,
+  limit = SPARK_CONFIG.MAX_RESULTS
+}) {
+  if (!query || query.trim().length < 1) return [];
+
+  const searchTerm = query.trim();
+  
+  // Get inventory with limits
+  let items = [...state.inventory];
+  
+  // Early exit if too many items
+  if (items.length > SPARK_CONFIG.LOCAL_SEARCH_LIMIT) {
+    items = items.slice(0, SPARK_CONFIG.LOCAL_SEARCH_LIMIT);
+    console.log(`⚠️ Limiting local search to ${SPARK_CONFIG.LOCAL_SEARCH_LIMIT} items`);
+  }
+
+  // Apply warehouse filter if specified
+  if (warehouseId && warehouseId !== 'all') {
+    items = items.filter(i => i.warehouse_id === warehouseId);
+  }
+
+  // Early exit if no items
+  if (items.length === 0) return [];
+
+  console.log(`🔎 SPARK Local search for: "${searchTerm}" in ${items.length} items`);
+
+  // Use enhanced fuzzy search with scoring
+  const matches = fuzzyLocalSearch(items, searchTerm, warehouseId, limit * 2);
+  
+  console.log(`📍 SPARK Local search found ${matches.length} matches`);
+
+  // Sort by relevance
+  return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
+}
+
+// ============================================
+// ENHANCED FIREBASE SEARCH ACTION WITH INITIALIZATION WAIT
+// ============================================
+async function searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
+  try {
+    console.log(`🌐 SPARK Firebase search for: "${query}"`);
+    
+    // ✅ CRITICAL: Wait for Firebase to be fully initialized
+    console.log('⏳ Ensuring Firebase is ready for Firebase search...');
+    await ensureFirebaseReady();
+    console.log('✅ Firebase ready for Firebase search');
+    
+    // Validate Firebase
+    if (!db) {
+      console.error('❌ Firebase not available after wait');
+      return [];
+    }
+
+    const searchTerm = normalizeArabicText(query);
+    
+    // Check permissions
+    const role = state.userProfile?.role || '';
+    const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+    
+    let canAccessAll = false;
+    let allowedWarehouseIds = [];
+    
+    if (role === 'superadmin' || role === 'company_manager') {
+      canAccessAll = true;
+    } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+      if (profileWarehouses.includes('all')) {
+        canAccessAll = true;
+      } else {
+        allowedWarehouseIds = profileWarehouses.filter(id => 
+          typeof id === 'string' && id.trim() !== '' && id !== 'all'
+        ).slice(0, 10);
       }
     }
-    
-    return false;
-  }).slice(0, limit);
+
+    // Dynamic import
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      collection,
+      query: firestoreQuery,
+      where,
+      orderBy,
+      limit: firestoreLimit,
+      getDocs
+    } = firebaseFirestore;
+
+    const itemsRef = collection(db, 'items');
+    let itemsQuery;
+    let searchResults = [];
+
+    // Build optimized query
+    if (canAccessAll) {
+      // Superadmin or company manager
+      if (warehouseId && warehouseId !== 'all') {
+        itemsQuery = firestoreQuery(
+          itemsRef,
+          where('warehouse_id', '==', warehouseId),
+          orderBy('updated_at', 'desc'),
+          firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+        );
+      } else {
+        itemsQuery = firestoreQuery(
+          itemsRef,
+          orderBy('updated_at', 'desc'),
+          firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+        );
+      }
+    } else if (allowedWarehouseIds.length > 0) {
+      // Warehouse manager
+      if (warehouseId && warehouseId !== 'all') {
+        if (allowedWarehouseIds.includes(warehouseId)) {
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            orderBy('updated_at', 'desc'),
+            firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+          );
+        } else {
+          console.warn('Warehouse not in allowed list');
+          return [];
+        }
+      } else {
+        // Multiple warehouses - limit to prevent "in" query issues
+        const validIds = allowedWarehouseIds.slice(0, 5);
+        
+        if (validIds.length === 1) {
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', '==', validIds[0]),
+            orderBy('updated_at', 'desc'),
+            firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+          );
+        } else {
+          try {
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', 'in', validIds),
+              orderBy('updated_at', 'desc'),
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 40))
+            );
+          } catch (inError) {
+            console.warn('"in" query failed, using single warehouse:', inError);
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', '==', validIds[0]),
+              orderBy('updated_at', 'desc'),
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+            );
+          }
+        }
+      }
+    } else {
+      console.log('⚠️ User has no accessible warehouses');
+      return [];
+    }
+
+    // Execute with timeout protection
+    let snapshot;
+    try {
+      snapshot = await getDocs(itemsQuery);
+      console.log(`📊 SPARK Firebase query returned ${snapshot.size} documents`);
+    } catch (queryError) {
+      console.error('❌ SPARK Firestore query failed:', queryError);
+      return [];
+    }
+
+    if (!snapshot || snapshot.empty) {
+      console.log('📭 No items found in Firebase');
+      return [];
+    }
+
+    // Process items
+    const allItems = [];
+    snapshot.forEach(doc => {
+      try {
+        const data = doc.data();
+        
+        const item = {
+          id: doc.id,
+          name: data.name || '',
+          code: data.code || '',
+          color: data.color || '',
+          supplier: data.supplier || '',
+          warehouse_id: data.warehouse_id || '',
+          remaining_quantity: data.remaining_quantity || 0,
+          updated_at: data.updated_at,
+          // Include additional fields for better search
+          item_location: data.item_location || '',
+          notes: data.notes || '',
+          barcode: data.barcode || '',
+          sku: data.sku || '',
+          category: data.category || ''
+        };
+        
+        allItems.push(item);
+      } catch (docError) {
+        console.warn('⚠️ Error processing document:', docError);
+      }
+    });
+
+    console.log(`✅ SPARK Processed ${allItems.length} items from Firebase`);
+
+    // Filter and score items
+    searchResults = [];
+    for (const item of allItems) {
+      if (searchResults.length >= SPARK_CONFIG.MAX_RESULTS * 3) break;
+      
+      // Warehouse filter
+      if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+        continue;
+      }
+      
+      // Search filter with scoring
+      const { matched, score } = matchArabicTextWithScore(item, query, [
+        'name', 'code', 'color', 'supplier', 'item_location',
+        'notes', 'barcode', 'sku', 'category'
+      ]);
+      
+      if (matched && score > 30) { // Minimum threshold
+        searchResults.push({ item, score });
+      }
+    }
+
+    console.log(`🔍 SPARK Found ${searchResults.length} matching items`);
+
+    // Sort by score and limit
+    searchResults.sort((a, b) => b.score - a.score);
+    const finalResults = searchResults
+      .slice(0, Math.min(limit || SPARK_CONFIG.MAX_RESULTS, SPARK_CONFIG.MAX_RESULTS))
+      .map(scored => scored.item);
+
+    console.log(`🎯 SPARK Returning ${finalResults.length} relevant items`);
+    return finalResults;
+
+  } catch (error) {
+    console.error('❌ SPARK Firebase search error:', error);
+    return [];
+  }
 }
 
 // Helper function to get auth error message
@@ -1036,7 +1436,7 @@ export default createStore({
         source: 'none',
         timestamp: null,
         suggestions: []
-      };
+    };
       state.warehouseFilter = '';
       state.invoices = [];
       state.invoicesLoaded = false;
@@ -1102,6 +1502,11 @@ export default createStore({
         commit('SET_SEARCH_QUERY', searchTerm);
 
         console.log(`🚀 SPARK Search: "${searchTerm}" (warehouse: ${targetWarehouse}) | Strategy: ${strategy}`);
+
+        // ✅ CRITICAL: Wait for Firebase to be fully initialized before any search
+        console.log('⏳ Ensuring Firebase is ready for main search...');
+        await ensureFirebaseReady();
+        console.log('✅ Firebase ready for main search');
 
         // Check cache first
         const cacheKey = getCacheKey(searchTerm, targetWarehouse, limit);
@@ -1376,9 +1781,7 @@ export default createStore({
       if (!query || query.trim().length < 2) return [];
 
       const searchTerm = query.trim();
-      const normalizedSearchTerm = normalizeArabicText(searchTerm);
-      const SEARCH_FIELDS = SPARK_CONFIG.FIELD_LIMITS;
-
+      
       // Get inventory with limits
       let items = [...state.inventory];
       
@@ -1396,75 +1799,36 @@ export default createStore({
       // Early exit if no items
       if (items.length === 0) return [];
 
-      console.log(`🔎 SPARK Local search scanning ${items.length} items`);
+      console.log(`🔎 SPARK Local search for: "${searchTerm}" in ${items.length} items`);
 
-      // Optimized search with early exit
-      const matches = [];
-      const maxMatches = Math.min(limit * 3, 50);
+      // Use enhanced fuzzy search with scoring
+      const matches = fuzzyLocalSearch(items, searchTerm, warehouseId, limit * 2);
       
-      for (const item of items) {
-        if (matches.length >= maxMatches) break;
-        
-        let matched = false;
-        
-        // Check each search field
-        for (const field of SEARCH_FIELDS) {
-          const value = item[field];
-          if (!value) continue;
-
-          const normalizedValue = normalizeArabicText(value.toString());
-
-          // Quick checks in order of performance
-          if (normalizedValue.includes(normalizedSearchTerm)) {
-            matched = true;
-            break;
-          }
-          
-          if (normalizedValue.startsWith(normalizedSearchTerm)) {
-            matched = true;
-            break;
-          }
-          
-          // Only do word matching for longer searches
-          if (searchTerm.length > 2) {
-            const fieldWords = normalizedValue.split(/\s+/);
-            const searchWords = normalizedSearchTerm.split(/\s+/);
-            
-            // Check first word match
-            if (searchWords.length > 0) {
-              const firstSearchWord = searchWords[0];
-              if (fieldWords.some(word => word.includes(firstSearchWord))) {
-                matched = true;
-                break;
-              }
-            }
-          }
-        }
-        
-        if (matched) {
-          matches.push(item);
-        }
-      }
-
       console.log(`📍 SPARK Local search found ${matches.length} matches`);
 
+      // Sort by relevance
       return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
     },
 
     // ============================================
-    // ENHANCED FIREBASE SEARCH
+    // ENHANCED FIREBASE SEARCH WITH INITIALIZATION WAIT
     // ============================================
     async searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
       try {
         console.log(`🌐 SPARK Firebase search for: "${query}"`);
         
+        // ✅ CRITICAL: Wait for Firebase to be fully initialized
+        console.log('⏳ Ensuring Firebase is ready for Firebase search...');
+        await ensureFirebaseReady();
+        console.log('✅ Firebase ready for Firebase search');
+        
         // Validate Firebase
         if (!db) {
-          console.error('❌ Firebase not available');
+          console.error('❌ Firebase not available after wait');
           return [];
         }
 
-        const searchTerm = normalizeArabicText(query.toLowerCase());
+        const searchTerm = normalizeArabicText(query);
         
         // Check permissions
         const role = state.userProfile?.role || '';
@@ -1508,13 +1872,13 @@ export default createStore({
               itemsRef,
               where('warehouse_id', '==', warehouseId),
               orderBy('updated_at', 'desc'),
-              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 30))
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
             );
           } else {
             itemsQuery = firestoreQuery(
               itemsRef,
               orderBy('updated_at', 'desc'),
-              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 30))
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
             );
           }
         } else if (allowedWarehouseIds.length > 0) {
@@ -1525,7 +1889,7 @@ export default createStore({
                 itemsRef,
                 where('warehouse_id', '==', warehouseId),
                 orderBy('updated_at', 'desc'),
-                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 30))
+                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
               );
             } else {
               console.warn('Warehouse not in allowed list');
@@ -1540,7 +1904,7 @@ export default createStore({
                 itemsRef,
                 where('warehouse_id', '==', validIds[0]),
                 orderBy('updated_at', 'desc'),
-                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 30))
+                firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
               );
             } else {
               try {
@@ -1548,7 +1912,7 @@ export default createStore({
                   itemsRef,
                   where('warehouse_id', 'in', validIds),
                   orderBy('updated_at', 'desc'),
-                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 25))
+                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 40))
                 );
               } catch (inError) {
                 console.warn('"in" query failed, using single warehouse:', inError);
@@ -1556,7 +1920,7 @@ export default createStore({
                   itemsRef,
                   where('warehouse_id', '==', validIds[0]),
                   orderBy('updated_at', 'desc'),
-                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 30))
+                  firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
                 );
               }
             }
@@ -1581,15 +1945,12 @@ export default createStore({
           return [];
         }
 
-        // Process with limits
+        // Process items
         const allItems = [];
         snapshot.forEach(doc => {
-          if (allItems.length >= SPARK_CONFIG.MAX_RESULTS * 3) return;
-          
           try {
             const data = doc.data();
             
-            // Minimal field extraction
             const item = {
               id: doc.id,
               name: data.name || '',
@@ -1598,12 +1959,14 @@ export default createStore({
               supplier: data.supplier || '',
               warehouse_id: data.warehouse_id || '',
               remaining_quantity: data.remaining_quantity || 0,
-              updated_at: data.updated_at
+              updated_at: data.updated_at,
+              // Include additional fields for better search
+              item_location: data.item_location || '',
+              notes: data.notes || '',
+              barcode: data.barcode || '',
+              sku: data.sku || '',
+              category: data.category || ''
             };
-            
-            // Only add essential optional fields
-            if (data.item_location) item.item_location = data.item_location;
-            if (data.photo_url) item.photo_url = data.photo_url;
             
             allItems.push(item);
           } catch (docError) {
@@ -1613,45 +1976,34 @@ export default createStore({
 
         console.log(`✅ SPARK Processed ${allItems.length} items from Firebase`);
 
-        // Filter with early exit
+        // Filter and score items
         searchResults = [];
-        const searchFields = SPARK_CONFIG.FIELD_LIMITS;
-        
         for (const item of allItems) {
-          if (searchResults.length >= SPARK_CONFIG.MAX_RESULTS * 2) break;
+          if (searchResults.length >= SPARK_CONFIG.MAX_RESULTS * 3) break;
           
           // Warehouse filter
           if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
             continue;
           }
           
-          // Search filter
-          let matched = false;
-          for (const field of searchFields) {
-            const fieldValue = item[field];
-            if (!fieldValue) continue;
-
-            const normalizedValue = normalizeArabicText(fieldValue.toString());
-            
-            if (normalizedValue.includes(searchTerm)) {
-              matched = true;
-              break;
-            }
-          }
+          // Search filter with scoring
+          const { matched, score } = matchArabicTextWithScore(item, query, [
+            'name', 'code', 'color', 'supplier', 'item_location',
+            'notes', 'barcode', 'sku', 'category'
+          ]);
           
-          if (matched) {
-            searchResults.push(item);
+          if (matched && score > 30) { // Minimum threshold
+            searchResults.push({ item, score });
           }
         }
 
         console.log(`🔍 SPARK Found ${searchResults.length} matching items`);
 
-        // Apply relevance with strict limits
-        const finalResults = removeDuplicatesAndSortByRelevance(
-          searchResults,
-          query,
-          Math.min(limit || SPARK_CONFIG.MAX_RESULTS, SPARK_CONFIG.MAX_RESULTS)
-        );
+        // Sort by score and limit
+        searchResults.sort((a, b) => b.score - a.score);
+        const finalResults = searchResults
+          .slice(0, Math.min(limit || SPARK_CONFIG.MAX_RESULTS, SPARK_CONFIG.MAX_RESULTS))
+          .map(scored => scored.item);
 
         console.log(`🎯 SPARK Returning ${finalResults.length} relevant items`);
         return finalResults;
@@ -1742,6 +2094,11 @@ export default createStore({
         
         // Add artificial delay for better UX
         await new Promise(resolve => setTimeout(resolve, SPARK_CONFIG.ARTIFICIAL_DELAY));
+        
+        // ✅ Ensure Firebase is ready before comprehensive search
+        console.log('⏳ Ensuring Firebase is ready for comprehensive search...');
+        await ensureFirebaseReady();
+        console.log('✅ Firebase ready for comprehensive search');
         
         finalResults = await dispatch('searchInventorySpark', {
           searchQuery: searchTerm,
@@ -1879,7 +2236,6 @@ export default createStore({
         limit: params.limit || params.limitResults || SPARK_CONFIG.MAX_RESULTS
       });
     },
-
     // ============================================
     // UTILITY ACTIONS
     // ============================================
@@ -4926,7 +5282,7 @@ export default createStore({
     }
   },
 
-  getters: {
+ getters: {
     isAuthenticated: state => !!state.user,
     userRole: state => state.userProfile?.role || '',
     userName: state => state.userProfile?.name || '',
@@ -4969,7 +5325,18 @@ export default createStore({
     allUsers: state => state.allUsers,
     usersLoading: state => state.usersLoading,
 
+    // ============================================
+    // ✅ FIREBASE FIRESTORE GETTERS - ADDED
+    // ============================================
+    firestore: () => db, // Provides the Firebase Firestore instance
+    firestoreDb: () => db, // Alias for firestore
+    db: () => db, // Another alias for convenience
+    firebaseAuth: () => auth, // Provides Firebase Auth instance
+    auth: () => auth, // Alias for firebaseAuth
+
+    // ============================================
     // Enhanced Search Getters
+    // ============================================
     searchQuery: state => state.search.query,
     searchResults: state => state.search.results,
     searchLoading: state => state.search.loading,
@@ -5004,6 +5371,7 @@ export default createStore({
 
       return inventory;
     },
+
 
     // Warehouse-aware statistics
     warehouseStats: (state) => (warehouseId) => {

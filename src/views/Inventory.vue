@@ -1,5 +1,31 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <!-- Search Status Indicator -->
+    <div v-if="searchTerm && searchTerm.length >= 2" class="fixed top-4 right-4 z-50">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-2">
+          <div v-if="isLiveSearching" class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+            <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span class="text-sm">جاري البحث...</span>
+          </div>
+          <div v-else-if="searchResults.length > 0" class="flex items-center gap-2 text-green-600 dark:text-green-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-sm">تم العثور على {{ searchResults.length }} نتيجة</span>
+          </div>
+          <div v-else class="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-sm">لم يتم العثور على نتائج</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main content -->
     <div class="max-w-full mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-6">
       <!-- Page Header - Mobile Optimized -->
@@ -53,10 +79,14 @@
               <span class="text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">
                 {{ (displayedItems || []).length }} عنصر • {{ formatTime(lastUpdate) }}
               </span>
-              <!-- Live Search Indicator -->
-              <span v-if="isLiveSearching && searchTerm.length >= 2" class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                بحث مباشر...
+              <!-- Search Debug Info -->
+              <span v-if="searchTerm && searchTerm.length >= 2" class="flex items-center gap-1 text-xs">
+                <span :class="{
+                  'text-green-600 dark:text-green-400': searchResults.length > 0,
+                  'text-yellow-600 dark:text-yellow-400': searchResults.length === 0
+                }">
+                  {{ searchResults.length }} نتيجة بحث
+                </span>
               </span>
             </div>
             <!-- Mobile Description -->
@@ -127,6 +157,19 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             <span class="truncate text-xs sm:text-sm">إضافة صنف</span>
+          </button>
+
+          <!-- Debug Search Button -->
+          <button
+            v-if="showDebug"
+            @click="forceRefreshSearch"
+            :disabled="isLiveSearching"
+            class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-purple-600 dark:bg-purple-700 text-white rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 transition-colors duration-200 disabled:opacity-50 text-sm sm:text-base"
+          >
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+            <span class="text-xs sm:text-sm">تجديد البحث</span>
           </button>
         </div>
       </div>
@@ -255,7 +298,7 @@
                     type="text"
                     v-model="searchTerm"
                     @input="handleLiveSearch"
-                    placeholder="ابحث بأي حقل (كتابة تبدأ البحث)..."
+                    placeholder="ابحث بكود، اسم، لون، مورد، ملاحظات، مكان..."
                     class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                   />
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -278,15 +321,36 @@
                     <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                     </svg>
-                    جاري البحث...
+                    جاري البحث في جميع الأصناف...
                   </div>
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
                   <div v-else-if="useLiveSearch && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
-                    ✓ تم العثور على {{ searchResults.length }} نتيجة
+                    ✓ تم العثور على {{ searchResults.length }} نتيجة في جميع المخازن
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Search Tips -->
+            <div v-if="searchTerm && searchTerm.length >= 2" class="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <div class="text-xs text-blue-700 dark:text-blue-300">
+                <span class="font-semibold">نصائح البحث:</span>
+                <ul class="mt-1 space-y-1">
+                  <li class="flex items-center gap-1">
+                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    البحث يشمل: الكود، الاسم، اللون، المورد، الملاحظات، المكان
+                  </li>
+                  <li class="flex items-center gap-1">
+                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    البحث في جميع المخازن
+                  </li>
+                </ul>
               </div>
             </div>
 
@@ -339,7 +403,7 @@
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث المباشر: {{ searchResults.length }} عنصر</span>
+                <span class="text-sm">نتائج البحث الشامل: {{ searchResults.length }} عنصر</span>
               </div>
               <button
                 @click="clearSearch"
@@ -921,7 +985,6 @@
     />
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -995,6 +1058,9 @@ export default {
     // Mobile UI state
     const showFilters = ref(false);
     const showActionMenu = ref(null);
+    
+    // Debug mode
+    const showDebug = ref(false);
     
     // Virtual scrolling state
     const scrollContainer = ref(null);
@@ -1079,7 +1145,7 @@ export default {
     const searchResults = computed(() => store.state.search.results || []);
     const isLiveSearching = computed(() => store.state.search.loading);
     const useLiveSearch = computed(() => {
-      return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
+      return searchTerm.value && searchTerm.value.length >= 2;
     });
     
     // ============================================
@@ -1180,6 +1246,130 @@ export default {
       const end = Math.min(items.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
       return items.slice(start, end);
     });
+    
+    // ============================================
+    // 🔍 SPARK-PLAN FRIENDLY SEARCH ALGORITHM
+    // ============================================
+    
+    /**
+     * Python-style search algorithm - Identical to your MySQL query
+     */
+    const pythonStyleSearch = (items, query) => {
+      if (!query || query.trim().length < 2) return items;
+      
+      const searchTerm = query.toLowerCase().trim();
+      const searchPattern = `%${searchTerm}%`;
+      
+      return items.filter(item => {
+        // Check all possible fields - identical to Python WHERE clause
+        return (
+          (item.code && item.code.toString().toLowerCase().includes(searchTerm)) ||
+          (item.name && item.name.toString().toLowerCase().includes(searchTerm)) ||
+          (item.color && item.color.toString().toLowerCase().includes(searchTerm)) ||
+          (item.supplier && item.supplier.toString().toLowerCase().includes(searchTerm)) ||
+          (item.item_location && item.item_location.toString().toLowerCase().includes(searchTerm)) ||
+          (item.notes && item.notes.toString().toLowerCase().includes(searchTerm)) ||
+          // Also search in Arabic field names if they exist
+          (item['الكود'] && item['الكود'].toString().toLowerCase().includes(searchTerm)) ||
+          (item['الصنف'] && item['الصنف'].toString().toLowerCase().includes(searchTerm)) ||
+          (item['اللون'] && item['اللون'].toString().toLowerCase().includes(searchTerm)) ||
+          (item['المورد'] && item['المورد'].toString().toLowerCase().includes(searchTerm)) ||
+          (item['مكان_الصنف'] && item['مكان_الصنف'].toString().toLowerCase().includes(searchTerm)) ||
+          (item['ملاحظات'] && item['ملاحظات'].toString().toLowerCase().includes(searchTerm))
+        );
+      });
+    };
+    
+    /**
+     * ✅ SPARK-PLAN FRIENDLY COMPREHENSIVE SEARCH
+     * Uses store's optimized search actions with strict limits
+     */
+    const comprehensiveSearch = async (query) => {
+      console.log(`🔍 [SPARK] Starting comprehensive search for: "${query}"`);
+      
+      if (!query || query.trim().length < 2) {
+        return [];
+      }
+      
+      const searchTerm = query.trim();
+      const startTime = Date.now();
+      
+      try {
+        // ✅ STRATEGY 1: Use store's SPARK-OPTIMIZED search first (local-first strategy)
+        console.log(`🚀 [SPARK] Using store's optimized search...`);
+        
+        const results = await store.dispatch('searchInventorySpark', {
+          searchQuery: searchTerm,
+          warehouseId: selectedWarehouse.value || 'all',
+          limit: 30, // ✅ SPARK-FRIENDLY: Strict limit of 30 results
+          strategy: 'local_first' // ✅ SPARK-FRIENDLY: Local-first to save Firebase reads
+        });
+        
+        console.log(`✅ [SPARK] Store search returned: ${results.length} results`);
+        
+        // If we have enough results from store, return them
+        if (results.length >= 10) {
+          const searchTime = Date.now() - startTime;
+          console.log(`⏱️ [SPARK] Search completed in ${searchTime}ms (via store)`);
+          return results;
+        }
+        
+        // ✅ STRATEGY 2: Enhance with local cache
+        const localItems = store.state.inventory || [];
+        console.log(`📊 [SPARK] Local cache has: ${localItems.length} items`);
+        
+        // Combine store results with local items
+        const allItems = [...results];
+        const resultIds = new Set(results.map(item => item.id));
+        
+        // Add local items not already in results
+        localItems.forEach(localItem => {
+          if (!resultIds.has(localItem.id)) {
+            allItems.push(localItem);
+          }
+        });
+        
+        // Apply Python-style search to combined results
+        const filteredItems = pythonStyleSearch(allItems, searchTerm);
+        
+        // Apply warehouse filter if selected
+        let finalResults = filteredItems;
+        if (selectedWarehouse.value) {
+          finalResults = finalResults.filter(item => item.warehouse_id === selectedWarehouse.value);
+        }
+        
+        const searchTime = Date.now() - startTime;
+        console.log(`✅ [SPARK] Search completed in ${searchTime}ms`);
+        console.log(`🎯 [SPARK] Found ${finalResults.length} matching items`);
+        console.log(`💰 [SPARK] Estimated cost: ${results.length} Firebase reads (SPARK-FRIENDLY)`);
+        
+        return finalResults;
+        
+      } catch (error) {
+        console.error('❌ [SPARK] Error in comprehensive search:', error);
+        
+        // ✅ FALLBACK: Local cache only (FREE - no Firebase reads)
+        console.log('🔄 [SPARK] Falling back to local cache only...');
+        
+        const localItems = store.state.inventory || [];
+        console.log(`📊 [SPARK] Local cache fallback has: ${localItems.length} items`);
+        
+        // Apply Python-style search to local items
+        const filteredItems = pythonStyleSearch(localItems, searchTerm);
+        
+        // Apply warehouse filter if selected
+        let finalResults = filteredItems;
+        if (selectedWarehouse.value) {
+          finalResults = finalResults.filter(item => item.warehouse_id === selectedWarehouse.value);
+        }
+        
+        const searchTime = Date.now() - startTime;
+        console.log(`✅ [SPARK] Local fallback completed in ${searchTime}ms`);
+        console.log(`🎯 [SPARK] Found ${finalResults.length} matching items in local cache (0 Firebase reads)`);
+        
+        return finalResults;
+      }
+    };
     
     // ============================================
     // HELPER METHODS
@@ -1331,7 +1521,7 @@ export default {
     };
     
     // ============================================
-    // ✅ FIXED: LIVE SEARCH - FULLY INTEGRATED WITH VUEX
+    // 🔍 SPARK-OPTIMIZED LIVE SEARCH HANDLER
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1349,16 +1539,16 @@ export default {
       }
       
       try {
-        console.log(`🔍 Searching: "${term}" with warehouse: ${selectedWarehouse.value || 'all'}`);
+        // Set loading state
+        store.commit('SET_SEARCH_LOADING', true);
+        console.log(`🚀 [SPARK] Starting ULTIMATE search for: "${term}"`);
         
-        // ✅ Use the store's searchInventorySmart action
-        const results = await store.dispatch('searchInventorySmart', {
-          searchQuery: term,
-          warehouseId: selectedWarehouse.value || 'all',
-          limit: 50
-        });
+        // Perform SPARK-optimized comprehensive search
+        const results = await comprehensiveSearch(term);
         
-        console.log(`✅ Search found: ${results?.length || 0} items`);
+        // Update store with results
+        store.commit('SET_SEARCH_RESULTS', { results, source: 'spark_optimized', query: term });
+        store.commit('SET_SEARCH_LOADING', false);
         
         // Data is fresh from search
         isDataFresh.value = true;
@@ -1368,7 +1558,7 @@ export default {
         resetScrollPositions();
         
         // Show notification
-        if (results && results.length > 0) {
+        if (results.length > 0) {
           store.dispatch('showNotification', {
             type: 'success',
             message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
@@ -1376,25 +1566,54 @@ export default {
         } else {
           store.dispatch('showNotification', {
             type: 'info',
-            message: 'لم يتم العثور على نتائج للبحث'
+            message: 'لم يتم العثور على نتائج للبحث في جميع المخازن'
           });
         }
         
       } catch (error) {
-        console.error('❌ Error in search:', error);
+        console.error('❌ [SPARK] Error in ultimate search:', error);
+        store.commit('SET_SEARCH_LOADING', false);
         
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'فشل البحث المباشر. جاري استخدام البيانات المحلية'
-        });
-        
-        // Reset to local view
-        await store.dispatch('clearSearch');
+        // Fallback: Try local search as last resort
+        try {
+          console.log('🔄 [SPARK] Falling back to local search...');
+          const localItems = store.state.inventory || [];
+          const localResults = pythonStyleSearch(localItems, term);
+          
+          if (selectedWarehouse.value) {
+            const filteredResults = localResults.filter(item => item.warehouse_id === selectedWarehouse.value);
+            store.commit('SET_SEARCH_RESULTS', { results: filteredResults, source: 'local_fallback', query: term });
+          } else {
+            store.commit('SET_SEARCH_RESULTS', { results: localResults, source: 'local_fallback', query: term });
+          }
+          
+          store.dispatch('showNotification', {
+            type: 'warning',
+            message: `استخدام البحث المحلي فقط. تم العثور على ${localResults.length} نتيجة`
+          });
+          
+        } catch (fallbackError) {
+          console.error('❌ [SPARK] Fallback search also failed:', fallbackError);
+          await store.dispatch('clearSearch');
+          
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'فشل البحث تماماً. جاري مسح نتائج البحث.'
+          });
+        }
       }
-    }, 300);
+    }, 500);
+    
+    // Force refresh search
+    const forceRefreshSearch = async () => {
+      if (searchTerm.value && searchTerm.value.length >= 2) {
+        console.log('🔄 [SPARK] Force refreshing search...');
+        await handleLiveSearch();
+      }
+    };
     
     // ============================================
-    // FILTER HANDLERS - FULLY INTEGRATED
+    // FILTER HANDLERS
     // ============================================
     const handleWarehouseChange = async () => {
       // ✅ Update store warehouse filter
@@ -1457,7 +1676,7 @@ export default {
     };
     
     // ============================================
-    // LOAD MORE ITEMS - FIXED TO USE STORE ACTION
+    // LOAD MORE ITEMS
     // ============================================
     const loadMoreItems = async () => {
       // Only load more if not in live search mode
@@ -1490,7 +1709,7 @@ export default {
     };
     
     // ============================================
-    // DATA REFRESH - FIXED TO USE STORE ACTIONS
+    // DATA REFRESH
     // ============================================
     const refreshData = async () => {
       try {
@@ -1599,7 +1818,7 @@ export default {
           'عدد المخازن': Object.keys(itemsByWarehouse).length,
           'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
           'تم التصدير بواسطة': currentUserInfo.value,
-          'مصدر البيانات': useLiveSearch.value ? 'بحث مباشر' : 'بيانات مخزنة'
+          'مصدر البيانات': useLiveSearch.value ? 'بحث شامل' : 'بيانات مخزنة'
         }];
         
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
@@ -1843,8 +2062,8 @@ export default {
       });
     };
     
-       // ============================================
-    // VIRTUAL SCROLLING HANDLERS - OPTIMIZED VERSION
+    // ============================================
+    // VIRTUAL SCROLLING HANDLERS
     // ============================================
     const calculateVisibleItems = () => {
       // Get container dimensions
@@ -2106,11 +2325,11 @@ export default {
     };
     
     // ============================================
-    // ENHANCED WATCHERS WITH DEBOUNCING
+    // WATCHERS
     // ============================================
     
-    // Watch for loading state changes with debouncing
-    watch(inventoryLoading, debounce((newVal) => {
+    // Watch for loading state changes
+    watch(inventoryLoading, (newVal) => {
       if (!newVal && inventoryLoaded.value) {
         loading.value = false;
         
@@ -2125,12 +2344,12 @@ export default {
           }
         });
       }
-    }, 100));
+    });
     
-    // Watch for search results with visual feedback
+    // Watch for search results
     watch(searchResults, (newResults) => {
       if (newResults && newResults.length > 0) {
-        console.log(`🔍 Search results: ${newResults.length} items`);
+        console.log(`🔍 Search results updated: ${newResults.length} items`);
         
         // Mark as fresh search data
         isDataFresh.value = true;
@@ -2149,8 +2368,8 @@ export default {
       }
     });
     
-    // Watch for warehouse filter changes with smoother transitions
-    watch(() => store.state.warehouseFilter, debounce((newWarehouseId) => {
+    // Watch for warehouse filter changes
+    watch(() => store.state.warehouseFilter, (newWarehouseId) => {
       if (newWarehouseId !== selectedWarehouse.value) {
         selectedWarehouse.value = newWarehouseId || '';
         
@@ -2162,9 +2381,9 @@ export default {
           handleLiveSearch();
         }
       }
-    }, 150));
+    });
     
-    // Watch for route changes with proper cleanup
+    // Watch for route changes
     watch(() => route.params.warehouseId, (newWarehouseId) => {
       if (newWarehouseId && accessibleWarehouses.value.some(w => w.id === newWarehouseId)) {
         // Clear any existing search when changing warehouses via route
@@ -2177,35 +2396,17 @@ export default {
       }
     });
     
-    // Watch for displayed items changes to optimize rendering
-    watch(displayedItems, debounce((newItems) => {
-      if (newItems.length > 0) {
-        // Reset scroll positions when items change significantly
-        resetScrollPositions();
-        
-        // Recalculate virtual scrolling on next tick
-        nextTick(() => {
-          if (scrollContainer.value) {
-            calculateVisibleItems();
-          }
-          if (mobileScrollContainer.value) {
-            calculateMobileVisibleItems();
-          }
-        });
-      }
-    }, 50));
-    
     // ============================================
-    // LIFECYCLE HOOKS WITH IMPROVED RESOURCE MANAGEMENT
+    // LIFECYCLE HOOKS
     // ============================================
     onMounted(async () => {
       console.log('📱 Inventory Production mounted');
       
       // Set up resize observer for responsive virtual scrolling
-      const resizeObserver = new ResizeObserver(debounce(() => {
+      const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
         if (mobileScrollContainer.value) calculateMobileVisibleItems();
-      }, 100));
+      });
       
       // Observe both scroll containers
       if (scrollContainer.value) {
@@ -2220,75 +2421,6 @@ export default {
       
       // Load initial data
       await loadInitialData();
-      
-      // Set up auto-refresh with intelligent timing
-      const setupAutoRefresh = () => {
-        if (window.__inventoryAutoRefresh) {
-          clearInterval(window.__inventoryAutoRefresh);
-        }
-        
-        // Only auto-refresh if page is visible and user is active
-        const autoRefreshInterval = setInterval(() => {
-          const isPageVisible = document.visibilityState === 'visible';
-          const isUserActive = Date.now() - lastScrollTime.value < 5 * 60 * 1000; // 5 minutes
-          
-          if (isPageVisible && isUserActive && !loading.value && !isLiveSearching.value) {
-            refreshData();
-          }
-        }, 5 * 60 * 1000); // 5 minutes
-        
-        window.__inventoryAutoRefresh = autoRefreshInterval;
-      };
-      
-      setupAutoRefresh();
-      
-      // Re-setup auto-refresh when page becomes visible again
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          setupAutoRefresh();
-        }
-      });
-      
-      // Keyboard shortcuts for better UX
-      const handleKeyPress = (e) => {
-        // Ctrl/Cmd + F for search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-          e.preventDefault();
-          document.querySelector('input[type="text"]')?.focus();
-        }
-        
-        // Escape to clear filters and close modals
-        if (e.key === 'Escape') {
-          if (showActionMenu.value) {
-            showActionMenu.value = null;
-          } else if (showFilters.value) {
-            showFilters.value = false;
-          } else {
-            clearAllFilters();
-          }
-        }
-        
-        // Ctrl/Cmd + E for export
-        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && !exporting.value) {
-          e.preventDefault();
-          exportToExcel();
-        }
-        
-        // Ctrl/Cmd + R for refresh
-        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
-          e.preventDefault();
-          refreshData();
-        }
-        
-        // Ctrl/Cmd + N for new item
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n' && canAddItem.value) {
-          e.preventDefault();
-          showAddModal.value = true;
-        }
-      };
-      
-      window.addEventListener('keydown', handleKeyPress);
-      window.__inventoryKeyboardHandler = handleKeyPress;
     });
     
     onUnmounted(() => {
@@ -2298,18 +2430,6 @@ export default {
       if (window.__inventoryResizeObserver) {
         window.__inventoryResizeObserver.disconnect();
         delete window.__inventoryResizeObserver;
-      }
-      
-      // Cleanup auto-refresh
-      if (window.__inventoryAutoRefresh) {
-        clearInterval(window.__inventoryAutoRefresh);
-        delete window.__inventoryAutoRefresh;
-      }
-      
-      // Cleanup keyboard handler
-      if (window.__inventoryKeyboardHandler) {
-        window.removeEventListener('keydown', window.__inventoryKeyboardHandler);
-        delete window.__inventoryKeyboardHandler;
       }
       
       // Cleanup scroll throttle
@@ -2357,6 +2477,9 @@ export default {
       // Mobile UI
       showFilters,
       showActionMenu,
+      
+      // Debug mode
+      showDebug,
       
       // Virtual scrolling refs
       scrollContainer,
@@ -2408,6 +2531,7 @@ export default {
       
       // Filter handlers
       handleLiveSearch,
+      forceRefreshSearch,
       handleWarehouseChange,
       handleFilterChange,
       clearSearch,
