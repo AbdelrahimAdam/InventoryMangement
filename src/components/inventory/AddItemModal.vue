@@ -389,7 +389,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useStore } from 'vuex';
 
 export default {
@@ -404,6 +404,7 @@ export default {
   setup(props, { emit }) {
     const store = useStore();
     
+    // Refs
     const loading = ref(false);
     const errorMessage = ref('');
     const successMessage = ref('');
@@ -415,8 +416,9 @@ export default {
     const previewPhoto = ref('');
     const fileInput = ref(null);
     const isFormResetting = ref(false);
+    const isUpdatingExisting = ref(false);
     
-    // مراجع لحقول النموذج
+    // Form field refs
     const nameInput = ref(null);
     const codeInput = ref(null);
     const colorInput = ref(null);
@@ -429,6 +431,7 @@ export default {
     const notesInput = ref(null);
     const submitButton = ref(null);
 
+    // Form data
     const formData = ref({
       name: '',
       code: '',
@@ -443,7 +446,7 @@ export default {
       photo_url: null
     });
 
-    // الخصائص المحسوبة
+    // Computed properties
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
     const storeOperationLoading = computed(() => store.state.operationLoading);
     const storeOperationError = computed(() => store.state.operationError);
@@ -472,33 +475,43 @@ export default {
       if (!formData.value.color.trim()) return false;
       if (!formData.value.warehouse_id) return false;
       
-      // التحقق من الصلاحية الخاصة بالوضع
-      if (addMode.value === 'cartons') {
-        return formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
-      } else if (addMode.value === 'single') {
-        return formData.value.single_bottles_count > 0;
-      } else if (addMode.value === 'both') {
-        return totalQuantity.value > 0;
+      // For new items, ensure at least one quantity is positive
+      if (!existingItem.value && totalQuantity.value <= 0) {
+        return false;
       }
       
-      return false;
+      // For existing items, at least one field should be updated
+      if (existingItem.value) {
+        const hasQuantityUpdate = 
+          (addMode.value === 'cartons' && formData.value.cartons_count > 0) ||
+          (addMode.value === 'single' && formData.value.single_bottles_count > 0) ||
+          (addMode.value === 'both' && totalQuantity.value > 0);
+          
+        const hasOtherUpdate = 
+          formData.value.supplier !== existingItem.value.supplier ||
+          formData.value.item_location !== existingItem.value.item_location ||
+          formData.value.notes !== existingItem.value.notes ||
+          (selectedFile.value && previewPhoto.value);
+          
+        return hasQuantityUpdate || hasOtherUpdate;
+      }
+      
+      return true;
     });
 
     const isAddingCartonsComputed = computed(() => {
       return (addMode.value === 'cartons' || addMode.value === 'both') && formData.value.cartons_count > 0;
     });
 
-    // المراقبون
+    // Watchers
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
-        // لا تقم بإعادة تعيين النموذج عند فتح المودال، فقط ركز على الحقل الأول
         setTimeout(() => {
           if (nameInput.value) {
             nameInput.value.focus();
           }
         }, 100);
         
-        // تعيين المخزن الافتراضي إذا كان هناك مخازن متاحة
         if (accessibleWarehouses.value.length > 0 && !formData.value.warehouse_id) {
           const mainWarehouse = store.getters.mainWarehouse;
           formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
@@ -513,42 +526,131 @@ export default {
       }
     }, { immediate: true });
 
-    // مراقبة تغييرات النموذج للتحقق من العناصر الموجودة
-    const checkExistingItemDebounced = debounce(async () => {
+    // Enhanced existing item checker with exact match
+    const checkExistingItem = async () => {
       if (isFormResetting.value) return;
       
-      if (formData.value.name && formData.value.code && formData.value.color && formData.value.warehouse_id) {
-        await checkExistingItem();
-      } else {
+      const cleanName = formData.value.name?.trim() || '';
+      const cleanCode = formData.value.code?.trim() || '';
+      const cleanColor = formData.value.color?.trim() || '';
+      const cleanWarehouseId = formData.value.warehouse_id;
+      
+      if (!cleanName || !cleanCode || !cleanColor || !cleanWarehouseId) {
         existingItem.value = null;
+        isUpdatingExisting.value = false;
+        return;
       }
-    }, 300);
 
-    watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
-      () => {
-        // تنظيف البيانات أثناء الكتابة (بدون إزالة المسافات الداخلية)
-        if (formData.value.name) formData.value.name = formData.value.name.trimStart();
-        if (formData.value.code) formData.value.code = formData.value.code.trimStart();
-        if (formData.value.color) formData.value.color = formData.value.color.trimStart();
-        
-        checkExistingItemDebounced();
+      try {
+        console.log('🔍 Searching for exact match:', {
+          name: cleanName,
+          code: cleanCode,
+          color: cleanColor,
+          warehouse_id: cleanWarehouseId
+        });
+
+        // Search in local inventory first
+        const inventory = store.state.inventory || [];
+        let exactMatch = null;
+
+        for (const item of inventory) {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          if (itemName === cleanName.toLowerCase() && 
+              itemCode === cleanCode.toLowerCase() && 
+              itemColor === cleanColor.toLowerCase() && 
+              item.warehouse_id === cleanWarehouseId) {
+            exactMatch = item;
+            break;
+          }
+        }
+
+        // If not found locally, search in Firestore
+        if (!exactMatch) {
+          try {
+            // Use store's search function with exact parameters
+            const searchResults = await store.dispatch('searchItemsForTransactions', {
+              searchTerm: cleanCode, // Search by code for exact match
+              warehouseId: cleanWarehouseId,
+              limitResults: 50
+            });
+
+            // Find exact match in results
+            for (const item of searchResults) {
+              const itemName = item.name?.trim().toLowerCase() || '';
+              const itemCode = item.code?.trim().toLowerCase() || '';
+              const itemColor = item.color?.trim().toLowerCase() || '';
+              
+              if (itemName === cleanName.toLowerCase() && 
+                  itemCode === cleanCode.toLowerCase() && 
+                  itemColor === cleanColor.toLowerCase() && 
+                  item.warehouse_id === cleanWarehouseId) {
+                exactMatch = item;
+                break;
+              }
+            }
+          } catch (firestoreError) {
+            console.warn('Firestore search failed:', firestoreError);
+          }
+        }
+
+        if (exactMatch) {
+          console.log('✅ Found existing item:', exactMatch);
+          existingItem.value = exactMatch;
+          isUpdatingExisting.value = true;
+          
+          // Auto-fill photo if available
+          if (exactMatch.photo_url && !previewPhoto.value) {
+            previewPhoto.value = exactMatch.photo_url;
+          }
+          
+          // Auto-fill other fields
+          formData.value.supplier = exactMatch.supplier || '';
+          formData.value.item_location = exactMatch.item_location || '';
+          formData.value.notes = exactMatch.notes || '';
+          
+          // Show update mode summary
+          successMessage.value = '⚠️ تم العثور على صنف موجود. سيتم تحديث الكميات بدلاً من إنشاء صنف جديد.';
+        } else {
+          console.log('❌ No existing item found, will create new');
+          existingItem.value = null;
+          isUpdatingExisting.value = false;
+          successMessage.value = '';
+        }
+      } catch (error) {
+        console.error('Error checking existing item:', error);
+        existingItem.value = null;
+        isUpdatingExisting.value = false;
       }
-    );
+    };
 
-    // الوظائف
+    // Debounced existing item checker
+    const checkExistingItemDebounced = debounce(checkExistingItem, 500);
+
+    watch([
+      () => formData.value.name,
+      () => formData.value.code,
+      () => formData.value.color,
+      () => formData.value.warehouse_id
+    ], () => {
+      if (formData.value.name) formData.value.name = formData.value.name.trimStart();
+      if (formData.value.code) formData.value.code = formData.value.code.trimStart();
+      if (formData.value.color) formData.value.color = formData.value.color.trimStart();
+      
+      checkExistingItemDebounced();
+    });
+
+    // Methods
     const closeModal = () => {
       emit('close');
       resetForm();
     };
 
     const handleKeyDown = (event, nextFieldRef) => {
-      // السماح بالمسافة والمفاتيح العادية للعمل
-      if (event.key === ' ') {
-        // السماح بالمسافة - لا تقم بمنع السلوك الافتراضي
-        return;
-      }
+      if (event.key === ' ') return;
       
-      // Enter للانتقال للحقل التالي
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         focusNextField(nextFieldRef);
@@ -557,8 +659,8 @@ export default {
 
     const resetForm = () => {
       isFormResetting.value = true;
+      isUpdatingExisting.value = false;
       
-      // حفظ معرف المخزن الحالي للحفاظ عليه
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -582,9 +684,9 @@ export default {
       existingItem.value = null;
       selectedFile.value = null;
       previewPhoto.value = '';
+      
       store.dispatch('clearOperationError');
       
-      // التركيز على حقل الاسم بعد الإعادة
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -595,8 +697,8 @@ export default {
 
     const clearFormAfterSuccess = () => {
       isFormResetting.value = true;
+      isUpdatingExisting.value = false;
       
-      // الحفاظ على اختيار المخزن
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -619,9 +721,9 @@ export default {
       existingItem.value = null;
       selectedFile.value = null;
       previewPhoto.value = '';
+      
       store.dispatch('clearOperationError');
       
-      // التركيز على حقل الاسم
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -648,13 +750,11 @@ export default {
       const file = event.target.files[0];
       if (!file) return;
 
-      // التحقق من نوع الملف
       if (!file.type.startsWith('image/')) {
         errorMessage.value = 'يرجى اختيار ملف صورة فقط';
         return;
       }
 
-      // التحقق من حجم الملف (حد أقصى 5 ميجابايت)
       if (file.size > 5 * 1024 * 1024) {
         errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت';
         return;
@@ -662,14 +762,12 @@ export default {
 
       selectedFile.value = file;
       
-      // إنشاء معاينة
       const reader = new FileReader();
       reader.onload = (e) => {
         previewPhoto.value = e.target.result;
       };
       reader.readAsDataURL(file);
 
-      // إعادة تعيين إدخال الملف
       if (fileInput.value) {
         fileInput.value.value = '';
       }
@@ -686,28 +784,23 @@ export default {
       errorMessage.value = '';
 
       try {
-        // التحقق مما إذا كانت واجهة برمجة التطبيقات للتعليق متاحة
         if (!navigator.clipboard || !navigator.clipboard.read) {
           errorMessage.value = 'ميزة لصق الصور من الحافظة غير مدعومة في هذا المتصفح';
           return;
         }
 
-        // قراءة محتويات الحافظة
         const clipboardItems = await navigator.clipboard.read();
         
         for (const clipboardItem of clipboardItems) {
-          // البحث عن أنواع الصور
           const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
           
           if (imageTypes.length > 0) {
             const imageType = imageTypes[0];
             const blob = await clipboardItem.getType(imageType);
             
-            // إنشاء ملف من blob
             const file = new File([blob], `صورة-ملصقة-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
             selectedFile.value = file;
             
-            // إنشاء معاينة
             const reader = new FileReader();
             reader.onload = (e) => {
               previewPhoto.value = e.target.result;
@@ -736,16 +829,13 @@ export default {
       uploadingPhoto.value = true;
 
       try {
-        // في التطبيق الفعلي، ستقوم برفع الصورة إلى Firebase Storage
-        // في الوقت الحالي، سنقوم بالمحاكاة بإرجاع عنوان URL للبيانات base64
-        // في الإنتاج، استبدل هذا برفع فعلي إلى Firebase Storage
-        
+        // In real app, upload to Firebase Storage
+        // For now, return base64 data URL
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            // محاكاة تأخير الرفع
             setTimeout(() => {
-              resolve(e.target.result); // إرجاع عنوان URL للبيانات base64
+              resolve(e.target.result);
             }, 1000);
           };
           reader.readAsDataURL(selectedFile.value);
@@ -759,151 +849,11 @@ export default {
       }
     };
 
-    const checkExistingItem = async () => {
-      if (isFormResetting.value) return;
-      
-      // تنظيف و التحقق من المدخلات
-      const cleanName = formData.value.name?.trim() || '';
-      const cleanCode = formData.value.code?.trim() || '';
-      const cleanColor = formData.value.color?.trim() || '';
-      const cleanWarehouseId = formData.value.warehouse_id;
-      
-      // التحقق مما إذا كانت لدينا جميع الحقول المطلوبة
-      const hasRequiredFields = cleanName && cleanCode && cleanColor && cleanWarehouseId;
-      
-      if (!hasRequiredFields) {
-        existingItem.value = null;
-        return;
-      }
-
-      try {
-        console.log('🔍 البحث عن صنف موجود مع تطابق تام:', {
-          name: cleanName,
-          code: cleanCode,
-          color: cleanColor,
-          warehouse_id: cleanWarehouseId
-        });
-
-        // البحث في المخزون المحلي أولاً (غير حساس لحالة الأحرف مع تنظيف المسافات)
-        const inventory = store.state.inventory || [];
-        const exactMatches = [];
-        
-        for (const item of inventory) {
-          const itemName = item.name?.trim().toLowerCase() || '';
-          const itemCode = item.code?.trim().toLowerCase() || '';
-          const itemColor = item.color?.trim().toLowerCase() || '';
-          
-          const isExactMatch = 
-            itemName === cleanName.toLowerCase() && 
-            itemCode === cleanCode.toLowerCase() && 
-            itemColor === cleanColor.toLowerCase() && 
-            item.warehouse_id === cleanWarehouseId;
-          
-          if (isExactMatch) {
-            exactMatches.push(item);
-          }
-        }
-        
-        if (exactMatches.length > 0) {
-          // استخدام أول تطابق تام
-          const existing = exactMatches[0];
-          console.log('✅ تم العثور على تطابق تام في المخزون المحلي:', existing);
-          existingItem.value = existing;
-          
-          // ملء الصورة تلقائياً إذا كانت متاحة
-          if (existing.photo_url && !previewPhoto.value) {
-            previewPhoto.value = existing.photo_url;
-            formData.value.photo_url = existing.photo_url;
-          }
-          
-          return;
-        }
-        
-        console.log('⚠️ لم يتم العثور على تطابق تام في المخزون المحلي، البحث في Firebase...');
-        
-        // إذا لم يتم العثور محلياً، حاول البحث في Firebase
-        try {
-          // تجربة استراتيجيات بحث متعددة للحصول على نتائج أفضل
-          let firestoreMatches = [];
-          
-          // الإستراتيجية 1: البحث بواسطة الكود (الأكثر موثوقية)
-          if (cleanCode) {
-            try {
-              const codeResults = await store.dispatch('searchItemsForTransactions', {
-                searchTerm: cleanCode,
-                limitResults: 10
-              });
-              
-              const exactCodeMatches = codeResults.filter(item => {
-                const itemCode = item.code?.trim().toLowerCase() || '';
-                return itemCode === cleanCode.toLowerCase();
-              });
-              
-              firestoreMatches = [...firestoreMatches, ...exactCodeMatches];
-            } catch (codeError) {
-              console.log('فشل البحث عن الكود:', codeError.message);
-            }
-          }
-          
-          // الإستراتيجية 2: البحث بواسطة الاسم
-          if (cleanName) {
-            try {
-              const nameResults = await store.dispatch('searchItemsForTransactions', {
-                searchTerm: cleanName,
-                limitResults: 10
-              });
-              
-              const exactNameMatches = nameResults.filter(item => {
-                const itemName = item.name?.trim().toLowerCase() || '';
-                return itemName === cleanName.toLowerCase();
-              });
-              
-              firestoreMatches = [...firestoreMatches, ...exactNameMatches];
-            } catch (nameError) {
-              console.log('فشل البحث عن الاسم:', nameError.message);
-            }
-          }
-          
-          // البحث عن تطابق تام بين جميع نتائج Firebase
-          const exactMatch = firestoreMatches.find(item => {
-            const itemName = item.name?.trim().toLowerCase() || '';
-            const itemCode = item.code?.trim().toLowerCase() || '';
-            const itemColor = item.color?.trim().toLowerCase() || '';
-            
-            return itemName === cleanName.toLowerCase() && 
-                   itemCode === cleanCode.toLowerCase() && 
-                   itemColor === cleanColor.toLowerCase() && 
-                   item.warehouse_id === cleanWarehouseId;
-          });
-          
-          if (exactMatch) {
-            console.log('✅ تم العثور على تطابق تام في Firebase:', exactMatch);
-            existingItem.value = exactMatch;
-            
-            // ملء الصورة تلقائياً إذا كانت متاحة
-            if (exactMatch.photo_url && !previewPhoto.value) {
-              previewPhoto.value = exactMatch.photo_url;
-              formData.value.photo_url = exactMatch.photo_url;
-            }
-          } else {
-            console.log('❌ لم يتم العثور على تطابق تام في أي مكان');
-            existingItem.value = null;
-          }
-          
-        } catch (firestoreError) {
-          console.error('خطأ في البحث في Firebase:', firestoreError);
-          existingItem.value = null;
-        }
-      } catch (error) {
-        console.error('خطأ في التحقق من العنصر الموجود:', error);
-        existingItem.value = null;
-      }
-    };
-
     const validateForm = () => {
       errorMessage.value = '';
       store.dispatch('clearOperationError');
 
+      // Basic validations
       if (!formData.value.name.trim()) {
         errorMessage.value = 'يرجى إدخال اسم الصنف';
         if (nameInput.value) nameInput.value.focus();
@@ -925,40 +875,39 @@ export default {
         return false;
       }
 
-      // التحقق مما إذا كان المستخدم قد سجل الدخول
+      // Authentication check
       if (!currentUserId.value) {
         errorMessage.value = 'يجب تسجيل الدخول أولاً';
         return false;
       }
 
-      // التحقق من صلاحيات المستخدم
+      // Permission check
       if (!store.getters.canEdit) {
         errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         return false;
       }
 
-      // التحقق من الصلاحية الخاصة بالوضع
+      // Quantity validation based on mode
       if (addMode.value === 'cartons') {
-        if (!formData.value.cartons_count || formData.value.cartons_count <= 0) {
+        if (formData.value.cartons_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد كراتين صحيح';
           if (cartonsCountInput.value) cartonsCountInput.value.focus();
           return false;
         }
-        if (!formData.value.per_carton_count || formData.value.per_carton_count <= 0) {
+        if (formData.value.per_carton_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد صحيح في الكرتونة';
           if (perCartonInput.value) perCartonInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'single') {
-        if (!formData.value.single_bottles_count || formData.value.single_bottles_count <= 0) {
+        if (formData.value.single_bottles_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد فردي صحيح';
           if (singleBottlesInput.value) singleBottlesInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'both') {
-        const cartonsValid = formData.value.cartons_count && formData.value.cartons_count > 0 && 
-                           formData.value.per_carton_count && formData.value.per_carton_count > 0;
-        const singleValid = formData.value.single_bottles_count && formData.value.single_bottles_count > 0;
+        const cartonsValid = formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
+        const singleValid = formData.value.single_bottles_count > 0;
         
         if (!cartonsValid && !singleValid) {
           errorMessage.value = 'يرجى إدخال كميات صحيحة إما في الكراتين أو الفردي';
@@ -966,8 +915,9 @@ export default {
         }
       }
 
-      if (totalQuantity.value <= 0) {
-        errorMessage.value = 'يرجى إدخال كمية صحيحة';
+      // For new items, ensure total quantity > 0
+      if (!existingItem.value && totalQuantity.value <= 0) {
+        errorMessage.value = 'يرجى إدخال كمية صحيحة للإضافة';
         return false;
       }
 
@@ -1002,100 +952,108 @@ export default {
       successMessage.value = '';
 
       try {
-        // رفع الصورة إذا تم اختيارها
+        // Upload photo if selected
         let photoUrl = null;
         if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
           photoUrl = await uploadPhotoToStorage();
-          if (photoUrl) {
-            formData.value.photo_url = photoUrl;
-          }
         } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
-          // إذا كان لدينا عنوان URL للبيانات من اللصق أو رفع الملف، استخدمه مباشرة
           photoUrl = previewPhoto.value;
-          formData.value.photo_url = photoUrl;
         }
 
-        // استخدام الخاصية المحسوبة بدلاً من إنشاء متغير جديد بنفس الاسم
-        const addingCartons = isAddingCartonsComputed.value;
-
-        // تحضير كائن بيانات العنصر
+        // Prepare item data - COMPATIBLE WITH UPDATED STORE ACTION
         const itemData = {
           name: formData.value.name.trim(),
           code: formData.value.code.trim(),
           color: formData.value.color.trim(),
           warehouse_id: formData.value.warehouse_id,
           cartons_count: formData.value.cartons_count || 0,
-          per_carton_count: formData.value.per_carton_count || (addingCartons ? 12 : 1),
+          per_carton_count: formData.value.per_carton_count || 12,
           single_bottles_count: formData.value.single_bottles_count || 0,
-          supplier: formData.value.supplier?.trim() || '',
-          item_location: formData.value.item_location?.trim() || '',
-          notes: formData.value.notes?.trim() || '',
-          photo_url: formData.value.photo_url || null
+          // Convert empty strings to null as per Firestore rules
+          supplier: formData.value.supplier?.trim() || null,
+          item_location: formData.value.item_location?.trim() || null,
+          notes: formData.value.notes?.trim() || null,
+          photo_url: photoUrl || null,
+          // REQUIRED BY FIRESTORE RULES:
+          created_by: store.state.user?.uid,
+          updated_by: store.state.user?.uid
         };
 
-        console.log('إرسال العنصر بالبيانات:', {
-          itemData,
-          addingCartons,
-          existingItem: existingItem.value
-        });
-
-        // استخدام إجراء addInventoryItem الحالي في المتجر
-        const result = await store.dispatch('addInventoryItem', {
-          itemData,
-          isAddingCartons: addingCartons
-        });
-
-        console.log('تم إضافة العنصر بنجاح:', result);
-
-        // عرض رسالة النجاح
-        if (result?.type === 'created') {
-          successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح! سيظهر في البحث فوراً.';
-        } else if (result?.type === 'updated') {
-          successMessage.value = '✅ تم تحديث الكميات بنجاح! سيظهر في البحث فوراً.';
-        } else {
-          successMessage.value = '✅ تم حفظ التغييرات بنجاح! سيظهر في البحث فوراً.';
+        // If updating existing item, add the item ID and flag
+        if (existingItem.value) {
+          itemData.existingItemId = existingItem.value.id;
+          itemData.isUpdatingExisting = true;
+          
+          // Store action will handle preserving original fields
+          console.log('🔄 UPDATING existing item with ID:', existingItem.value.id);
         }
 
-        // إجبار تحديث المخزون في المتجر للتأكد من أن العنصر الجديد متاح فوراً للبحث
+        // Log for debugging
+        console.log('📦 Item data for store:', {
+          itemData: {
+            ...itemData,
+            created_by: 'HIDDEN',
+            updated_by: 'HIDDEN'
+          },
+          isUpdatingExisting: existingItem.value ? true : false,
+          existingItemId: existingItem.value?.id,
+          isAddingCartons: isAddingCartonsComputed.value
+        });
+
+        // Call store action with all required parameters
+        const result = await store.dispatch('addInventoryItem', {
+          itemData,
+          isAddingCartons: isAddingCartonsComputed.value
+        });
+
+        console.log('✅ Store action result:', result);
+
+        // Show success message based on result
+        if (result?.message) {
+          successMessage.value = result.message;
+        } else if (result?.type === 'created') {
+          successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
+        } else if (result?.type === 'updated') {
+          successMessage.value = '✅ تم تحديث الكميات بنجاح!';
+        } else {
+          successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
+        }
+
+        // Update local store immediately for instant search
+        if (result?.item && result.item.id) {
+          store.commit('UPDATE_INVENTORY_ITEM', result.item);
+          console.log('🔄 Item added to local store for instant search');
+        }
+
+        // Silent background refresh
         setTimeout(async () => {
           try {
-            console.log('🔄 تحديث المخزون بصمت للبحث الفوري...');
-            
-            // التوزيع يدوياً لتحديث حالة المتجر بالعنصر الجديد
-            if (result?.item && result.item.id) {
-              store.commit('UPDATE_INVENTORY_ITEM', result.item);
-              console.log('✅ تم إضافة العنصر إلى مخزون المتجر فوراً للبحث');
-            }
-            
-            // أيضاً تشغيل تحديث صامت للمخزون بالكامل
             await store.dispatch('refreshInventorySilently');
-            
+            console.log('✅ Inventory silently refreshed');
           } catch (refreshError) {
-            console.warn('تعذر تحديث المخزون بصمت:', refreshError.message);
+            console.warn('⚠️ Silent refresh failed:', refreshError.message);
           }
         }, 500);
         
-        // تنظيف النموذج بعد الإرسال الناجح ولكن المودال يبقى مفتوحاً
-        // إزالة emit('success') الذي كان يغلق المودال تلقائياً
+        // Clear form after successful submission
         setTimeout(() => {
-          // فقط نظف النموذج للتحضير للإدخال التالي
+          store.dispatch('clearOperationError');
           clearFormAfterSuccess();
         }, 1500);
         
       } catch (error) {
-        console.error('❌ خطأ في handleSubmit:', error);
+        console.error('❌ Error in handleSubmit:', error);
         
-        // عرض رسالة خطأ مناسبة
+        // Display appropriate error message
         if (error.message?.includes('يجب تسجيل الدخول')) {
           errorMessage.value = 'يجب تسجيل الدخول أولاً';
         } else if (error.message?.includes('صلاحية')) {
-          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف. يرجى التواصل مع المشرف.';
+          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
           errorMessage.value = error.message;
         } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
-          errorMessage.value = 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+          errorMessage.value = 'خطأ في الاتصال بالشبكة';
         } else if (storeOperationError.value) {
-          // استخدام خطأ المتجر إذا كان متاحاً
           errorMessage.value = storeOperationError.value;
         } else {
           errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
@@ -1105,7 +1063,7 @@ export default {
       }
     };
 
-    // دالة المساعدة للحد من الطلبات
+    // Debounce helper
     function debounce(func, wait) {
       let timeout;
       return function executedFunction(...args) {
@@ -1148,9 +1106,11 @@ export default {
       singleBottlesInput,
       notesInput,
       submitButton,
+      isUpdatingExisting,
       closeModal,
       handleSubmit,
       resetForm,
+      clearFormAfterSuccess,
       formatFileSize,
       openFilePicker,
       handleFileUpload,
@@ -1162,7 +1122,6 @@ export default {
   }
 };
 </script>
-
 <style scoped>
 /* خلفية المودال */
 .modal-overlay {

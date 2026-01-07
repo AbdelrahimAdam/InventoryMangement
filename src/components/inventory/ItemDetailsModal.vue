@@ -80,7 +80,7 @@
             <div class="grid grid-cols-2 gap-4">
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">المورد</p>
-                <p class="text-gray-900 dark:text-white font-medium">{{ item.supplier || 'غير محدد' }}</p>
+                <p class="text-gray-900 dark:text-white font-medium">{{ supplierName }}</p>
               </div>
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">مكان التخزين</p>
@@ -104,12 +104,18 @@
               </div>
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">أنشئ بواسطة</p>
-                <p class="text-gray-900 dark:text-white font-medium">{{ item.created_by_name || 'غير معروف' }}</p>
+                <p class="text-gray-900 dark:text-white font-medium">{{ createdByName }}</p>
               </div>
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">آخر تحديث بواسطة</p>
-                <p class="text-gray-900 dark:text-white font-medium">{{ item.updated_by_name || item.created_by_name || 'غير معروف' }}</p>
+                <p class="text-gray-900 dark:text-white font-medium">{{ updatedByName }}</p>
               </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div v-if="item.notes" class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">ملاحظات</p>
+              <p class="text-gray-800 dark:text-gray-300">{{ item.notes }}</p>
             </div>
 
             <!-- Last Update Info -->
@@ -130,46 +136,62 @@
             <div v-if="showActions" class="grid grid-cols-2 gap-3">
               <button 
                 v-if="canEditItem"
-                @click="$emit('edit', item)"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                @click="handleAction('edit')"
+                :disabled="actionLoading"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="actionLoading && actionType === 'edit'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
-                تعديل
+                {{ actionLoading && actionType === 'edit' ? 'جاري التحميل...' : 'تعديل' }}
               </button>
 
               <button 
                 v-if="canTransferItem"
-                @click="$emit('transfer', item)"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                @click="handleAction('transfer')"
+                :disabled="actionLoading"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="actionLoading && actionType === 'transfer'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                 </svg>
-                نقل
+                {{ actionLoading && actionType === 'transfer' ? 'جاري التحميل...' : 'نقل' }}
               </button>
 
               <button 
                 v-if="canDispatchItem"
-                @click="$emit('dispatch', item)"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                @click="handleAction('dispatch')"
+                :disabled="actionLoading"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="actionLoading && actionType === 'dispatch'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                 </svg>
-                صرف
+                {{ actionLoading && actionType === 'dispatch' ? 'جاري التحميل...' : 'صرف' }}
               </button>
 
               <button 
                 v-if="canDeleteItem"
-                @click="$emit('delete', item)"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                @click="handleAction('delete')"
+                :disabled="actionLoading"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="actionLoading && actionType === 'delete'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
-                حذف
+                {{ actionLoading && actionType === 'delete' ? 'جاري التحميل...' : 'حذف' }}
               </button>
             </div>
           </div>
@@ -186,7 +208,8 @@
 </template>
 
 <script>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useStore } from 'vuex';
 
 export default {
   name: 'ItemDetailsModal',
@@ -197,7 +220,7 @@ export default {
     },
     item: {
       type: Object,
-      default: null
+      default: () => ({})
     },
     canEditItem: {
       type: Boolean,
@@ -216,12 +239,36 @@ export default {
       default: false
     },
     warehouseLabel: {
+      type: [String, Function],
+      default: 'غير معروف'
+    },
+    getWarehouseLabel: {
       type: Function,
       default: () => 'غير معروف'
     }
   },
   emits: ['close', 'edit', 'transfer', 'dispatch', 'delete'],
-  setup(props) {
+  
+  setup(props, { emit }) {
+    const store = useStore();
+    
+    // State
+    const actionLoading = ref(false);
+    const actionType = ref('');
+    const usersLoaded = ref(false);
+    
+    // Load users when modal opens (for superadmins)
+    watch(() => props.isOpen, async (isOpen) => {
+      if (isOpen && !usersLoaded.value && store.getters.userRole === 'superadmin') {
+        try {
+          await store.dispatch('loadUsers');
+          usersLoaded.value = true;
+        } catch (error) {
+          console.warn('Could not load users:', error);
+        }
+      }
+    });
+    
     // Color mapping
     const colorMap = {
       'أحمر': '#ef4444',
@@ -239,6 +286,67 @@ export default {
       'فضي': '#9ca3af'
     };
     
+    // Computed properties
+    const warehouseLabel = computed(() => {
+      if (typeof props.warehouseLabel === 'string') {
+        return props.warehouseLabel;
+      }
+      if (props.item?.warehouse_id && typeof props.getWarehouseLabel === 'function') {
+        return props.getWarehouseLabel(props.item.warehouse_id);
+      }
+      return 'غير معروف';
+    });
+    
+    const showActions = computed(() => {
+      return props.canEditItem || props.canTransferItem || props.canDispatchItem || props.canDeleteItem;
+    });
+    
+    // Get all users from store
+    const allUsers = computed(() => store.state.allUsers || []);
+    
+    // Function to get user name from ID
+    const getUserName = (userId) => {
+      if (!userId) return 'غير معروف';
+      
+      // If it's the current user
+      if (store.state.user?.uid === userId) {
+        return store.state.userProfile?.name || store.state.user?.email || 'نظام';
+      }
+      
+      // Try to find user in allUsers array
+      const user = allUsers.value.find(u => u.id === userId);
+      if (user) {
+        return user.name || user.email || userId;
+      }
+      
+      // Fallback to the store getter
+      const displayName = store.getters.getUserDisplayName(userId);
+      return displayName !== userId ? displayName : userId;
+    };
+    
+    // Get created by name
+    const createdByName = computed(() => {
+      if (props.item.created_by_name) {
+        return props.item.created_by_name;
+      }
+      return getUserName(props.item.created_by);
+    });
+    
+    // Get updated by name
+    const updatedByName = computed(() => {
+      if (props.item.updated_by_name) {
+        return props.item.updated_by_name;
+      }
+      const updatedBy = props.item.updated_by || props.item.created_by;
+      return getUserName(updatedBy);
+    });
+    
+    // Get supplier name
+    const supplierName = computed(() => {
+      return props.item.supplier || 'غير محدد';
+    });
+    
+    // Methods
     const getStockStatus = (quantity) => {
       if (quantity === 0) return 'نفذ';
       if (quantity < 10) return 'قليل';
@@ -283,18 +391,49 @@ export default {
       event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
     };
     
-    const showActions = computed(() => {
-      return props.canEditItem || props.canTransferItem || props.canDispatchItem || props.canDeleteItem;
-    });
+    const handleAction = async (type) => {
+      if (actionLoading.value) return;
+      
+      try {
+        actionLoading.value = true;
+        actionType.value = type;
+        
+        // Emit the action with the item
+        emit(type, props.item);
+        
+        // Close the modal after a short delay
+        setTimeout(() => {
+          emit('close');
+        }, 300);
+        
+      } catch (error) {
+        console.error(`Error in ${type} action:`, error);
+      } finally {
+        actionLoading.value = false;
+        actionType.value = '';
+      }
+    };
 
     return {
+      // State
+      actionLoading,
+      actionType,
+      
+      // Computed
+      warehouseLabel,
+      showActions,
+      createdByName,
+      updatedByName,
+      supplierName,
+      
+      // Methods
       getStockStatus,
       getStockStatusClass,
       getQuantityClass,
       getColorHex,
       formatDate,
       handleImageError,
-      showActions
+      handleAction
     };
   }
 };
@@ -352,6 +491,12 @@ export default {
   max-height: 90vh;
 }
 
+/* Ensure buttons are touch-friendly on mobile */
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 @media (max-width: 768px) {
   .p-4 {
     padding: 1rem;
@@ -365,8 +510,60 @@ export default {
     grid-template-columns: 1fr;
   }
   
-  button {
-    min-height: 44px;
+  .h-64 {
+    height: 200px;
   }
+  
+  .text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+/* Enhanced focus states */
+button:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5);
+}
+
+.dark button:focus {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.7);
+}
+
+/* Smooth scroll for modal content */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for modal */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 </style>

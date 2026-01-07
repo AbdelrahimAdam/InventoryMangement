@@ -988,9 +988,11 @@
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { debounce } from 'lodash';
 import * as XLSX from 'xlsx';
+
+// Import your modals (adjust paths as needed)
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import EditItemModal from '@/components/inventory/EditItemModal.vue';
@@ -1027,42 +1029,55 @@ export default {
     'click-outside': vClickOutside
   },
   setup() {
+    // ============================================
+    // VUE STORE & ROUTER SETUP
+    // ============================================
     const store = useStore();
     const route = useRoute();
+    const router = useRouter();
     
-    // State
+    // ============================================
+    // STATE MANAGEMENT
+    // ============================================
+    
+    // Loading States
     const loading = ref(false);
     const loadingMore = ref(false);
+    const refreshing = ref(false);
+    const exporting = ref(false);
+    const deleteLoading = ref(false);
+    
+    // Modal States
     const showAddModal = ref(false);
     const showEditModal = ref(false);
     const showTransferModal = ref(false);
     const showDispatchModal = ref(false);
     const showDetailsModal = ref(false);
     const showDeleteConfirm = ref(false);
+    
+    // Item States
     const selectedItemForEdit = ref(null);
     const selectedItemForTransfer = ref(null);
     const selectedItemForDispatch = ref(null);
     const selectedItem = ref(null);
     const itemToDelete = ref(null);
-    const exporting = ref(false);
-    const deleteLoading = ref(false);
-    const refreshing = ref(false);
-    const exportProgress = ref('');
-    const error = ref('');
     
-    // Local filters
+    // UI States
+    const showFilters = ref(false);
+    const showActionMenu = ref(null);
+    const error = ref('');
+    const exportProgress = ref('');
+    
+    // Filter States
     const searchTerm = ref('');
     const statusFilter = ref('');
     const selectedWarehouse = ref('');
     
-    // Mobile UI state
-    const showFilters = ref(false);
-    const showActionMenu = ref(null);
-    
-    // Debug mode
+    // Search & Performance
+    const useLiveSearch = ref(true);
     const showDebug = ref(false);
     
-    // Virtual scrolling state
+    // Virtual Scrolling
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
     const visibleStartIndex = ref(0);
@@ -1074,38 +1089,59 @@ export default {
     const lastScrollTime = ref(0);
     const SCROLL_THROTTLE_DELAY = 16;
     
-    // UI state
+    // UI Performance
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
     
     // ============================================
-    // COMPUTED PROPERTIES - INTEGRATED WITH STORE
+    // STORE COMPUTED PROPERTIES
     // ============================================
     
-    // Store getters
-    const userRole = computed(() => {
-      return store.state.userProfile?.role || '';
+    // User & Auth
+    const user = computed(() => store.state.user);
+    const userProfile = computed(() => store.state.userProfile);
+    const userRole = computed(() => userProfile.value?.role || '');
+    
+    // Search Results from Store
+    const searchResults = computed(() => store.state.search?.results || []);
+    const isLiveSearching = computed(() => store.state.search?.loading || false);
+    const searchQuery = computed(() => store.state.search?.query || '');
+    
+    // Inventory & Filtering
+    const allInventory = computed(() => store.state.inventory || []);
+    const inventoryLoading = computed(() => store.state.inventoryLoading);
+    const inventoryLoaded = computed(() => store.state.inventoryLoaded);
+    
+    // Apply local warehouse filter to inventory
+    const filteredInventory = computed(() => {
+      let items = allInventory.value;
+      
+      if (selectedWarehouse.value) {
+        items = items.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      // Apply status filter
+      if (statusFilter.value) {
+        items = items.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          if (statusFilter.value === 'in_stock') return quantity >= 10;
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'out_of_stock') return quantity === 0;
+          return true;
+        });
+      }
+      
+      return items;
     });
     
-    const userProfile = computed(() => store.state.userProfile);
-    const currentUser = computed(() => store.state.user);
+    // Search Mode Detection
+    const isSearchMode = computed(() => {
+      return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
+    });
     
-    // ✅ FIXED: Use store's filtered inventory system
+    // Final Displayed Items (Search results OR filtered inventory)
     const displayedItems = computed(() => {
-      // If we have active search results from store, use them
-      if (useLiveSearch.value && searchResults.value.length > 0) {
-        return searchResults.value;
-      }
-      
-      // Otherwise use the store's inventory with warehouse filter
-      let inventory = store.state.inventory || [];
-      
-      // Apply warehouse filter from store
-      if (store.state.warehouseFilter && store.state.warehouseFilter !== 'all') {
-        inventory = inventory.filter(item => item.warehouse_id === store.state.warehouseFilter);
-      }
-      
-      return inventory;
+      return isSearchMode.value ? searchResults.value : filteredInventory.value;
     });
     
     // Warehouses
@@ -1113,87 +1149,42 @@ export default {
     const allWarehouses = computed(() => store.getters.warehouses || []);
     const allUsers = computed(() => store.state.allUsers || []);
     
-    // Loading states
-    const inventoryLoading = computed(() => store.state.inventoryLoading);
-    const inventoryLoaded = computed(() => store.state.inventoryLoaded);
-    
     // Pagination
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
     const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
     
-    // Current user info
+    // ============================================
+    // COMPUTED STATISTICS
+    // ============================================
+    
+    // Current User Info
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
-      if (currentUser.value?.displayName) return currentUser.value.displayName;
+      if (user.value?.displayName) return user.value.displayName;
       if (userProfile.value?.email) return userProfile.value.email.split('@')[0];
-      if (currentUser.value?.email) return currentUser.value.email.split('@')[0];
+      if (user.value?.email) return user.value.email.split('@')[0];
       return 'مستخدم النظام';
     });
     
-    // Permissions
-    const canAddItem = computed(() => {
-      return userRole.value === 'superadmin' ||
-             (userRole.value === 'warehouse_manager' && 
-              store.getters.allowedWarehouses?.length > 0);
-    });
-    
-    const showActions = computed(() => userRole.value !== 'viewer');
-    const readonly = computed(() => userRole.value === 'viewer');
-    
-    // ✅ FIXED: Search state from store
-    const searchResults = computed(() => store.state.search.results || []);
-    const isLiveSearching = computed(() => store.state.search.loading);
-    const useLiveSearch = computed(() => {
-      return searchTerm.value && searchTerm.value.length >= 2;
-    });
-    
-    // ============================================
-    // STATS WITH LOCAL STATUS FILTER
-    // ============================================
+    // Quantity Statistics
     const totalQuantity = computed(() => {
-      let items = displayedItems.value;
-      
-      // Apply status filter locally
-      if (statusFilter.value) {
-        items = items.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
-      return items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
     
     const lowStockCount = computed(() => {
-      let items = displayedItems.value;
-      
-      // Apply status filter locally
-      if (statusFilter.value) {
-        items = items.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
-      return items.filter(item => {
+      return displayedItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity > 0 && quantity < 10;
       }).length;
     });
     
     const warehouseCount = computed(() => {
-      const items = displayedItems.value;
-      const warehouses = new Set(items.map(item => item.warehouse_id));
+      const warehouses = new Set(displayedItems.value.map(item => item.warehouse_id));
       return warehouses.size;
     });
     
+    // Filter Status
     const hasActiveFilters = computed(() => {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
@@ -1206,178 +1197,493 @@ export default {
       return count;
     });
     
+    // Permissions
+    const canAddItem = computed(() => {
+      return userRole.value === 'superadmin' ||
+             (userRole.value === 'warehouse_manager' && 
+              store.getters.allowedWarehouses?.length > 0);
+    });
+    
+    const showActions = computed(() => userRole.value !== 'viewer');
+    const readonly = computed(() => userRole.value === 'viewer');
+    
     // ============================================
-    // VISIBLE ITEMS FOR VIRTUAL SCROLLING
+    // VIRTUAL SCROLLING COMPUTED PROPERTIES
     // ============================================
+    
     const visibleItems = computed(() => {
-      let items = displayedItems.value;
-      
-      // Apply status filter locally
-      if (statusFilter.value) {
-        items = items.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
-      const end = Math.min(items.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
-      return items.slice(start, end);
+      const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      return displayedItems.value.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
-      let items = displayedItems.value;
-      
-      // Apply status filter locally
-      if (statusFilter.value) {
-        items = items.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
-      const end = Math.min(items.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
-      return items.slice(start, end);
+      const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      return displayedItems.value.slice(start, end);
     });
     
     // ============================================
-    // 🔍 SPARK-PLAN FRIENDLY SEARCH ALGORITHM
+    // STORE-BASED SEARCH SYSTEM
     // ============================================
     
     /**
-     * Python-style search algorithm - Identical to your MySQL query
+     * 🔍 SPARK-OPTIMIZED STORE SEARCH
+     * Uses your store's searchInventorySpark action
      */
-    const pythonStyleSearch = (items, query) => {
-      if (!query || query.trim().length < 2) return items;
+    const handleLiveSearch = debounce(async () => {
+      const term = searchTerm.value.trim();
       
-      const searchTerm = query.toLowerCase().trim();
-      const searchPattern = `%${searchTerm}%`;
+      if (term.length === 0) {
+        // Clear search in store
+        await store.dispatch('clearSearch');
+        resetScrollPositions();
+        return;
+      }
       
-      return items.filter(item => {
-        // Check all possible fields - identical to Python WHERE clause
-        return (
-          (item.code && item.code.toString().toLowerCase().includes(searchTerm)) ||
-          (item.name && item.name.toString().toLowerCase().includes(searchTerm)) ||
-          (item.color && item.color.toString().toLowerCase().includes(searchTerm)) ||
-          (item.supplier && item.supplier.toString().toLowerCase().includes(searchTerm)) ||
-          (item.item_location && item.item_location.toString().toLowerCase().includes(searchTerm)) ||
-          (item.notes && item.notes.toString().toLowerCase().includes(searchTerm)) ||
-          // Also search in Arabic field names if they exist
-          (item['الكود'] && item['الكود'].toString().toLowerCase().includes(searchTerm)) ||
-          (item['الصنف'] && item['الصنف'].toString().toLowerCase().includes(searchTerm)) ||
-          (item['اللون'] && item['اللون'].toString().toLowerCase().includes(searchTerm)) ||
-          (item['المورد'] && item['المورد'].toString().toLowerCase().includes(searchTerm)) ||
-          (item['مكان_الصنف'] && item['مكان_الصنف'].toString().toLowerCase().includes(searchTerm)) ||
-          (item['ملاحظات'] && item['ملاحظات'].toString().toLowerCase().includes(searchTerm))
-        );
+      // Minimum 2 characters for search
+      if (term.length < 2) {
+        await store.dispatch('clearSearch');
+        return;
+      }
+      
+      try {
+        console.log(`🚀 [STORE SEARCH] Triggering store search for: "${term}"`);
+        
+        // Use store's SPARK search system
+        const results = await store.dispatch('searchInventorySpark', {
+          searchQuery: term,
+          warehouseId: selectedWarehouse.value || 'all',
+          limit: 30,
+          strategy: 'parallel'
+        });
+        
+        console.log(`✅ [STORE SEARCH] Store returned ${results.length} results`);
+        
+        // Store automatically updates state via mutations
+        // The searchResults computed property will reflect this
+        
+        // Update freshness
+        isDataFresh.value = true;
+        lastUpdate.value = Date.now();
+        
+        // Reset scroll positions
+        resetScrollPositions();
+        
+        // Show notification
+        if (results.length > 0) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
+          });
+        } else {
+          store.dispatch('showNotification', {
+            type: 'info',
+            message: 'لم يتم العثور على نتائج للبحث في جميع المخازن'
+          });
+        }
+        
+      } catch (error) {
+        console.error('❌ [STORE SEARCH] Error in store search:', error);
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في البحث. جاري استخدام المخزون المحلي.'
+        });
+        
+        // Fallback: Clear store search
+        await store.dispatch('clearSearch');
+      }
+    }, 500);
+    
+    // ============================================
+    // FILTER HANDLERS - INTEGRATED WITH STORE
+    // ============================================
+    
+    const handleWarehouseChange = async () => {
+      // Reset scroll positions
+      resetScrollPositions();
+      
+      // If we have a search term, re-run search with new warehouse filter
+      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+        await handleLiveSearch();
+      }
+    };
+    
+    const handleFilterChange = () => {
+      resetScrollPositions();
+    };
+    
+    const clearSearch = async () => {
+      searchTerm.value = '';
+      await store.dispatch('clearSearch');
+      resetScrollPositions();
+    };
+    
+    const clearWarehouseFilter = async () => {
+      selectedWarehouse.value = '';
+      resetScrollPositions();
+      
+      // If we have a search term, re-run search without warehouse filter
+      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+        await handleLiveSearch();
+      }
+    };
+    
+    const clearAllFilters = async () => {
+      searchTerm.value = '';
+      statusFilter.value = '';
+      selectedWarehouse.value = '';
+      showFilters.value = false;
+      
+      // Clear store search
+      await store.dispatch('clearSearch');
+      
+      resetScrollPositions();
+    };
+    
+    const resetScrollPositions = () => {
+      visibleStartIndex.value = 0;
+      mobileVisibleStartIndex.value = 0;
+      if (scrollContainer.value) {
+        scrollContainer.value.scrollTop = 0;
+      }
+      if (mobileScrollContainer.value) {
+        mobileScrollContainer.value.scrollTop = 0;
+      }
+    };
+    
+    // ============================================
+    // DATA LOADING METHODS
+    // ============================================
+    
+    const loadInitialData = async () => {
+      try {
+        loading.value = true;
+        
+        // Step 1: Load essential data in parallel
+        const loadPromises = [
+          store.dispatch('loadWarehouses'),
+          store.dispatch('loadUsers')
+        ];
+        
+        await Promise.all(loadPromises);
+        
+        // Step 2: Check for route parameters
+        const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
+        if (routeWarehouseId) {
+          // Verify warehouse is accessible
+          const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
+          if (warehouseExists) {
+            selectedWarehouse.value = routeWarehouseId;
+          }
+        }
+        
+        // Step 3: Load inventory via store
+        console.log('🔄 Loading inventory via store...');
+        await store.dispatch('loadAllInventory', { 
+          forceRefresh: true
+        });
+        
+        isDataFresh.value = true;
+        lastUpdate.value = Date.now();
+        
+        // Step 4: Initialize virtual scrolling
+        await nextTick();
+        resetScrollPositions();
+        
+        // Step 5: Pre-calculate row heights
+        setTimeout(() => {
+          if (scrollContainer.value) {
+            calculateVisibleItems();
+          }
+          if (mobileScrollContainer.value) {
+            calculateMobileVisibleItems();
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.error('❌ Error in loadInitialData:', error);
+        
+        error.value = 'فشل تحميل البيانات. الرجاء التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+        
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحميل البيانات. جاري إعادة المحاولة...'
+        });
+        
+        // Auto-retry after 5 seconds
+        setTimeout(() => {
+          if (!inventoryLoaded.value) {
+            loadInitialData();
+          }
+        }, 5000);
+        
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const loadMoreItems = async () => {
+      // Only load more if not in search mode
+      if (isSearchMode.value) {
+        return;
+      }
+      
+      if (hasMore.value && !isFetchingMore.value && !loadingMore.value) {
+        try {
+          loadingMore.value = true;
+          console.log('📥 Loading more items via store...');
+          
+          await store.dispatch('loadMoreInventory');
+          
+          console.log('✅ Loaded more items successfully');
+          
+          // After loading, ensure virtual scrolling updates
+          await nextTick();
+          
+        } catch (error) {
+          console.error('❌ Error loading more items:', error);
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'خطأ في تحميل المزيد من العناصر'
+          });
+        } finally {
+          loadingMore.value = false;
+        }
+      }
+    };
+    
+    const refreshData = async () => {
+      try {
+        refreshing.value = true;
+        
+        // Force refresh from store
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
+        
+        lastUpdate.value = Date.now();
+        isDataFresh.value = true;
+        
+        // If we have a search term, refresh search results
+        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
+          await handleLiveSearch();
+        }
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم تحديث البيانات بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('❌ Error refreshing data:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحديث البيانات'
+        });
+      } finally {
+        refreshing.value = false;
+      }
+    };
+    
+    // ============================================
+    // ITEM ACTION HANDLERS
+    // ============================================
+    
+    // Permission methods
+    const canEditItem = (item) => {
+      if (userRole.value === 'superadmin') return true;
+      if (userRole.value !== 'warehouse_manager') return false;
+      
+      const allowedWarehouses = store.getters.allowedWarehouses || [];
+      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
+    };
+    
+    const canTransferItem = (item) => canEditItem(item);
+    const canDispatchItem = (item) => canEditItem(item);
+    
+    const canDeleteItem = (item) => {
+      return canEditItem(item) && userRole.value === 'superadmin';
+    };
+    
+    // Item details
+    const showItemDetails = (item) => {
+      selectedItem.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id),
+        created_by_name: item.created_by_name || getUserName(item.created_by),
+        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
+      };
+      showDetailsModal.value = true;
+      showActionMenu.value = null;
+    };
+    
+    const closeDetailsModal = () => {
+      showDetailsModal.value = false;
+      selectedItem.value = null;
+    };
+    
+    // Action handlers
+    const toggleActionMenu = (itemId) => {
+      showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
+    };
+    
+    const handleTransfer = (item) => {
+      if (!canTransferItem(item)) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية النقل من هذا المخزن'
+        });
+        return;
+      }
+      selectedItemForTransfer.value = item;
+      showTransferModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
+    };
+    
+    const handleDispatch = (item) => {
+      if (!canDispatchItem(item)) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية الصرف من هذا المخزن'
+        });
+        return;
+      }
+      selectedItemForDispatch.value = item;
+      showDispatchModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
+    };
+    
+    const handleEdit = (item) => {
+      if (!canEditItem(item)) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية التعديل على هذا المخزن'
+        });
+        return;
+      }
+      selectedItemForEdit.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id)
+      };
+      showEditModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
+    };
+    
+    const handleDelete = (item) => {
+      if (!canDeleteItem(item)) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'ليس لديك صلاحية حذف هذا الصنف'
+        });
+        return;
+      }
+      itemToDelete.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id),
+        created_by_name: item.created_by_name || getUserName(item.created_by),
+        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
+      };
+      showDeleteConfirm.value = true;
+      showActionMenu.value = null;
+    };
+    
+    const confirmDelete = async () => {
+      try {
+        deleteLoading.value = true;
+        await store.dispatch('deleteItem', itemToDelete.value.id);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم حذف الصنف بنجاح!'
+        });
+        
+        if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
+          closeDetailsModal();
+        }
+        
+        if (searchTerm.value.trim()) {
+          await handleLiveSearch();
+        }
+        
+        showDeleteConfirm.value = false;
+        itemToDelete.value = null;
+        
+      } catch (error) {
+        console.error('❌ Error deleting item:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في حذف الصنف'
+        });
+      } finally {
+        deleteLoading.value = false;
+      }
+    };
+    
+    // Modal success handlers
+    const handleItemSaved = async () => {
+      showAddModal.value = false;
+      
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم إضافة الصنف بنجاح!'
       });
     };
     
-    /**
-     * ✅ SPARK-PLAN FRIENDLY COMPREHENSIVE SEARCH
-     * Uses store's optimized search actions with strict limits
-     */
-    const comprehensiveSearch = async (query) => {
-      console.log(`🔍 [SPARK] Starting comprehensive search for: "${query}"`);
+    const handleItemUpdated = async () => {
+      showEditModal.value = false;
+      selectedItemForEdit.value = null;
       
-      if (!query || query.trim().length < 2) {
-        return [];
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
       }
       
-      const searchTerm = query.trim();
-      const startTime = Date.now();
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم تحديث الصنف بنجاح!'
+      });
+    };
+    
+    const handleTransferSuccess = async () => {
+      showTransferModal.value = false;
+      selectedItemForTransfer.value = null;
       
-      try {
-        // ✅ STRATEGY 1: Use store's SPARK-OPTIMIZED search first (local-first strategy)
-        console.log(`🚀 [SPARK] Using store's optimized search...`);
-        
-        const results = await store.dispatch('searchInventorySpark', {
-          searchQuery: searchTerm,
-          warehouseId: selectedWarehouse.value || 'all',
-          limit: 30, // ✅ SPARK-FRIENDLY: Strict limit of 30 results
-          strategy: 'local_first' // ✅ SPARK-FRIENDLY: Local-first to save Firebase reads
-        });
-        
-        console.log(`✅ [SPARK] Store search returned: ${results.length} results`);
-        
-        // If we have enough results from store, return them
-        if (results.length >= 10) {
-          const searchTime = Date.now() - startTime;
-          console.log(`⏱️ [SPARK] Search completed in ${searchTime}ms (via store)`);
-          return results;
-        }
-        
-        // ✅ STRATEGY 2: Enhance with local cache
-        const localItems = store.state.inventory || [];
-        console.log(`📊 [SPARK] Local cache has: ${localItems.length} items`);
-        
-        // Combine store results with local items
-        const allItems = [...results];
-        const resultIds = new Set(results.map(item => item.id));
-        
-        // Add local items not already in results
-        localItems.forEach(localItem => {
-          if (!resultIds.has(localItem.id)) {
-            allItems.push(localItem);
-          }
-        });
-        
-        // Apply Python-style search to combined results
-        const filteredItems = pythonStyleSearch(allItems, searchTerm);
-        
-        // Apply warehouse filter if selected
-        let finalResults = filteredItems;
-        if (selectedWarehouse.value) {
-          finalResults = finalResults.filter(item => item.warehouse_id === selectedWarehouse.value);
-        }
-        
-        const searchTime = Date.now() - startTime;
-        console.log(`✅ [SPARK] Search completed in ${searchTime}ms`);
-        console.log(`🎯 [SPARK] Found ${finalResults.length} matching items`);
-        console.log(`💰 [SPARK] Estimated cost: ${results.length} Firebase reads (SPARK-FRIENDLY)`);
-        
-        return finalResults;
-        
-      } catch (error) {
-        console.error('❌ [SPARK] Error in comprehensive search:', error);
-        
-        // ✅ FALLBACK: Local cache only (FREE - no Firebase reads)
-        console.log('🔄 [SPARK] Falling back to local cache only...');
-        
-        const localItems = store.state.inventory || [];
-        console.log(`📊 [SPARK] Local cache fallback has: ${localItems.length} items`);
-        
-        // Apply Python-style search to local items
-        const filteredItems = pythonStyleSearch(localItems, searchTerm);
-        
-        // Apply warehouse filter if selected
-        let finalResults = filteredItems;
-        if (selectedWarehouse.value) {
-          finalResults = finalResults.filter(item => item.warehouse_id === selectedWarehouse.value);
-        }
-        
-        const searchTime = Date.now() - startTime;
-        console.log(`✅ [SPARK] Local fallback completed in ${searchTime}ms`);
-        console.log(`🎯 [SPARK] Found ${finalResults.length} matching items in local cache (0 Firebase reads)`);
-        
-        return finalResults;
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
       }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم النقل بين المخازن بنجاح!'
+      });
+    };
+    
+    const handleDispatchSuccess = async () => {
+      showDispatchModal.value = false;
+      selectedItemForDispatch.value = null;
+      
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تم الصرف الخارجي بنجاح!'
+      });
     };
     
     // ============================================
-    // HELPER METHODS
+    // HELPER FUNCTIONS
     // ============================================
-    const formatNumber = (num) => {
-      const englishDigits = new Intl.NumberFormat('en-US').format(num || 0);
-      return englishDigits;
-    };
+    
+    // Formatting
+    const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num || 0);
     
     const getWarehouseLabel = (warehouseId) => {
       if (!warehouseId) return 'غير معروف';
@@ -1386,35 +1692,15 @@ export default {
     
     const getUserName = (userId) => {
       if (!userId) return 'نظام';
-      if (userId === currentUser.value?.uid) return currentUserInfo.value;
+      if (userId === user.value?.uid) return currentUserInfo.value;
       
-      const user = allUsers.value.find(u => u.id === userId);
-      if (user) return user.name || user.email || userId;
+      const userObj = allUsers.value.find(u => u.id === userId);
+      if (userObj) return userObj.name || userObj.email || userId;
       
       return userId;
     };
     
-    const getActionUser = (item) => {
-      if (!item) return currentUserInfo.value;
-      
-      if (item.updated_by) {
-        const userName = getUserName(item.updated_by);
-        if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-          return userName;
-        }
-      }
-      
-      if (item.created_by) {
-        const userName = getUserName(item.created_by);
-        if (userName && userName !== 'O5Rg9HxDH8Nk3LY9G5onMgc2vN12') {
-          return userName;
-        }
-      }
-      
-      return currentUserInfo.value;
-    };
-    
-    const getLastActionUser = (item) => getActionUser(item);
+    const getLastActionUser = (item) => getUserName(item.updated_by || item.created_by);
     
     const getStatusLabel = (status) => {
       const labels = {
@@ -1521,245 +1807,10 @@ export default {
     };
     
     // ============================================
-    // 🔍 SPARK-OPTIMIZED LIVE SEARCH HANDLER
-    // ============================================
-    const handleLiveSearch = debounce(async () => {
-      const term = searchTerm.value.trim();
-      
-      if (term.length === 0) {
-        await store.dispatch('clearSearch');
-        resetScrollPositions();
-        return;
-      }
-      
-      // Only search if we have at least 2 characters
-      if (term.length < 2) {
-        await store.dispatch('clearSearch');
-        return;
-      }
-      
-      try {
-        // Set loading state
-        store.commit('SET_SEARCH_LOADING', true);
-        console.log(`🚀 [SPARK] Starting ULTIMATE search for: "${term}"`);
-        
-        // Perform SPARK-optimized comprehensive search
-        const results = await comprehensiveSearch(term);
-        
-        // Update store with results
-        store.commit('SET_SEARCH_RESULTS', { results, source: 'spark_optimized', query: term });
-        store.commit('SET_SEARCH_LOADING', false);
-        
-        // Data is fresh from search
-        isDataFresh.value = true;
-        lastUpdate.value = Date.now();
-        
-        // Reset scroll positions
-        resetScrollPositions();
-        
-        // Show notification
-        if (results.length > 0) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
-          });
-        } else {
-          store.dispatch('showNotification', {
-            type: 'info',
-            message: 'لم يتم العثور على نتائج للبحث في جميع المخازن'
-          });
-        }
-        
-      } catch (error) {
-        console.error('❌ [SPARK] Error in ultimate search:', error);
-        store.commit('SET_SEARCH_LOADING', false);
-        
-        // Fallback: Try local search as last resort
-        try {
-          console.log('🔄 [SPARK] Falling back to local search...');
-          const localItems = store.state.inventory || [];
-          const localResults = pythonStyleSearch(localItems, term);
-          
-          if (selectedWarehouse.value) {
-            const filteredResults = localResults.filter(item => item.warehouse_id === selectedWarehouse.value);
-            store.commit('SET_SEARCH_RESULTS', { results: filteredResults, source: 'local_fallback', query: term });
-          } else {
-            store.commit('SET_SEARCH_RESULTS', { results: localResults, source: 'local_fallback', query: term });
-          }
-          
-          store.dispatch('showNotification', {
-            type: 'warning',
-            message: `استخدام البحث المحلي فقط. تم العثور على ${localResults.length} نتيجة`
-          });
-          
-        } catch (fallbackError) {
-          console.error('❌ [SPARK] Fallback search also failed:', fallbackError);
-          await store.dispatch('clearSearch');
-          
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'فشل البحث تماماً. جاري مسح نتائج البحث.'
-          });
-        }
-      }
-    }, 500);
-    
-    // Force refresh search
-    const forceRefreshSearch = async () => {
-      if (searchTerm.value && searchTerm.value.length >= 2) {
-        console.log('🔄 [SPARK] Force refreshing search...');
-        await handleLiveSearch();
-      }
-    };
-    
-    // ============================================
-    // FILTER HANDLERS
-    // ============================================
-    const handleWarehouseChange = async () => {
-      // ✅ Update store warehouse filter
-      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
-      
-      // Reset scroll positions
-      resetScrollPositions();
-      
-      // If we have a search term, re-run search with new warehouse filter
-      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-        await handleLiveSearch();
-      }
-    };
-    
-    const handleFilterChange = () => {
-      // Reset scroll positions
-      resetScrollPositions();
-    };
-    
-    const clearSearch = async () => {
-      searchTerm.value = '';
-      await store.dispatch('clearSearch');
-      resetScrollPositions();
-    };
-    
-    const clearWarehouseFilter = async () => {
-      selectedWarehouse.value = '';
-      await store.dispatch('setWarehouseFilter', '');
-      resetScrollPositions();
-      
-      // If we have a search term, re-run search without warehouse filter
-      if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-        await handleLiveSearch();
-      }
-    };
-    
-    const clearAllFilters = async () => {
-      searchTerm.value = '';
-      statusFilter.value = '';
-      selectedWarehouse.value = '';
-      showFilters.value = false;
-      
-      // Clear store filters and search
-      await store.dispatch('clearSearch');
-      await store.dispatch('setWarehouseFilter', '');
-      
-      // Reset scroll positions
-      resetScrollPositions();
-    };
-    
-    const resetScrollPositions = () => {
-      visibleStartIndex.value = 0;
-      mobileVisibleStartIndex.value = 0;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = 0;
-      }
-      if (mobileScrollContainer.value) {
-        mobileScrollContainer.value.scrollTop = 0;
-      }
-    };
-    
-    // ============================================
-    // LOAD MORE ITEMS
-    // ============================================
-    const loadMoreItems = async () => {
-      // Only load more if not in live search mode
-      if (useLiveSearch.value) {
-        return;
-      }
-      
-      if (hasMore.value && !isFetchingMore.value && !loadingMore.value) {
-        try {
-          loadingMore.value = true;
-          console.log('📥 Loading more items...');
-          
-          await store.dispatch('loadMoreInventory');
-          
-          console.log('✅ Loaded more items successfully');
-          
-          // After loading, ensure virtual scrolling updates
-          await nextTick();
-          
-        } catch (error) {
-          console.error('❌ Error loading more items:', error);
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'خطأ في تحميل المزيد من العناصر'
-          });
-        } finally {
-          loadingMore.value = false;
-        }
-      }
-    };
-    
-    // ============================================
-    // DATA REFRESH
-    // ============================================
-    const refreshData = async () => {
-      try {
-        refreshing.value = true;
-        
-        // Force refresh from store
-        await store.dispatch('loadAllInventory', { forceRefresh: true });
-        
-        lastUpdate.value = Date.now();
-        isDataFresh.value = true;
-        
-        // If we have a search term, refresh search results
-        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-          await handleLiveSearch();
-        }
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم تحديث البيانات بنجاح'
-        });
-        
-      } catch (error) {
-        console.error('❌ Error refreshing data:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحديث البيانات'
-        });
-      } finally {
-        refreshing.value = false;
-      }
-    };
-    
-    // ============================================
     // EXCEL EXPORT
     // ============================================
     const exportToExcel = async () => {
-      let items = displayedItems.value;
-      
-      // Apply status filter locally
-      if (statusFilter.value) {
-        items = items.filter(item => {
-          const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
-          if (statusFilter.value === 'out_of_stock') return quantity === 0;
-          return true;
-        });
-      }
-      
-      if (items.length === 0) {
+      if (displayedItems.value.length === 0) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
@@ -1773,8 +1824,8 @@ export default {
       try {
         const itemsByWarehouse = {};
         
-        items.forEach((item, index) => {
-          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${items.length}`;
+        displayedItems.value.forEach((item, index) => {
+          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${displayedItems.value.length}`;
           
           const warehouseId = item.warehouse_id;
           if (!itemsByWarehouse[warehouseId]) {
@@ -1809,16 +1860,13 @@ export default {
         const wb = XLSX.utils.book_new();
         
         const summaryData = [{
-          'إجمالي الأصناف': items.length,
-          'إجمالي الكمية': items.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-          'الأصناف قليلة المخزون': items.filter(item => {
-            const quantity = item.remaining_quantity || 0;
-            return quantity > 0 && quantity < 10;
-          }).length,
-          'عدد المخازن': Object.keys(itemsByWarehouse).length,
+          'إجمالي الأصناف': displayedItems.value.length,
+          'إجمالي الكمية': totalQuantity.value,
+          'الأصناف قليلة المخزون': lowStockCount.value,
+          'عدد المخازن': warehouseCount.value,
           'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
           'تم التصدير بواسطة': currentUserInfo.value,
-          'مصدر البيانات': useLiveSearch.value ? 'بحث شامل' : 'بيانات مخزنة'
+          'مصدر البيانات': isSearchMode.value ? 'بحث شامل' : 'بيانات مخزنة'
         }];
         
         const summaryWs = XLSX.utils.json_to_sheet(summaryData);
@@ -1858,7 +1906,7 @@ export default {
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${items.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
+          message: `تم تصدير ${displayedItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
         });
         
       } catch (error) {
@@ -1874,211 +1922,21 @@ export default {
     };
     
     // ============================================
-    // UI ACTION HANDLERS
+    // VIRTUAL SCROLLING METHODS
     // ============================================
-    const toggleActionMenu = (itemId) => {
-      showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
-    };
     
-    const showItemDetails = (item) => {
-      selectedItem.value = {
-        ...item,
-        warehouse_name: getWarehouseLabel(item.warehouse_id),
-        created_by_name: item.created_by_name || getUserName(item.created_by),
-        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
-      };
-      showDetailsModal.value = true;
-      showActionMenu.value = null;
-    };
-    
-    const closeDetailsModal = () => {
-      showDetailsModal.value = false;
-      selectedItem.value = null;
-    };
-    
-    // Permission methods
-    const canEditItem = (item) => {
-      if (userRole.value === 'superadmin') return true;
-      if (userRole.value !== 'warehouse_manager') return false;
-      
-      const allowedWarehouses = store.getters.allowedWarehouses || [];
-      return allowedWarehouses.includes(item.warehouse_id) || allowedWarehouses.includes('all');
-    };
-    
-    const canTransferItem = (item) => canEditItem(item);
-    const canDispatchItem = (item) => canEditItem(item);
-    
-    const canDeleteItem = (item) => {
-      return canEditItem(item) && userRole.value === 'superadmin';
-    };
-    
-    const handleTransfer = (item) => {
-      if (!canTransferItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية النقل من هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForTransfer.value = item;
-      showTransferModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleDispatch = (item) => {
-      if (!canDispatchItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية الصرف من هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForDispatch.value = item;
-      showDispatchModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleEdit = (item) => {
-      if (!canEditItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية التعديل على هذا المخزن'
-        });
-        return;
-      }
-      selectedItemForEdit.value = {
-        ...item,
-        warehouse_name: getWarehouseLabel(item.warehouse_id)
-      };
-      showEditModal.value = true;
-      showDetailsModal.value = false;
-      showActionMenu.value = null;
-    };
-    
-    const handleDelete = (item) => {
-      if (!canDeleteItem(item)) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'ليس لديك صلاحية حذف هذا الصنف'
-        });
-        return;
-      }
-      itemToDelete.value = {
-        ...item,
-        warehouse_name: getWarehouseLabel(item.warehouse_id),
-        created_by_name: item.created_by_name || getUserName(item.created_by),
-        updated_by_name: item.updated_by_name || getUserName(item.updated_by) || getUserName(item.created_by)
-      };
-      showDeleteConfirm.value = true;
-      showActionMenu.value = null;
-    };
-    
-    const confirmDelete = async () => {
-      try {
-        deleteLoading.value = true;
-        await store.dispatch('deleteItem', itemToDelete.value.id);
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم حذف الصنف بنجاح!'
-        });
-        
-        if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
-          closeDetailsModal();
-        }
-        
-        if (searchTerm.value.trim()) {
-          await handleLiveSearch();
-        }
-        
-        showDeleteConfirm.value = false;
-        itemToDelete.value = null;
-        
-      } catch (error) {
-        console.error('❌ Error deleting item:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في حذف الصنف'
-        });
-      } finally {
-        deleteLoading.value = false;
-      }
-    };
-    
-    const handleItemSaved = async () => {
-      showAddModal.value = false;
-      
-      if (searchTerm.value.trim()) {
-        await handleLiveSearch();
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم إضافة الصنف بنجاح!'
-      });
-    };
-    
-    const handleItemUpdated = async () => {
-      showEditModal.value = false;
-      selectedItemForEdit.value = null;
-      
-      if (searchTerm.value.trim()) {
-        await handleLiveSearch();
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تحديث الصنف بنجاح!'
-      });
-    };
-    
-    const handleTransferSuccess = async () => {
-      showTransferModal.value = false;
-      selectedItemForTransfer.value = null;
-      
-      if (searchTerm.value.trim()) {
-        await handleLiveSearch();
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم النقل بين المخازن بنجاح!'
-      });
-    };
-    
-    const handleDispatchSuccess = async () => {
-      showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
-      
-      if (searchTerm.value.trim()) {
-        await handleLiveSearch();
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم الصرف الخارجي بنجاح!'
-      });
-    };
-    
-    // ============================================
-    // VIRTUAL SCROLLING HANDLERS
-    // ============================================
     const calculateVisibleItems = () => {
-      // Get container dimensions
       if (!scrollContainer.value) return;
       
       const container = scrollContainer.value;
       const scrollTop = container.scrollTop;
       const clientHeight = container.clientHeight;
       
-      // Calculate approximate row height based on first few rows
+      // Calculate approximate row height
       const rows = container.querySelectorAll('tbody tr');
       let rowHeight = 80; // Default fallback
       
       if (rows.length > 0) {
-        // Sample first 5 rows for better accuracy
         const sampleRows = Math.min(5, rows.length);
         let totalHeight = 0;
         for (let i = 0; i < sampleRows; i++) {
@@ -2095,13 +1953,12 @@ export default {
         startIndex + Math.ceil(clientHeight / rowHeight) + (scrollBuffer * 2)
       );
       
-      // Only update if the change is significant (performance optimization)
+      // Only update if the change is significant
       const newIndex = Math.max(0, startIndex);
       if (Math.abs(newIndex - visibleStartIndex.value) > scrollBuffer / 2) {
         visibleStartIndex.value = newIndex;
       }
       
-      // Return the calculated end index for load more checking
       return { startIndex, endIndex, rowHeight };
     };
     
@@ -2127,10 +1984,7 @@ export default {
         if (!container) return;
         
         // Calculate visible items
-        const result = calculateVisibleItems();
-        if (!result) return;
-        
-        const { rowHeight } = result;
+        calculateVisibleItems();
         
         // Check if we need to load more items (near bottom 20%)
         const scrollTop = container.scrollTop;
@@ -2143,7 +1997,7 @@ export default {
         
         if (scrollBottom > loadMoreThreshold && 
             hasMore.value && 
-            !useLiveSearch.value && 
+            !isSearchMode.value && 
             !loadingMore.value && 
             !isFetchingMore.value) {
           loadMoreItems();
@@ -2210,8 +2064,7 @@ export default {
         if (!container) return;
         
         // Calculate visible items
-        const result = calculateMobileVisibleItems();
-        if (!result) return;
+        calculateMobileVisibleItems();
         
         // Check if we need to load more items
         const scrollTop = container.scrollTop;
@@ -2224,7 +2077,7 @@ export default {
         
         if (scrollBottom > loadMoreThreshold && 
             hasMore.value && 
-            !useLiveSearch.value && 
+            !isSearchMode.value && 
             !loadingMore.value && 
             !isFetchingMore.value) {
           loadMoreItems();
@@ -2235,93 +2088,12 @@ export default {
     };
     
     // ============================================
-    // OPTIMIZED DATA LOADING AND INITIALIZATION
+    // DEBUG METHODS
     // ============================================
-    const loadInitialData = async () => {
-      try {
-        loading.value = true;
-        
-        // Step 1: Load essential data in parallel where possible
-        const loadPromises = [
-          store.dispatch('loadWarehouses'),
-          store.dispatch('loadUsers')
-        ];
-        
-        await Promise.all(loadPromises);
-        
-        // Step 2: Check for route parameters
-        const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
-        if (routeWarehouseId) {
-          // Verify warehouse is accessible
-          const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
-          if (warehouseExists) {
-            selectedWarehouse.value = routeWarehouseId;
-            await store.dispatch('setWarehouseFilter', routeWarehouseId);
-          }
-        }
-        
-        // Step 3: Load inventory with intelligent caching
-        if (!inventoryLoaded.value || shouldForceRefresh()) {
-          console.log('🔄 Loading fresh inventory data...');
-          await store.dispatch('loadAllInventory', { 
-            forceRefresh: true,
-            warehouseId: selectedWarehouse.value || undefined
-          });
-          isDataFresh.value = true;
-        } else {
-          console.log('✅ Using cached inventory data');
-          isDataFresh.value = false;
-          
-          // Apply warehouse filter to cached data if needed
-          if (selectedWarehouse.value) {
-            await store.dispatch('applyWarehouseFilter', selectedWarehouse.value);
-          }
-        }
-        
-        lastUpdate.value = Date.now();
-        
-        // Step 4: Initialize virtual scrolling after data is loaded
-        await nextTick();
-        resetScrollPositions();
-        
-        // Step 5: Pre-calculate row heights for better performance
-        setTimeout(() => {
-          if (scrollContainer.value) {
-            calculateVisibleItems();
-          }
-          if (mobileScrollContainer.value) {
-            calculateMobileVisibleItems();
-          }
-        }, 100);
-        
-      } catch (error) {
-        console.error('❌ Error in loadInitialData:', error);
-        
-        error.value = 'فشل تحميل البيانات. الرجاء التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'خطأ في تحميل البيانات. جاري إعادة المحاولة...'
-        });
-        
-        // Auto-retry after 5 seconds
-        setTimeout(() => {
-          if (!inventoryLoaded.value) {
-            loadInitialData();
-          }
-        }, 5000);
-        
-      } finally {
-        loading.value = false;
-      }
-    };
     
-    const shouldForceRefresh = () => {
-      // Force refresh if data is older than 5 minutes
-      if (!lastUpdate.value) return true;
-      
-      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-      return lastUpdate.value < fiveMinutesAgo;
+    const forceRefreshSearch = async () => {
+      console.log('🔍 DEBUG: Force refreshing search...');
+      await handleLiveSearch.flush();
     };
     
     // ============================================
@@ -2346,10 +2118,10 @@ export default {
       }
     });
     
-    // Watch for search results
+    // Watch for search results from store
     watch(searchResults, (newResults) => {
       if (newResults && newResults.length > 0) {
-        console.log(`🔍 Search results updated: ${newResults.length} items`);
+        console.log(`🔍 Store search results updated: ${newResults.length} items`);
         
         // Mark as fresh search data
         isDataFresh.value = true;
@@ -2360,26 +2132,20 @@ export default {
         
         // Update virtual scrolling for search results
         nextTick(() => {
-          if (useLiveSearch.value) {
-            if (scrollContainer.value) calculateVisibleItems();
-            if (mobileScrollContainer.value) calculateMobileVisibleItems();
-          }
+          if (scrollContainer.value) calculateVisibleItems();
+          if (mobileScrollContainer.value) calculateMobileVisibleItems();
         });
       }
     });
     
-    // Watch for warehouse filter changes
-    watch(() => store.state.warehouseFilter, (newWarehouseId) => {
-      if (newWarehouseId !== selectedWarehouse.value) {
-        selectedWarehouse.value = newWarehouseId || '';
-        
-        // Reset scroll positions for new filter
-        resetScrollPositions();
-        
-        // If we're in search mode, re-run search with new warehouse
-        if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
-          handleLiveSearch();
-        }
+    // Watch for search query changes
+    watch(searchTerm, (newTerm) => {
+      if (newTerm && newTerm.length >= 2) {
+        // Use store's search system
+        handleLiveSearch();
+      } else if (!newTerm || newTerm.length === 0) {
+        // Clear store search
+        store.dispatch('clearSearch');
       }
     });
     
@@ -2392,23 +2158,22 @@ export default {
         }
         
         selectedWarehouse.value = newWarehouseId;
-        store.dispatch('setWarehouseFilter', newWarehouseId);
       }
     });
     
     // ============================================
     // LIFECYCLE HOOKS
     // ============================================
+    
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted');
+      console.log('📱 Inventory Production mounted with COMPLETE STORE INTEGRATION');
       
-      // Set up resize observer for responsive virtual scrolling
+      // Set up resize observer
       const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
         if (mobileScrollContainer.value) calculateMobileVisibleItems();
       });
       
-      // Observe both scroll containers
       if (scrollContainer.value) {
         resizeObserver.observe(scrollContainer.value);
       }
@@ -2416,7 +2181,6 @@ export default {
         resizeObserver.observe(mobileScrollContainer.value);
       }
       
-      // Store for cleanup
       window.__inventoryResizeObserver = resizeObserver;
       
       // Load initial data
@@ -2442,12 +2206,12 @@ export default {
       
       // Reset store state
       store.dispatch('clearSearch');
-      store.dispatch('setWarehouseFilter', '');
     });
     
     // ============================================
     // RETURN ALL REACTIVE VALUES AND METHODS
     // ============================================
+    
     return {
       // State
       loading,
@@ -2478,7 +2242,8 @@ export default {
       showFilters,
       showActionMenu,
       
-      // Debug mode
+      // Search & Performance
+      useLiveSearch,
       showDebug,
       
       // Virtual scrolling refs
@@ -2488,7 +2253,6 @@ export default {
       // Computed
       userRole,
       userProfile,
-      currentUser,
       displayedItems,
       accessibleWarehouses,
       allWarehouses,
@@ -2504,7 +2268,7 @@ export default {
       readonly,
       searchResults,
       isLiveSearching,
-      useLiveSearch,
+      isSearchMode,
       totalQuantity,
       lowStockCount,
       warehouseCount,
@@ -2531,7 +2295,6 @@ export default {
       
       // Filter handlers
       handleLiveSearch,
-      forceRefreshSearch,
       handleWarehouseChange,
       handleFilterChange,
       clearSearch,
@@ -2563,6 +2326,9 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
+      
+      // Debug method
+      forceRefreshSearch,
       
       // Virtual scrolling
       onScroll,
