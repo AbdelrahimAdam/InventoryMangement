@@ -986,19 +986,24 @@
   </div>
 </template>
 <script>
+
+<script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { debounce } from 'lodash';
 import * as XLSX from 'xlsx';
 
-// Import your modals (adjust paths as needed)
+// Import your modals
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import EditItemModal from '@/components/inventory/EditItemModal.vue';
 import TransferModal from '@/components/inventory/TransferModal.vue';
 import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
 import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
+
+// Import store's Arabic normalization function (adjust path as needed)
+import { normalizeArabicText } from '@/store/index';
 
 // Click outside directive
 const vClickOutside = {
@@ -1094,7 +1099,7 @@ export default {
     const isDataFresh = ref(false);
     
     // ============================================
-    // STORE COMPUTED PROPERTIES
+    // STORE COMPUTED PROPERTIES WITH ENHANCEMENTS
     // ============================================
     
     // User & Auth
@@ -1153,6 +1158,77 @@ export default {
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
     const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
+    
+    // ============================================
+    // ENHANCED STORE INTEGRATION - NEW COMPUTED PROPERTIES
+    // ============================================
+    
+    // Arabic normalization
+    const normalizedSearchTerm = computed(() => 
+      searchTerm.value ? normalizeArabicText(searchTerm.value) : ''
+    );
+    
+    // Arabic field labels from store
+    const arabicFieldLabels = computed(() => {
+      const mappings = store.state.fieldMappings?.englishToArabic || {};
+      return Object.entries(mappings).reduce((acc, [en, ar]) => {
+        acc[en] = ar;
+        return acc;
+      }, {});
+    });
+    
+    // Searchable fields from store mappings
+    const searchableFields = computed(() => {
+      const arabicToEnglish = store.state.fieldMappings?.arabicToEnglish || {};
+      return Object.values(arabicToEnglish).filter(field => 
+        ['name', 'code', 'color', 'supplier', 'item_location'].includes(field)
+      );
+    });
+    
+    // Search performance stats
+    const searchPerformance = computed(() => store.state.searchPerformance || {
+      searches: 0,
+      avgResponseTime: 0,
+      cacheHitRate: 0,
+      successRate: 1,
+      lastSearchDuration: 0
+    });
+    
+    // Search cache status
+    const cacheStatus = computed(() => {
+      if (!searchTerm.value || searchTerm.value.length < 2) return 'غير نشط';
+      return store.state.search.source === 'cache' ? 'نتائج مخزنة' : 'بحث مباشر';
+    });
+    
+    // Search statistics with Arabic field info
+    const searchStats = computed(() => ({
+      avgResponseTime: searchPerformance.value?.avgResponseTime?.toFixed(2) || '0',
+      cacheHitRate: ((searchPerformance.value?.cacheHitRate || 0) * 100).toFixed(0),
+      totalSearches: searchPerformance.value?.searches || 0,
+      lastSearchSource: store.state.search.source || 'none',
+      lastSearchTime: store.state.search.timestamp,
+      cacheStatus: cacheStatus.value,
+      normalizedTerm: normalizedSearchTerm.value
+    }));
+    
+    // Search tips with Arabic field names
+    const searchTips = computed(() => {
+      if (!searchableFields.value.length) return '';
+      
+      const fieldsInArabic = searchableFields.value.map(field => 
+        arabicFieldLabels.value[field] || field
+      ).join('، ');
+      
+      return `البحث يشمل: ${fieldsInArabic}`;
+    });
+    
+    // Real-time search availability
+    const realTimeSearchAvailable = computed(() => 
+      searchTerm.value && 
+      searchTerm.value.length >= 2 &&
+      searchResults.value.length > 0 && 
+      store.state.search.source === 'firebase'
+    );
     
     // ============================================
     // COMPUTED STATISTICS
@@ -1224,18 +1300,13 @@ export default {
     });
     
     // ============================================
-    // STORE-BASED SEARCH SYSTEM
+    // ENHANCED SEARCH HANDLER WITH STORE TRACKING
     // ============================================
     
-    /**
-     * 🔍 SPARK-OPTIMIZED STORE SEARCH
-     * Uses your store's searchInventorySpark action
-     */
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
-        // Clear search in store
         await store.dispatch('clearSearch');
         resetScrollPositions();
         return;
@@ -1248,17 +1319,29 @@ export default {
       }
       
       try {
-        console.log(`🚀 [STORE SEARCH] Triggering store search for: "${term}"`);
+        console.log(`🚀 [ENHANCED STORE SEARCH] Triggering store search for: "${term}"`);
         
-        // Use store's SPARK search system
+        // Add to search history in store (if action exists)
+        try {
+          await store.dispatch('addToSearchHistory', term);
+        } catch (e) {
+          console.log('Search history not available:', e.message);
+        }
+        
+        const searchStartTime = performance.now();
+        
+        // Use store's SPARK search system with enhanced parameters
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
           limit: 30,
-          strategy: 'parallel'
+          strategy: 'parallel',
+          searchFields: searchableFields.value
         });
         
-        console.log(`✅ [STORE SEARCH] Store returned ${results.length} results`);
+        const duration = performance.now() - searchStartTime;
+        
+        console.log(`✅ [ENHANCED STORE SEARCH] Completed in ${duration.toFixed(2)}ms: ${results.length} results`);
         
         // Store automatically updates state via mutations
         // The searchResults computed property will reflect this
@@ -1270,25 +1353,33 @@ export default {
         // Reset scroll positions
         resetScrollPositions();
         
-        // Show notification
+        // Show notification with enhanced info
         if (results.length > 0) {
+          const source = store.state.search.source || 'local';
+          const sourceText = source === 'cache' ? 'مخزنة' : 
+                           source === 'firebase' ? 'مباشرة' : 
+                           source === 'local' ? 'محلية' : 'غير معروفة';
+          
           store.dispatch('showNotification', {
             type: 'success',
-            message: `تم العثور على ${results.length} نتيجة للبحث: "${term}"`
+            message: `تم العثور على ${results.length} نتيجة للبحث: "${term}" (مصدر: ${sourceText})`,
+            duration: 3000
           });
         } else {
           store.dispatch('showNotification', {
             type: 'info',
-            message: 'لم يتم العثور على نتائج للبحث في جميع المخازن'
+            message: 'لم يتم العثور على نتائج للبحث في جميع المخازن',
+            duration: 2000
           });
         }
         
       } catch (error) {
-        console.error('❌ [STORE SEARCH] Error in store search:', error);
+        console.error('❌ [ENHANCED STORE SEARCH] Error:', error);
         
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في البحث. جاري استخدام المخزون المحلي.'
+          message: 'خطأ في البحث. جاري استخدام المخزون المحلي.',
+          duration: 5000
         });
         
         // Fallback: Clear store search
@@ -1354,7 +1445,7 @@ export default {
     };
     
     // ============================================
-    // DATA LOADING METHODS
+    // ENHANCED DATA LOADING METHODS
     // ============================================
     
     const loadInitialData = async () => {
@@ -1486,7 +1577,7 @@ export default {
     };
     
     // ============================================
-    // ITEM ACTION HANDLERS
+    // ENHANCED ITEM ACTION HANDLERS
     // ============================================
     
     // Permission methods
@@ -1679,7 +1770,7 @@ export default {
     };
     
     // ============================================
-    // HELPER FUNCTIONS
+    // ENHANCED HELPER FUNCTIONS WITH ARABIC SUPPORT
     // ============================================
     
     // Formatting
@@ -1807,7 +1898,7 @@ export default {
     };
     
     // ============================================
-    // EXCEL EXPORT
+    // ENHANCED EXCEL EXPORT WITH ARABIC FIELD NAMES
     // ============================================
     const exportToExcel = async () => {
       if (displayedItems.value.length === 0) {
@@ -1835,13 +1926,16 @@ export default {
           const createdByName = item.created_by_name || getUserName(item.created_by) || 'غير معروف';
           const updatedByName = item.updated_by_name || getUserName(item.updated_by) || createdByName || 'غير معروف';
           
+          // Use Arabic field names from store mappings
+          const fieldLabels = arabicFieldLabels.value;
+          
           itemsByWarehouse[warehouseId].push({
-            'الكود': item.code || '',
-            'اسم الصنف': item.name || '',
-            'اللون': item.color || '',
+            [fieldLabels.code || 'الكود']: item.code || '',
+            [fieldLabels.name || 'اسم الصنف']: item.name || '',
+            [fieldLabels.color || 'اللون']: item.color || '',
             'المخزن': getWarehouseLabel(item.warehouse_id),
-            'مكان التخزين': item.item_location || '',
-            'المورد': item.supplier || '',
+            [fieldLabels.item_location || 'مكان التخزين']: item.item_location || '',
+            [fieldLabels.supplier || 'المورد']: item.supplier || '',
             'عدد الكراتين': item.cartons_count || 0,
             'عدد في الكرتونة': item.per_carton_count || 0,
             'عدد القطع الفردية': item.single_bottles_count || 0,
@@ -1859,19 +1953,40 @@ export default {
         
         const wb = XLSX.utils.book_new();
         
-        const summaryData = [{
+        // Add search statistics sheet
+        const statsData = [{
           'إجمالي الأصناف': displayedItems.value.length,
           'إجمالي الكمية': totalQuantity.value,
           'الأصناف قليلة المخزون': lowStockCount.value,
           'عدد المخازن': warehouseCount.value,
           'تاريخ التصدير': new Date().toLocaleDateString('ar-EG'),
           'تم التصدير بواسطة': currentUserInfo.value,
-          'مصدر البيانات': isSearchMode.value ? 'بحث شامل' : 'بيانات مخزنة'
+          'مصدر البيانات': isSearchMode.value ? 'بحث شامل' : 'بيانات مخزنة',
+          'حالة البحث': cacheStatus.value,
+          'متوسط سرعة البحث': `${searchStats.value.avgResponseTime}ms`,
+          'نسبة استخدام الكاش': `${searchStats.value.cacheHitRate}%`
         }];
         
-        const summaryWs = XLSX.utils.json_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
+        const statsWs = XLSX.utils.json_to_sheet(statsData);
+        XLSX.utils.book_append_sheet(wb, statsWs, 'الملخص والإحصائيات');
         
+        // Add search details if in search mode
+        if (isSearchMode.value && searchTerm.value) {
+          const searchDetailsData = [{
+            'كلمة البحث': searchTerm.value,
+            'البحث المعياري': normalizedSearchTerm.value,
+            'عدد النتائج': searchResults.value.length,
+            'مصدر النتائج': store.state.search.source,
+            'الوقت المستغرق': searchPerformance.value.lastSearchDuration?.toFixed(2) + 'ms',
+            'تاريخ البحث': formatDate(store.state.search.timestamp),
+            'الحقول المستهدفة': searchableFields.value.map(f => arabicFieldLabels.value[f] || f).join(', ')
+          }];
+          
+          const searchWs = XLSX.utils.json_to_sheet(searchDetailsData);
+          XLSX.utils.book_append_sheet(wb, searchWs, 'تفاصيل البحث');
+        }
+        
+        // Add data by warehouse
         Object.keys(itemsByWarehouse).forEach((warehouseId, index) => {
           const warehouseItems = itemsByWarehouse[warehouseId];
           const warehouseName = getWarehouseLabel(warehouseId).replace(/[^\w\u0600-\u06FF\s]/g, '').trim();
@@ -1906,7 +2021,7 @@ export default {
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${displayedItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length} صفحة في ملف Excel بنجاح`
+          message: `تم تصدير ${displayedItems.value.length} صنف إلى ${Object.keys(itemsByWarehouse).length + 2} صفحة في ملف Excel بنجاح`
         });
         
       } catch (error) {
@@ -2088,7 +2203,7 @@ export default {
     };
     
     // ============================================
-    // DEBUG METHODS
+    // ENHANCED DEBUG METHODS
     // ============================================
     
     const forceRefreshSearch = async () => {
@@ -2096,8 +2211,20 @@ export default {
       await handleLiveSearch.flush();
     };
     
+    const getCacheStats = async () => {
+      try {
+        // This would need a store action to expose cache stats
+        const stats = await store.dispatch('getCacheStats');
+        console.log('📊 Cache Stats:', stats);
+        return stats;
+      } catch (error) {
+        console.log('Cache stats not available');
+        return null;
+      }
+    };
+    
     // ============================================
-    // WATCHERS
+    // ENHANCED WATCHERS
     // ============================================
     
     // Watch for loading state changes
@@ -2166,7 +2293,7 @@ export default {
     // ============================================
     
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted with COMPLETE STORE INTEGRATION');
+      console.log('📱 Inventory Production mounted with ENHANCED STORE INTEGRATION');
       
       // Set up resize observer
       const resizeObserver = new ResizeObserver(() => {
@@ -2250,6 +2377,16 @@ export default {
       scrollContainer,
       mobileScrollContainer,
       
+      // Enhanced Store Computed Properties
+      arabicFieldLabels,
+      searchableFields,
+      searchPerformance,
+      searchStats,
+      cacheStatus,
+      searchTips,
+      normalizedSearchTerm,
+      realTimeSearchAvailable,
+      
       // Computed
       userRole,
       userProfile,
@@ -2327,8 +2464,9 @@ export default {
       handleTransferSuccess,
       handleDispatchSuccess,
       
-      // Debug method
+      // Enhanced debug methods
       forceRefreshSearch,
+      getCacheStats,
       
       // Virtual scrolling
       onScroll,
@@ -2340,8 +2478,7 @@ export default {
     };
   }
 };
-</script>
-
+</script>                                                                                             
 <style scoped>
 /* Enhanced Custom Scrollbar */
 ::-webkit-scrollbar {
