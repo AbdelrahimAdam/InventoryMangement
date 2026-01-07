@@ -1,3 +1,4 @@
+
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <!-- Search Status Indicator -->
@@ -15,6 +16,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span class="text-sm">تم العثور على {{ searchResults.length }} نتيجة</span>
+            <span v-if="showDebug" class="text-xs text-gray-500">({{ cacheStatus }})</span>
           </div>
           <div v-else class="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,6 +89,7 @@
                 }">
                   {{ searchResults.length }} نتيجة بحث
                 </span>
+                <span v-if="showDebug" class="text-gray-500">• {{ cacheStatus }}</span>
               </span>
             </div>
             <!-- Mobile Description -->
@@ -170,6 +173,22 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
             </svg>
             <span class="text-xs sm:text-sm">تجديد البحث</span>
+          </button>
+
+          <!-- Debug Toggle Button -->
+          <button
+            @click="showDebug = !showDebug"
+            :class="{
+              'bg-purple-600 dark:bg-purple-700 text-white': showDebug,
+              'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300': !showDebug
+            }"
+            class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-purple-600 dark:hover:bg-purple-600 hover:text-white transition-colors duration-200 text-sm sm:text-base"
+            title="عرض معلومات التصحيح"
+          >
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+            <span class="text-xs sm:text-sm">{{ showDebug ? 'إخفاء التفاصيل' : 'تفاصيل البحث' }}</span>
           </button>
         </div>
       </div>
@@ -298,7 +317,7 @@
                     type="text"
                     v-model="searchTerm"
                     @input="handleLiveSearch"
-                    placeholder="ابحث بكود، اسم، لون، مورد، ملاحظات، مكان..."
+                    :placeholder="`ابحث بـ${searchableFields.map(f => arabicFieldLabels[f] || f).join('، ')}...`"
                     class="w-full px-3 py-2 pr-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 hover:border-yellow-400 transition-colors duration-200"
                   />
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -333,660 +352,449 @@
               </div>
             </div>
 
-            <!-- Search Tips -->
-            <div v-if="searchTerm && searchTerm.length >= 2" class="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-              <div class="text-xs text-blue-700 dark:text-blue-300">
-                <span class="font-semibold">نصائح البحث:</span>
-                <ul class="mt-1 space-y-1">
-                  <li class="flex items-center gap-1">
-                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    البحث يشمل: الكود، الاسم، اللون، المورد، الملاحظات، المكان
-                  </li>
-                  <li class="flex items-center gap-1">
-                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    البحث في جميع المخازن
-                  </li>
-                </ul>
+            <!-- Enhanced Search Information -->
+            <div v-if="searchTerm && searchTerm.length >= 2" class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Search Tips -->
+                <div class="text-xs text-blue-700 dark:text-blue-300">
+                  <span class="font-semibold">نصائح البحث:</span>
+                  <ul class="mt-1 space-y-1">
+                    <li class="flex items-center gap-1">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      {{ searchTips }}
+                    </li>
+                    <li class="flex items-center gap-1">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      البحث في جميع المخازن
+                    </li>
+                    <li v-if="normalizedSearchTerm !== searchTerm.toLowerCase()" class="flex items-center gap-1">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      النص المعياري: "{{ normalizedSearchTerm }}"
+                    </li>
+                  </ul>
+                </div>
+                
+                <!-- Search Performance Stats -->
+                <div v-if="showDebug" class="text-xs">
+                  <span class="font-semibold text-purple-600 dark:text-purple-400">أداء البحث:</span>
+                  <ul class="mt-1 space-y-1 text-gray-600 dark:text-gray-400">
+                    <li class="flex justify-between">
+                      <span>متوسط السرعة:</span>
+                      <span class="font-mono">{{ searchStats.avgResponseTime }}ms</span>
+                    </li>
+                    <li class="flex justify-between">
+                      <span>نسبة الكاش:</span>
+                      <span class="font-mono">{{ searchStats.cacheHitRate }}%</span>
+                    </li>
+                    <li class="flex justify-between">
+                      <span>حالة البحث:</span>
+                      <span :class="{
+                        'text-green-600 dark:text-green-400': cacheStatus === 'نتائج مخزنة',
+                        'text-blue-600 dark:text-blue-400': cacheStatus === 'بحث مباشر'
+                      }" class="font-semibold">
+                        {{ cacheStatus }}
+                      </span>
+                    </li>
+                    <li class="flex justify-between">
+                      <span>عدد عمليات البحث:</span>
+                      <span class="font-mono">{{ searchStats.totalSearches }}</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
 
             <!-- Active Filters -->
-            <div v-if="hasActiveFilters" class="mt-3 sm:mt-4 flex flex-wrap gap-1 sm:gap-2">
-              <span v-if="selectedWarehouse"
-                    class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
-                <span class="hidden xs:inline">المخزن:</span>
-                <span class="font-medium truncate max-w-[80px]">{{ getWarehouseLabel(selectedWarehouse) }}</span>
-                <button @click="clearWarehouseFilter" class="text-blue-600 hover:text-blue-800">
+            <div v-if="hasActiveFilters" class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-100 dark:border-yellow-800">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-yellow-800 dark:text-yellow-300">الفلاتر النشطة:</span>
+                <button
+                  @click="clearAllFilters"
+                  class="text-xs text-yellow-700 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300 underline flex items-center gap-1"
+                >
+                  مسح الكل
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
-              </span>
-              <span v-if="statusFilter"
-                    class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">
-                <span class="hidden xs:inline">الحالة:</span>
-                <span class="font-medium">{{ getStatusLabel(statusFilter) }}</span>
-                <button @click="statusFilter = ''" class="text-green-600 hover:text-green-800">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </span>
-              <span v-if="searchTerm"
-                    class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
-                <span class="hidden xs:inline">البحث:</span>
-                <span class="font-medium truncate max-w-[60px]">{{ searchTerm }}</span>
-                <button @click="clearSearch" class="text-yellow-600 hover:text-yellow-800">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </span>
-              <button
-                v-if="hasActiveFilters"
-                @click="clearAllFilters"
-                class="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline"
-              >
-                مسح الكل
-              </button>
-            </div>
-          </div>
-
-          <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch && searchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                <span class="text-sm">نتائج البحث الشامل: {{ searchResults.length }} عنصر</span>
               </div>
-              <button
-                @click="clearSearch"
-                class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
-              >
-                عودة للعرض العادي
-              </button>
-            </div>
-          </div>
-
-          <!-- Export Progress -->
-          <div v-if="exporting" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 p-3 sm:p-4 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                <span class="text-sm">جاري تجهير Excel...</span>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <!-- Warehouse Filter Badge -->
+                <span v-if="selectedWarehouse" class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-300 rounded-full">
+                  مخزن: {{ getWarehouseLabel(selectedWarehouse) }}
+                  <button @click="selectedWarehouse = ''" class="hover:text-yellow-900 dark:hover:text-yellow-100">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </span>
+                <!-- Status Filter Badge -->
+                <span v-if="statusFilter" class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-300 rounded-full">
+                  حالة: {{ getStatusLabel(statusFilter) }}
+                  <button @click="statusFilter = ''" class="hover:text-yellow-900 dark:hover:text-yellow-100">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </span>
+                <!-- Search Filter Badge -->
+                <span v-if="searchTerm && searchTerm.length >= 2" class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-300 rounded-full">
+                  بحث: "{{ searchTerm }}"
+                  <button @click="clearSearch" class="hover:text-yellow-900 dark:hover:text-yellow-100">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </span>
               </div>
-              <span class="text-xs">{{ exportProgress }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading && !displayedItems.length" class="text-center py-8 sm:py-12">
-        <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
-        <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
-        <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span class="text-sm">{{ error }}</span>
+      <!-- Data Table Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- Table Header with Results Summary -->
+        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">قائمة الأصناف</h2>
+            <!-- Loading Indicator -->
+            <div v-if="loading" class="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+              <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              جاري التحميل...
+            </div>
           </div>
-          <button @click="error = ''" class="text-red-600 hover:text-red-800">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          <!-- Results Summary -->
+          <div class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+            <span>{{ formatNumber((displayedItems || []).length) }} نتيجة</span>
+            <span v-if="searchTerm && searchTerm.length >= 2 && searchResults.length > 0" class="text-green-600 dark:text-green-400">
+              ✓ ({{ searchResults.length }} نتيجة بحث)
+            </span>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="!loading && (displayedItems || []).length === 0" class="p-8 text-center">
+          <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
             </svg>
+          </div>
+          <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-1">
+            {{ searchTerm && searchTerm.length >= 2 ? 'لم يتم العثور على نتائج' : 'لا توجد أصناف' }}
+          </h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            {{ searchTerm && searchTerm.length >= 2 ? 'جرب تغيير كلمات البحث أو الفلاتر' : 'ابدأ بإضافة أصناف جديدة إلى المخزون' }}
+          </p>
+          <button
+            v-if="canAddItem && showActions && !readonly"
+            @click="showAddModal = true"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-colors duration-200 text-sm"
+          >
+            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            إضافة صنف جديد
+          </button>
+        </div>
+
+        <!-- Loading Skeleton -->
+        <div v-else-if="loading && (displayedItems || []).length === 0" class="p-4 space-y-3">
+          <div class="animate-pulse flex space-x-4">
+            <div class="flex-1 space-y-3">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Table -->
+        <div v-else class="overflow-x-auto">
+          <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+              <tr>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الكود
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الصنف
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  المخزن
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الكمية
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الحد الأدنى
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الحالة
+                </th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  آخر تحديث
+                </th>
+                <th v-if="showActions" scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  إجراءات
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tr v-for="item in displayedItems" :key="item.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
+                <td class="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">
+                  {{ item.code || '--' }}
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-900 dark:text-white">
+                  <div class="font-medium">{{ item.name_ar || '--' }}</div>
+                  <div v-if="item.name_en" class="text-gray-500 dark:text-gray-400 text-xs">{{ item.name_en }}</div>
+                  <div v-if="item.description" class="text-gray-500 dark:text-gray-400 text-xs truncate max-w-[200px]" :title="item.description">
+                    {{ item.description }}
+                  </div>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {{ getWarehouseLabel(item.warehouse_id) || '--' }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  <div class="font-semibold">{{ formatNumber(item.quantity || 0) }}</div>
+                  <div v-if="item.unit" class="text-gray-500 dark:text-gray-400 text-xs">{{ item.unit }}</div>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {{ formatNumber(item.min_quantity || 0) }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span :class="getStockStatusClass(item)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                    {{ getStockStatusText(item) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {{ formatTime(item.updated_at || item.created_at) }}
+                </td>
+                <td v-if="showActions" class="px-4 py-3 whitespace-nowrap text-xs font-medium">
+                  <div class="flex items-center gap-2 justify-end">
+                    <button
+                      v-if="!readonly"
+                      @click="editItem(item)"
+                      class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                      title="تعديل"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="!readonly"
+                      @click="deleteItem(item)"
+                      class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
+                      title="حذف"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Load More Button at Bottom -->
+        <div v-if="hasMore && !loading && !useLiveSearch && (displayedItems || []).length > 0" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
+          <button
+            @click="loadMoreItems"
+            :disabled="loadingMore"
+            class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            <svg v-if="loadingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <svg v-else class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            {{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}
           </button>
         </div>
       </div>
 
-      <!-- Inventory Table Container -->
-      <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- Desktop Table with Virtual Scrolling -->
-        <div class="hidden lg:block">
-          <div
-            class="overflow-x-auto relative"
-            :style="{ maxHeight: 'calc(100vh - 400px)' }"
-            @scroll="onScroll"
-            ref="scrollContainer"
-          >
-            <table class="w-full">
-              <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
-                <tr>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    الصورة
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    <div class="flex flex-col items-center justify-center">
-                      <span>الاسم والكود</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">(انقر للتفاصيل)</span>
-                    </div>
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    اللون
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    المخزن
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    المورد
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    <div class="flex flex-col items-center justify-center">
-                      <span>الكميات</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">كراتين/في الكرتونة/فردي</span>
-                    </div>
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    <div class="flex flex-col items-center justify-center">
-                      <span>المتبقي</span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">من المجموع</span>
-                    </div>
-                  </th>
-                  <th class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    الحالة
-                  </th>
-                  <th v-if="showActions && !readonly && userRole !== 'viewer'"
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    الإجراءات
-                  </th>
-                  <th v-else
-                      class="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b-2 border-yellow-500 whitespace-nowrap">
-                    آخر تحديث
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Virtual Scrolling - Only render visible rows -->
-                <tr v-for="item in visibleItems"
-                    :key="item.id"
-                    class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200"
-                    :style="{ transform: 'translateY(0)' }"
-                >
-                  <!-- Photo -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="flex justify-center">
-                      <div class="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:scale-105 transition-transform duration-200"
-                        @click="showItemDetails(item)">
-                        <img
-                          :src="item.photo_url || getPlaceholderImage()"
-                          :alt="item.name"
-                          class="w-full h-full object-cover"
-                          @error="handleImageError"
-                          loading="lazy"
+      <!-- Add/Edit Item Modal -->
+      <div v-if="showAddModal || showEditModal" class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity"></div>
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+          <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-right overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div class="mt-3 text-center sm:mt-0 sm:text-right w-full">
+                  <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
+                    {{ showEditModal ? 'تعديل الصنف' : 'إضافة صنف جديد' }}
+                  </h3>
+                  <form @submit.prevent="saveItem">
+                    <div class="grid grid-cols-1 gap-4">
+                      <!-- Item Name Arabic -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الصنف (عربي)</label>
+                        <input
+                          v-model="formData.name_ar"
+                          type="text"
+                          required
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                        />
+                      </div>
+                      <!-- Item Name English -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الصنف (إنجليزي)</label>
+                        <input
+                          v-model="formData.name_en"
+                          type="text"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                        />
+                      </div>
+                      <!-- Code -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">كود الصنف</label>
+                        <input
+                          v-model="formData.code"
+                          type="text"
+                          required
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                        />
+                      </div>
+                      <!-- Warehouse -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
+                        <select
+                          v-model="formData.warehouse_id"
+                          required
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                         >
-                        <div v-if="item.photo_url" class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200"></div>
+                          <option value="">اختر المخزن</option>
+                          <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
+                            {{ warehouse.name_ar }}
+                          </option>
+                        </select>
                       </div>
-                    </div>
-                  </td>
-
-                  <!-- Name and Code -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="min-w-0 max-w-xs">
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
-                        @click="showItemDetails(item)">
-                        {{ item.name }}
-                      </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                          {{ item.code }}
-                        </span>
-                      </div>
-                      <div v-if="item.item_location" class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        </svg>
-                        <span class="truncate">{{ item.item_location }}</span>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- Color -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="flex items-center justify-center">
-                      <div class="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <div v-if="item.color" class="w-3 h-3 rounded-full border border-gray-300"
-                          :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span class="text-xs sm:text-sm text-gray-900 dark:text-white">
-                          {{ item.color || '-' }}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- Warehouse -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="text-center">
-                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        {{ getWarehouseLabel(item.warehouse_id) }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Supplier -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="max-w-[120px] sm:max-w-[150px] mx-auto">
-                      <span class="text-xs sm:text-sm text-gray-900 dark:text-white truncate block px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        {{ item.supplier || '-' }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Quantities -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="text-xs sm:text-sm space-y-1 max-w-[120px] sm:max-w-[150px] mx-auto">
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">كراتين:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.cartons_count || 0 }}</span>
-                      </div>
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">في الكرتونة:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.per_carton_count || 0 }}</span>
-                      </div>
-                      <div class="flex items-center justify-between px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        <span class="text-gray-500 dark:text-gray-400 text-xs">فردي:</span>
-                        <span class="text-gray-900 dark:text-white font-medium">{{ item.single_bottles_count || 0 }}</span>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- Remaining Quantity -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="text-center">
-                      <div :class="getQuantityClass(item.remaining_quantity)"
-                           class="text-base sm:text-lg font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-full inline-flex flex-col items-center gap-1">
-                        <span>{{ item.remaining_quantity }}</span>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                          من {{ item.total_added }}
+                      <!-- Quantity and Min Quantity -->
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
+                          <input
+                            v-model="formData.quantity"
+                            type="number"
+                            min="0"
+                            required
+                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحد الأدنى</label>
+                          <input
+                            v-model="formData.min_quantity"
+                            type="number"
+                            min="0"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                          />
                         </div>
                       </div>
+                      <!-- Unit and Description -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوحدة</label>
+                        <input
+                          v-model="formData.unit"
+                          type="text"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوصف</label>
+                        <textarea
+                          v-model="formData.description"
+                          rows="2"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                        ></textarea>
+                      </div>
                     </div>
-                  </td>
-
-                  <!-- Status -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div class="flex justify-center">
-                      <span :class="getStockStatusClass(item.remaining_quantity)"
-                            class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm">
-                        {{ getStockStatus(item.remaining_quantity) }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Actions or Updated Date -->
-                  <td class="px-4 sm:px-6 py-3 sm:py-4">
-                    <div v-if="showActions && !readonly && userRole !== 'viewer'" class="flex items-center justify-center gap-1 sm:gap-2">
-                      <!-- View Details Button -->
+                    <div class="mt-6 flex gap-2 justify-end">
                       <button
-                        @click="showItemDetails(item)"
-                        class="p-1.5 sm:p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 hover:scale-110 transition-all duration-200"
-                        title="عرض التفاصيل"
+                        type="button"
+                        @click="closeModal"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                       >
-                        <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
+                        إلغاء
                       </button>
-
-                      <!-- More Actions Dropdown -->
-                      <div class="relative">
-                        <button
-                          @click="toggleActionMenu(item.id)"
-                          class="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
-                          title="المزيد من الإجراءات"
-                        >
-                          <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
-                          </svg>
-                        </button>
-
-                        <!-- Action Dropdown Menu -->
-                        <div v-if="showActionMenu === item.id"
-                          class="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-30"
-                          v-click-outside="() => showActionMenu = null">
-                          <!-- Edit Option -->
-                          <button
-                            v-if="canEditItem(item)"
-                            @click="handleEdit(item)"
-                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150"
-                          >
-                            <svg class="w-4 h-4 ml-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                            تعديل الصنف
-                          </button>
-
-                          <!-- Transfer Option -->
-                          <button
-                            v-if="canTransferItem(item)"
-                            @click="handleTransfer(item)"
-                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-150"
-                          >
-                            <svg class="w-4 h-4 ml-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                            </svg>
-                            نقل بين المخازن
-                          </button>
-
-                          <!-- Dispatch Option -->
-                          <button
-                            v-if="canDispatchItem(item)"
-                            @click="handleDispatch(item)"
-                            class="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-150"
-                          >
-                            <svg class="w-4 h-4 ml-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                            </svg>
-                            صرف إلى خارجي
-                          </button>
-
-                          <!-- Divider -->
-                          <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-
-                          <!-- Delete Option -->
-                          <button
-                            v-if="canDeleteItem(item)"
-                            @click="handleDelete(item)"
-                            class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150"
-                          >
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                            حذف الصنف
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        type="submit"
+                        :disabled="saving"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span v-if="saving">جاري الحفظ...</span>
+                        <span v-else>{{ showEditModal ? 'تحديث' : 'حفظ' }}</span>
+                      </button>
                     </div>
-                    <div v-else class="text-center">
-                      <span class="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-50 dark:bg-gray-700">
-                        {{ formatDate(item.updated_at) }}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-
-                <!-- Empty State -->
-                <tr v-if="visibleItems.length === 0 && !loading">
-                  <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    <div class="flex flex-col items-center">
-                      <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-                      </svg>
-                      <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
-                      <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Loading More Indicator -->
-          <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-            <p class="text-sm">جاري تحميل المزيد من العناصر...</p>
-          </div>
-
-          <!-- End of List Indicator -->
-          <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm">تم عرض جميع العناصر ({{ (displayedItems || []).length }} عنصر)</p>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Mobile Cards with Virtual Scrolling -->
-        <div class="lg:hidden">
-          <div
-            class="overflow-y-auto"
-            :style="{ maxHeight: 'calc(100vh - 320px)' }"
-            @scroll="onMobileScroll"
-            ref="mobileScrollContainer"
-          >
-            <div v-if="mobileVisibleItems.length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
-              <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-              </svg>
-              <h3 class="text-lg font-medium mb-2">لا توجد أصناف</h3>
-              <p class="text-sm">{{ searchTerm ? 'لم يتم العثور على أصناف مطابقة للبحث' : 'لم يتم إضافة أي أصناف بعد.' }}</p>
-            </div>
-            <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
-              <!-- Virtual Scrolling for Mobile - Only render visible items -->
-              <div
-                v-for="item in mobileVisibleItems"
-                :key="item.id"
-                class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
-                @click="showItemDetails(item)"
-              >
-                <!-- Main Row -->
-                <div class="flex gap-3">
-                  <!-- Photo -->
-                  <div class="flex-shrink-0">
-                    <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                      <img
-                        :src="item.photo_url || getPlaceholderImage()"
-                        :alt="item.name"
-                        class="w-full h-full object-cover"
-                        @error="handleImageError"
-                        loading="lazy"
-                      >
-                    </div>
-                  </div>
-
-                  <!-- Item Details -->
-                  <div class="flex-1 min-w-0">
-                    <!-- First Row: Name and Quantity -->
-                    <div class="flex justify-between items-start mb-1">
-                      <div class="min-w-0">
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-white truncate mb-1">
-                          {{ item.name }}
-                        </h3>
-                        <div class="flex items-center gap-1">
-                          <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
-                            {{ item.code }}
-                          </span>
-                          <span :class="getStockStatusClass(item.remaining_quantity)"
-                                class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
-                            {{ getStockStatus(item.remaining_quantity) }}
-                          </span>
-                        </div>
-                      </div>
-                      <div :class="getQuantityClass(item.remaining_quantity)"
-                           class="text-lg font-bold px-3 py-1.5 rounded-lg">
-                        {{ item.remaining_quantity }}
-                      </div>
-                    </div>
-
-                    <!-- Second Row: Warehouse and Color -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
-                      <div class="flex items-center gap-1">
-                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        </svg>
-                        <span class="truncate max-w-[100px]">
-                          {{ getWarehouseLabel(item.warehouse_id) }}
-                        </span>
-                      </div>
-                      <div v-if="item.color" class="flex items-center gap-1">
-                        <div class="w-3 h-3 rounded-full border border-gray-300"
-                          :style="{ backgroundColor: getColorHex(item.color) }"></div>
-                        <span>{{ item.color }}</span>
-                      </div>
-                    </div>
-
-                    <!-- Third Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                      <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
-                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
-                        <span class="truncate">{{ item.supplier }}</span>
-                      </div>
-                      <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
-                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        </svg>
-                        <span class="truncate max-w-[80px]">{{ item.item_location }}</span>
-                      </div>
-                    </div>
-                  </div>
+      <!-- Delete Confirmation Modal -->
+      <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity"></div>
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+          <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-right overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
+                  <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L5.354 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
                 </div>
-
-                <!-- Quick Actions Bar -->
-                <div v-if="showActions && !readonly && userRole !== 'viewer'"
-                     class="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
-                  <!-- Last Updated -->
-                  <div class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>{{ formatRelativeTime(item.updated_at) }}</span>
-                  </div>
-
-                  <!-- Quick Action Buttons -->
-                  <div class="flex items-center gap-1">
-                    <button
-                      v-if="canEditItem(item)"
-                      @click.stop="handleEdit(item)"
-                      class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors"
-                      title="تعديل"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="canTransferItem(item)"
-                      @click.stop="handleTransfer(item)"
-                      class="p-1.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/20 transition-colors"
-                      title="نقل"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="canDeleteItem(item)"
-                      @click.stop="handleDelete(item)"
-                      class="p-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-lg hover:bg-red-100 dark:hover:bg-red-800/20 transition-colors"
-                      title="حذف"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                      </svg>
-                    </button>
+                <div class="mt-3 text-center sm:mt-0 sm:mr-4 sm:text-right">
+                  <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                    تأكيد الحذف
+                  </h3>
+                  <div class="mt-2">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      هل أنت متأكد من حذف الصنف "{{ selectedItem?.name_ar || selectedItem?.name_en || selectedItem?.code }}"؟
+                      <br>
+                      لا يمكن التراجع عن هذا الإجراء.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
+            <div class="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
-                @click="loadMoreItems"
-                :disabled="loading || loadingMore"
-                class="w-full px-4 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="confirmDelete"
+                :disabled="deleting"
+                class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 dark:bg-red-700 text-base font-medium text-white hover:bg-red-700 dark:hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                تحميل المزيد من العناصر
+                {{ deleting ? 'جاري الحذف...' : 'حذف' }}
               </button>
-            </div>
-
-            <!-- Loading More Indicator for Mobile -->
-            <div v-if="loadingMore" class="p-4 text-center text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p class="text-sm">جاري تحميل المزيد...</p>
-            </div>
-
-            <!-- End of List for Mobile -->
-            <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-              <p class="text-sm">تم عرض جميع العناصر</p>
+              <button
+                @click="showDeleteModal = false"
+                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                إلغاء
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Add Button for Mobile -->
-    <button
-      v-if="canAddItem && showActions && !readonly"
-      @click="showAddModal = true"
-      class="fixed bottom-6 left-6 z-40 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-purple-600 hover:scale-110 active:scale-95 transition-all duration-200 lg:hidden"
-      title="إضافة صنف"
-    >
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-      </svg>
-    </button>
-
-    <!-- Modals -->
-    <AddItemModal
-      v-if="showAddModal"
-      :isOpen="showAddModal"
-      @close="showAddModal = false"
-      @success="handleItemSaved"
-    />
-    <DispatchModal
-      v-if="showDispatchModal"
-      :isOpen="showDispatchModal"
-      :item="selectedItemForDispatch"
-      @close="showDispatchModal = false"
-      @success="handleDispatchSuccess"
-    />
-    <EditItemModal
-      v-if="showEditModal"
-      :isOpen="showEditModal"
-      :item="selectedItemForEdit"
-      @close="showEditModal = false"
-      @success="handleItemUpdated"
-    />
-    <TransferModal
-      v-if="showTransferModal"
-      :isOpen="showTransferModal"
-      :item="selectedItemForTransfer"
-      @close="showTransferModal = false"
-      @success="handleTransferSuccess"
-    />
-    <!-- Item Details Modal -->
-    <ItemDetailsModal
-      v-if="showDetailsModal"
-      :isOpen="showDetailsModal"
-      :item="selectedItem"
-      @close="closeDetailsModal"
-      @edit="handleEdit"
-      @transfer="handleTransfer"
-      @dispatch="handleDispatch"
-      @delete="handleDelete"
-      :canEditItem="canEditItem"
-      :canTransferItem="canTransferItem"
-      :canDispatchItem="canDispatchItem"
-      :canDeleteItem="canDeleteItem"
-    />
-    <!-- Delete Confirmation Modal -->
-    <ConfirmDeleteModal
-      v-if="showDeleteConfirm"
-      :isOpen="showDeleteConfirm"
-      :item="itemToDelete"
-      :loading="deleteLoading"
-      @confirm="confirmDelete"
-      @close="showDeleteConfirm = false"
-      :warehouseLabel="getWarehouseLabel"
-      :getLastActionUser="getLastActionUser"
-    />
   </div>
 </template>
-<script>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -1016,6 +824,67 @@ const vClickOutside = {
     document.body.removeEventListener('click', el.clickOutsideEvent);
   }
 };
+
+// Local Arabic normalization function (copied from store logic)
+function normalizeArabicText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  // Convert to string and trim
+  text = String(text).trim();
+
+  // Normalize Unicode to combine characters
+  text = text.normalize('NFC');
+
+  // Remove all diacritics and special characters
+  const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
+  text = text.replace(diacriticsRegex, '');
+
+  // Comprehensive Arabic character normalization
+  const arabicNormalizationMap = {
+    // Alif variations
+    'إ': 'ا', 'أ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ٲ': 'ا', 'ٳ': 'ا',
+    // Ya variations
+    'ى': 'ي', 'ئ': 'ي', 'ۍ': 'ي', 'ێ': 'ي', 'ې': 'ي', 'ۑ': 'ي',
+    // Ta marbuta
+    'ة': 'ه',
+    // Waw variations
+    'ؤ': 'و', 'ۄ': 'و', 'ۅ': 'و', 'ۆ': 'و', 'ۇ': 'و', 'ۈ': 'و', 'ۉ': 'و', 'ۊ': 'و', 'ۋ': 'و',
+    // Kaf variations
+    'ك': 'ك', 'ڪ': 'ك', 'ګ': 'ك', 'ڬ': 'ك', 'ڭ': 'ك', 'ڮ': 'ك',
+    // Hamza variations
+    'ء': '', 'ٔ': '', 'ٕ': '', 'ٖ': '', 'ٗ': '',
+    // Tatweel (kashida)
+    'ـ': '',
+    // Persian characters
+    'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
+    // Other Arabic variations
+    'ڀ': 'ب', 'ٻ': 'ب', 'ڃ': 'ج', 'ڄ': 'ج', 'څ': 'ج', 'چ': 'ج', 'ڇ': 'ج',
+    'ډ': 'د', 'ڊ': 'د', 'ڋ': 'د', 'ڌ': 'د', 'ڍ': 'د', 'ڎ': 'د', 'ڏ': 'د', 'ڐ': 'د',
+    'ڑ': 'ر', 'ڒ': 'ر', 'ړ': 'ر', 'ڔ': 'ر', 'ڕ': 'ر', 'ږ': 'ر', 'ڗ': 'ر', 'ژ': 'ر',
+    'ڙ': 'ر', 'ښ': 'س', 'ڛ': 'س', 'ڜ': 'س', 'ڝ': 'ص', 'ڞ': 'ص',
+    'ڟ': 'ط', 'ڠ': 'ع', 'ڡ': 'ف', 'ڢ': 'ف', 'ڣ': 'ف', 'ڤ': 'ف', 'ڥ': 'ف', 'ڦ': 'ف',
+    'ڧ': 'ق', 'ڨ': 'ق', 'ک': 'ك', 'ڪ': 'ك', 'ګ': 'ك', 'ڬ': 'ك', 'ڭ': 'ك', 'ڮ': 'ك',
+    'ڰ': 'ل', 'ڱ': 'ل', 'ڲ': 'ل', 'ڳ': 'ل', 'ڴ': 'ل',
+    'ڵ': 'ل', 'ڶ': 'ل', 'ڷ': 'ل', 'ڸ': 'ل', 'ڹ': 'ن', 'ں': 'ن', 'ڻ': 'ن', 'ڼ': 'ن',
+    'ڽ': 'ن', 'ھ': 'ه', 'ۀ': 'ه', 'ہ': 'ه', 'ۂ': 'ه', 'ۃ': 'ه', 'ۄ': 'و', 'ۅ': 'و',
+    'ۆ': 'و', 'ۇ': 'و', 'ۈ': 'و', 'ۉ': 'و', 'ۊ': 'و', 'ۋ': 'و', 'ی': 'ي', 'ۍ': 'ي',
+    'ێ': 'ي', 'ې': 'ي', 'ۑ': 'ي'
+  };
+
+  // Apply character replacements
+  Object.keys(arabicNormalizationMap).forEach(key => {
+    const regex = new RegExp(key, 'g');
+    text = text.replace(regex, arabicNormalizationMap[key]);
+  });
+
+  // Remove any remaining non-Arabic characters (keep spaces and numbers)
+  text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
+
+  // Remove extra spaces and normalize
+  text = text.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  return text;
+}
 
 export default {
   name: 'InventoryProduction',
@@ -1177,9 +1046,11 @@ export default {
     // Searchable fields from store mappings
     const searchableFields = computed(() => {
       const arabicToEnglish = store.state.fieldMappings?.arabicToEnglish || {};
-      return Object.values(arabicToEnglish).filter(field => 
+      const fields = Object.values(arabicToEnglish).filter(field => 
         ['name', 'code', 'color', 'supplier', 'item_location'].includes(field)
       );
+      // Default fallback
+      return fields.length > 0 ? fields : ['name', 'code', 'color', 'supplier', 'item_location'];
     });
     
     // Search performance stats
@@ -1210,7 +1081,7 @@ export default {
     
     // Search tips with Arabic field names
     const searchTips = computed(() => {
-      if (!searchableFields.value.length) return '';
+      if (!searchableFields.value.length) return 'البحث في جميع الحقول';
       
       const fieldsInArabic = searchableFields.value.map(field => 
         arabicFieldLabels.value[field] || field
@@ -1318,30 +1189,19 @@ export default {
       try {
         console.log(`🚀 [ENHANCED STORE SEARCH] Triggering store search for: "${term}"`);
         
-        // Add to search history in store (if action exists)
-        try {
-          await store.dispatch('addToSearchHistory', term);
-        } catch (e) {
-          console.log('Search history not available:', e.message);
-        }
-        
         const searchStartTime = performance.now();
         
-        // Use store's SPARK search system with enhanced parameters
+        // Use store's SPARK search system
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
           limit: 30,
-          strategy: 'parallel',
-          searchFields: searchableFields.value
+          strategy: 'parallel'
         });
         
         const duration = performance.now() - searchStartTime;
         
         console.log(`✅ [ENHANCED STORE SEARCH] Completed in ${duration.toFixed(2)}ms: ${results.length} results`);
-        
-        // Store automatically updates state via mutations
-        // The searchResults computed property will reflect this
         
         // Update freshness
         isDataFresh.value = true;
@@ -2208,18 +2068,6 @@ export default {
       await handleLiveSearch.flush();
     };
     
-    const getCacheStats = async () => {
-      try {
-        // This would need a store action to expose cache stats
-        const stats = await store.dispatch('getCacheStats');
-        console.log('📊 Cache Stats:', stats);
-        return stats;
-      } catch (error) {
-        console.log('Cache stats not available');
-        return null;
-      }
-    };
-    
     // ============================================
     // ENHANCED WATCHERS
     // ============================================
@@ -2463,7 +2311,6 @@ export default {
       
       // Enhanced debug methods
       forceRefreshSearch,
-      getCacheStats,
       
       // Virtual scrolling
       onScroll,
@@ -2475,7 +2322,7 @@ export default {
     };
   }
 };
-</script>                                                                                             
+</script>                                                                                                
 <style scoped>
 /* Enhanced Custom Scrollbar */
 ::-webkit-scrollbar {
