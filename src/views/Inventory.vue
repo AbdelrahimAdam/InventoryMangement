@@ -1002,9 +1002,6 @@ import TransferModal from '@/components/inventory/TransferModal.vue';
 import ItemDetailsModal from '@/components/inventory/ItemDetailsModal.vue';
 import ConfirmDeleteModal from '@/components/inventory/ConfirmDeleteModal.vue';
 
-// Import store's Arabic normalization function (adjust path as needed)
-import { normalizeArabicText } from '@/store/index';
-
 // Click outside directive
 const vClickOutside = {
   mounted(el, binding) {
