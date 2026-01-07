@@ -1,11 +1,11 @@
- // src/firebase/config.js
+// src/firebase/config.js
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration (safe for client-side use)
+// Firebase configuration
 export const firebaseConfig = {
   apiKey: "AIzaSyDxpbXvFH6UvfE2I6OJ_wNFnA889Zu-NEQ",
   authDomain: "monofia-inventory.firebaseapp.com",
@@ -15,36 +15,29 @@ export const firebaseConfig = {
   appId: "1:788480597316:web:776a05277fb4e60806cb11"
 };
 
-// Firebase services (initially null, will be set after initialization)
+// Firebase services
 let app = null;
 let auth = null;
 let db = null;
 let storage = null;
-
-// Track initialization status
 let isInitialized = false;
 let initializationPromise = null;
-
-// Error tracking
-let initializationError = null;
+let initializationError = null; // Add this back
 
 /**
- * Initialize Firebase with retry logic and offline persistence
+ * Simple Firebase initialization WITHOUT offline persistence
  */
 export async function initializeFirebase() {
-  // If already initialized, return the services
   if (isInitialized) {
     console.log('✅ Firebase already initialized');
     return { app, auth, db, storage };
   }
 
-  // If initialization is in progress, return the promise
   if (initializationPromise) {
     console.log('⏳ Firebase initialization in progress...');
     return initializationPromise;
   }
 
-  // Start new initialization
   initializationPromise = (async () => {
     try {
       console.log('🔥 Initializing Firebase...');
@@ -62,13 +55,8 @@ export async function initializeFirebase() {
       auth.languageCode = 'ar';
       console.log('✅ Firebase services initialized');
 
-      // Try to enable offline persistence (optional, don't fail if it doesn't work)
-      try {
-        await enableOfflinePersistence();
-      } catch (persistenceError) {
-        console.warn('⚠️ Offline persistence warning:', persistenceError.message);
-        // Don't throw, just log warning
-      }
+      // IMPORTANT: Offline persistence is DISABLED to prevent DataCloneError
+      console.log('⚠️ Offline persistence disabled to prevent IndexedDB errors');
 
       // Mark as initialized
       isInitialized = true;
@@ -77,6 +65,7 @@ export async function initializeFirebase() {
       console.log('🎉 Firebase fully initialized and ready');
       
       return { app, auth, db, storage };
+      
     } catch (error) {
       console.error('❌ Firebase initialization failed:', error);
       initializationError = error;
@@ -91,29 +80,94 @@ export async function initializeFirebase() {
 }
 
 /**
- * Enable offline persistence for Firestore (using newer API)
+ * Clear IndexedDB cache (optional, for manual cleanup)
  */
-async function enableOfflinePersistence() {
+export async function clearCorruptedIndexedDB() {
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    return;
+  }
+
   try {
-    // Dynamically import the persistence module
-    const { enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } = await import('firebase/firestore');
+    console.log('🧹 Clearing IndexedDB cache...');
     
-    // Enable persistence with configuration
-    await enableIndexedDbPersistence(db, {
-      cacheSizeBytes: CACHE_SIZE_UNLIMITED
-    });
-    
-    console.log('✅ Firestore offline persistence enabled');
+    // List of possible Firestore database names
+    const dbNames = [
+      'firestore/[DEFAULT]/monofia-inventory/main',
+      'firestore/[DEFAULT]/monofia-inventory',
+      'firestore',
+      'firestore-v9'
+    ];
+
+    for (const dbName of dbNames) {
+      try {
+        const deleteReq = window.indexedDB.deleteDatabase(dbName);
+        await new Promise((resolve, reject) => {
+          deleteReq.onsuccess = resolve;
+          deleteReq.onerror = reject;
+          deleteReq.onblocked = () => {
+            console.log(`Database ${dbName} is blocked, closing connections...`);
+            resolve();
+          };
+        });
+        console.log(`🧹 Cleared IndexedDB database: ${dbName}`);
+      } catch (e) {
+        // Ignore errors for non-existent databases
+      }
+    }
+
+    // Also clear localStorage cache
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.includes('firestore') || key.includes('firebase')) {
+          localStorage.removeItem(key);
+        }
+      }
+      console.log('🧹 Cleared Firebase-related localStorage items');
+    } catch (e) {
+      // Ignore localStorage errors
+    }
     
   } catch (error) {
-    // Handle persistence errors gracefully
-    if (error.code === 'failed-precondition') {
-      console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.');
-    } else if (error.code === 'unimplemented') {
-      console.warn('⚠️ The current browser does not support offline persistence.');
-    } else {
-      console.warn('⚠️ Error enabling offline persistence:', error.message);
-      // Don't throw, just log warning - app can work without offline persistence
+    console.warn('⚠️ Error clearing IndexedDB:', error.message);
+  }
+}
+
+/**
+ * Emergency reset
+ */
+export async function emergencyReset() {
+  console.log('🚨 Performing emergency reset...');
+  
+  // Clear all Firebase data
+  await clearCorruptedIndexedDB();
+  
+  // Reset variables
+  app = null;
+  auth = null;
+  db = null;
+  storage = null;
+  isInitialized = false;
+  initializationPromise = null;
+  initializationError = null;
+  
+  console.log('✅ Emergency reset complete');
+}
+
+/**
+ * Initialize with retry
+ */
+export async function initializeWithRetry(maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Initialization attempt ${attempt}/${maxRetries}`);
+      return await initializeFirebase();
+    } catch (error) {
+      console.error(`❌ Attempt ${attempt} failed:`, error.message);
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
     }
   }
 }
@@ -126,7 +180,7 @@ export function isFirebaseInitialized() {
 }
 
 /**
- * Get Firebase services (with initialization check)
+ * Get Firebase services
  */
 export function getFirebaseServices() {
   if (!isInitialized) {
@@ -144,7 +198,14 @@ export function getInitializationError() {
 }
 
 /**
- * Reset Firebase (useful for testing)
+ * Check if persistence is enabled (always false in this version)
+ */
+export function isPersistenceEnabled() {
+  return false;
+}
+
+/**
+ * Reset Firebase
  */
 export function resetFirebase() {
   app = null;
@@ -162,13 +223,13 @@ export function resetFirebase() {
  */
 try {
   // Auto-initialize in production, but allow manual initialization in development
-  if (process.env.NODE_ENV === 'production') {
-    initializeFirebase().catch(error => {
+  if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
+    initializeWithRetry(2).catch(error => {
       console.warn('⚠️ Auto-initialization failed, Firebase will be initialized on demand:', error.message);
     });
   }
 } catch (error) {
-  console.warn('⚠️ Auto-initialization failed, Firebase will be initialized on demand:', error.message);
+  console.warn('⚠️ Auto-initialization setup failed:', error.message);
 }
 
 // Export services (will be null until initialized)
@@ -222,13 +283,17 @@ export default {
   
   // Initialization functions
   initializeFirebase,
+  initializeWithRetry,
   isFirebaseInitialized,
   getFirebaseServices,
   resetFirebase,
+  emergencyReset,
   getInitializationError,
+  clearCorruptedIndexedDB,
   
   // Status
   isFirebaseReady,
+  isPersistenceEnabled,
   
   // Config
   firebaseConfig
