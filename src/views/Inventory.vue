@@ -1,4 +1,3 @@
-
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <!-- Search Status Indicator -->
@@ -30,7 +29,7 @@
 
     <!-- Main content -->
     <div class="max-w-full mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-6">
-      <!-- Page Header - Mobile Optimized -->
+      <!-- Page Header -->
       <div class="mb-4 sm:mb-6">
         <div class="flex flex-col gap-3 sm:gap-4">
           <!-- Top row: Title and User Info -->
@@ -43,7 +42,7 @@
                 إدارة وتتبع جميع الأصناف في النظام
               </p>
             </div>
-            <!-- User and Warehouse Info - Mobile Optimized -->
+            <!-- User and Warehouse Info -->
             <div class="flex flex-col items-end gap-1">
               <!-- Current User -->
               <div class="flex items-center gap-1">
@@ -65,6 +64,7 @@
               </div>
             </div>
           </div>
+          
           <!-- Performance Indicator -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <!-- Action Buttons - Mobile Optimized -->
+      <!-- Action Buttons -->
       <div class="mb-4 sm:mb-6">
         <div class="flex flex-wrap gap-2 sm:gap-3">
           <!-- Export to Excel Button -->
@@ -136,7 +136,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch && (displayedItems || []).length > 0"
+            v-if="hasMore && !loading && !isSearchMode && (displayedItems || []).length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -193,7 +193,7 @@
         </div>
       </div>
 
-      <!-- Stats Cards - Mobile Optimized -->
+      <!-- Stats Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
           <div class="flex items-center">
@@ -249,7 +249,7 @@
         </div>
       </div>
 
-      <!-- FILTERS AND SEARCH SECTION - COLLAPSIBLE ON MOBILE -->
+      <!-- FILTERS AND SEARCH SECTION -->
       <div class="mb-4 sm:mb-6">
         <!-- Collapsible Header for Mobile -->
         <div class="lg:hidden mb-3">
@@ -274,7 +274,7 @@
           </button>
         </div>
 
-        <!-- Filters and Search Content - Collapsible on Mobile, Always visible on Desktop -->
+        <!-- Filters and Search Content -->
         <div :class="{'hidden lg:block': !showFilters, 'block': showFilters}" class="space-y-4">
           <!-- Main Filters Card -->
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -345,7 +345,7 @@
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
-                  <div v-else-if="useLiveSearch && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                  <div v-else-if="searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
                     ✓ تم العثور على {{ searchResults.length }} نتيجة في جميع المخازن
                   </div>
                 </div>
@@ -465,7 +465,7 @@
           <div class="flex items-center gap-2">
             <h2 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">قائمة الأصناف</h2>
             <!-- Loading Indicator -->
-            <div v-if="loading" class="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+            <div v-if="loading || inventoryLoading" class="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
               <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
@@ -532,10 +532,7 @@
                   المخزن
                 </th>
                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  الكمية
-                </th>
-                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  الحد الأدنى
+                  الكمية المتبقية
                 </th>
                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   الحالة
@@ -554,36 +551,66 @@
                   {{ item.code || '--' }}
                 </td>
                 <td class="px-4 py-3 text-xs text-gray-900 dark:text-white">
-                  <div class="font-medium">{{ item.name_ar || '--' }}</div>
-                  <div v-if="item.name_en" class="text-gray-500 dark:text-gray-400 text-xs">{{ item.name_en }}</div>
-                  <div v-if="item.description" class="text-gray-500 dark:text-gray-400 text-xs truncate max-w-[200px]" :title="item.description">
-                    {{ item.description }}
+                  <div class="font-medium">{{ item.name || '--' }}</div>
+                  <div v-if="item.color" class="text-gray-500 dark:text-gray-400 text-xs flex items-center gap-1 mt-1">
+                    <span class="w-3 h-3 rounded-full border" :style="{ backgroundColor: getColorHex(item.color) }"></span>
+                    {{ item.color }}
+                  </div>
+                  <div v-if="item.supplier" class="text-gray-500 dark:text-gray-400 text-xs">
+                    {{ item.supplier }}
                   </div>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
                   {{ getWarehouseLabel(item.warehouse_id) || '--' }}
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                  <div class="font-semibold">{{ formatNumber(item.quantity || 0) }}</div>
-                  <div v-if="item.unit" class="text-gray-500 dark:text-gray-400 text-xs">{{ item.unit }}</div>
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                  {{ formatNumber(item.min_quantity || 0) }}
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <div :class="getQuantityClass(item.remaining_quantity || 0)" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
+                    {{ formatNumber(item.remaining_quantity || 0) }}
+                  </div>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap">
-                  <span :class="getStockStatusClass(item)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-                    {{ getStockStatusText(item) }}
+                  <span :class="getStockStatusClass(item.remaining_quantity || 0)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                    {{ getStockStatus(item.remaining_quantity || 0) }}
                   </span>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                  {{ formatTime(item.updated_at || item.created_at) }}
+                  {{ formatRelativeTime(item.updated_at || item.created_at) }}
                 </td>
                 <td v-if="showActions" class="px-4 py-3 whitespace-nowrap text-xs font-medium">
                   <div class="flex items-center gap-2 justify-end">
                     <button
-                      v-if="!readonly"
-                      @click="editItem(item)"
+                      @click="showItemDetails(item)"
                       class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                      title="تفاصيل"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="canTransferItem(item) && !readonly"
+                      @click="handleTransfer(item)"
+                      class="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors"
+                      title="نقل"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="canDispatchItem(item) && !readonly"
+                      @click="handleDispatch(item)"
+                      class="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 transition-colors"
+                      title="صرف"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="canEditItem(item) && !readonly"
+                      @click="handleEdit(item)"
+                      class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors"
                       title="تعديل"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -591,8 +618,8 @@
                       </svg>
                     </button>
                     <button
-                      v-if="!readonly"
-                      @click="deleteItem(item)"
+                      v-if="canDeleteItem(item)"
+                      @click="handleDelete(item)"
                       class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
                       title="حذف"
                     >
@@ -608,191 +635,74 @@
         </div>
 
         <!-- Load More Button at Bottom -->
-        <div v-if="hasMore && !loading && !useLiveSearch && (displayedItems || []).length > 0" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
+        <div v-if="hasMore && !loading && !isSearchMode && (displayedItems || []).length > 0" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
           <button
             @click="loadMoreItems"
-            :disabled="loadingMore"
+            :disabled="loadingMore || isFetchingMore"
             class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
-            <svg v-if="loadingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="loadingMore || isFetchingMore" class="w-4 h-4 ml-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
             <svg v-else class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            {{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}
+            {{ (loadingMore || isFetchingMore) ? 'جاري التحميل...' : 'تحميل المزيد' }}
           </button>
         </div>
       </div>
-
-      <!-- Add/Edit Item Modal -->
-      <div v-if="showAddModal || showEditModal" class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity"></div>
-          <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-          <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-right overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div class="sm:flex sm:items-start">
-                <div class="mt-3 text-center sm:mt-0 sm:text-right w-full">
-                  <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-                    {{ showEditModal ? 'تعديل الصنف' : 'إضافة صنف جديد' }}
-                  </h3>
-                  <form @submit.prevent="saveItem">
-                    <div class="grid grid-cols-1 gap-4">
-                      <!-- Item Name Arabic -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الصنف (عربي)</label>
-                        <input
-                          v-model="formData.name_ar"
-                          type="text"
-                          required
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        />
-                      </div>
-                      <!-- Item Name English -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الصنف (إنجليزي)</label>
-                        <input
-                          v-model="formData.name_en"
-                          type="text"
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        />
-                      </div>
-                      <!-- Code -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">كود الصنف</label>
-                        <input
-                          v-model="formData.code"
-                          type="text"
-                          required
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        />
-                      </div>
-                      <!-- Warehouse -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المخزن</label>
-                        <select
-                          v-model="formData.warehouse_id"
-                          required
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        >
-                          <option value="">اختر المخزن</option>
-                          <option v-for="warehouse in accessibleWarehouses" :key="warehouse.id" :value="warehouse.id">
-                            {{ warehouse.name_ar }}
-                          </option>
-                        </select>
-                      </div>
-                      <!-- Quantity and Min Quantity -->
-                      <div class="grid grid-cols-2 gap-4">
-                        <div>
-                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
-                          <input
-                            v-model="formData.quantity"
-                            type="number"
-                            min="0"
-                            required
-                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحد الأدنى</label>
-                          <input
-                            v-model="formData.min_quantity"
-                            type="number"
-                            min="0"
-                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                          />
-                        </div>
-                      </div>
-                      <!-- Unit and Description -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوحدة</label>
-                        <input
-                          v-model="formData.unit"
-                          type="text"
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوصف</label>
-                        <textarea
-                          v-model="formData.description"
-                          rows="2"
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                        ></textarea>
-                      </div>
-                    </div>
-                    <div class="mt-6 flex gap-2 justify-end">
-                      <button
-                        type="button"
-                        @click="closeModal"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        إلغاء
-                      </button>
-                      <button
-                        type="submit"
-                        :disabled="saving"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <span v-if="saving">جاري الحفظ...</span>
-                        <span v-else>{{ showEditModal ? 'تحديث' : 'حفظ' }}</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Delete Confirmation Modal -->
-      <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity"></div>
-          <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-          <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-right overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div class="sm:flex sm:items-start">
-                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
-                  <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L5.354 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                  </svg>
-                </div>
-                <div class="mt-3 text-center sm:mt-0 sm:mr-4 sm:text-right">
-                  <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                    تأكيد الحذف
-                  </h3>
-                  <div class="mt-2">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                      هل أنت متأكد من حذف الصنف "{{ selectedItem?.name_ar || selectedItem?.name_en || selectedItem?.code }}"؟
-                      <br>
-                      لا يمكن التراجع عن هذا الإجراء.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button
-                @click="confirmDelete"
-                :disabled="deleting"
-                class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 dark:bg-red-700 text-base font-medium text-white hover:bg-red-700 dark:hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ deleting ? 'جاري الحذف...' : 'حذف' }}
-              </button>
-              <button
-                @click="showDeleteModal = false"
-                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-              >
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
+
+    <!-- Import Modals -->
+    <AddItemModal 
+      v-if="showAddModal" 
+      @close="showAddModal = false" 
+      @saved="handleItemSaved"
+    />
+    
+    <EditItemModal 
+      v-if="showEditModal" 
+      :item="selectedItemForEdit"
+      @close="showEditModal = false" 
+      @updated="handleItemUpdated"
+    />
+    
+    <TransferModal 
+      v-if="showTransferModal" 
+      :item="selectedItemForTransfer"
+      @close="showTransferModal = false" 
+      @success="handleTransferSuccess"
+    />
+    
+    <DispatchModal 
+      v-if="showDispatchModal" 
+      :item="selectedItemForDispatch"
+      @close="showDispatchModal = false" 
+      @success="handleDispatchSuccess"
+    />
+    
+    <ItemDetailsModal 
+      v-if="showDetailsModal" 
+      :item="selectedItem"
+      @close="closeDetailsModal"
+      @edit="handleEdit"
+      @transfer="handleTransfer"
+      @dispatch="handleDispatch"
+      @delete="handleDelete"
+      :canEdit="canEditItem(selectedItem)"
+      :canTransfer="canTransferItem(selectedItem)"
+      :canDispatch="canDispatchItem(selectedItem)"
+      :canDelete="canDeleteItem(selectedItem)"
+      :readonly="readonly"
+    />
+    
+    <ConfirmDeleteModal 
+      v-if="showDeleteConfirm" 
+      :item="itemToDelete"
+      @close="showDeleteConfirm = false" 
+      @confirm="confirmDelete"
+      :loading="deleteLoading"
+    />
   </div>
 </template>
 <script>
