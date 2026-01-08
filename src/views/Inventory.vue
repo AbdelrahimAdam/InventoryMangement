@@ -133,7 +133,7 @@
 
           <!-- Load More Button -->
           <button
-            v-if="hasMore && !loading && !useLiveSearch && (displayedItems || []).length > 0"
+            v-if="hasMore && !loading && !isSearchMode && (displayedItems || []).length > 0"
             @click="loadMoreItems"
             :disabled="loadingMore"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-none min-w-0"
@@ -326,8 +326,8 @@
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
-                  <div v-else-if="useLiveSearch && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
-                    ✓ تم العثور على {{ searchResults.length }} نتيجة في جميع المخازن
+                  <div v-else-if="searchTerm.length >= 2 && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                    ✓ تم العثور على {{ searchResults.length }} نتيجة
                   </div>
                 </div>
               </div>
@@ -397,13 +397,13 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="useLiveSearch && searchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="searchTerm && searchTerm.length >= 2 && searchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث الشامل: {{ searchResults.length }} عنصر</span>
+                <span class="text-sm">نتائج البحث: {{ searchResults.length }} عنصر</span>
               </div>
               <button
                 @click="clearSearch"
@@ -741,7 +741,7 @@
           </div>
 
           <!-- End of List Indicator -->
-          <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+          <div v-if="!hasMore && (displayedItems || []).length > 0 && !isSearchMode" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
             <p class="text-sm">تم عرض جميع العناصر ({{ (displayedItems || []).length }} عنصر)</p>
           </div>
         </div>
@@ -892,7 +892,7 @@
             </div>
 
             <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center">
+            <div v-if="hasMore && !loadingMore && !isSearchMode && mobileVisibleItems.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
@@ -909,7 +909,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && (displayedItems || []).length > 0 && !useLiveSearch && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && (displayedItems || []).length > 0 && !isSearchMode && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -985,6 +985,7 @@
     />
   </div>
 </template>
+
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -1014,6 +1015,124 @@ const vClickOutside = {
     document.body.removeEventListener('click', el.clickOutsideEvent);
   }
 };
+
+// Arabic text normalization (MUST MATCH STORE FUNCTION)
+function normalizeArabicText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  // Convert to string and trim
+  text = String(text).trim();
+
+  // Normalize Unicode to combine characters
+  text = text.normalize('NFC');
+
+  // Remove all diacritics and special characters
+  const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
+  text = text.replace(diacriticsRegex, '');
+
+  // Simplified character normalization (consistent with store)
+  const arabicNormalizationMap = {
+    // Alif variations
+    'إ': 'ا', 'أ': 'ا', 'آ': 'ا',
+    // Ya variations
+    'ى': 'ي', 'ئ': 'ي',
+    // Ta marbuta
+    'ة': 'ه',
+    // Waw variations
+    'ؤ': 'و',
+    // Persian characters
+    'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
+    // Tatweel (kashida)
+    'ـ': '',
+  };
+
+  // Apply character replacements
+  Object.keys(arabicNormalizationMap).forEach(key => {
+    const regex = new RegExp(key, 'g');
+    text = text.replace(regex, arabicNormalizationMap[key]);
+  });
+
+  // Remove any remaining non-Arabic characters (keep spaces and numbers)
+  text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
+
+  // Remove extra spaces and normalize
+  text = text.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  return text;
+}
+
+// Fuzzy search function (MUST MATCH STORE LOGIC)
+function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
+  if (!searchTerm || searchTerm.length < 2) return [];
+
+  const normalizedTerm = normalizeArabicText(searchTerm);
+  const matches = [];
+
+  for (const item of items) {
+    // Check warehouse filter
+    if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+      continue;
+    }
+
+    // Check all searchable fields
+    const searchFields = ['name', 'code', 'color', 'supplier', 'item_location', 'notes', 'barcode', 'sku', 'category'];
+    let matched = false;
+
+    for (const field of searchFields) {
+      const fieldValue = item[field];
+      if (!fieldValue) continue;
+
+      const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
+      
+      // Simple contains check
+      if (normalizedFieldValue.includes(normalizedTerm)) {
+        matched = true;
+        break;
+      }
+      
+      // Word-by-word matching
+      const searchWords = normalizedTerm.split(/\s+/);
+      const fieldWords = normalizedFieldValue.split(/\s+/);
+      
+      for (const searchWord of searchWords) {
+        for (const fieldWord of fieldWords) {
+          if (fieldWord.includes(searchWord)) {
+            matched = true;
+            break;
+          }
+        }
+        if (matched) break;
+      }
+      if (matched) break;
+    }
+
+    if (matched) {
+      matches.push(item);
+      if (matches.length >= limit * 2) break;
+    }
+  }
+
+  // Sort by relevance
+  const sortedMatches = matches.sort((a, b) => {
+    // Exact code match first
+    const aCodeMatch = normalizeArabicText(a.code).includes(normalizedTerm);
+    const bCodeMatch = normalizeArabicText(b.code).includes(normalizedTerm);
+    
+    if (aCodeMatch && !bCodeMatch) return -1;
+    if (!aCodeMatch && bCodeMatch) return 1;
+    
+    // Then name match
+    const aNameMatch = normalizeArabicText(a.name).includes(normalizedTerm);
+    const bNameMatch = normalizeArabicText(b.name).includes(normalizedTerm);
+    
+    if (aNameMatch && !bNameMatch) return -1;
+    if (!aNameMatch && bNameMatch) return 1;
+    
+    return 0;
+  });
+
+  return sortedMatches.slice(0, limit);
+}
 
 export default {
   name: 'InventoryProduction',
@@ -1074,7 +1193,6 @@ export default {
     const selectedWarehouse = ref('');
     
     // Search & Performance
-    const useLiveSearch = ref(true);
     const showDebug = ref(false);
     
     // Virtual Scrolling
@@ -1141,7 +1259,16 @@ export default {
     
     // Final Displayed Items (Search results OR filtered inventory)
     const displayedItems = computed(() => {
-      return isSearchMode.value ? searchResults.value : filteredInventory.value;
+      if (isSearchMode.value) {
+        return searchResults.value;
+      }
+      
+      // If we have a search term but no search results yet, use local fuzzy search
+      if (searchTerm.value && searchTerm.value.length >= 2) {
+        return fuzzyLocalSearch(filteredInventory.value, searchTerm.value, selectedWarehouse.value, 50);
+      }
+      
+      return filteredInventory.value;
     });
     
     // Warehouses
@@ -1224,12 +1351,12 @@ export default {
     });
     
     // ============================================
-    // STORE-BASED SEARCH SYSTEM
+    // STORE-BASED SEARCH SYSTEM - UPDATED
     // ============================================
     
     /**
-     * 🔍 SPARK-OPTIMIZED STORE SEARCH
-     * Uses your store's searchInventorySpark action
+     * 🔍 ENHANCED STORE SEARCH
+     * Uses store's searchInventorySpark action with proper Arabic text matching
      */
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1248,20 +1375,17 @@ export default {
       }
       
       try {
-        console.log(`🚀 [STORE SEARCH] Triggering store search for: "${term}"`);
+        console.log(`🚀 [ENHANCED STORE SEARCH] Triggering store search for: "${term}"`);
         
-        // Use store's SPARK search system
+        // Use store's enhanced SPARK search system
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
-          limit: 30,
+          limit: 50,
           strategy: 'parallel'
         });
         
-        console.log(`✅ [STORE SEARCH] Store returned ${results.length} results`);
-        
-        // Store automatically updates state via mutations
-        // The searchResults computed property will reflect this
+        console.log(`✅ [ENHANCED STORE SEARCH] Store returned ${results.length} results`);
         
         // Update freshness
         isDataFresh.value = true;
@@ -1270,7 +1394,7 @@ export default {
         // Reset scroll positions
         resetScrollPositions();
         
-        // Show notification
+        // Show notification if results found
         if (results.length > 0) {
           store.dispatch('showNotification', {
             type: 'success',
@@ -1284,11 +1408,11 @@ export default {
         }
         
       } catch (error) {
-        console.error('❌ [STORE SEARCH] Error in store search:', error);
+        console.error('❌ [ENHANCED STORE SEARCH] Error in store search:', error);
         
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في البحث. جاري استخدام المخزون المحلي.'
+          message: 'خطأ في البحث. جاري استخدام البحث المحلي.'
         });
         
         // Fallback: Clear store search
@@ -1297,7 +1421,7 @@ export default {
     }, 500);
     
     // ============================================
-    // FILTER HANDLERS - INTEGRATED WITH STORE
+    // FILTER HANDLERS - UPDATED
     // ============================================
     
     const handleWarehouseChange = async () => {
@@ -1354,7 +1478,7 @@ export default {
     };
     
     // ============================================
-    // DATA LOADING METHODS
+    // DATA LOADING METHODS - UPDATED
     // ============================================
     
     const loadInitialData = async () => {
@@ -2166,7 +2290,7 @@ export default {
     // ============================================
     
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted with COMPLETE STORE INTEGRATION');
+      console.log('📱 Inventory Production mounted with FULL STORE COMPLIANCE');
       
       // Set up resize observer
       const resizeObserver = new ResizeObserver(() => {
@@ -2243,7 +2367,6 @@ export default {
       showActionMenu,
       
       // Search & Performance
-      useLiveSearch,
       showDebug,
       
       // Virtual scrolling refs
