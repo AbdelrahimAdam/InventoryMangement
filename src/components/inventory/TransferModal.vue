@@ -119,19 +119,19 @@
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
               {{ combinedItems.length }} صنف متاح
-              <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
-                ({{ liveSearchResults.length }} من البحث المباشر)
+              <span v-if="sparkSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
+                ({{ sparkSearchResults.length }} من البحث الذكي)
               </span>
             </div>
           </div>
 
-          <!-- Search Input with Live Search Indicator -->
+          <!-- Search Input with SPARK Search Indicator -->
           <div class="relative mb-4">
             <input
               v-model="searchTerm"
               @input="handleSearch"
               type="text"
-              placeholder="ابحث عن صنف بالاسم أو الكود..."
+              placeholder="ابحث عن صنف بالاسم أو الكود أو اللون أو المورد..."
               class="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               :disabled="loading || !formData.from_warehouse_id || (!isSuperadmin && !canViewTransfer)"
             >
@@ -140,9 +140,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>
-            <!-- Live Search Indicator -->
-            <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+            <!-- SPARK Search Indicator -->
+            <div v-if="isSparkSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div class="w-4 h-4 animate-pulse rounded-full bg-purple-500"></div>
             </div>
           </div>
 
@@ -164,22 +164,22 @@
                 :class="[
                   'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
                   selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
-                  item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                  item.isSparkResult ? 'bg-purple-50/30 dark:bg-purple-900/5 border-purple-100 dark:border-purple-800' : ''
                 ]"
               >
                 <!-- Item Name and Details -->
                 <div class="col-span-5 p-3">
                   <div class="font-medium text-sm text-gray-900 dark:text-white flex items-center">
                     {{ item.name }}
-                    <!-- Live Search Badge -->
-                    <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
-                      🔍
+                    <!-- SPARK Search Badge -->
+                    <span v-if="item.isSparkResult" class="text-xs bg-purple-500 text-white px-1 py-0.5 rounded mr-2">
+                      ⚡
                     </span>
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
-                    <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
+                    <span v-if="item.isSparkResult" class="text-purple-600 dark:text-purple-400">تم العثور عبر البحث الذكي</span>
                   </div>
                 </div>
 
@@ -217,19 +217,23 @@
                 </div>
               </div>
 
-              <!-- Live Search Loading State -->
-              <div v-if="isLiveSearching && combinedItems.length === 0" class="p-8 text-center">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              <!-- SPARK Search Loading State -->
+              <div v-if="isSparkSearching && combinedItems.length === 0" class="p-8 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+                <p class="text-xs text-purple-600 dark:text-purple-400 mt-1">⚡ البحث الذكي نشط</p>
               </div>
 
               <!-- Empty State -->
-              <div v-if="combinedItems.length === 0 && !isLiveSearching" class="p-8 text-center">
+              <div v-if="combinedItems.length === 0 && !isSparkSearching" class="p-8 text-center">
                 <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
                 </svg>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   {{ formData.from_warehouse_id ? 'لا توجد أصناف مطابقة للبحث' : 'يرجى اختيار مخزن مصدر أولاً' }}
+                </p>
+                <p v-if="searchTerm && searchTerm.length >= 2" class="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  حاول البحث بـ {{ getArabicSearchHint(searchTerm) }}
                 </p>
               </div>
             </div>
@@ -241,8 +245,8 @@
           <div class="flex items-center justify-between mb-3">
             <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
             <div class="flex items-center gap-2">
-              <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
-                تم العثور عبر البحث المباشر
+              <span v-if="selectedItem.isSparkResult" class="text-xs px-2 py-1 bg-purple-500 text-white rounded-full">
+                ⚡ تم العثور عبر البحث الذكي
               </span>
               <button
                 @click="clearSelection"
@@ -546,10 +550,10 @@ export default {
     const selectedItem = ref(null)
     const searchTerm = ref('')
     
-    // Live Search State
-    const isLiveSearching = ref(false)
-    const liveSearchResults = reactive([])
-    const liveSearchTimeout = ref(null)
+    // SPARK Search State
+    const isSparkSearching = ref(false)
+    const sparkSearchResults = reactive([])
+    const sparkSearchTimeout = ref(null)
 
     // Form Data - EXACTLY MATCHING STORE EXPECTATIONS
     const formData = reactive({
@@ -587,7 +591,7 @@ export default {
       return store.getters.accessiblePrimaryWarehouses || []
     })
     
-    // Combined items (local + live search results)
+    // Combined items (local + SPARK search results)
     const combinedItems = computed(() => {
       const combined = []
       
@@ -600,17 +604,17 @@ export default {
         combined.push(...localItems)
       }
       
-      // Add live search results that aren't already in local inventory
-      liveSearchResults.forEach(liveItem => {
-        if (!combined.some(item => item.id === liveItem.id)) {
+      // Add SPARK search results that aren't already in local inventory
+      sparkSearchResults.forEach(sparkItem => {
+        if (!combined.some(item => item.id === sparkItem.id)) {
           // Only include items from the selected warehouse or if no warehouse is selected
-          if (!formData.from_warehouse_id || liveItem.warehouse_id === formData.from_warehouse_id) {
+          if (!formData.from_warehouse_id || sparkItem.warehouse_id === formData.from_warehouse_id) {
             // Only include items with remaining quantity > 0
-            if (liveItem.remaining_quantity > 0) {
-              // Mark as live search result for styling
+            if (sparkItem.remaining_quantity > 0) {
+              // Mark as SPARK search result for styling
               combined.push({
-                ...liveItem,
-                isLiveSearchResult: true
+                ...sparkItem,
+                isSparkResult: true
               })
             }
           }
@@ -762,61 +766,83 @@ export default {
       return 'text-green-600 dark:text-green-400'
     }
 
-    // Live Search Functions
-    const performLiveSearch = async (searchTermValue) => {
+    // Arabic search hint helper
+    const getArabicSearchHint = (searchTerm) => {
+      if (searchTerm.length < 2) return ''
+      
+      const hints = [
+        'الاسم بالكامل',
+        'جزء من الكود',
+        'اللون',
+        'اسم المورد',
+        'مكان الصنف'
+      ]
+      
+      // Return a random hint
+      return hints[Math.floor(Math.random() * hints.length)]
+    }
+
+    // SPARK Search Functions - USING THE STORE'S searchInventorySpark ACTION
+    const performSparkSearch = async (searchTermValue) => {
       if (!searchTermValue || searchTermValue.trim().length < 2) {
-        liveSearchResults.length = 0 // Clear results
-        isLiveSearching.value = false
+        sparkSearchResults.length = 0 // Clear results
+        isSparkSearching.value = false
         return
       }
       
-      isLiveSearching.value = true
+      isSparkSearching.value = true
       
       try {
-        console.log('🔍 Performing live search in transfer for:', searchTermValue)
+        console.log('⚡ Performing SPARK search in transfer for:', searchTermValue)
         
-        // Use the store action to search Firestore directly
-        const searchResults = await store.dispatch('searchItemsForTransactions', {
-          searchTerm: searchTermValue,
-          limitResults: 50
+        // Use the store's SPARK search action
+        const searchResults = await store.dispatch('searchInventorySpark', {
+          searchQuery: searchTermValue,
+          warehouseId: formData.from_warehouse_id || null,
+          limit: 50,
+          strategy: 'parallel' // Use parallel strategy for fastest results
         })
         
-        console.log('✅ Live search results in transfer:', searchResults.length, 'items')
+        console.log('✅ SPARK search results in transfer:', searchResults.length, 'items')
         
-        // Update live search results
-        liveSearchResults.length = 0 // Clear previous results
+        // Update SPARK search results
+        sparkSearchResults.length = 0 // Clear previous results
         searchResults.forEach(item => {
-          liveSearchResults.push(item)
+          // Ensure the item has the warehouse_id
+          if (!item.warehouse_id && formData.from_warehouse_id) {
+            item.warehouse_id = formData.from_warehouse_id
+          }
+          sparkSearchResults.push(item)
         })
         
       } catch (error) {
-        console.error('❌ Error in live search:', error)
+        console.error('❌ Error in SPARK search:', error)
         store.dispatch('showNotification', {
           type: 'error',
           message: 'خطأ في البحث عن الأصناف'
         })
       } finally {
-        isLiveSearching.value = false
+        isSparkSearching.value = false
       }
     }
     
-    // Handle search input with live search
+    // Handle search input with SPARK search
     const handleSearch = () => {
       // Clear any existing timeout
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value)
+      if (sparkSearchTimeout.value) {
+        clearTimeout(sparkSearchTimeout.value)
       }
       
-      // Debounce the live search
-      liveSearchTimeout.value = setTimeout(() => {
+      // Debounce the SPARK search
+      sparkSearchTimeout.value = setTimeout(() => {
         if (searchTerm.value && searchTerm.value.trim().length >= 2) {
-          performLiveSearch(searchTerm.value.trim())
+          performSparkSearch(searchTerm.value.trim())
         } else {
-          // Clear live search results if search term is too short
-          liveSearchResults.length = 0
-          isLiveSearching.value = false
+          // Clear SPARK search results if search term is too short
+          sparkSearchResults.length = 0
+          isSparkSearching.value = false
         }
-      }, 300)
+      }, 400) // 400ms debounce as per SPARK_CONFIG.SEARCH_DEBOUNCE
     }
 
     // Methods
@@ -834,8 +860,8 @@ export default {
       error.value = ''
       successMessage.value = ''
       searchTerm.value = ''
-      liveSearchResults.length = 0
-      isLiveSearching.value = false
+      sparkSearchResults.length = 0
+      isSparkSearching.value = false
     }
 
     const closeModal = () => {
@@ -849,8 +875,8 @@ export default {
       selectedItem.value = null
       formData.item_id = ''
       searchTerm.value = ''
-      liveSearchResults.length = 0
-      isLiveSearching.value = false
+      sparkSearchResults.length = 0
+      isSparkSearching.value = false
       error.value = ''
     }
 
@@ -958,11 +984,11 @@ export default {
     watch(() => formData.cartons_count, validateCartons)
     watch(() => formData.single_bottles_count, validateSingleBottles)
 
-    // Watch search term changes to clear live search results when cleared
+    // Watch search term changes to clear SPARK search results when cleared
     watch(searchTerm, (newValue) => {
       if (!newValue || newValue.trim().length < 2) {
-        liveSearchResults.length = 0
-        isLiveSearching.value = false
+        sparkSearchResults.length = 0
+        isSparkSearching.value = false
       }
     })
 
@@ -1107,8 +1133,8 @@ export default {
 
     // Cleanup on unmount
     onUnmounted(() => {
-      if (liveSearchTimeout.value) {
-        clearTimeout(liveSearchTimeout.value)
+      if (sparkSearchTimeout.value) {
+        clearTimeout(sparkSearchTimeout.value)
       }
     })
 
@@ -1121,9 +1147,9 @@ export default {
       selectedItem,
       searchTerm,
       
-      // Live Search State
-      isLiveSearching,
-      liveSearchResults,
+      // SPARK Search State
+      isSparkSearching,
+      sparkSearchResults,
       
       // Computed
       userProfile,
@@ -1152,6 +1178,7 @@ export default {
       getWarehouseName,
       getWarehouseType,
       getStockClass,
+      getArabicSearchHint,
       isWarehouseAccessible,
       handleSearch,
       handleSubmit,
@@ -1227,7 +1254,7 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Live search indicator animation */
+/* SPARK search indicator animation */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -1239,5 +1266,21 @@ input[type="number"] {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Purple spark animation */
+@keyframes spark-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.bg-purple-500.animate-pulse {
+  animation: spark-pulse 1.5s ease-in-out infinite;
 }
 </style>
