@@ -1,15 +1,15 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-6xl rtl max-h-[90vh] overflow-hidden">
+  <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl rtl max-h-[90vh] overflow-hidden">
       <!-- Header -->
-      <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 dark:border-gray-700">
+      <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-base md:text-lg font-semibold text-gray-900 dark:text-white">نقل الأصناف بين المخازن</h3>
-            <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5 md:mt-1">اختر الصنف من القائمة وأدخل كمية النقل</p>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">نقل الأصناف بين المخازن</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">اختر الصنف من القائمة وأدخل كمية النقل</p>
           </div>
           <button @click="closeModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200">
-            <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
@@ -17,15 +17,15 @@
       </div>
 
       <!-- Main Content -->
-      <div class="p-4 md:p-6 space-y-4 md:space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+      <div class="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
         <!-- Superadmin Badge -->
-        <div v-if="isSuperadmin" class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-2 md:p-3">
+        <div v-if="isSuperadmin" class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
           <div class="flex items-center">
-            <svg class="h-4 w-4 md:h-5 md:w-5 text-purple-400 dark:text-purple-300 ml-1 md:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-5 w-5 text-purple-400 dark:text-purple-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
             </svg>
             <div class="flex-1">
-              <p class="text-xs md:text-sm font-medium text-purple-800 dark:text-purple-300">
+              <p class="text-sm font-medium text-purple-800 dark:text-purple-300">
                 وضع المشرف العام - لديك صلاحية كاملة على النظام
               </p>
             </div>
@@ -33,568 +33,463 @@
         </div>
 
         <!-- Access Control Warning -->
-        <div v-if="!isSuperadmin && !canPerformTransfer" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 md:p-4">
+        <div v-if="!isSuperadmin && !canPerformTransfer" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <div class="flex items-center">
-            <svg class="h-4 w-4 md:h-5 md:w-5 text-yellow-400 dark:text-yellow-300 ml-1 md:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-5 w-5 text-yellow-400 dark:text-yellow-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <div class="flex-1">
-              <p class="text-xs md:text-sm text-yellow-800 dark:text-yellow-300">
+              <p class="text-sm text-yellow-800 dark:text-yellow-300">
                 يمكنك فقط عرض البيانات. لنقل الأصناف يجب أن تكون مشرف عام أو مدير مخازن مع صلاحية النقل.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Two Column Layout for Desktop -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <!-- Left Column: Transfer Form -->
-          <div class="space-y-4 md:space-y-6">
-            <!-- Step 1: Source Warehouse Selection -->
-            <div>
-              <h4 class="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 md:mb-3 flex items-center">
-                <span class="h-5 w-5 md:h-6 md:w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-1 md:ml-2">1</span>
-                اختر المخزن المصدر
-              </h4>
-              <select
-                v-model="formData.from_warehouse_id"
-                @change="onSourceWarehouseChange"
-                required
-                class="w-full px-3 py-2 md:px-4 md:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                :disabled="loading || (!isSuperadmin && !canViewTransfer)"
+        <!-- Step 1: Source Warehouse Selection -->
+        <div>
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+            <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
+            اختر المخزن المصدر
+          </h4>
+          <select
+            v-model="formData.from_warehouse_id"
+            @change="onSourceWarehouseChange"
+            required
+            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            :disabled="loading || (!isSuperadmin && !canViewTransfer)"
+          >
+            <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن المصدر</option>
+            <option 
+              v-for="warehouse in accessiblePrimaryWarehouses" 
+              :key="warehouse.id" 
+              :value="warehouse.id"
+              :disabled="!isWarehouseAccessible(warehouse.id)"
+              class="text-gray-900 dark:text-white"
+            >
+              {{ warehouse.name_ar }}
+              <span v-if="warehouse.is_main" class="text-yellow-600 dark:text-yellow-400 text-xs mr-1">⭐</span>
+              <span v-if="!isWarehouseAccessible(warehouse.id) && !isSuperadmin" class="text-red-500 dark:text-red-400 text-xs">
+                (غير مسموح)
+              </span>
+            </option>
+          </select>
+          
+          <!-- Warehouse Info -->
+          <div v-if="formData.from_warehouse_id" class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <span>المخزن: {{ getWarehouseName(formData.from_warehouse_id) }}</span>
+            <span v-if="getWarehouseType(formData.from_warehouse_id)" class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+              {{ getWarehouseType(formData.from_warehouse_id) }}
+            </span>
+          </div>
+          
+          <!-- Warehouse Access Indicator (not for superadmin) -->
+          <div v-if="formData.from_warehouse_id && userProfile?.role === 'warehouse_manager' && !isSuperadmin" class="mt-2">
+            <div v-if="hasAccessToSelectedWarehouse" class="text-xs px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              لديك صلاحية النقل من هذا المخزن
+            </div>
+            <div v-else class="text-xs px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              ليس لديك صلاحية النقل من هذا المخزن
+            </div>
+          </div>
+          
+          <!-- Superadmin Access Indicator -->
+          <div v-if="formData.from_warehouse_id && isSuperadmin" class="mt-2">
+            <div class="text-xs px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 rounded-full inline-flex items-center">
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+              </svg>
+              وصول كامل كمشرف عام
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Item Selection -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+              <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
+              اختر الصنف المراد نقله
+            </h4>
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              {{ combinedItems.length }} صنف متاح
+              <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
+                ({{ liveSearchResults.length }} من البحث المباشر)
+              </span>
+            </div>
+          </div>
+
+          <!-- Search Input with Live Search Indicator -->
+          <div class="relative mb-4">
+            <input
+              v-model="searchTerm"
+              @input="handleSearch"
+              type="text"
+              placeholder="ابحث عن صنف بالاسم أو الكود..."
+              class="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              :disabled="loading || !formData.from_warehouse_id || (!isSuperadmin && !canViewTransfer)"
+            >
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+            <!-- Live Search Indicator -->
+            <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div class="w-4 h-4 animate-pulse rounded-full bg-blue-500"></div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <!-- Table Header -->
+            <div class="grid grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+              <div class="col-span-5 p-3">الصنف</div>
+              <div class="col-span-2 p-3 text-center">الكود</div>
+              <div class="col-span-2 p-3 text-center">المتاح</div>
+              <div class="col-span-3 p-3 text-center">الإجراء</div>
+            </div>
+
+            <!-- Table Body -->
+            <div class="max-h-60 overflow-y-auto">
+              <div
+                v-for="item in combinedItems"
+                :key="item.id"
+                :class="[
+                  'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
+                  selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
+                  item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
+                ]"
               >
-                <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن المصدر</option>
+                <!-- Item Name and Details -->
+                <div class="col-span-5 p-3">
+                  <div class="font-medium text-sm text-gray-900 dark:text-white flex items-center">
+                    {{ item.name }}
+                    <!-- Live Search Badge -->
+                    <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-2">
+                      🔍
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-2">
+                    <span v-if="item.color">{{ item.color }}</span>
+                    <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
+                    <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400">تم العثور عبر البحث المباشر</span>
+                  </div>
+                </div>
+
+                <!-- Item Code -->
+                <div class="col-span-2 p-3 text-center">
+                  <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ item.code }}</span>
+                </div>
+
+                <!-- Available Quantity -->
+                <div class="col-span-2 p-3 text-center">
+                  <span :class="[
+                    'text-sm font-medium',
+                    getStockClass(item.remaining_quantity)
+                  ]">
+                    {{ item.remaining_quantity }}
+                  </span>
+                </div>
+
+                <!-- Action Button -->
+                <div class="col-span-3 p-3 text-center">
+                  <button
+                    @click="selectItem(item)"
+                    :disabled="loading || (!isSuperadmin && !canPerformTransfer) || item.remaining_quantity <= 0"
+                    :class="[
+                      'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
+                      selectedItem?.id === item.id
+                        ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                        : item.remaining_quantity <= 0 || (!isSuperadmin && !canPerformTransfer)
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
+                    ]"
+                  >
+                    {{ selectedItem?.id === item.id ? 'محدد' : 'اختر' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live Search Loading State -->
+              <div v-if="isLiveSearching && combinedItems.length === 0" class="p-8 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
+              </div>
+
+              <!-- Empty State -->
+              <div v-if="combinedItems.length === 0 && !isLiveSearching" class="p-8 text-center">
+                <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
+                </svg>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  {{ formData.from_warehouse_id ? 'لا توجد أصناف مطابقة للبحث' : 'يرجى اختيار مخزن مصدر أولاً' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected Item Details -->
+        <div v-if="selectedItem" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h5 class="text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
+            <div class="flex items-center gap-2">
+              <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-2 py-1 bg-blue-500 text-white rounded-full">
+                تم العثور عبر البحث المباشر
+              </span>
+              <button
+                @click="clearSelection"
+                class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                :disabled="loading || (!isSuperadmin && !canPerformTransfer)"
+              >
+                إلغاء التحديد
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">الاسم</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.name }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">الكود</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">المخزن الحالي</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">{{ getWarehouseName(selectedItem.warehouse_id) }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
+              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity)">
+                {{ selectedItem.remaining_quantity }}
+              </div>
+            </div>
+            <div class="col-span-2">
+              <div class="text-xs text-blue-600 dark:text-blue-400">التفاصيل</div>
+              <div class="text-xs text-blue-900 dark:text-blue-200 mt-1">
+                {{ selectedItem.cartons_count }} كرتونة × {{ selectedItem.per_carton_count }} + {{ selectedItem.single_bottles_count }} فردي
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Transfer Details (Only for authorized users) -->
+        <div v-if="selectedItem && (isSuperadmin || canPerformTransfer)">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+            <span class="h-6 w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
+            أدخل تفاصيل النقل
+          </h4>
+
+          <div class="space-y-4">
+            <!-- Destination Warehouse Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                المخزن الهدف
+                <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
+                  (اختر مخزن مختلف عن المصدر)
+                </span>
+              </label>
+              <select
+                v-model="formData.to_warehouse_id"
+                required
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                :disabled="loading"
+              >
+                <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن الهدف</option>
                 <option 
-                  v-for="warehouse in accessiblePrimaryWarehouses" 
+                  v-for="warehouse in availableDestinationWarehouses" 
                   :key="warehouse.id" 
                   :value="warehouse.id"
-                  :disabled="!isWarehouseAccessible(warehouse.id)"
+                  :disabled="warehouse.id === formData.from_warehouse_id"
                   class="text-gray-900 dark:text-white"
                 >
                   {{ warehouse.name_ar }}
                   <span v-if="warehouse.is_main" class="text-yellow-600 dark:text-yellow-400 text-xs mr-1">⭐</span>
-                  <span v-if="!isWarehouseAccessible(warehouse.id) && !isSuperadmin" class="text-red-500 dark:text-red-400 text-xs">
-                    (غير مسموح)
+                  <span v-if="warehouse.id === formData.from_warehouse_id" class="text-red-500 dark:text-red-400 text-xs">
+                    (نفس المخزن)
                   </span>
                 </option>
               </select>
-              
-              <!-- Warehouse Info -->
-              <div v-if="formData.from_warehouse_id" class="mt-1 md:mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 md:gap-2">
-                <span>المخزن: {{ getWarehouseName(formData.from_warehouse_id) }}</span>
-                <span v-if="getWarehouseType(formData.from_warehouse_id)" class="px-1.5 py-0.5 md:px-2 md:py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs">
-                  {{ getWarehouseType(formData.from_warehouse_id) }}
-                </span>
-              </div>
-              
-              <!-- Warehouse Access Indicator (not for superadmin) -->
-              <div v-if="formData.from_warehouse_id && userProfile?.role === 'warehouse_manager' && !isSuperadmin" class="mt-1 md:mt-2">
-                <div v-if="hasAccessToSelectedWarehouse" class="text-xs px-2 py-1 md:px-3 md:py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full inline-flex items-center">
-                  <svg class="w-2.5 h-2.5 md:w-3 md:h-3 ml-0.5 md:ml-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                  </svg>
-                  لديك صلاحية النقل من هذا المخزن
-                </div>
-                <div v-else class="text-xs px-2 py-1 md:px-3 md:py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full inline-flex items-center">
-                  <svg class="w-2.5 h-2.5 md:w-3 md:h-3 ml-0.5 md:ml-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                  </svg>
-                  ليس لديك صلاحية النقل من هذا المخزن
-                </div>
-              </div>
-              
-              <!-- Superadmin Access Indicator -->
-              <div v-if="formData.from_warehouse_id && isSuperadmin" class="mt-1 md:mt-2">
-                <div class="text-xs px-2 py-1 md:px-3 md:py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 rounded-full inline-flex items-center">
-                  <svg class="w-2.5 h-2.5 md:w-3 md:h-3 ml-0.5 md:ml-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
-                  </svg>
-                  وصول كامل كمشرف عام
-                </div>
+              <div v-if="formData.to_warehouse_id" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ getWarehouseName(formData.to_warehouse_id) }}
               </div>
             </div>
 
-            <!-- Step 2: Item Selection -->
+            <!-- Quantity Inputs -->
             <div>
-              <div class="flex items-center justify-between mb-2 md:mb-3">
-                <h4 class="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <span class="h-5 w-5 md:h-6 md:w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-1 md:ml-2">2</span>
-                  اختر الصنف المراد نقله
-                </h4>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ formatNumber(combinedItems.length) }} صنف متاح
-                  <span v-if="liveSearchResults.length > 0" class="text-blue-600 dark:text-blue-400">
-                    ({{ formatNumber(liveSearchResults.length) }} من البحث المباشر)
-                  </span>
-                </div>
-              </div>
-
-              <!-- Search Input with Live Search Indicator -->
-              <div class="relative mb-3 md:mb-4">
-                <input
-                  v-model="searchTerm"
-                  @input="handleSearch"
-                  type="text"
-                  placeholder="ابحث عن صنف بالاسم أو الكود..."
-                  class="w-full pl-9 pr-9 md:pl-10 md:pr-10 py-2 md:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  :disabled="loading || !formData.from_warehouse_id || (!isSuperadmin && !canViewTransfer)"
-                >
-                <div class="absolute inset-y-0 right-0 pr-2.5 md:pr-3 flex items-center pointer-events-none">
-                  <svg class="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
-                </div>
-                <!-- Live Search Indicator -->
-                <div v-if="isLiveSearching" class="absolute inset-y-0 left-0 pl-2.5 md:pl-3 flex items-center pointer-events-none">
-                  <div class="w-3.5 h-3.5 md:w-4 md:h-4 animate-pulse rounded-full bg-blue-500"></div>
-                </div>
-              </div>
-
-              <!-- Items Table -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <!-- Table Header -->
-                <div class="grid grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <div class="col-span-5 p-2 md:p-3">الصنف</div>
-                  <div class="col-span-2 p-2 md:p-3 text-center">الكود</div>
-                  <div class="col-span-2 p-2 md:p-3 text-center">المتاح</div>
-                  <div class="col-span-3 p-2 md:p-3 text-center">الإجراء</div>
-                </div>
-
-                <!-- Table Body -->
-                <div class="max-h-48 md:max-h-60 overflow-y-auto">
-                  <div
-                    v-for="item in combinedItems"
-                    :key="item.id"
-                    :class="[
-                      'grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150',
-                      selectedItem?.id === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : '',
-                      item.isLiveSearchResult ? 'bg-green-50/30 dark:bg-green-900/5 border-green-100 dark:border-green-800' : ''
-                    ]"
-                  >
-                    <!-- Item Name and Details -->
-                    <div class="col-span-5 p-2 md:p-3">
-                      <div class="font-medium text-xs md:text-sm text-gray-900 dark:text-white flex items-center">
-                        {{ item.name }}
-                        <!-- Live Search Badge -->
-                        <span v-if="item.isLiveSearchResult" class="text-xs bg-blue-500 text-white px-1 py-0.5 rounded mr-1 md:mr-2">
-                          🔍
-                        </span>
-                      </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 md:mt-1 flex flex-wrap gap-1 md:gap-2">
-                        <span v-if="item.color">{{ item.color }}</span>
-                        <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
-                        <span v-if="item.isLiveSearchResult" class="text-blue-600 dark:text-blue-400 text-xs">تم العثور عبر البحث المباشر</span>
-                      </div>
-                    </div>
-
-                    <!-- Item Code -->
-                    <div class="col-span-2 p-2 md:p-3 text-center">
-                      <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 md:px-2 md:py-1 rounded">{{ item.code }}</span>
-                    </div>
-
-                    <!-- Available Quantity -->
-                    <div class="col-span-2 p-2 md:p-3 text-center">
-                      <span :class="[
-                        'text-xs md:text-sm font-medium',
-                        getStockClass(item.remaining_quantity)
-                      ]">
-                        {{ formatNumber(item.remaining_quantity) }}
-                      </span>
-                    </div>
-
-                    <!-- Action Button -->
-                    <div class="col-span-3 p-2 md:p-3 text-center">
-                      <button
-                        @click="selectItem(item)"
-                        :disabled="loading || (!isSuperadmin && !canPerformTransfer) || item.remaining_quantity <= 0"
-                        :class="[
-                          'px-2 py-1 md:px-3 md:py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
-                          selectedItem?.id === item.id
-                            ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                            : item.remaining_quantity <= 0 || (!isSuperadmin && !canPerformTransfer)
-                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
-                        ]"
-                      >
-                        {{ selectedItem?.id === item.id ? 'محدد' : 'اختر' }}
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Live Search Loading State -->
-                  <div v-if="isLiveSearching && combinedItems.length === 0" class="p-6 md:p-8 text-center">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-b-2 border-blue-600 mb-3 md:mb-4"></div>
-                    <p class="text-xs md:text-sm text-gray-600 dark:text-gray-400">جاري البحث عن الأصناف...</p>
-                  </div>
-
-                  <!-- Empty State -->
-                  <div v-if="combinedItems.length === 0 && !isLiveSearching" class="p-6 md:p-8 text-center">
-                    <svg class="mx-auto h-6 w-6 md:h-8 md:w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6" />
-                    </svg>
-                    <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1 md:mt-2">
-                      {{ formData.from_warehouse_id ? 'لا توجد أصناف مطابقة للبحث' : 'يرجى اختيار مخزن مصدر أولاً' }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Selected Item Details -->
-            <div v-if="selectedItem" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 md:p-4">
-              <div class="flex items-center justify-between mb-2 md:mb-3">
-                <h5 class="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300">الصنف المحدد</h5>
-                <div class="flex items-center gap-1 md:gap-2">
-                  <span v-if="selectedItem.isLiveSearchResult" class="text-xs px-1.5 py-0.5 md:px-2 md:py-1 bg-blue-500 text-white rounded-full">
-                    تم العثور عبر البحث المباشر
-                  </span>
-                  <button
-                    @click="clearSelection"
-                    class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                    :disabled="loading || (!isSuperadmin && !canPerformTransfer)"
-                  >
-                    إلغاء التحديد
-                  </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-2 md:gap-3">
-                <div>
-                  <div class="text-xs text-blue-600 dark:text-blue-400">الاسم</div>
-                  <div class="text-xs md:text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.name }}</div>
-                </div>
-                <div>
-                  <div class="text-xs text-blue-600 dark:text-blue-400">الكود</div>
-                  <div class="text-xs md:text-sm font-medium text-blue-900 dark:text-blue-200">{{ selectedItem.code }}</div>
-                </div>
-                <div>
-                  <div class="text-xs text-blue-600 dark:text-blue-400">المخزن الحالي</div>
-                  <div class="text-xs md:text-sm font-medium text-blue-900 dark:text-blue-200">{{ getWarehouseName(selectedItem.warehouse_id) }}</div>
-                </div>
-                <div>
-                  <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
-                  <div class="text-xs md:text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity)">
-                    {{ formatNumber(selectedItem.remaining_quantity) }}
-                  </div>
-                </div>
-                <div class="col-span-2">
-                  <div class="text-xs text-blue-600 dark:text-blue-400">التفاصيل</div>
-                  <div class="text-xs text-blue-900 dark:text-blue-200 mt-0.5 md:mt-1">
-                    {{ formatNumber(selectedItem.cartons_count) }} كرتونة × {{ formatNumber(selectedItem.per_carton_count) }} + {{ formatNumber(selectedItem.single_bottles_count) }} فردي
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 3: Transfer Details (Only for authorized users) -->
-            <div v-if="selectedItem && (isSuperadmin || canPerformTransfer)" class="pt-2 md:pt-0">
-              <h4 class="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 md:mb-3 flex items-center">
-                <span class="h-5 w-5 md:h-6 md:w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-1 md:ml-2">3</span>
-                أدخل تفاصيل النقل
-              </h4>
-
-              <div class="space-y-3 md:space-y-4">
-                <!-- Destination Warehouse Selection -->
-                <div>
-                  <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">
-                    المخزن الهدف
-                    <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                      (اختر مخزن مختلف عن المصدر)
-                    </span>
-                  </label>
-                  <select
-                    v-model="formData.to_warehouse_id"
-                    required
-                    class="w-full px-3 py-2 md:px-4 md:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    :disabled="loading"
-                  >
-                    <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن الهدف</option>
-                    <option 
-                      v-for="warehouse in availableDestinationWarehouses" 
-                      :key="warehouse.id" 
-                      :value="warehouse.id"
-                      :disabled="warehouse.id === formData.from_warehouse_id"
-                      class="text-gray-900 dark:text-white"
-                    >
-                      {{ warehouse.name_ar }}
-                      <span v-if="warehouse.is_main" class="text-yellow-600 dark:text-yellow-400 text-xs mr-1">⭐</span>
-                      <span v-if="warehouse.id === formData.from_warehouse_id" class="text-red-500 dark:text-red-400 text-xs">
-                        (نفس المخزن)
-                      </span>
-                    </option>
-                  </select>
-                  <div v-if="formData.to_warehouse_id" class="mt-0.5 md:mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {{ getWarehouseName(formData.to_warehouse_id) }}
-                  </div>
-                </div>
-
-                <!-- Quantity Inputs -->
-                <div>
-                  <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">
-                    الكمية المراد نقلها
-                    <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                      (الحد الأقصى: {{ formatNumber(selectedItem.remaining_quantity) }})
-                    </span>
-                  </label>
-                  
-                  <div class="grid grid-cols-2 gap-2 md:gap-3">
-                    <!-- Cartons -->
-                    <div>
-                      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">كراتين</label>
-                      <div class="flex items-center space-x-1.5 md:space-x-2">
-                        <button
-                          @click="decreaseCartons"
-                          :disabled="loading || formData.cartons_count <= 0"
-                          class="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
-                        >
-                          <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                          </svg>
-                        </button>
-                        <input
-                          v-model.number="formData.cartons_count"
-                          type="number"
-                          :max="selectedItem.cartons_count"
-                          min="0"
-                          :disabled="loading"
-                          class="flex-1 px-2 py-1.5 md:px-3 md:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-center text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          @input="validateCartons"
-                        >
-                        <button
-                          @click="increaseCartons"
-                          :disabled="loading || formData.cartons_count >= selectedItem.cartons_count"
-                          class="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
-                        >
-                          <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 md:mt-1">
-                        متاح: {{ formatNumber(selectedItem.cartons_count) }} كرتونة
-                      </div>
-                    </div>
-
-                    <!-- Single Bottles -->
-                    <div>
-                      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">فردي</label>
-                      <div class="flex items-center space-x-1.5 md:space-x-2">
-                        <button
-                          @click="decreaseSingleBottles"
-                          :disabled="loading || formData.single_bottles_count <= 0"
-                          class="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
-                        >
-                          <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                          </svg>
-                        </button>
-                        <input
-                          v-model.number="formData.single_bottles_count"
-                          type="number"
-                          :max="selectedItem.single_bottles_count"
-                          min="0"
-                          :disabled="loading"
-                          class="flex-1 px-2 py-1.5 md:px-3 md:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-center text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          @input="validateSingleBottles"
-                        >
-                        <button
-                          @click="increaseSingleBottles"
-                          :disabled="loading || formData.single_bottles_count >= selectedItem.single_bottles_count"
-                          class="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
-                        >
-                          <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 md:mt-1">
-                        متاح: {{ formatNumber(selectedItem.single_bottles_count) }} فردي
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Summary -->
-                  <div class="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div class="grid grid-cols-2 gap-2 text-xs md:text-sm">
-                      <div class="text-center">
-                        <div class="text-gray-600 dark:text-gray-400">الكراتين</div>
-                        <div class="font-semibold text-blue-600 dark:text-blue-400">
-                          {{ formatNumber(formData.cartons_count) }} × {{ formatNumber(selectedItem.per_carton_count) }} = {{ formatNumber(formData.cartons_count * selectedItem.per_carton_count) }}
-                        </div>
-                      </div>
-                      <div class="text-center">
-                        <div class="text-gray-600 dark:text-gray-400">الفردي</div>
-                        <div class="font-semibold text-blue-600 dark:text-blue-400">
-                          {{ formatNumber(formData.single_bottles_count) }}
-                        </div>
-                      </div>
-                      <div class="col-span-2 text-center pt-1.5 md:pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <div class="text-gray-600 dark:text-gray-400">الإجمالي</div>
-                        <div class="text-base md:text-lg font-bold" :class="getStockClass(totalRequestedQuantity)">
-                          {{ formatNumber(totalRequestedQuantity) }} / {{ formatNumber(selectedItem.remaining_quantity) }}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- Validation Message -->
-                    <div v-if="validationMessage" class="mt-1.5 md:mt-2 text-center">
-                      <div :class="[
-                        'text-xs font-medium px-2.5 py-1 md:px-3 md:py-1 rounded-full',
-                        validationMessage.type === 'error' 
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      ]">
-                        {{ validationMessage.text }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Notes -->
-                <div>
-                  <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">ملاحظات</label>
-                  <textarea
-                    v-model="formData.notes"
-                    rows="2"
-                    :disabled="loading"
-                    class="w-full px-3 py-1.5 md:px-4 md:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                    placeholder="أضف أي ملاحظات حول عملية النقل..."
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right Column: Recent Transactions (Desktop Only) -->
-          <div class="hidden lg:block">
-            <div class="sticky top-4">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                <span class="h-6 w-6 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center text-xs ml-2">📋</span>
-                سجل الحركات الأخيرة
-              </h4>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                الكمية المراد نقلها
+                <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
+                  (الحد الأقصى: {{ selectedItem.remaining_quantity }})
+                </span>
+              </label>
               
-              <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <!-- Table Header -->
-                <div class="grid grid-cols-12 bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <div class="col-span-4 p-3">الصنف</div>
-                  <div class="col-span-2 p-3 text-center">الكمية</div>
-                  <div class="col-span-3 p-3 text-center">المخازن</div>
-                  <div class="col-span-3 p-3 text-center">التاريخ</div>
+              <div class="grid grid-cols-2 gap-3">
+                <!-- Cartons -->
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">كراتين</label>
+                  <div class="flex items-center space-x-2">
+                    <button
+                      @click="decreaseCartons"
+                      :disabled="loading || formData.cartons_count <= 0"
+                      class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                      </svg>
+                    </button>
+                    <input
+                      v-model.number="formData.cartons_count"
+                      type="number"
+                      :max="selectedItem.cartons_count"
+                      min="0"
+                      :disabled="loading"
+                      class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-center text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      @input="validateCartons"
+                    >
+                    <button
+                      @click="increaseCartons"
+                      :disabled="loading || formData.cartons_count >= selectedItem.cartons_count"
+                      class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    متاح: {{ selectedItem.cartons_count }} كرتونة
+                  </div>
                 </div>
 
-                <!-- Table Body -->
-                <div class="max-h-[500px] overflow-y-auto">
-                  <div
-                    v-for="transaction in recentTransactions"
-                    :key="transaction.id"
-                    class="grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
-                  >
-                    <!-- Item Details -->
-                    <div class="col-span-4 p-3">
-                      <div class="font-medium text-sm text-gray-900 dark:text-white">{{ transaction.item_name }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ transaction.item_code }}</div>
-                    </div>
-
-                    <!-- Quantity -->
-                    <div class="col-span-2 p-3 text-center">
-                      <span :class="[
-                        'text-sm font-medium',
-                        transaction.total_delta > 0 ? 'text-green-600 dark:text-green-400' : 
-                        transaction.total_delta < 0 ? 'text-red-600 dark:text-red-400' : 
-                        'text-gray-600 dark:text-gray-400'
-                      ]">
-                        {{ transaction.total_delta > 0 ? '+' : '' }}{{ formatNumber(transaction.total_delta) }}
-                      </span>
-                    </div>
-
-                    <!-- Warehouses -->
-                    <div class="col-span-3 p-3 text-center">
-                      <div class="text-xs text-gray-700 dark:text-gray-300">
-                        <div v-if="transaction.from_warehouse" class="mb-1">
-                          من: {{ getWarehouseLabel(transaction.from_warehouse) }}
-                        </div>
-                        <div v-if="transaction.to_warehouse">
-                          إلى: {{ getWarehouseLabel(transaction.to_warehouse) }}
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Date -->
-                    <div class="col-span-3 p-3 text-center">
-                      <div class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ formatTransactionDate(transaction.timestamp) }}
-                      </div>
-                      <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                        {{ formatTransactionTime(transaction.timestamp) }}
-                      </div>
-                    </div>
+                <!-- Single Bottles -->
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">فردي</label>
+                  <div class="flex items-center space-x-2">
+                    <button
+                      @click="decreaseSingleBottles"
+                      :disabled="loading || formData.single_bottles_count <= 0"
+                      class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                      </svg>
+                    </button>
+                    <input
+                      v-model.number="formData.single_bottles_count"
+                      type="number"
+                      :max="selectedItem.single_bottles_count"
+                      min="0"
+                      :disabled="loading"
+                      class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-center text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      @input="validateSingleBottles"
+                    >
+                    <button
+                      @click="increaseSingleBottles"
+                      :disabled="loading || formData.single_bottles_count >= selectedItem.single_bottles_count"
+                      class="w-8 h-8 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                    </button>
                   </div>
-
-                  <!-- Loading State -->
-                  <div v-if="transactionsLoading" class="p-8 text-center">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">جاري تحميل الحركات...</p>
-                  </div>
-
-                  <!-- Empty State -->
-                  <div v-if="!transactionsLoading && recentTransactions.length === 0" class="p-8 text-center">
-                    <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">لا توجد حركات سابقة</p>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    متاح: {{ selectedItem.single_bottles_count }} فردي
                   </div>
                 </div>
               </div>
 
-              <!-- Stats Summary -->
-              <div v-if="!transactionsLoading && recentTransactions.length > 0" class="mt-4 grid grid-cols-3 gap-2">
-                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">إجمالي الحركات</div>
-                  <div class="text-lg font-bold text-gray-900 dark:text-white mt-1">{{ formatNumber(recentTransactions.length) }}</div>
+              <!-- Summary -->
+              <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                  <div class="text-center">
+                    <div class="text-gray-600 dark:text-gray-400">الكراتين</div>
+                    <div class="font-semibold text-blue-600 dark:text-blue-400">
+                      {{ formData.cartons_count }} × {{ selectedItem.per_carton_count }} = {{ formData.cartons_count * selectedItem.per_carton_count }}
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-gray-600 dark:text-gray-400">الفردي</div>
+                    <div class="font-semibold text-blue-600 dark:text-blue-400">
+                      {{ formData.single_bottles_count }}
+                    </div>
+                  </div>
+                  <div class="col-span-2 text-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <div class="text-gray-600 dark:text-gray-400">الإجمالي</div>
+                    <div class="text-lg font-bold" :class="getStockClass(totalRequestedQuantity)">
+                      {{ totalRequestedQuantity }} / {{ selectedItem.remaining_quantity }}
+                    </div>
+                  </div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">النقل</div>
-                  <div class="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">{{ formatNumber(transferTransactionsCount) }}</div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">اليوم</div>
-                  <div class="text-lg font-bold text-green-600 dark:text-green-400 mt-1">{{ formatNumber(todayTransactionsCount) }}</div>
+                
+                <!-- Validation Message -->
+                <div v-if="validationMessage" class="mt-2 text-center">
+                  <div :class="[
+                    'text-xs font-medium px-3 py-1 rounded-full',
+                    validationMessage.type === 'error' 
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
+                      : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  ]">
+                    {{ validationMessage.text }}
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ملاحظات</label>
+              <textarea
+                v-model="formData.notes"
+                rows="2"
+                :disabled="loading"
+                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                placeholder="أضف أي ملاحظات حول عملية النقل..."
+              ></textarea>
             </div>
           </div>
         </div>
 
         <!-- Error Message -->
-        <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 md:p-4">
+        <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div class="flex items-center">
-            <svg class="h-4 w-4 md:h-5 md:w-5 text-red-400 dark:text-red-300 ml-1 md:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-5 w-5 text-red-400 dark:text-red-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
             <div class="flex-1">
-              <p class="text-xs md:text-sm text-red-600 dark:text-red-300">{{ error }}</p>
+              <p class="text-sm text-red-600 dark:text-red-300">{{ error }}</p>
             </div>
           </div>
         </div>
 
         <!-- Success Message -->
-        <div v-if="successMessage" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 md:p-4">
+        <div v-if="successMessage" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
           <div class="flex items-center">
-            <svg class="h-4 w-4 md:h-5 md:w-5 text-green-400 dark:text-green-300 ml-1 md:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-5 w-5 text-green-400 dark:text-green-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
-            <p class="text-xs md:text-sm text-green-600 dark:text-green-300">{{ successMessage }}</p>
+            <p class="text-sm text-green-600 dark:text-green-300">{{ successMessage }}</p>
           </div>
         </div>
       </div>
 
       <!-- Fixed Footer -->
-      <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3 md:py-4">
-        <div class="flex space-x-2 md:space-x-3 space-x-reverse">
+      <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div class="flex space-x-3 space-x-reverse">
           <button
             type="button"
             @click="closeModal"
             :disabled="loading"
-            class="flex-1 px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50"
+            class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50"
           >
             إغلاق
           </button>
@@ -603,17 +498,17 @@
             @click="handleSubmit"
             :disabled="isSubmitDisabled"
             :class="[
-              'flex-1 px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
+              'flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center',
               isSubmitDisabled
                 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                 : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 dark:from-green-600 dark:to-emerald-700 dark:hover:from-green-700 dark:hover:to-emerald-800'
             ]"
           >
-            <svg v-if="loading" class="animate-spin h-3.5 w-3.5 md:h-4 md:w-4 ml-1 md:ml-2 text-white" fill="none" viewBox="0 0 24 24">
+            <svg v-if="loading" class="animate-spin h-4 w-4 ml-2 text-white" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg v-else class="h-3.5 w-3.5 md:h-4 md:w-4 ml-1 md:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-else class="h-4 w-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7l4-4m0 0l4 4m-4-4v18m0 0l-4-4m4 4l4-4"/>
             </svg>
             <span>{{ loading ? 'جاري النقل...' : 'تأكيد النقل' }}</span>
@@ -667,76 +562,10 @@ export default {
       notes: ''
     })
 
-    // Helper function to format numbers to English
-    const formatNumber = (num) => {
-      if (num === null || num === undefined) return '0'
-      return Number(num).toLocaleString('en-US')
-    }
-
-    // Helper function to format transaction date
-    const formatTransactionDate = (timestamp) => {
-      if (!timestamp) return '--/--/----'
-      try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-        return date.toLocaleDateString('ar-EG', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        })
-      } catch {
-        return '--/--/----'
-      }
-    }
-
-    // Helper function to format transaction time
-    const formatTransactionTime = (timestamp) => {
-      if (!timestamp) return '--:--'
-      try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-        return date.toLocaleTimeString('ar-EG', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      } catch {
-        return '--:--'
-      }
-    }
-
     // Computed properties
     const userProfile = computed(() => store.state.userProfile)
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
-    const recentTransactions = computed(() => {
-      const allTransactions = store.state.recentTransactions || []
-      // Sort by timestamp descending (most recent first)
-      return [...allTransactions].sort((a, b) => {
-        const dateA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp || 0).getTime()
-        const dateB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp || 0).getTime()
-        return dateB - dateA
-      })
-    })
-    const transactionsLoading = computed(() => store.state.recentTransactionsLoading || false)
-    
-    // Transaction statistics
-    const transferTransactionsCount = computed(() => {
-      return recentTransactions.value.filter(t => t.type === 'TRANSFER').length
-    })
-    
-    const todayTransactionsCount = computed(() => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      return recentTransactions.value.filter(t => {
-        if (!t.timestamp) return false
-        try {
-          const transDate = t.timestamp.toDate ? t.timestamp.toDate() : new Date(timestamp)
-          return transDate >= today
-        } catch {
-          return false
-        }
-      }).length
-    })
     
     // Check if user is superadmin
     const isSuperadmin = computed(() => {
@@ -867,15 +696,15 @@ export default {
       }
       
       if (totalRequestedQuantity.value > availableQuantity) {
-        return { type: 'error', text: `❌ ${formatNumber(totalRequestedQuantity.value)} > ${formatNumber(availableQuantity)}` }
+        return { type: 'error', text: `❌ ${totalRequestedQuantity.value} > ${availableQuantity}` }
       }
       
       if (formData.cartons_count > selectedItem.value.cartons_count) {
-        return { type: 'error', text: `❌ كراتين: ${formatNumber(formData.cartons_count)} > ${formatNumber(selectedItem.value.cartons_count)}` }
+        return { type: 'error', text: `❌ كراتين: ${formData.cartons_count} > ${selectedItem.value.cartons_count}` }
       }
       
       if (formData.single_bottles_count > selectedItem.value.single_bottles_count) {
-        return { type: 'error', text: `❌ فردي: ${formatNumber(formData.single_bottles_count)} > ${formatNumber(selectedItem.value.single_bottles_count)}` }
+        return { type: 'error', text: `❌ فردي: ${formData.single_bottles_count} > ${selectedItem.value.single_bottles_count}` }
       }
       
       if (!formData.to_warehouse_id) {
@@ -886,7 +715,7 @@ export default {
         return { type: 'error', text: '❌ لا يمكن النقل إلى نفس المخزن' }
       }
 
-      return { type: 'success', text: `✅ ${formatNumber(totalRequestedQuantity.value)} / ${formatNumber(availableQuantity)} - جاهز للنقل` }
+      return { type: 'success', text: `✅ ${totalRequestedQuantity.value} / ${availableQuantity} - جاهز للنقل` }
     })
 
     // Submit button disabled logic
@@ -918,11 +747,6 @@ export default {
       return warehouse ? warehouse.name_ar : warehouseId
     }
     
-    const getWarehouseLabel = (warehouseId) => {
-      const warehouse = warehouses.value.find(w => w.id === warehouseId)
-      return warehouse ? (warehouse.name_ar || warehouse.name || warehouseId) : warehouseId
-    }
-    
     const getWarehouseType = (warehouseId) => {
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
       if (!warehouse) return ''
@@ -938,7 +762,7 @@ export default {
       return 'text-green-600 dark:text-green-400'
     }
 
-    // Live Search Functions - UPDATED to use store action
+    // Live Search Functions
     const performLiveSearch = async (searchTermValue) => {
       if (!searchTermValue || searchTermValue.trim().length < 2) {
         liveSearchResults.length = 0 // Clear results
@@ -954,9 +778,7 @@ export default {
         // Use the store action to search Firestore directly
         const searchResults = await store.dispatch('searchItemsForTransactions', {
           searchTerm: searchTermValue,
-          limitResults: 50,
-          // Pass warehouseId if selected for more relevant results
-          warehouseId: formData.from_warehouse_id || undefined
+          limitResults: 50
         })
         
         console.log('✅ Live search results in transfer:', searchResults.length, 'items')
@@ -964,11 +786,7 @@ export default {
         // Update live search results
         liveSearchResults.length = 0 // Clear previous results
         searchResults.forEach(item => {
-          // Mark as live search result for styling
-          liveSearchResults.push({
-            ...item,
-            isLiveSearchResult: true
-          })
+          liveSearchResults.push(item)
         })
         
       } catch (error) {
@@ -1148,7 +966,6 @@ export default {
       }
     })
 
-    // Main submit function - UPDATED to use store's transferItem action
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -1191,7 +1008,7 @@ export default {
       if (!isSuperadmin.value) {
         const maxQuantity = selectedItem.value?.remaining_quantity || 0
         if (totalRequestedQuantity.value > maxQuantity) {
-          errors.push(`الكمية المطلوبة (${formatNumber(totalRequestedQuantity.value)}) تتجاوز الكمية المتاحة (${formatNumber(maxQuantity)})`)
+          errors.push(`الكمية المطلوبة (${totalRequestedQuantity.value}) تتجاوز الكمية المتاحة (${maxQuantity})`)
         }
       }
       
@@ -1257,14 +1074,11 @@ export default {
           }
         })
 
-        // Use the store transfer action - THIS IS THE KEY CHANGE
+        // Use the store transfer action
         const result = await store.dispatch('transferItem', transferData)
 
-        if (result?.success) {
+        if (result?.id) {
           successMessage.value = 'تم نقل الصنف بنجاح'
-          
-          // Refresh inventory after successful transfer
-          await store.dispatch('refreshInventory')
           
           // Reset form after successful transfer
           resetForm()
@@ -1324,10 +1138,6 @@ export default {
       totalRequestedQuantity,
       validationMessage,
       isSubmitDisabled,
-      recentTransactions,
-      transactionsLoading,
-      transferTransactionsCount,
-      todayTransactionsCount,
       
       // Methods
       selectItem,
@@ -1340,16 +1150,12 @@ export default {
       validateCartons,
       validateSingleBottles,
       getWarehouseName,
-      getWarehouseLabel,
       getWarehouseType,
       getStockClass,
       isWarehouseAccessible,
       handleSearch,
       handleSubmit,
-      closeModal,
-      formatNumber,
-      formatTransactionDate,
-      formatTransactionTime
+      closeModal
     }
   }
 }
@@ -1365,48 +1171,34 @@ export default {
 }
 
 /* Custom scrollbar for light mode */
-.max-h-48::-webkit-scrollbar,
-.max-h-60::-webkit-scrollbar,
-.max-h-\[500px\]::-webkit-scrollbar {
+.max-h-60::-webkit-scrollbar {
   width: 6px;
 }
 
-.max-h-48::-webkit-scrollbar-track,
-.max-h-60::-webkit-scrollbar-track,
-.max-h-\[500px\]::-webkit-scrollbar-track {
+.max-h-60::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-.max-h-48::-webkit-scrollbar-thumb,
-.max-h-60::-webkit-scrollbar-thumb,
-.max-h-\[500px\]::-webkit-scrollbar-thumb {
+.max-h-60::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
 }
 
-.max-h-48::-webkit-scrollbar-thumb:hover,
-.max-h-60::-webkit-scrollbar-thumb:hover,
-.max-h-\[500px\]::-webkit-scrollbar-thumb:hover {
+.max-h-60::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
 
 /* Custom scrollbar for dark mode */
-.dark .max-h-48::-webkit-scrollbar-track,
-.dark .max-h-60::-webkit-scrollbar-track,
-.dark .max-h-\[500px\]::-webkit-scrollbar-track {
+.dark .max-h-60::-webkit-scrollbar-track {
   background: #374151;
 }
 
-.dark .max-h-48::-webkit-scrollbar-thumb,
-.dark .max-h-60::-webkit-scrollbar-thumb,
-.dark .max-h-\[500px\]::-webkit-scrollbar-thumb {
+.dark .max-h-60::-webkit-scrollbar-thumb {
   background: #6b7280;
 }
 
-.dark .max-h-48::-webkit-scrollbar-thumb:hover,
-.dark .max-h-60::-webkit-scrollbar-thumb:hover,
-.dark .max-h-\[500px\]::-webkit-scrollbar-thumb:hover {
+.dark .max-h-60::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
 
@@ -1415,8 +1207,8 @@ export default {
   max-height: 90vh;
 }
 
-.max-h-\[calc\(90vh-140px\)\] {
-  max-height: calc(90vh - 140px);
+.max-h-\[calc\(90vh-180px\)\] {
+  max-height: calc(90vh - 180px);
 }
 
 /* Smooth transitions */
@@ -1447,22 +1239,5 @@ input[type="number"] {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .grid-cols-12 > div {
-    padding: 8px 4px;
-  }
-  
-  .text-xs {
-    font-size: 0.7rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .sticky {
-    position: sticky;
-  }
 }
 </style>
