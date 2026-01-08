@@ -105,7 +105,7 @@
       </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="w-full px-4 sm:px-6 lg:px-8 py-6">
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- Total Transactions -->
@@ -394,7 +394,7 @@
                 </div>
                 <div class="text-left">
                   <span :class="getQuantityClass(transaction.type)" class="text-lg font-bold english-numbers">
-                    {{ formatNumber(transaction.total_delta || transaction.total_quantity || 0) }}
+                    {{ formatNumber(getTransactionQuantity(transaction)) }}
                   </span>
                 </div>
               </div>
@@ -479,29 +479,29 @@
           </div>
 
           <!-- Desktop Table -->
-          <div class="hidden md:block overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <div class="hidden md:block overflow-x-visible">
+            <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead class="bg-gray-50 dark:bg-gray-750">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-32">
                     التاريخ
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-24">
                     النوع
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-48">
                     المنتج
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-24">
                     الكمية
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-40">
                     المخزن
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-32">
                     المستخدم
                   </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-20">
                     ملاحظات
                   </th>
                 </tr>
@@ -542,7 +542,7 @@
                   <!-- Quantity -->
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span :class="getQuantityClass(transaction.type)" class="english-numbers">
-                      {{ formatNumber(transaction.total_delta || transaction.total_quantity || 0) }}
+                      {{ formatNumber(getTransactionQuantity(transaction)) }}
                     </span>
                   </td>
 
@@ -697,10 +697,12 @@ export default {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    // Use store data
+    // Use store data from Vuex store
     const allTransactions = computed(() => store.state.transactions || []);
     const loading = computed(() => store.state.transactionsLoading);
     const error = computed(() => store.state.inventoryError);
+    
+    // Get transaction stats from Vuex store
     const transactionStats = computed(() => store.getters.getTransactionStats || {
       total: 0,
       today: 0,
@@ -714,26 +716,23 @@ export default {
     
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
 
-    // Filter transactions
+    // Filter transactions using Vuex getter
     const filteredTransactions = computed(() => {
-      let filtered = store.getters.filteredTransactions({
+      return store.getters.filteredTransactions({
         search: searchTerm.value,
         type: typeFilter.value,
         dateFrom: dateFrom.value,
         dateTo: dateTo.value
-      });
-
-      // Apply warehouse filter
-      if (warehouseFilter.value) {
-        filtered = filtered.filter(transaction => {
+      }).filter(transaction => {
+        // Apply warehouse filter
+        if (warehouseFilter.value) {
           const fromWarehouse = transaction.from_warehouse || transaction.from_warehouse_id;
           const toWarehouse = transaction.to_warehouse || transaction.to_warehouse_id;
           
           return fromWarehouse === warehouseFilter.value || toWarehouse === warehouseFilter.value;
-        });
-      }
-      
-      return filtered;
+        }
+        return true;
+      });
     });
 
     // Display paginated transactions
@@ -826,6 +825,30 @@ export default {
       return store.getters.getDestinationLabel(destinationId) || destinationId;
     };
     
+    // Helper function to get transaction quantity from various property names
+    const getTransactionQuantity = (transaction) => {
+      // Try different property names that might contain quantity
+      const quantity = 
+        transaction.quantity || 
+        transaction.qty || 
+        transaction.total_delta || 
+        transaction.total_quantity || 
+        transaction.delta_quantity || 
+        0;
+      
+      // For DISPATCH type, show negative value
+      if (transaction.type === 'DISPATCH' && quantity > 0) {
+        return -Math.abs(quantity);
+      }
+      
+      // For ADD type, ensure positive
+      if (transaction.type === 'ADD' && quantity < 0) {
+        return Math.abs(quantity);
+      }
+      
+      return quantity;
+    };
+    
     // Date formatting functions
     const formatTransactionDate = (transaction) => {
       const date = getTransactionTime(transaction);
@@ -901,32 +924,11 @@ export default {
       }, 300);
     };
 
-    // Load transactions from Firestore
+    // Load transactions using Vuex action
     const loadTransactionsFromFirestore = async () => {
       try {
         console.log('📡 جاري تحميل الحركات من Firestore...');
-        
-        // Get transactions from Firestore
-        const transactionsQuery = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(500)
-        );
-        
-        const snapshot = await getDocs(transactionsQuery);
-        console.log(`✅ تم العثور على ${snapshot.size} حركة`);
-        
-        const transactions = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data
-          };
-        });
-        
-        // Save to Vuex store
-        store.commit('SET_TRANSACTIONS', transactions);
-        
+        await store.dispatch('fetchTransactions');
       } catch (error) {
         console.error('❌ خطأ في تحميل الحركات:', error);
         store.dispatch('showNotification', {
@@ -936,7 +938,7 @@ export default {
       }
     };
 
-    // Manual refresh
+    // Manual refresh using Vuex action
     const manualRefresh = async () => {
       try {
         await loadTransactionsFromFirestore();
@@ -983,6 +985,7 @@ export default {
         const wb = XLSX.utils.book_new();
         
         const exportData = filteredTransactions.value.slice(0, 1000).map(transaction => {
+          const quantity = getTransactionQuantity(transaction);
           const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
           const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
           
@@ -992,7 +995,7 @@ export default {
             'نوع الحركة': getTypeLabel(transaction.type),
             'اسم المنتج': transaction.item_name || '',
             'كود المنتج': transaction.item_code || '',
-            'الكمية': transaction.total_delta || transaction.total_quantity || 0,
+            'الكمية': quantity,
             'من مستودع': getWarehouseName(fromWarehouseId),
             'إلى مستودع': getWarehouseName(toWarehouseId),
             'الوجهة': transaction.destination ? getDestinationLabel(transaction.destination) : '',
@@ -1043,24 +1046,12 @@ export default {
             ...doc.data()
           }));
 
-          // Merge with existing data, avoiding duplicates
-          const existingIds = new Set(allTransactions.value.map(t => t.id));
-          const newTransactions = transactions.filter(t => !existingIds.has(t.id));
+          // Update Vuex store with new transactions
+          store.commit('SET_TRANSACTIONS', transactions);
           
-          if (newTransactions.length > 0) {
-            // Update Vuex store with new transactions
-            const updatedTransactions = [...newTransactions, ...allTransactions.value]
-              .sort((a, b) => {
-                const dateA = getTransactionTime(a);
-                const dateB = getTransactionTime(b);
-                return dateB - dateA;
-              })
-              .slice(0, 500);
-            
-            store.commit('SET_TRANSACTIONS', updatedTransactions);
-            
-            // Show notification for new transactions
-            const latestTransaction = newTransactions[0];
+          // Show notification for new transactions
+          if (snapshot.docChanges().length > 0) {
+            const latestTransaction = transactions[0];
             store.dispatch('showNotification', {
               type: 'info',
               message: `حركة جديدة: ${getTypeLabel(latestTransaction.type)} - ${latestTransaction.item_name}`,
@@ -1079,10 +1070,10 @@ export default {
       try {
         // Load warehouses if not already loaded
         if (!store.state.warehousesLoaded) {
-          await store.dispatch('loadWarehouses');
+          await store.dispatch('loadWarehousesEnhanced');
         }
         
-        // Load transactions
+        // Load transactions using Vuex action
         await loadTransactionsFromFirestore();
         
         // Enable real-time updates by default
@@ -1156,6 +1147,7 @@ export default {
       toggleLiveUpdates,
       exportTransactions,
       getTransactionTime,
+      getTransactionQuantity,
       showNotes,
       loadMore
     };
@@ -1367,6 +1359,32 @@ export default {
   
   .grid-fallback > * {
     margin: 0;
+  }
+}
+
+/* Ensure table takes full width */
+table {
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+/* On large screens, ensure proper spacing */
+@media (min-width: 1024px) {
+  .lg\:px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+  
+  /* Make sure the main content area takes full width */
+  main {
+    width: 100%;
+  }
+}
+
+/* Optional: Add a container query for very wide screens */
+@container (min-width: 1280px) {
+  .table-container {
+    max-width: none;
   }
 }
 </style>
