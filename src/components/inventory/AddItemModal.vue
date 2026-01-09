@@ -1,12 +1,13 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay">
+  <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
-      <!-- Modal Header -->
+      <!-- رأس المودال -->
       <div class="modal-header">
         <h2 class="modal-title">إضافة صنف جديد</h2>
         <button 
           @click="closeModal"
           class="modal-close-btn"
+          type="button"
         >
           <svg class="modal-close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -14,16 +15,16 @@
         </button>
       </div>
 
-      <!-- Scrollable Content -->
+      <!-- محتوى المودال -->
       <div class="modal-body">
         <form @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Photo Upload Section -->
+          <!-- قسم رفع الصورة -->
           <div class="form-group">
             <label class="form-label">
               صورة الصنف
             </label>
             <div class="photo-upload-container">
-              <!-- Photo Preview -->
+              <!-- معاينة الصورة -->
               <div class="photo-preview-wrapper">
                 <div 
                   v-if="previewPhoto" 
@@ -50,7 +51,7 @@
                 </div>
               </div>
 
-              <!-- Photo Upload Actions -->
+              <!-- أزرار رفع الصورة -->
               <div class="photo-actions">
                 <input
                   type="file"
@@ -97,7 +98,7 @@
                 </button>
               </div>
 
-              <!-- Photo Info -->
+              <!-- معلومات الصورة -->
               <div v-if="selectedFile" class="photo-info">
                 <p class="photo-info-text">
                   {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
@@ -106,7 +107,7 @@
             </div>
           </div>
 
-          <!-- Name Field -->
+          <!-- حقل الاسم -->
           <div class="form-group">
             <label class="form-label">
               الاسم <span class="required-star">*</span>
@@ -118,11 +119,11 @@
               class="form-input"
               placeholder="أدخل اسم الصنف"
               ref="nameInput"
-              @keydown.enter.prevent="focusNextField('codeInput')"
+              @keydown="handleKeyDown($event, 'codeInput')"
             />
           </div>
 
-          <!-- Code and Color Fields -->
+          <!-- حقل الكود واللون -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -135,7 +136,7 @@
                 class="form-input"
                 placeholder="كود الصنف"
                 ref="codeInput"
-                @keydown.enter.prevent="focusNextField('colorInput')"
+                @keydown="handleKeyDown($event, 'colorInput')"
               />
             </div>
 
@@ -150,12 +151,12 @@
                 class="form-input"
                 placeholder="لون الصنف"
                 ref="colorInput"
-                @keydown.enter.prevent="focusNextField('warehouseSelect')"
+                @keydown="handleKeyDown($event, 'warehouseSelect')"
               />
             </div>
           </div>
 
-          <!-- Warehouse Selection -->
+          <!-- اختيار المخزن -->
           <div class="form-group">
             <label class="form-label">
               المخزن <span class="required-star">*</span>
@@ -173,7 +174,7 @@
             </select>
           </div>
 
-          <!-- Supplier and Location Fields -->
+          <!-- حقل المورد والمكان -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -185,6 +186,7 @@
                 class="form-input"
                 placeholder="اسم المورد"
                 ref="supplierInput"
+                @keydown="handleKeyDown($event, 'locationInput')"
               />
             </div>
 
@@ -198,11 +200,12 @@
                 class="form-input"
                 placeholder="مكان الصنف داخل المخزن"
                 ref="locationInput"
+                @keydown="handleKeyDown($event, 'cartonsCountInput')"
               />
             </div>
           </div>
 
-          <!-- Add Mode Selection -->
+          <!-- اختيار طريقة الإضافة -->
           <div class="form-group">
             <label class="form-label">
               طريقة الإضافة
@@ -232,7 +235,7 @@
             </div>
           </div>
 
-          <!-- Cartons Fields (Conditional) -->
+          <!-- حقول الكراتين (ظرفية) -->
           <div v-if="addMode === 'cartons' || addMode === 'both'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
               <label class="form-label">
@@ -245,6 +248,7 @@
                 v-model.number="formData.cartons_count"
                 class="form-input"
                 ref="cartonsCountInput"
+                @keydown="handleKeyDown($event, 'perCartonInput')"
               />
             </div>
 
@@ -259,11 +263,12 @@
                 v-model.number="formData.per_carton_count"
                 class="form-input"
                 ref="perCartonInput"
+                @keydown="handleKeyDown($event, 'singleBottlesInput')"
               />
             </div>
           </div>
 
-          <!-- Single Bottles Field (Conditional) -->
+          <!-- حقل القزاز الفردي (ظرفي) -->
           <div v-if="addMode === 'single' || addMode === 'both'" class="form-group">
             <label class="form-label">
               عدد القزاز الفردي <span class="required-star">*</span>
@@ -275,10 +280,11 @@
               v-model.number="formData.single_bottles_count"
               class="form-input"
               ref="singleBottlesInput"
+              @keydown="handleKeyDown($event, 'notesInput')"
             />
           </div>
 
-          <!-- Notes Field -->
+          <!-- حقل الملاحظات -->
           <div class="form-group">
             <label class="form-label">
               ملاحظات
@@ -292,7 +298,7 @@
             ></textarea>
           </div>
 
-          <!-- Summary Section -->
+          <!-- قسم الملخص -->
           <div v-if="showSummary" class="alert alert-info">
             <h4 class="alert-title">ملخص الكمية:</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -308,7 +314,7 @@
             </div>
           </div>
 
-          <!-- Existing Item Warning -->
+          <!-- تحذير الصنف الموجود -->
           <div v-if="existingItem && !storeOperationError" class="alert alert-warning">
             <div class="flex items-center">
               <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
@@ -326,22 +332,22 @@
             </div>
           </div>
 
-          <!-- Store Operation Error -->
+          <!-- خطأ في العملية -->
           <div v-if="storeOperationError" class="alert alert-danger">
             <p class="alert-message">{{ storeOperationError }}</p>
           </div>
 
-          <!-- Success Message -->
+          <!-- رسالة النجاح -->
           <div v-if="successMessage" class="alert alert-success">
             <p class="alert-message">{{ successMessage }}</p>
           </div>
 
-          <!-- Error Message -->
+          <!-- رسالة الخطأ -->
           <div v-if="errorMessage" class="alert alert-danger">
             <p class="alert-message">{{ errorMessage }}</p>
           </div>
 
-          <!-- Action Buttons (Fixed at bottom) -->
+          <!-- أزرار الإجراءات (ثابتة في الأسفل) -->
           <div class="modal-footer">
             <div class="flex gap-2">
               <button
@@ -383,7 +389,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 
 export default {
@@ -398,6 +404,7 @@ export default {
   setup(props, { emit }) {
     const store = useStore();
     
+    // Refs
     const loading = ref(false);
     const errorMessage = ref('');
     const successMessage = ref('');
@@ -409,8 +416,9 @@ export default {
     const previewPhoto = ref('');
     const fileInput = ref(null);
     const isFormResetting = ref(false);
+    const isUpdatingExisting = ref(false);
     
-    // Refs for form inputs
+    // Form field refs
     const nameInput = ref(null);
     const codeInput = ref(null);
     const colorInput = ref(null);
@@ -423,6 +431,7 @@ export default {
     const notesInput = ref(null);
     const submitButton = ref(null);
 
+    // Form data
     const formData = ref({
       name: '',
       code: '',
@@ -466,16 +475,28 @@ export default {
       if (!formData.value.color.trim()) return false;
       if (!formData.value.warehouse_id) return false;
       
-      // Check mode-specific validation
-      if (addMode.value === 'cartons') {
-        return formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
-      } else if (addMode.value === 'single') {
-        return formData.value.single_bottles_count > 0;
-      } else if (addMode.value === 'both') {
-        return totalQuantity.value > 0;
+      // For new items, ensure at least one quantity is positive
+      if (!existingItem.value && totalQuantity.value <= 0) {
+        return false;
       }
       
-      return false;
+      // For existing items, at least one field should be updated
+      if (existingItem.value) {
+        const hasQuantityUpdate = 
+          (addMode.value === 'cartons' && formData.value.cartons_count > 0) ||
+          (addMode.value === 'single' && formData.value.single_bottles_count > 0) ||
+          (addMode.value === 'both' && totalQuantity.value > 0);
+          
+        const hasOtherUpdate = 
+          formData.value.supplier !== existingItem.value.supplier ||
+          formData.value.item_location !== existingItem.value.item_location ||
+          formData.value.notes !== existingItem.value.notes ||
+          (selectedFile.value && previewPhoto.value);
+          
+        return hasQuantityUpdate || hasOtherUpdate;
+      }
+      
+      return true;
     });
 
     const isAddingCartonsComputed = computed(() => {
@@ -485,14 +506,12 @@ export default {
     // Watchers
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
-        // Don't reset form when modal opens, just focus on first input
         setTimeout(() => {
           if (nameInput.value) {
             nameInput.value.focus();
           }
         }, 100);
         
-        // Set default warehouse if accessible warehouses exist
         if (accessibleWarehouses.value.length > 0 && !formData.value.warehouse_id) {
           const mainWarehouse = store.getters.mainWarehouse;
           formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
@@ -507,22 +526,156 @@ export default {
       }
     }, { immediate: true });
 
-    // Watch for form changes to check for existing items
-    const checkExistingItemDebounced = debounce(async () => {
+    // Enhanced existing item checker with direct Firestore query
+    const checkExistingItem = async () => {
       if (isFormResetting.value) return;
       
-      if (formData.value.name && formData.value.code && formData.value.color && formData.value.warehouse_id) {
-        await checkExistingItem();
-      } else {
+      const cleanName = formData.value.name?.trim() || '';
+      const cleanCode = formData.value.code?.trim() || '';
+      const cleanColor = formData.value.color?.trim() || '';
+      const cleanWarehouseId = formData.value.warehouse_id;
+      
+      // We need all 4 fields to search
+      if (!cleanName || !cleanCode || !cleanColor || !cleanWarehouseId) {
         existingItem.value = null;
+        isUpdatingExisting.value = false;
+        return;
       }
-    }, 300);
 
-    watch([() => formData.value.name, () => formData.value.code, () => formData.value.color, () => formData.value.warehouse_id], 
-      () => {
-        checkExistingItemDebounced();
+      try {
+        console.log('🔍 Searching for EXACT match:', {
+          name: cleanName,
+          code: cleanCode,
+          color: cleanColor,
+          warehouse_id: cleanWarehouseId
+        });
+
+        // METHOD 1: Direct Firestore query for exact match
+        let foundItem = null;
+        
+        try {
+          // Import Firestore functions
+          const { collection, query, where, getDocs } = await import('firebase/firestore');
+          const { db } = await import('@/firebase/config');
+          
+          if (!db) {
+            console.error('Firestore not initialized');
+            throw new Error('Database not available');
+          }
+          
+          const itemsRef = collection(db, 'items');
+          const q = query(
+            itemsRef,
+            where('name', '==', cleanName),
+            where('code', '==', cleanCode),
+            where('color', '==', cleanColor),
+            where('warehouse_id', '==', cleanWarehouseId)
+          );
+          
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            foundItem = {
+              id: doc.id,
+              ...doc.data()
+            };
+            console.log('✅ Found exact match via direct Firestore query:', foundItem);
+          }
+        } catch (firestoreError) {
+          console.warn('Direct Firestore query failed:', firestoreError);
+        }
+
+        // METHOD 2: If direct query failed, use store's search
+        if (!foundItem) {
+          console.log('Trying store search as fallback...');
+          const searchResults = await store.dispatch('searchInventorySpark', {
+            searchQuery: cleanCode,
+            warehouseId: cleanWarehouseId,
+            limit: 50
+          });
+
+          // Look for exact match in results
+          for (const item of searchResults) {
+            const itemName = item.name?.trim().toLowerCase() || '';
+            const itemCode = item.code?.trim().toLowerCase() || '';
+            const itemColor = item.color?.trim().toLowerCase() || '';
+            
+            if (itemName === cleanName.toLowerCase() && 
+                itemCode === cleanCode.toLowerCase() && 
+                itemColor === cleanColor.toLowerCase() && 
+                item.warehouse_id === cleanWarehouseId) {
+              foundItem = item;
+              console.log('✅ Found via store search:', foundItem);
+              break;
+            }
+          }
+        }
+
+        // METHOD 3: Check local inventory as last resort
+        if (!foundItem) {
+          const localInventory = store.state.inventory || [];
+          for (const item of localInventory) {
+            const itemName = item.name?.trim().toLowerCase() || '';
+            const itemCode = item.code?.trim().toLowerCase() || '';
+            const itemColor = item.color?.trim().toLowerCase() || '';
+            
+            if (itemName === cleanName.toLowerCase() && 
+                itemCode === cleanCode.toLowerCase() && 
+                itemColor === cleanColor.toLowerCase() && 
+                item.warehouse_id === cleanWarehouseId) {
+              foundItem = item;
+              console.log('✅ Found in local inventory:', foundItem);
+              break;
+            }
+          }
+        }
+
+        if (foundItem) {
+          console.log('🎯 Setting existing item:', foundItem);
+          existingItem.value = foundItem;
+          isUpdatingExisting.value = true;
+          
+          // Auto-fill photo if available
+          if (foundItem.photo_url && !previewPhoto.value) {
+            previewPhoto.value = foundItem.photo_url;
+          }
+          
+          // Auto-fill other fields
+          formData.value.supplier = foundItem.supplier || '';
+          formData.value.item_location = foundItem.item_location || '';
+          formData.value.notes = foundItem.notes || '';
+          
+          // Show update mode summary
+          successMessage.value = '⚠️ تم العثور على صنف موجود. سيتم تحديث الكميات بدلاً من إنشاء صنف جديد.';
+        } else {
+          console.log('❌ No existing item found, will create new');
+          existingItem.value = null;
+          isUpdatingExisting.value = false;
+          successMessage.value = '';
+        }
+      } catch (error) {
+        console.error('❌ Error checking existing item:', error);
+        existingItem.value = null;
+        isUpdatingExisting.value = false;
       }
-    );
+    };
+
+    // Debounced existing item checker
+    const checkExistingItemDebounced = debounce(checkExistingItem, 500);
+
+    watch([
+      () => formData.value.name,
+      () => formData.value.code,
+      () => formData.value.color,
+      () => formData.value.warehouse_id
+    ], () => {
+      if (formData.value.name) formData.value.name = formData.value.name.trimStart();
+      if (formData.value.code) formData.value.code = formData.value.code.trimStart();
+      if (formData.value.color) formData.value.color = formData.value.color.trimStart();
+      
+      checkExistingItemDebounced();
+    });
 
     // Methods
     const closeModal = () => {
@@ -530,10 +683,19 @@ export default {
       resetForm();
     };
 
+    const handleKeyDown = (event, nextFieldRef) => {
+      if (event.key === ' ') return;
+      
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        focusNextField(nextFieldRef);
+      }
+    };
+
     const resetForm = () => {
       isFormResetting.value = true;
+      isUpdatingExisting.value = false;
       
-      // Store current warehouse_id to preserve it
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -557,9 +719,9 @@ export default {
       existingItem.value = null;
       selectedFile.value = null;
       previewPhoto.value = '';
+      
       store.dispatch('clearOperationError');
       
-      // Focus on name input after reset
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -570,8 +732,8 @@ export default {
 
     const clearFormAfterSuccess = () => {
       isFormResetting.value = true;
+      isUpdatingExisting.value = false;
       
-      // Preserve warehouse selection
       const currentWarehouseId = formData.value.warehouse_id;
       
       formData.value = {
@@ -590,12 +752,13 @@ export default {
       
       addMode.value = 'both';
       errorMessage.value = '';
+      successMessage.value = '';
       existingItem.value = null;
       selectedFile.value = null;
       previewPhoto.value = '';
+      
       store.dispatch('clearOperationError');
       
-      // Focus on name input
       nextTick(() => {
         isFormResetting.value = false;
         if (nameInput.value) {
@@ -605,9 +768,9 @@ export default {
     };
 
     const formatFileSize = (bytes) => {
-      if (bytes === 0) return '0 Bytes';
+      if (bytes === 0) return '0 بايت';
       const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const sizes = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
@@ -622,28 +785,24 @@ export default {
       const file = event.target.files[0];
       if (!file) return;
 
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         errorMessage.value = 'يرجى اختيار ملف صورة فقط';
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5MB';
+        errorMessage.value = 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت';
         return;
       }
 
       selectedFile.value = file;
       
-      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         previewPhoto.value = e.target.result;
       };
       reader.readAsDataURL(file);
 
-      // Reset file input
       if (fileInput.value) {
         fileInput.value.value = '';
       }
@@ -660,28 +819,23 @@ export default {
       errorMessage.value = '';
 
       try {
-        // Check if clipboard API is available
         if (!navigator.clipboard || !navigator.clipboard.read) {
           errorMessage.value = 'ميزة لصق الصور من الحافظة غير مدعومة في هذا المتصفح';
           return;
         }
 
-        // Read clipboard contents
         const clipboardItems = await navigator.clipboard.read();
         
         for (const clipboardItem of clipboardItems) {
-          // Look for image types
           const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
           
           if (imageTypes.length > 0) {
             const imageType = imageTypes[0];
             const blob = await clipboardItem.getType(imageType);
             
-            // Create file from blob
-            const file = new File([blob], `pasted-image-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
+            const file = new File([blob], `صورة-ملصقة-${Date.now()}.${imageType.split('/')[1]}`, { type: imageType });
             selectedFile.value = file;
             
-            // Create preview
             const reader = new FileReader();
             reader.onload = (e) => {
               previewPhoto.value = e.target.result;
@@ -697,7 +851,7 @@ export default {
           errorMessage.value = 'لا توجد صورة في الحافظة';
         }
       } catch (error) {
-        console.error('Error pasting from clipboard:', error);
+        console.error('خطأ في اللصق من الحافظة:', error);
         errorMessage.value = 'حدث خطأ أثناء لصق الصورة من الحافظة. تأكد من وجود صورة في الحافظة وأنك قد منحت الإذن للوصول إلى الحافظة.';
       } finally {
         clipboardLoading.value = false;
@@ -710,22 +864,19 @@ export default {
       uploadingPhoto.value = true;
 
       try {
-        // In a real implementation, you would upload to Firebase Storage
-        // For now, we'll simulate by returning a base64 data URL
-        // In production, replace this with actual Firebase Storage upload
-        
+        // In real app, upload to Firebase Storage
+        // For now, return base64 data URL
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            // Simulate upload delay
             setTimeout(() => {
-              resolve(e.target.result); // Return base64 data URL
+              resolve(e.target.result);
             }, 1000);
           };
           reader.readAsDataURL(selectedFile.value);
         });
       } catch (error) {
-        console.error('Error uploading photo:', error);
+        console.error('خطأ في رفع الصورة:', error);
         errorMessage.value = 'حدث خطأ أثناء رفع الصورة';
         return null;
       } finally {
@@ -733,43 +884,11 @@ export default {
       }
     };
 
-    const checkExistingItem = async () => {
-      if (isFormResetting.value) return;
-      
-      if (!formData.value.name || !formData.value.code || !formData.value.color || !formData.value.warehouse_id) {
-        existingItem.value = null;
-        return;
-      }
-
-      try {
-        // Dispatch action to check for existing item
-        const result = await store.dispatch('checkExistingItem', {
-          name: formData.value.name.trim(),
-          code: formData.value.code.trim(),
-          color: formData.value.color.trim(),
-          warehouse_id: formData.value.warehouse_id
-        });
-
-        if (result && result.exists && result.item) {
-          existingItem.value = result.item;
-          // If existing item has a photo, show it in preview
-          if (result.item.photo_url) {
-            previewPhoto.value = result.item.photo_url;
-            formData.value.photo_url = result.item.photo_url;
-          }
-        } else {
-          existingItem.value = null;
-        }
-      } catch (error) {
-        console.error('Error checking existing item:', error);
-        existingItem.value = null;
-      }
-    };
-
     const validateForm = () => {
       errorMessage.value = '';
       store.dispatch('clearOperationError');
 
+      // Basic validations
       if (!formData.value.name.trim()) {
         errorMessage.value = 'يرجى إدخال اسم الصنف';
         if (nameInput.value) nameInput.value.focus();
@@ -791,40 +910,39 @@ export default {
         return false;
       }
 
-      // Check if user is logged in
+      // Authentication check
       if (!currentUserId.value) {
         errorMessage.value = 'يجب تسجيل الدخول أولاً';
         return false;
       }
 
-      // Check user permissions
+      // Permission check
       if (!store.getters.canEdit) {
         errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         return false;
       }
 
-      // Mode-specific validation
+      // Quantity validation based on mode
       if (addMode.value === 'cartons') {
-        if (!formData.value.cartons_count || formData.value.cartons_count <= 0) {
+        if (formData.value.cartons_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد كراتين صحيح';
           if (cartonsCountInput.value) cartonsCountInput.value.focus();
           return false;
         }
-        if (!formData.value.per_carton_count || formData.value.per_carton_count <= 0) {
+        if (formData.value.per_carton_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد صحيح في الكرتونة';
           if (perCartonInput.value) perCartonInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'single') {
-        if (!formData.value.single_bottles_count || formData.value.single_bottles_count <= 0) {
+        if (formData.value.single_bottles_count <= 0) {
           errorMessage.value = 'يرجى إدخال عدد فردي صحيح';
           if (singleBottlesInput.value) singleBottlesInput.value.focus();
           return false;
         }
       } else if (addMode.value === 'both') {
-        const cartonsValid = formData.value.cartons_count && formData.value.cartons_count > 0 && 
-                           formData.value.per_carton_count && formData.value.per_carton_count > 0;
-        const singleValid = formData.value.single_bottles_count && formData.value.single_bottles_count > 0;
+        const cartonsValid = formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
+        const singleValid = formData.value.single_bottles_count > 0;
         
         if (!cartonsValid && !singleValid) {
           errorMessage.value = 'يرجى إدخال كميات صحيحة إما في الكراتين أو الفردي';
@@ -832,8 +950,9 @@ export default {
         }
       }
 
-      if (totalQuantity.value <= 0) {
-        errorMessage.value = 'يرجى إدخال كمية صحيحة';
+      // For new items, ensure total quantity > 0
+      if (!existingItem.value && totalQuantity.value <= 0) {
+        errorMessage.value = 'يرجى إدخال كمية صحيحة للإضافة';
         return false;
       }
 
@@ -868,97 +987,164 @@ export default {
       successMessage.value = '';
 
       try {
-        // Upload photo if selected
-        if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
-          const photoUrl = await uploadPhotoToStorage();
-          if (photoUrl) {
-            formData.value.photo_url = photoUrl;
-          }
-        } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
-          // If we have a data URL from paste or file upload, use it directly
-          formData.value.photo_url = previewPhoto.value;
-        }
+        console.log('🚀 SUBMIT STARTED =================================');
+        console.log('📋 Form data:', formData.value);
+        console.log('🔍 Existing item status:', {
+          exists: !!existingItem.value,
+          id: existingItem.value?.id,
+          name: existingItem.value?.name,
+          code: existingItem.value?.code
+        });
 
-        // Prepare item data properly
-        const userId = currentUserId.value;
+        // UPLOAD PHOTO LOGIC WITH PROPER URL HANDLING
+        let photoUrl = null;
         
-        if (!userId) {
-          throw new Error('يجب تسجيل الدخول أولاً');
+        // Case 1: New photo selected
+        if (selectedFile.value && previewPhoto.value.startsWith('data:image/')) {
+          photoUrl = await uploadPhotoToStorage();
+          console.log('📸 New photo uploaded, URL:', photoUrl ? 'Yes (base64)' : 'No');
+        } 
+        // Case 2: Existing photo from existing item (keep it)
+        else if (existingItem.value?.photo_url) {
+          photoUrl = existingItem.value.photo_url;
+          console.log('🖼️ Using existing item photo:', photoUrl.substring(0, 50) + '...');
+        }
+        // Case 3: Preview photo from clipboard or existing preview
+        else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
+          photoUrl = previewPhoto.value;
+          console.log('📋 Using preview photo (base64)');
         }
 
-        // Use the computed property instead of creating a new variable with same name
-        const addingCartons = isAddingCartonsComputed.value;
-
-        // Prepare the item data object
+        // Prepare item data with proper photo URL handling
         const itemData = {
           name: formData.value.name.trim(),
           code: formData.value.code.trim(),
           color: formData.value.color.trim(),
           warehouse_id: formData.value.warehouse_id,
-          cartons_count: formData.value.cartons_count || 0,
-          per_carton_count: formData.value.per_carton_count || (addingCartons ? 12 : 1),
-          single_bottles_count: formData.value.single_bottles_count || 0,
-          supplier: formData.value.supplier?.trim() || '',
-          item_location: formData.value.item_location?.trim() || '',
-          notes: formData.value.notes?.trim() || '',
-          photo_url: formData.value.photo_url || null
+          cartons_count: Number(formData.value.cartons_count) || 0,
+          per_carton_count: Number(formData.value.per_carton_count) || 12,
+          single_bottles_count: Number(formData.value.single_bottles_count) || 0,
+          // Optional fields (convert empty strings to null)
+          supplier: formData.value.supplier?.trim() || null,
+          item_location: formData.value.item_location?.trim() || null,
+          notes: formData.value.notes?.trim() || null,
+          // PHOTO URL: Use uploaded photo, existing photo, or null
+          photo_url: photoUrl || null,
+          // REQUIRED BY VUEX STORE AND FIRESTORE RULES:
+          created_by: currentUserId.value,
+          updated_by: currentUserId.value
         };
 
-        console.log('Submitting item with data:', {
-          itemData,
-          userId,
-          addingCartons,
-          existingItem: existingItem.value
-        });
-
-        // Call the atomic action with correct parameters
-        const result = await store.dispatch('addInventoryItemAtomic', {
-          itemData,
-          userId,
-          isAddingCartons: addingCartons
-        });
-
-        console.log('Item operation completed:', result);
-
-        // Show success message
-        if (result?.type === 'created') {
-          successMessage.value = 'تم إضافة الصنف الجديد بنجاح!';
-        } else if (result?.type === 'updated') {
-          successMessage.value = 'تم تحديث الكميات بنجاح!';
+        // CRITICAL: If updating existing item, add the item ID
+        if (existingItem.value && existingItem.value.id) {
+          itemData.existingItemId = existingItem.value.id;
+          itemData.isUpdatingExisting = true;
+          
+          console.log('🔄 WILL UPDATE existing item:', {
+            id: existingItem.value.id,
+            existingItemId: itemData.existingItemId,
+            isUpdatingExisting: itemData.isUpdatingExisting,
+            photoUrlExists: !!photoUrl,
+            photoUrlType: photoUrl ? (photoUrl.startsWith('data:') ? 'base64' : 'url') : 'none'
+          });
         } else {
-          successMessage.value = 'تم حفظ التغييرات بنجاح!';
+          console.log('➕ WILL CREATE new item (no existing item found)');
         }
 
-        // Clear the form after successful submission but keep modal open
+        console.log('📦 Prepared itemData for store:', {
+          ...itemData,
+          created_by: 'HIDDEN',
+          updated_by: 'HIDDEN',
+          photo_url: itemData.photo_url ? (itemData.photo_url.substring(0, 50) + '...') : 'null'
+        });
+
+        // Call store action
+        console.log('📤 Dispatching to store...');
+        const result = await store.dispatch('addInventoryItem', {
+          itemData,
+          isAddingCartons: isAddingCartonsComputed.value
+        });
+
+        console.log('✅ Store action result:', result);
+
+        if (!result) {
+          throw new Error('No result returned from store action');
+        }
+
+        // Show success message
+        if (result.type === 'updated') {
+          successMessage.value = '✅ تم تحديث الكميات بنجاح!';
+          if (photoUrl && !existingItem.value?.photo_url) {
+            successMessage.value += ' تم إضافة صورة جديدة.';
+          } else if (photoUrl && existingItem.value?.photo_url) {
+            successMessage.value += ' تم تحديث الصورة.';
+          }
+        } else if (result.type === 'created') {
+          successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
+          if (photoUrl) {
+            successMessage.value += ' تم إضافة صورة للصنف.';
+          }
+        } else if (result.success) {
+          successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
+        } else {
+          successMessage.value = '✅ تمت العملية بنجاح!';
+        }
+
+        // Update local store
+        if (result.item && result.item.id) {
+          store.commit('UPDATE_INVENTORY_ITEM', result.item);
+          console.log('🔄 Item updated in local store');
+        }
+
+        // Silent background refresh
+        setTimeout(async () => {
+          try {
+            await store.dispatch('refreshInventorySilently');
+            console.log('✅ Inventory silently refreshed');
+          } catch (refreshError) {
+            console.warn('⚠️ Silent refresh failed:', refreshError.message);
+          }
+        }, 500);
+        
+        // Clear form after success
         setTimeout(() => {
-          emit('success', result || { type: existingItem.value ? 'updated' : 'created' });
+          store.dispatch('clearOperationError');
           clearFormAfterSuccess();
-        }, 1000);
+        }, 1500);
         
       } catch (error) {
-        console.error('Error in handleSubmit:', error);
+        console.error('❌ ERROR in handleSubmit:', error);
         
-        // Show appropriate error message
-        if (error.message?.includes('يجب تسجيل الدخول')) {
+        // Debug: Log the full error
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+
+        // Display appropriate error message
+        if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('permission-denied')) {
+          errorMessage.value = 'ليس لديك صلاحية للقيام بهذه العملية';
+        } else if (error.message?.includes('يجب تسجيل الدخول')) {
           errorMessage.value = 'يجب تسجيل الدخول أولاً';
         } else if (error.message?.includes('صلاحية')) {
-          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف. يرجى التواصل مع المشرف.';
+          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
           errorMessage.value = error.message;
         } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
-          errorMessage.value = 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+          errorMessage.value = 'خطأ في الاتصال بالشبكة';
         } else if (storeOperationError.value) {
-          // Use store error if available
           errorMessage.value = storeOperationError.value;
         } else {
-          errorMessage.value = `حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
+          errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
         }
       } finally {
         loading.value = false;
+        console.log('🏁 SUBMIT COMPLETED ===============================');
       }
     };
 
-    // Debounce helper function
+    // Debounce helper
     function debounce(func, wait) {
       let timeout;
       return function executedFunction(...args) {
@@ -1001,22 +1187,25 @@ export default {
       singleBottlesInput,
       notesInput,
       submitButton,
+      isUpdatingExisting,
       closeModal,
       handleSubmit,
       resetForm,
+      clearFormAfterSuccess,
       formatFileSize,
       openFilePicker,
       handleFileUpload,
       handlePasteFromClipboard,
       removePhoto,
-      focusNextField
+      focusNextField,
+      handleKeyDown
     };
   }
 };
 </script>
 
 <style scoped>
-/* Modal overlay */
+/* خلفية المودال */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1032,7 +1221,7 @@ export default {
   background-color: rgba(0, 0, 0, 0.7);
 }
 
-/* Modal content */
+/* محتوى المودال */
 .modal-content {
   background-color: white;
   border-radius: 0.75rem;
@@ -1047,7 +1236,7 @@ export default {
   background-color: #1f2937;
 }
 
-/* Modal header */
+/* رأس المودال */
 .modal-header {
   position: sticky;
   top: 0;
@@ -1101,14 +1290,14 @@ export default {
   height: 1.25rem;
 }
 
-/* Modal body */
+/* جسم المودال */
 .modal-body {
   padding: 1rem;
   max-height: calc(90vh - 130px);
   overflow-y: auto;
 }
 
-/* Modal footer */
+/* تذييل المودال */
 .modal-footer {
   position: sticky;
   bottom: 0;
@@ -1127,7 +1316,7 @@ export default {
   border-top-color: #374151;
 }
 
-/* Form elements */
+/* عناصر النموذج */
 .form-input,
 .form-select,
 .form-textarea {
@@ -1140,6 +1329,8 @@ export default {
   color: #1f2937;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-size: 0.875rem;
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 .dark .form-input,
@@ -1163,7 +1354,7 @@ export default {
   min-height: 5rem;
 }
 
-/* Form label */
+/* تسمية النموذج */
 .form-label {
   display: block;
   font-size: 0.875rem;
@@ -1181,7 +1372,7 @@ export default {
   margin-right: 0.125rem;
 }
 
-/* Form group */
+/* مجموعة النموذج */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -1190,7 +1381,7 @@ export default {
   margin-top: 1rem;
 }
 
-/* Grid layout */
+/* تخطيط الشبكة */
 .grid {
   display: grid;
 }
@@ -1209,7 +1400,7 @@ export default {
   }
 }
 
-/* Photo upload section */
+/* قسم رفع الصورة */
 .photo-upload-container {
   display: flex;
   flex-direction: column;
@@ -1296,7 +1487,7 @@ export default {
   color: #9ca3af;
 }
 
-/* Photo actions */
+/* أزرار الصورة */
 .photo-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1368,7 +1559,7 @@ export default {
   height: 1rem;
 }
 
-/* Photo info */
+/* معلومات الصورة */
 .photo-info {
   text-align: center;
   margin-top: 0.25rem;
@@ -1384,12 +1575,12 @@ export default {
   color: #9ca3af;
 }
 
-/* Hidden file input */
+/* إدخال الملف المخفي */
 .hidden {
   display: none;
 }
 
-/* Mode buttons */
+/* أزرار الوضع */
 .mode-btn {
   flex: 1;
   padding: 0.5rem 0.75rem;
@@ -1434,7 +1625,7 @@ export default {
   border-color: #6b7280;
 }
 
-/* Flex utilities */
+/* أدوات المرونة */
 .flex {
   display: flex;
 }
@@ -1477,7 +1668,7 @@ export default {
   }
 }
 
-/* Buttons */
+/* الأزرار */
 .btn-primary {
   flex: 1;
   padding: 0.5rem 1rem;
@@ -1535,12 +1726,12 @@ export default {
   cursor: not-allowed;
 }
 
-/* Gap utility */
+/* أداة الفجوة */
 .gap-2 {
   gap: 0.5rem;
 }
 
-/* Alert styles */
+/* أنماط التنبيهات */
 .alert {
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -1616,7 +1807,7 @@ export default {
   margin-left: 0.5rem;
 }
 
-/* Spinner */
+/* المغزل */
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -1641,7 +1832,7 @@ export default {
   }
 }
 
-/* Text utilities */
+/* أدوات النص */
 .text-sm {
   font-size: 0.875rem;
 }
@@ -1666,12 +1857,12 @@ export default {
   margin-top: 0.25rem;
 }
 
-/* Column utilities */
+/* أدوات العمود */
 .col-span-full {
   grid-column: 1 / -1;
 }
 
-/* Responsive adjustments */
+/* التعديلات المتجاوبة */
 @media (max-width: 640px) {
   .modal-content {
     margin: 0.5rem;
@@ -1714,7 +1905,7 @@ export default {
   }
 }
 
-/* Icon styles */
+/* أنماط الأيقونات */
 .w-4 {
   width: 1rem;
 }
