@@ -985,7 +985,6 @@
     />
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -993,7 +992,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { debounce } from 'lodash';
 import * as XLSX from 'xlsx';
 
-// Import your modals (adjust paths as needed)
+// Import your modals
 import AddItemModal from '@/components/inventory/AddItemModal.vue';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 import EditItemModal from '@/components/inventory/EditItemModal.vue';
@@ -1019,45 +1018,27 @@ const vClickOutside = {
 // Arabic text normalization (MUST MATCH STORE FUNCTION)
 function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
-
-  // Convert to string and trim
   text = String(text).trim();
-
-  // Normalize Unicode to combine characters
   text = text.normalize('NFC');
-
-  // Remove all diacritics and special characters
   const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
   text = text.replace(diacriticsRegex, '');
-
-  // Simplified character normalization (consistent with store)
+  
   const arabicNormalizationMap = {
-    // Alif variations
     'إ': 'ا', 'أ': 'ا', 'آ': 'ا',
-    // Ya variations
     'ى': 'ي', 'ئ': 'ي',
-    // Ta marbuta
     'ة': 'ه',
-    // Waw variations
     'ؤ': 'و',
-    // Persian characters
     'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
-    // Tatweel (kashida)
     'ـ': '',
   };
 
-  // Apply character replacements
   Object.keys(arabicNormalizationMap).forEach(key => {
     const regex = new RegExp(key, 'g');
     text = text.replace(regex, arabicNormalizationMap[key]);
   });
 
-  // Remove any remaining non-Arabic characters (keep spaces and numbers)
   text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
-
-  // Remove extra spaces and normalize
   text = text.replace(/\s+/g, ' ').trim().toLowerCase();
-
   return text;
 }
 
@@ -1069,12 +1050,10 @@ function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
   const matches = [];
 
   for (const item of items) {
-    // Check warehouse filter
     if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
       continue;
     }
 
-    // Check all searchable fields
     const searchFields = ['name', 'code', 'color', 'supplier', 'item_location', 'notes', 'barcode', 'sku', 'category'];
     let matched = false;
 
@@ -1084,13 +1063,11 @@ function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
 
       const normalizedFieldValue = normalizeArabicText(fieldValue.toString());
       
-      // Simple contains check
       if (normalizedFieldValue.includes(normalizedTerm)) {
         matched = true;
         break;
       }
       
-      // Word-by-word matching
       const searchWords = normalizedTerm.split(/\s+/);
       const fieldWords = normalizedFieldValue.split(/\s+/);
       
@@ -1112,16 +1089,13 @@ function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
     }
   }
 
-  // Sort by relevance
   const sortedMatches = matches.sort((a, b) => {
-    // Exact code match first
     const aCodeMatch = normalizeArabicText(a.code).includes(normalizedTerm);
     const bCodeMatch = normalizeArabicText(b.code).includes(normalizedTerm);
     
     if (aCodeMatch && !bCodeMatch) return -1;
     if (!aCodeMatch && bCodeMatch) return 1;
     
-    // Then name match
     const aNameMatch = normalizeArabicText(a.name).includes(normalizedTerm);
     const bNameMatch = normalizeArabicText(b.name).includes(normalizedTerm);
     
@@ -1148,9 +1122,6 @@ export default {
     'click-outside': vClickOutside
   },
   setup() {
-    // ============================================
-    // VUE STORE & ROUTER SETUP
-    // ============================================
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
@@ -1158,8 +1129,6 @@ export default {
     // ============================================
     // STATE MANAGEMENT
     // ============================================
-    
-    // Loading States
     const loading = ref(false);
     const loadingMore = ref(false);
     const refreshing = ref(false);
@@ -1192,9 +1161,6 @@ export default {
     const statusFilter = ref('');
     const selectedWarehouse = ref('');
     
-    // Search & Performance
-    const showDebug = ref(false);
-    
     // Virtual Scrolling
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
@@ -1214,23 +1180,18 @@ export default {
     // ============================================
     // STORE COMPUTED PROPERTIES
     // ============================================
-    
-    // User & Auth
     const user = computed(() => store.state.user);
     const userProfile = computed(() => store.state.userProfile);
     const userRole = computed(() => userProfile.value?.role || '');
     
-    // Search Results from Store
     const searchResults = computed(() => store.state.search?.results || []);
     const isLiveSearching = computed(() => store.state.search?.loading || false);
     const searchQuery = computed(() => store.state.search?.query || '');
     
-    // Inventory & Filtering
     const allInventory = computed(() => store.state.inventory || []);
     const inventoryLoading = computed(() => store.state.inventoryLoading);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     
-    // Apply local warehouse filter to inventory
     const filteredInventory = computed(() => {
       let items = allInventory.value;
       
@@ -1238,7 +1199,6 @@ export default {
         items = items.filter(item => item.warehouse_id === selectedWarehouse.value);
       }
       
-      // Apply status filter
       if (statusFilter.value) {
         items = items.filter(item => {
           const quantity = item.remaining_quantity || 0;
@@ -1252,18 +1212,15 @@ export default {
       return items;
     });
     
-    // Search Mode Detection
     const isSearchMode = computed(() => {
       return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
     });
     
-    // Final Displayed Items (Search results OR filtered inventory)
     const displayedItems = computed(() => {
       if (isSearchMode.value) {
         return searchResults.value;
       }
       
-      // If we have a search term but no search results yet, use local fuzzy search
       if (searchTerm.value && searchTerm.value.length >= 2) {
         return fuzzyLocalSearch(filteredInventory.value, searchTerm.value, selectedWarehouse.value, 50);
       }
@@ -1271,12 +1228,10 @@ export default {
       return filteredInventory.value;
     });
     
-    // Warehouses
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const allWarehouses = computed(() => store.getters.warehouses || []);
     const allUsers = computed(() => store.state.allUsers || []);
     
-    // Pagination
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
     const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
@@ -1284,8 +1239,6 @@ export default {
     // ============================================
     // COMPUTED STATISTICS
     // ============================================
-    
-    // Current User Info
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
       if (user.value?.displayName) return user.value.displayName;
@@ -1294,7 +1247,6 @@ export default {
       return 'مستخدم النظام';
     });
     
-    // Quantity Statistics
     const totalQuantity = computed(() => {
       return displayedItems.value.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
     });
@@ -1311,7 +1263,6 @@ export default {
       return warehouses.size;
     });
     
-    // Filter Status
     const hasActiveFilters = computed(() => {
       return selectedWarehouse.value || statusFilter.value || searchTerm.value;
     });
@@ -1324,7 +1275,6 @@ export default {
       return count;
     });
     
-    // Permissions
     const canAddItem = computed(() => {
       return userRole.value === 'superadmin' ||
              (userRole.value === 'warehouse_manager' && 
@@ -1337,7 +1287,6 @@ export default {
     // ============================================
     // VIRTUAL SCROLLING COMPUTED PROPERTIES
     // ============================================
-    
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
       const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
@@ -1351,33 +1300,25 @@ export default {
     });
     
     // ============================================
-    // STORE-BASED SEARCH SYSTEM - UPDATED
+    // ENHANCED STORE SEARCH SYSTEM
     // ============================================
-    
-    /**
-     * 🔍 ENHANCED STORE SEARCH
-     * Uses store's searchInventorySpark action with proper Arabic text matching
-     */
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
-        // Clear search in store
         await store.dispatch('clearSearch');
         resetScrollPositions();
         return;
       }
       
-      // Minimum 2 characters for search
       if (term.length < 2) {
         await store.dispatch('clearSearch');
         return;
       }
       
       try {
-        console.log(`🚀 [ENHANCED STORE SEARCH] Triggering store search for: "${term}"`);
+        console.log(`🚀 Triggering store search for: "${term}"`);
         
-        // Use store's enhanced SPARK search system
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
@@ -1385,16 +1326,12 @@ export default {
           strategy: 'parallel'
         });
         
-        console.log(`✅ [ENHANCED STORE SEARCH] Store returned ${results.length} results`);
+        console.log(`✅ Store returned ${results.length} results`);
         
-        // Update freshness
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
-        
-        // Reset scroll positions
         resetScrollPositions();
         
-        // Show notification if results found
         if (results.length > 0) {
           store.dispatch('showNotification', {
             type: 'success',
@@ -1408,27 +1345,23 @@ export default {
         }
         
       } catch (error) {
-        console.error('❌ [ENHANCED STORE SEARCH] Error in store search:', error);
+        console.error('❌ Error in store search:', error);
         
         store.dispatch('showNotification', {
           type: 'error',
           message: 'خطأ في البحث. جاري استخدام البحث المحلي.'
         });
         
-        // Fallback: Clear store search
         await store.dispatch('clearSearch');
       }
     }, 500);
     
     // ============================================
-    // FILTER HANDLERS - UPDATED
+    // FILTER HANDLERS
     // ============================================
-    
     const handleWarehouseChange = async () => {
-      // Reset scroll positions
       resetScrollPositions();
       
-      // If we have a search term, re-run search with new warehouse filter
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
       }
@@ -1448,7 +1381,6 @@ export default {
       selectedWarehouse.value = '';
       resetScrollPositions();
       
-      // If we have a search term, re-run search without warehouse filter
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
       }
@@ -1460,9 +1392,7 @@ export default {
       selectedWarehouse.value = '';
       showFilters.value = false;
       
-      // Clear store search
       await store.dispatch('clearSearch');
-      
       resetScrollPositions();
     };
     
@@ -1478,14 +1408,12 @@ export default {
     };
     
     // ============================================
-    // DATA LOADING METHODS - UPDATED
+    // DATA LOADING METHODS
     // ============================================
-    
     const loadInitialData = async () => {
       try {
         loading.value = true;
         
-        // Step 1: Load essential data in parallel
         const loadPromises = [
           store.dispatch('loadWarehouses'),
           store.dispatch('loadUsers')
@@ -1493,17 +1421,14 @@ export default {
         
         await Promise.all(loadPromises);
         
-        // Step 2: Check for route parameters
         const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
         if (routeWarehouseId) {
-          // Verify warehouse is accessible
           const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
           if (warehouseExists) {
             selectedWarehouse.value = routeWarehouseId;
           }
         }
         
-        // Step 3: Load inventory via store
         console.log('🔄 Loading inventory via store...');
         await store.dispatch('loadAllInventory', { 
           forceRefresh: true
@@ -1512,11 +1437,9 @@ export default {
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
         
-        // Step 4: Initialize virtual scrolling
         await nextTick();
         resetScrollPositions();
         
-        // Step 5: Pre-calculate row heights
         setTimeout(() => {
           if (scrollContainer.value) {
             calculateVisibleItems();
@@ -1536,7 +1459,6 @@ export default {
           message: 'خطأ في تحميل البيانات. جاري إعادة المحاولة...'
         });
         
-        // Auto-retry after 5 seconds
         setTimeout(() => {
           if (!inventoryLoaded.value) {
             loadInitialData();
@@ -1549,7 +1471,6 @@ export default {
     };
     
     const loadMoreItems = async () => {
-      // Only load more if not in search mode
       if (isSearchMode.value) {
         return;
       }
@@ -1563,7 +1484,6 @@ export default {
           
           console.log('✅ Loaded more items successfully');
           
-          // After loading, ensure virtual scrolling updates
           await nextTick();
           
         } catch (error) {
@@ -1582,13 +1502,11 @@ export default {
       try {
         refreshing.value = true;
         
-        // Force refresh from store
         await store.dispatch('loadAllInventory', { forceRefresh: true });
         
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         
-        // If we have a search term, refresh search results
         if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
           await handleLiveSearch();
         }
@@ -1610,10 +1528,8 @@ export default {
     };
     
     // ============================================
-    // ITEM ACTION HANDLERS
+    // ITEM ACTION HANDLERS WITH STORE INTEGRATION
     // ============================================
-    
-    // Permission methods
     const canEditItem = (item) => {
       if (userRole.value === 'superadmin') return true;
       if (userRole.value !== 'warehouse_manager') return false;
@@ -1629,7 +1545,6 @@ export default {
       return canEditItem(item) && userRole.value === 'superadmin';
     };
     
-    // Item details
     const showItemDetails = (item) => {
       selectedItem.value = {
         ...item,
@@ -1646,7 +1561,6 @@ export default {
       selectedItem.value = null;
     };
     
-    // Action handlers
     const toggleActionMenu = (itemId) => {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
     };
@@ -1746,32 +1660,96 @@ export default {
       }
     };
     
-    // Modal success handlers
-    const handleItemSaved = async () => {
+    // ============================================
+    // CRITICAL: UPDATED MODAL SUCCESS HANDLERS WITH STORE INTEGRATION
+    // ============================================
+    const handleItemSaved = async (result) => {
       showAddModal.value = false;
+      
+      console.log('✅ handleItemSaved called with:', result);
+      
+      // The store action already handles the update in Vuex state
+      // We just need to handle UI updates
       
       if (searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
+      // Force refresh inventory data
+      await store.dispatch('refreshInventorySilently');
+      
+      let successMessage = '';
+      
+      if (result?.type === 'updated') {
+        successMessage = `✅ تم تحديث كميات الصنف "${result.item?.name}" بنجاح`;
+        if (result.cartonsAdded > 0) {
+          successMessage += `. تمت إضافة ${result.cartonsAdded} كراتين`;
+        }
+        if (result.convertedCartons > 0) {
+          successMessage += `. تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي`;
+        }
+      } else if (result?.type === 'created') {
+        successMessage = `✅ تم إضافة الصنف الجديد "${result.item?.name}" بنجاح`;
+        if (result.convertedCartons > 0) {
+          successMessage += `. تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي`;
+        }
+      } else {
+        successMessage = '✅ تم حفظ التغييرات بنجاح!';
+      }
+      
       store.dispatch('showNotification', {
         type: 'success',
-        message: 'تم إضافة الصنف بنجاح!'
+        message: successMessage
       });
     };
     
-    const handleItemUpdated = async () => {
-      showEditModal.value = false;
-      selectedItemForEdit.value = null;
-      
-      if (searchTerm.value.trim()) {
-        await handleLiveSearch();
+    const handleItemUpdated = async (updatedItem) => {
+      try {
+        showEditModal.value = false;
+        selectedItemForEdit.value = null;
+        
+        console.log('🔄 Updating item via store:', updatedItem);
+        
+        // Call the store's updateItem action
+        const result = await store.dispatch('updateItem', {
+          itemId: updatedItem.id,
+          itemData: {
+            name: updatedItem.name || '',
+            code: updatedItem.code || '',
+            color: updatedItem.color || '',
+            warehouse_id: updatedItem.warehouse_id || selectedWarehouse.value || '',
+            cartons_count: Number(updatedItem.cartons_count) || 0,
+            per_carton_count: Number(updatedItem.per_carton_count) || 12,
+            single_bottles_count: Number(updatedItem.single_bottles_count) || 0,
+            supplier: updatedItem.supplier || '',
+            item_location: updatedItem.item_location || '',
+            notes: updatedItem.notes || '',
+            photo_url: updatedItem.photo_url || null
+          }
+        });
+        
+        console.log('✅ Item updated in store:', result);
+        
+        // Refresh search if active
+        if (searchTerm.value.trim()) {
+          await handleLiveSearch();
+        }
+        
+        // Force silent refresh
+        await store.dispatch('refreshInventorySilently');
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم تحديث الصنف "${updatedItem.name}" بنجاح!`
+        });
+        
+      } catch (error) {
+        console.error('❌ Error in handleItemUpdated:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تحديث الصنف'
+        });
       }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم تحديث الصنف بنجاح!'
-      });
     };
     
     const handleTransferSuccess = async () => {
@@ -1781,6 +1759,9 @@ export default {
       if (searchTerm.value.trim()) {
         await handleLiveSearch();
       }
+      
+      // Force silent refresh
+      await store.dispatch('refreshInventorySilently');
       
       store.dispatch('showNotification', {
         type: 'success',
@@ -1796,6 +1777,9 @@ export default {
         await handleLiveSearch();
       }
       
+      // Force silent refresh
+      await store.dispatch('refreshInventorySilently');
+      
       store.dispatch('showNotification', {
         type: 'success',
         message: 'تم الصرف الخارجي بنجاح!'
@@ -1805,8 +1789,6 @@ export default {
     // ============================================
     // HELPER FUNCTIONS
     // ============================================
-    
-    // Formatting
     const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num || 0);
     
     const getWarehouseLabel = (warehouseId) => {
@@ -2048,7 +2030,6 @@ export default {
     // ============================================
     // VIRTUAL SCROLLING METHODS
     // ============================================
-    
     const calculateVisibleItems = () => {
       if (!scrollContainer.value) return;
       
@@ -2056,9 +2037,8 @@ export default {
       const scrollTop = container.scrollTop;
       const clientHeight = container.clientHeight;
       
-      // Calculate approximate row height
       const rows = container.querySelectorAll('tbody tr');
-      let rowHeight = 80; // Default fallback
+      let rowHeight = 80;
       
       if (rows.length > 0) {
         const sampleRows = Math.min(5, rows.length);
@@ -2070,14 +2050,12 @@ export default {
         rowHeight = Math.floor(totalHeight / sampleRows);
       }
       
-      // Calculate visible range with buffer
       const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - scrollBuffer);
       const endIndex = Math.min(
         displayedItems.value.length,
         startIndex + Math.ceil(clientHeight / rowHeight) + (scrollBuffer * 2)
       );
       
-      // Only update if the change is significant
       const newIndex = Math.max(0, startIndex);
       if (Math.abs(newIndex - visibleStartIndex.value) > scrollBuffer / 2) {
         visibleStartIndex.value = newIndex;
@@ -2091,32 +2069,26 @@ export default {
       
       const now = Date.now();
       
-      // Throttle scroll events for performance
       if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
         return;
       }
       lastScrollTime.value = now;
       
-      // Clear any existing throttle timeout
       if (scrollThrottle.value) {
         cancelAnimationFrame(scrollThrottle.value);
       }
       
-      // Use requestAnimationFrame for smoother performance
       scrollThrottle.value = requestAnimationFrame(() => {
         const container = scrollContainer.value;
         if (!container) return;
         
-        // Calculate visible items
         calculateVisibleItems();
         
-        // Check if we need to load more items (near bottom 20%)
         const scrollTop = container.scrollTop;
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
         const scrollBottom = scrollTop + clientHeight;
         
-        // Load more when we're within 3 screen heights from the bottom
         const loadMoreThreshold = scrollHeight - (clientHeight * 3);
         
         if (scrollBottom > loadMoreThreshold && 
@@ -2138,9 +2110,8 @@ export default {
       const scrollTop = container.scrollTop;
       const clientHeight = container.clientHeight;
       
-      // Calculate approximate card height for mobile
       const cards = container.querySelectorAll('div[data-mobile-card]');
-      let cardHeight = 120; // Default mobile card height
+      let cardHeight = 120;
       
       if (cards.length > 0) {
         const sampleCards = Math.min(3, cards.length);
@@ -2152,14 +2123,12 @@ export default {
         cardHeight = Math.floor(totalHeight / sampleCards);
       }
       
-      // Calculate visible range with buffer
       const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - scrollBuffer);
       const endIndex = Math.min(
         displayedItems.value.length,
         startIndex + Math.ceil(clientHeight / cardHeight) + (scrollBuffer * 2)
       );
       
-      // Only update if the change is significant
       const newIndex = Math.max(0, startIndex);
       if (Math.abs(newIndex - mobileVisibleStartIndex.value) > scrollBuffer / 2) {
         mobileVisibleStartIndex.value = newIndex;
@@ -2173,7 +2142,6 @@ export default {
       
       const now = Date.now();
       
-      // Throttle scroll events
       if (now - lastScrollTime.value < SCROLL_THROTTLE_DELAY) {
         return;
       }
@@ -2187,16 +2155,13 @@ export default {
         const container = mobileScrollContainer.value;
         if (!container) return;
         
-        // Calculate visible items
         calculateMobileVisibleItems();
         
-        // Check if we need to load more items
         const scrollTop = container.scrollTop;
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
         const scrollBottom = scrollTop + clientHeight;
         
-        // Load more when we're within 2 screen heights from the bottom
         const loadMoreThreshold = scrollHeight - (clientHeight * 2);
         
         if (scrollBottom > loadMoreThreshold && 
@@ -2212,28 +2177,14 @@ export default {
     };
     
     // ============================================
-    // DEBUG METHODS
-    // ============================================
-    
-    const forceRefreshSearch = async () => {
-      console.log('🔍 DEBUG: Force refreshing search...');
-      await handleLiveSearch.flush();
-    };
-    
-    // ============================================
     // WATCHERS
     // ============================================
-    
-    // Watch for loading state changes
     watch(inventoryLoading, (newVal) => {
       if (!newVal && inventoryLoaded.value) {
         loading.value = false;
-        
-        // Update data freshness
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
         
-        // Recalculate virtual scrolling after data loads
         nextTick(() => {
           if (scrollContainer.value) {
             calculateVisibleItems();
@@ -2242,19 +2193,14 @@ export default {
       }
     });
     
-    // Watch for search results from store
     watch(searchResults, (newResults) => {
       if (newResults && newResults.length > 0) {
         console.log(`🔍 Store search results updated: ${newResults.length} items`);
         
-        // Mark as fresh search data
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
-        
-        // Reset scroll positions for search results
         resetScrollPositions();
         
-        // Update virtual scrolling for search results
         nextTick(() => {
           if (scrollContainer.value) calculateVisibleItems();
           if (mobileScrollContainer.value) calculateMobileVisibleItems();
@@ -2262,21 +2208,16 @@ export default {
       }
     });
     
-    // Watch for search query changes
     watch(searchTerm, (newTerm) => {
       if (newTerm && newTerm.length >= 2) {
-        // Use store's search system
         handleLiveSearch();
       } else if (!newTerm || newTerm.length === 0) {
-        // Clear store search
         store.dispatch('clearSearch');
       }
     });
     
-    // Watch for route changes
     watch(() => route.params.warehouseId, (newWarehouseId) => {
       if (newWarehouseId && accessibleWarehouses.value.some(w => w.id === newWarehouseId)) {
-        // Clear any existing search when changing warehouses via route
         if (searchTerm.value) {
           clearSearch();
         }
@@ -2288,11 +2229,9 @@ export default {
     // ============================================
     // LIFECYCLE HOOKS
     // ============================================
-    
     onMounted(async () => {
       console.log('📱 Inventory Production mounted with FULL STORE COMPLIANCE');
       
-      // Set up resize observer
       const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
         if (mobileScrollContainer.value) calculateMobileVisibleItems();
@@ -2307,35 +2246,28 @@ export default {
       
       window.__inventoryResizeObserver = resizeObserver;
       
-      // Load initial data
       await loadInitialData();
     });
     
     onUnmounted(() => {
       console.log('🧹 Cleaning up Inventory Production');
       
-      // Cleanup resize observer
       if (window.__inventoryResizeObserver) {
         window.__inventoryResizeObserver.disconnect();
         delete window.__inventoryResizeObserver;
       }
       
-      // Cleanup scroll throttle
       if (scrollThrottle.value) {
         cancelAnimationFrame(scrollThrottle.value);
       }
       
-      // Cleanup debounced functions
       handleLiveSearch.cancel();
-      
-      // Reset store state
       store.dispatch('clearSearch');
     });
     
     // ============================================
     // RETURN ALL REACTIVE VALUES AND METHODS
     // ============================================
-    
     return {
       // State
       loading,
@@ -2365,9 +2297,6 @@ export default {
       // Mobile UI
       showFilters,
       showActionMenu,
-      
-      // Search & Performance
-      showDebug,
       
       // Virtual scrolling refs
       scrollContainer,
@@ -2450,9 +2379,6 @@ export default {
       handleTransferSuccess,
       handleDispatchSuccess,
       
-      // Debug method
-      forceRefreshSearch,
-      
       // Virtual scrolling
       onScroll,
       onMobileScroll,
@@ -2463,8 +2389,8 @@ export default {
     };
   }
 };
-</script>
-
+</script>      
+           
 <style scoped>
 /* Enhanced Custom Scrollbar */
 ::-webkit-scrollbar {
