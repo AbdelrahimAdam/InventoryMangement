@@ -1,12 +1,18 @@
 <template>
   <div class="add-user-module" :class="{ 'dark-mode': isDarkMode }">
-    <!-- Trigger Button (for standalone usage) -->
-    <slot name="trigger" v-if="!autoOpen">
+    <!-- Trigger Button - Only show for authorized users -->
+    <slot name="trigger" v-if="!autoOpen && canCreateUsers">
       <button @click="openModal" class="btn-primary add-user-btn">
         <i class="fas fa-user-plus"></i>
         {{ buttonText }}
       </button>
     </slot>
+
+    <!-- Message for unauthorized users -->
+    <div v-else-if="!autoOpen && !canCreateUsers" class="unauthorized-message">
+      <i class="fas fa-lock"></i>
+      <p>ليس لديك صلاحية إضافة مستخدمين</p>
+    </div>
 
     <!-- Modal Overlay -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
@@ -18,17 +24,27 @@
               <h2>
                 <i class="fas fa-user-plus"></i>
                 {{ editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد' }}
+                <span v-if="isSelfEdit" class="edit-badge">تعديل الملف الشخصي</span>
               </h2>
               <p class="modal-subtitle">
-                {{ editingUser ? 'تعديل بيانات المستخدم الحالي' : 'إنشاء حساب جديد للمستخدم مع تحديد الصلاحيات' }}
+                {{ editingUser ? 
+                  (isSelfEdit ? 'تعديل بياناتك الشخصية' : 'تعديل بيانات المستخدم الحالي') 
+                  : 'إنشاء حساب جديد للمستخدم مع تحديد الصلاحيات' }}
               </p>
+              <div v-if="currentUserRole" class="current-user-info">
+                <i class="fas fa-user-shield"></i>
+                أنت: <strong>{{ getRoleName(currentUserRole) }}</strong>
+                <span v-if="!canCreateAllRoles" class="role-restriction">
+                  (يمكنك إنشاء: {{ getAllowedRolesForCreation.map(r => getRoleName(r)).join('، ') }})
+                </span>
+              </div>
             </div>
             <button @click="closeModal" class="modal-close" aria-label="إغلاق">
               <i class="fas fa-times"></i>
             </button>
           </div>
 
-          <!-- Progress Steps - Mobile Optimized -->
+          <!-- Progress Steps -->
           <div class="progress-steps">
             <div class="steps-container">
               <div 
@@ -65,7 +81,7 @@
                     <h3>
                       <i class="fas fa-user-circle"></i> المعلومات الأساسية
                     </h3>
-                    
+
                     <div class="form-grid">
                       <!-- Full Name -->
                       <div class="form-group" :class="{ 'error': formErrors.name }">
@@ -79,10 +95,14 @@
                           placeholder="أدخل الاسم الكامل للمستخدم"
                           @input="clearError('name')"
                           @blur="validateField('name')"
+                          :disabled="isSelfEdit && !canEditOwnName"
                         >
                         <div class="form-hint">
                           <i class="fas fa-info-circle"></i>
                           سيظهر هذا الاسم في جميع أنحاء النظام
+                          <span v-if="isSelfEdit && !canEditOwnName" class="hint-warning">
+                            (للتعديل يرجى التواصل مع المشرف)
+                          </span>
                         </div>
                         <span v-if="formErrors.name" class="error-message">
                           <i class="fas fa-exclamation-circle"></i> {{ formErrors.name }}
@@ -101,10 +121,14 @@
                           placeholder="example@company.com"
                           @input="clearError('email')"
                           @blur="validateField('email')"
+                          :disabled="isSelfEdit"
                         >
                         <div class="form-hint">
                           <i class="fas fa-info-circle"></i>
                           سيستخدم هذا البريد لتسجيل الدخول واستقبال الإشعارات
+                          <span v-if="isSelfEdit" class="hint-warning">
+                            (لا يمكن تغيير البريد الإلكتروني)
+                          </span>
                         </div>
                         <span v-if="formErrors.email" class="error-message">
                           <i class="fas fa-exclamation-circle"></i> {{ formErrors.email }}
@@ -118,18 +142,24 @@
                         </label>
                         <div class="role-selector">
                           <div 
-                            v-for="role in availableRoles" 
+                            v-for="role in filteredAvailableRoles" 
                             :key="role.id"
                             class="role-option"
-                            :class="{ 'selected': userData.role === role.id }"
-                            @click="selectRole(role.id)"
+                            :class="{ 
+                              'selected': userData.role === role.id,
+                              'disabled': !canAssignRole(role.id)
+                            }"
+                            @click="canAssignRole(role.id) && selectRole(role.id)"
                           >
-                            <div class="role-icon">
+                            <div class="role-icon" :class="role.id">
                               <i :class="role.icon"></i>
                             </div>
                             <div class="role-info">
                               <h4>{{ role.name }}</h4>
                               <p>{{ role.description }}</p>
+                              <div v-if="!canAssignRole(role.id)" class="role-restricted">
+                                <i class="fas fa-lock"></i> غير مسموح
+                              </div>
                             </div>
                             <div class="role-check">
                               <i class="fas fa-check" v-if="userData.role === role.id"></i>
@@ -160,11 +190,15 @@
                             id="phone"
                             v-model="userData.phone"
                             placeholder="5X XXX XXXX"
+                            @input="validatePhone"
                           >
                         </div>
                         <div class="form-hint">
                           <i class="fas fa-info-circle"></i>
                           اختياري - لاستخدامه في التواصل الطارئ
+                          <span v-if="formErrors.phone" class="hint-error">
+                            {{ formErrors.phone }}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -195,7 +229,7 @@
                         <h3>
                           <i class="fas fa-warehouse"></i> صلاحيات المخازن
                         </h3>
-                        <div class="section-actions">
+                        <div class="section-actions" v-if="!isSelfEdit">
                           <button 
                             type="button" 
                             @click="toggleAllWarehouses" 
@@ -210,12 +244,13 @@
 
                       <div class="warehouse-permissions">
                         <!-- All Warehouses Option -->
-                        <div class="permission-option all-warehouses">
+                        <div class="permission-option all-warehouses" v-if="!isSelfEdit">
                           <label class="checkbox-label">
                             <input
                               type="checkbox"
                               v-model="userData.allWarehouses"
                               @change="toggleAllWarehousesAccess"
+                              :disabled="isSelfEdit"
                             >
                             <span class="checkbox-custom"></span>
                             <div class="checkbox-content">
@@ -235,6 +270,7 @@
                                   <i class="fas fa-building"></i> المخازن الرئيسية
                                 </h4>
                                 <button 
+                                  v-if="!isSelfEdit"
                                   type="button" 
                                   @click="toggleCategory('primary')" 
                                   class="btn-sm btn-secondary"
@@ -248,13 +284,17 @@
                                   v-for="warehouse in primaryWarehouses"
                                   :key="warehouse.id"
                                   class="warehouse-option"
-                                  :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                                  :class="{ 
+                                    'selected': userData.allowedWarehouses.includes(warehouse.id),
+                                    'disabled': isSelfEdit
+                                  }"
                                 >
                                   <input
                                     type="checkbox"
                                     :value="warehouse.id"
                                     v-model="userData.allowedWarehouses"
                                     @change="handleWarehouseSelection(warehouse.id)"
+                                    :disabled="isSelfEdit"
                                   >
                                   <span class="checkbox-custom"></span>
                                   <div class="warehouse-info">
@@ -281,6 +321,7 @@
                                   <i class="fas fa-shipping-fast"></i> مخازن التوزيع
                                 </h4>
                                 <button 
+                                  v-if="!isSelfEdit"
                                   type="button" 
                                   @click="toggleCategory('dispatch')" 
                                   class="btn-sm btn-secondary"
@@ -294,13 +335,17 @@
                                   v-for="warehouse in dispatchWarehouses"
                                   :key="warehouse.id"
                                   class="warehouse-option"
-                                  :class="{ 'selected': userData.allowedWarehouses.includes(warehouse.id) }"
+                                  :class="{ 
+                                    'selected': userData.allowedWarehouses.includes(warehouse.id),
+                                    'disabled': isSelfEdit
+                                  }"
                                 >
                                   <input
                                     type="checkbox"
                                     :value="warehouse.id"
                                     v-model="userData.allowedWarehouses"
                                     @change="handleWarehouseSelection(warehouse.id)"
+                                    :disabled="isSelfEdit"
                                   >
                                   <span class="checkbox-custom"></span>
                                   <div class="warehouse-info">
@@ -327,6 +372,12 @@
                           <i class="fas fa-exclamation-circle"></i>
                           <p>لم يتم اختيار أي مخزن. المستخدم لن يتمكن من الوصول إلى أي مخزن.</p>
                         </div>
+
+                        <!-- Self Edit Message -->
+                        <div v-if="isSelfEdit" class="self-edit-message">
+                          <i class="fas fa-info-circle"></i>
+                          <p>لا يمكنك تعديل صلاحيات المخازن الخاصة بك. يرجى التواصل مع المشرف.</p>
+                        </div>
                       </div>
                     </div>
 
@@ -336,7 +387,7 @@
                         <h3>
                           <i class="fas fa-user-shield"></i> الصلاحيات التفصيلية
                         </h3>
-                        <div class="permission-presets">
+                        <div class="permission-presets" v-if="!isSelfEdit">
                           <span>إعدادات سريعة:</span>
                           <div class="preset-buttons">
                             <button type="button" @click="applyPermissionPreset('view_only')" class="preset-btn">
@@ -369,28 +420,33 @@
                           >
                             <div class="category-header">
                               <h4>{{ category.name }}</h4>
-                              <label class="category-toggle">
+                              <label class="category-toggle" v-if="!isSelfEdit">
                                 <input
                                   type="checkbox"
                                   :checked="isCategorySelected(category.permissions)"
                                   @change="toggleCategorySelection(category.permissions, $event)"
+                                  :disabled="isSelfEdit"
                                 >
                                 <span>{{ isCategorySelected(category.permissions) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}</span>
                               </label>
                             </div>
-                            
+
                             <div class="permission-list">
                               <label
                                 v-for="permission in category.permissions"
                                 :key="permission.id"
                                 class="permission-item"
-                                :class="{ 'selected': userData.permissions.includes(permission.id) }"
+                                :class="{ 
+                                  'selected': userData.permissions.includes(permission.id),
+                                  'disabled': isSelfEdit || !canAssignPermission(permission.id)
+                                }"
                               >
                                 <input
                                   type="checkbox"
                                   :value="permission.id"
                                   v-model="userData.permissions"
                                   @change="handlePermissionSelection(permission.id)"
+                                  :disabled="isSelfEdit || !canAssignPermission(permission.id)"
                                 >
                                 <span class="checkbox-custom"></span>
                                 <div class="permission-info">
@@ -400,6 +456,9 @@
                                   <div class="permission-details">
                                     <h5>{{ permission.name }}</h5>
                                     <p>{{ permission.description }}</p>
+                                    <div v-if="!canAssignPermission(permission.id)" class="permission-restricted">
+                                      <i class="fas fa-lock"></i> غير مسموح
+                                    </div>
                                   </div>
                                   <div class="permission-hint" v-if="permission.hint">
                                     <i class="fas fa-info-circle"></i>
@@ -409,6 +468,12 @@
                               </label>
                             </div>
                           </div>
+                        </div>
+
+                        <!-- Self Edit Message -->
+                        <div v-if="isSelfEdit" class="self-edit-message">
+                          <i class="fas fa-info-circle"></i>
+                          <p>لا يمكنك تعديل الصلاحيات الخاصة بك. يرجى التواصل مع المشرف.</p>
                         </div>
                       </div>
                     </div>
@@ -439,7 +504,7 @@
 
                     <div class="form-grid">
                       <!-- Password Section -->
-                      <div class="password-section">
+                      <div class="password-section" v-if="!isSelfEdit">
                         <h4>
                           <i class="fas fa-lock"></i> كلمة المرور
                           <span class="section-badge" :class="passwordStrength.class">
@@ -578,6 +643,20 @@
                         </div>
                       </div>
 
+                      <!-- Self Edit Password Section -->
+                      <div class="password-section" v-if="isSelfEdit && !editingUser">
+                        <h4>
+                          <i class="fas fa-lock"></i> تغيير كلمة المرور
+                        </h4>
+                        <div class="self-password-message">
+                          <i class="fas fa-info-circle"></i>
+                          <p>لحماية حسابك، يمكنك تغيير كلمة المرور من صفحة إعدادات الحساب.</p>
+                          <button type="button" @click="goToAccountSettings" class="btn-sm btn-primary">
+                            <i class="fas fa-cog"></i> الانتقال للإعدادات
+                          </button>
+                        </div>
+                      </div>
+
                       <!-- Settings Section -->
                       <div class="settings-section">
                         <h4>
@@ -586,7 +665,7 @@
 
                         <div class="settings-options">
                           <!-- Account Status -->
-                          <div class="setting-option">
+                          <div class="setting-option" v-if="!isSelfEdit">
                             <label class="toggle-label">
                               <div class="toggle-info">
                                 <i class="fas fa-toggle-on"></i>
@@ -603,7 +682,7 @@
                           </div>
 
                           <!-- Email Notification -->
-                          <div class="setting-option">
+                          <div class="setting-option" v-if="!isSelfEdit && !editingUser">
                             <label class="toggle-label">
                               <div class="toggle-info">
                                 <i class="fas fa-envelope"></i>
@@ -620,7 +699,7 @@
                           </div>
 
                           <!-- Two-Factor Authentication -->
-                          <div class="setting-option">
+                          <div class="setting-option" v-if="!isSelfEdit">
                             <label class="toggle-label">
                               <div class="toggle-info">
                                 <i class="fas fa-mobile-alt"></i>
@@ -636,6 +715,22 @@
                             </label>
                           </div>
 
+                          <!-- Self Edit Status -->
+                          <div class="setting-option" v-if="isSelfEdit">
+                            <label class="toggle-label">
+                              <div class="toggle-info">
+                                <i class="fas fa-user-check"></i>
+                                <div>
+                                  <h5>حالة حسابك</h5>
+                                  <p>الحساب {{ userData.isActive ? 'نشط' : 'معطل' }}</p>
+                                </div>
+                              </div>
+                              <div class="status-badge" :class="userData.isActive ? 'active' : 'inactive'">
+                                {{ userData.isActive ? 'نشط' : 'معطل' }}
+                              </div>
+                            </label>
+                          </div>
+
                           <!-- Notes -->
                           <div class="form-group">
                             <label for="notes">
@@ -646,10 +741,11 @@
                               v-model="userData.notes"
                               placeholder="أي ملاحظات إضافية حول المستخدم أو الحساب..."
                               rows="3"
+                              :disabled="isSelfEdit"
                             ></textarea>
                             <div class="form-hint">
                               <i class="fas fa-info-circle"></i>
-                              هذه الملاحظات مرئية للمشرفين فقط
+                              {{ isSelfEdit ? 'ملاحظات المشرف على حسابك' : 'هذه الملاحظات مرئية للمشرفين فقط' }}
                             </div>
                           </div>
                         </div>
@@ -659,7 +755,7 @@
                     <!-- Summary Preview -->
                     <div class="summary-preview">
                       <h4>
-                        <i class="fas fa-clipboard-check"></i> ملخص المستخدم
+                        <i class="fas fa-clipboard-check"></i> ملخص {{ isSelfEdit ? 'الملف الشخصي' : 'المستخدم' }}
                       </h4>
                       <div class="summary-content">
                         <div class="summary-row">
@@ -698,6 +794,12 @@
                             </span>
                           </div>
                         </div>
+                        <div v-if="isSelfEdit" class="summary-row">
+                          <div class="summary-item full-width">
+                            <span class="summary-label">المنشئ:</span>
+                            <span class="summary-value">{{ editingUser?.created_by_name || 'غير معروف' }}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -709,7 +811,10 @@
                     </button>
                     <button type="submit" class="btn-success" :disabled="saving">
                       <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
-                      {{ saving ? 'جاري إنشاء الحساب...' : (editingUser ? 'تحديث المستخدم' : 'إنشاء الحساب') }}
+                      {{ saving ? 
+                        (isSelfEdit ? 'جاري تحديث البيانات...' : (editingUser ? 'جاري تحديث المستخدم...' : 'جاري إنشاء الحساب...')) 
+                        : (isSelfEdit ? 'تحديث الملف الشخصي' : (editingUser ? 'تحديث المستخدم' : 'إنشاء الحساب')) 
+                      }}
                     </button>
                   </div>
                 </form>
@@ -727,9 +832,9 @@
           <div class="success-icon">
             <i class="fas fa-check-circle"></i>
           </div>
-          <h2>{{ editingUser ? 'تم تحديث المستخدم بنجاح!' : 'تم إنشاء الحساب بنجاح!' }}</h2>
-          
-          <div class="success-details">
+          <h2>{{ isSelfEdit ? 'تم تحديث بياناتك بنجاح!' : (editingUser ? 'تم تحديث المستخدم بنجاح!' : 'تم إنشاء الحساب بنجاح!') }}</h2>
+
+          <div class="success-details" v-if="!isSelfEdit">
             <div class="detail-item">
               <i class="fas fa-user"></i>
               <div>
@@ -769,11 +874,28 @@
             </div>
           </div>
 
+          <div class="success-details" v-if="isSelfEdit">
+            <div class="detail-item">
+              <i class="fas fa-check-circle"></i>
+              <div>
+                <h4>تم التحديث بنجاح</h4>
+                <p>تم حفظ التغييرات على ملفك الشخصي</p>
+              </div>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-sync-alt"></i>
+              <div>
+                <h4>تأثير التغييرات:</h4>
+                <p>قد تحتاج إلى تسجيل الخروج ثم الدخول مرة أخرى لرؤية بعض التغييرات</p>
+              </div>
+            </div>
+          </div>
+
           <div class="success-actions">
-            <button @click="createAnotherUser" class="btn-primary">
+            <button v-if="!isSelfEdit && !editingUser" @click="createAnotherUser" class="btn-primary">
               <i class="fas fa-user-plus"></i> إضافة مستخدم آخر
             </button>
-            <button @click="viewUser" class="btn-secondary">
+            <button v-if="!isSelfEdit" @click="viewUser" class="btn-secondary">
               <i class="fas fa-eye"></i> عرض المستخدم
             </button>
             <button @click="closeSuccessModal" class="btn-success">
@@ -811,6 +933,7 @@
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
 import { generatePassword } from '@/utils/passwordGenerator'
+import { firestore } from '@/firebase'
 
 export default {
   name: 'AddUserModal',
@@ -839,6 +962,10 @@ export default {
     onSuccess: {
       type: Function,
       default: null
+    },
+    isProfileEdit: {
+      type: Boolean,
+      default: false
     }
   },
   
@@ -901,13 +1028,60 @@ export default {
       showError: false,
       errorMessage: '',
       
-      editingUser: null
+      editingUser: null,
+      currentUserId: null,
+      currentUserRole: null
     }
   },
   
   computed: {
-    ...mapState(['warehouses']),
+    ...mapState(['warehouses', 'users']),
     ...mapGetters(['primaryWarehouses', 'dispatchWarehouses']),
+    
+    // Current user info from Vuex store
+    currentUser() {
+      return this.$store.getters.currentUser
+    },
+    
+    // Check if editing own profile
+    isSelfEdit() {
+      return this.isProfileEdit || 
+             (this.editingUser && this.currentUserId === this.editingUser.id)
+    },
+    
+    // Check if current user can create users (superadmin only per rules)
+    canCreateUsers() {
+      return this.currentUserRole === 'superadmin'
+    },
+    
+    // Roles that current user can assign
+    getAllowedRolesForCreation() {
+      switch(this.currentUserRole) {
+        case 'superadmin':
+          return ['superadmin', 'company_manager', 'warehouse_manager', 'user']
+        case 'company_manager':
+          return ['warehouse_manager', 'user']
+        case 'warehouse_manager':
+          return ['user']
+        default:
+          return []
+      }
+    },
+    
+    // Filter available roles based on current user's permissions
+    filteredAvailableRoles() {
+      const allRoles = this.availableRoles
+      if (this.currentUserRole === 'superadmin') return allRoles
+      
+      return allRoles.filter(role => 
+        this.getAllowedRolesForCreation.includes(role.id)
+      )
+    },
+    
+    // Check if current user can create all roles
+    canCreateAllRoles() {
+      return this.currentUserRole === 'superadmin'
+    },
     
     availableRoles() {
       if (this.customRoles) return this.customRoles
@@ -930,6 +1104,12 @@ export default {
           name: 'مشرف عام',
           description: 'صلاحيات كاملة على النظام بأكمله',
           icon: 'fas fa-crown'
+        },
+        {
+          id: 'user',
+          name: 'مستخدم عادي',
+          description: 'صلاحيات محدودة للعرض والمهام البسيطة',
+          icon: 'fas fa-user'
         }
       ]
     },
@@ -1203,6 +1383,17 @@ export default {
         this.clearError('password')
         this.clearError('confirmPassword')
       }
+    },
+    
+    // Watch for current user changes
+    currentUser: {
+      immediate: true,
+      handler(user) {
+        if (user) {
+          this.currentUserId = user.id || user.uid
+          this.currentUserRole = user.role
+        }
+      }
     }
   },
   
@@ -1210,6 +1401,11 @@ export default {
     ...mapActions(['createUser', 'updateUser', 'showNotification']),
     
     openModal() {
+      // Check permissions before opening
+      if (!this.canOpenModal()) {
+        return
+      }
+      
       this.showModal = true
       this.currentStep = 1
       this.resetForm()
@@ -1217,6 +1413,23 @@ export default {
       
       // Prevent body scrolling when modal is open
       document.body.style.overflow = 'hidden'
+    },
+    
+    canOpenModal() {
+      // Check if user can create users or is editing self
+      if (this.isProfileEdit || (this.editingUser && this.isSelfEdit)) {
+        return true // Always allow self-edit
+      }
+      
+      if (!this.editingUser && !this.canCreateUsers) {
+        this.showNotification({
+          type: 'error',
+          message: 'ليس لديك صلاحية إضافة مستخدمين'
+        })
+        return false
+      }
+      
+      return true
     },
     
     closeModal() {
@@ -1261,21 +1474,50 @@ export default {
     },
     
     populateEditData(user) {
+      // Convert Firestore data format to component format
+      let allWarehouses = false
+      let allowedWarehouses = []
+      
+      if (user.allowed_warehouses) {
+        if (typeof user.allowed_warehouses === 'object') {
+          // Object format: { warehouse1: true, warehouse2: true }
+          if (user.allowed_warehouses.all === true) {
+            allWarehouses = true
+          } else {
+            allowedWarehouses = Object.keys(user.allowed_warehouses)
+              .filter(key => user.allowed_warehouses[key] === true)
+          }
+        } else if (Array.isArray(user.allowed_warehouses)) {
+          // Array format (legacy): ['warehouse1', 'warehouse2']
+          allowedWarehouses = [...user.allowed_warehouses]
+          allWarehouses = allowedWarehouses.includes('all')
+          if (allWarehouses) {
+            allowedWarehouses = allowedWarehouses.filter(id => id !== 'all')
+          }
+        }
+      }
+      
       this.userData = {
         name: user.name || '',
         email: user.email || '',
         role: user.role || 'warehouse_manager',
         phone: user.phone || '',
         phoneCountryCode: user.phoneCountryCode || '+966',
-        allWarehouses: user.allowed_warehouses?.includes('all') || false,
-        allowedWarehouses: user.allowed_warehouses?.filter(w => w !== 'all') || [],
-        permissions: user.permissions?.filter(p => p !== 'full_access') || [],
+        allWarehouses,
+        allowedWarehouses,
+        permissions: user.permissions || [],
         password: '',
         confirmPassword: '',
         isActive: user.is_active !== false,
         sendWelcomeEmail: false,
         twoFactorEnabled: user.two_factor_enabled || false,
         notes: user.notes || ''
+      }
+      
+      // For self-edit, restrict certain fields
+      if (this.isSelfEdit) {
+        this.userData.allowedWarehouses = [] // Don't show warehouses in self-edit
+        this.userData.permissions = [] // Don't show permissions in self-edit
       }
     },
     
@@ -1304,6 +1546,7 @@ export default {
       this.clearErrors()
       let isValid = true
       
+      // Name validation
       if (!this.userData.name?.trim()) {
         this.formErrors.name = 'الاسم الكامل مطلوب'
         isValid = false
@@ -1312,16 +1555,39 @@ export default {
         isValid = false
       }
       
+      // Email validation
       if (!this.userData.email?.trim()) {
         this.formErrors.email = 'البريد الإلكتروني مطلوب'
         isValid = false
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userData.email)) {
         this.formErrors.email = 'البريد الإلكتروني غير صالح'
         isValid = false
+      } else if (!this.isSelfEdit) {
+        // Check email uniqueness (skip for self-edit)
+        if (!this.isEmailUnique()) {
+          this.formErrors.email = 'البريد الإلكتروني مستخدم بالفعل'
+          isValid = false
+        }
       }
       
+      // Role validation
       if (!this.userData.role) {
         this.formErrors.role = 'يجب اختيار دور للمستخدم'
+        isValid = false
+      } else if (!this.canAssignRole(this.userData.role)) {
+        this.formErrors.role = `ليس لديك صلاحية إنشاء مستخدم بدور ${this.getRoleName(this.userData.role)}`
+        isValid = false
+      }
+      
+      // Phone validation if provided
+      if (this.userData.phone && !this.isValidPhone(this.userData.phone)) {
+        this.formErrors.phone = 'رقم الهاتف غير صالح'
+        isValid = false
+      }
+      
+      // For self-edit, restrict role changes
+      if (this.isSelfEdit && this.editingUser && this.userData.role !== this.editingUser.role) {
+        this.formErrors.role = 'لا يمكنك تغيير دورك الخاص'
         isValid = false
       }
       
@@ -1339,14 +1605,21 @@ export default {
     validateStep2() {
       this.step2Loading = true
       
-      if (!this.userData.allWarehouses && this.userData.allowedWarehouses.length === 0) {
-        this.showNotification({
-          type: 'warning',
-          message: 'لم يتم اختيار أي مخزن. سيتم إنشاء المستخدم بدون صلاحيات للمخازن.'
-        })
+      // Apply basic permissions if none selected
+      if (this.userData.permissions.length === 0 && !this.isSelfEdit) {
+        this.autoAddBasicPermissions()
       }
       
-      this.autoAddBasicPermissions()
+      // Validate warehouse access for warehouse managers
+      if (this.userData.role === 'warehouse_manager' && 
+          !this.userData.allWarehouses && 
+          this.userData.allowedWarehouses.length === 0 &&
+          !this.isSelfEdit) {
+        this.showNotification({
+          type: 'warning',
+          message: 'مدير المخزن يحتاج إلى صلاحية لمخزن واحد على الأقل'
+        })
+      }
       
       setTimeout(() => {
         this.step2Loading = false
@@ -1358,21 +1631,24 @@ export default {
       this.clearErrors()
       let isValid = true
       
-      if (this.passwordOption === 'manual') {
-        if (!this.userData.password) {
-          this.formErrors.password = 'كلمة المرور مطلوبة'
-          isValid = false
-        } else if (this.userData.password.length < 8) {
-          this.formErrors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
-          isValid = false
-        } else if (this.passwordStrength.class === 'weak') {
-          this.formErrors.password = 'كلمة المرور ضعيفة جداً'
-          isValid = false
-        }
-        
-        if (this.userData.password !== this.userData.confirmPassword) {
-          this.formErrors.confirmPassword = 'كلمات المرور غير متطابقة'
-          isValid = false
+      // Password validation for new users (not for self-edit)
+      if (!this.isSelfEdit && !this.editingUser) {
+        if (this.passwordOption === 'manual') {
+          if (!this.userData.password) {
+            this.formErrors.password = 'كلمة المرور مطلوبة'
+            isValid = false
+          } else if (this.userData.password.length < 8) {
+            this.formErrors.password = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
+            isValid = false
+          } else if (this.passwordStrength.class === 'weak') {
+            this.formErrors.password = 'كلمة المرور ضعيفة جداً'
+            isValid = false
+          }
+          
+          if (this.userData.password !== this.userData.confirmPassword) {
+            this.formErrors.confirmPassword = 'كلمات المرور غير متطابقة'
+            isValid = false
+          }
         }
       }
       
@@ -1400,6 +1676,8 @@ export default {
             this.formErrors.email = 'البريد الإلكتروني مطلوب'
           } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userData.email)) {
             this.formErrors.email = 'البريد الإلكتروني غير صالح'
+          } else if (!this.isSelfEdit && !this.isEmailUnique()) {
+            this.formErrors.email = 'البريد الإلكتروني مستخدم بالفعل'
           } else {
             this.clearError('email')
           }
@@ -1431,6 +1709,11 @@ export default {
       }
     },
     
+    validatePhone(phone) {
+      const digits = phone.replace(/\D/g, '')
+      return digits.length >= 9 && digits.length <= 15
+    },
+    
     scrollToFirstError() {
       this.$nextTick(() => {
         const firstError = this.$el.querySelector('.error')
@@ -1450,10 +1733,67 @@ export default {
       }
     },
     
+    // Check if email is unique
+    isEmailUnique() {
+      const email = this.userData.email?.trim().toLowerCase()
+      if (!email) return true
+      
+      const existingUsers = this.users || []
+      if (this.editingUser) {
+        return !existingUsers.some(user => 
+          user.email?.toLowerCase() === email && user.id !== this.editingUser.id
+        )
+      }
+      return !existingUsers.some(user => user.email?.toLowerCase() === email)
+    },
+    
+    // Check if current user can assign this role
+    canAssignRole(roleId) {
+      if (this.isSelfEdit) {
+        // For self-edit, can't change role
+        return roleId === this.editingUser?.role
+      }
+      
+      return this.getAllowedRolesForCreation.includes(roleId)
+    },
+    
+    // Check if current user can assign this permission
+    canAssignPermission(permissionId) {
+      if (this.isSelfEdit) return false // Can't change own permissions
+      
+      // Superadmin can assign all permissions
+      if (this.currentUserRole === 'superadmin') return true
+      
+      // Restrict certain admin permissions for non-superadmins
+      const restrictedPermissions = [
+        'manage_users',
+        'manage_settings',
+        'view_audit_log'
+      ]
+      
+      if (this.currentUserRole !== 'superadmin' && restrictedPermissions.includes(permissionId)) {
+        return false
+      }
+      
+      return true
+    },
+    
     selectRole(roleId) {
+      if (!this.canAssignRole(roleId)) {
+        this.showNotification({
+          type: 'warning',
+          message: `ليس لديك صلاحية تعيين دور ${this.getRoleName(roleId)}`
+        })
+        return
+      }
+      
       this.userData.role = roleId
       this.clearError('role')
-      this.autoSetPermissionsByRole()
+      
+      // Auto-set permissions based on role (for new users only)
+      if (!this.editingUser && !this.isSelfEdit) {
+        this.autoSetPermissionsByRole()
+      }
     },
     
     getRoleName(roleId) {
@@ -1462,6 +1802,8 @@ export default {
     },
     
     toggleAllWarehouses() {
+      if (this.isSelfEdit) return
+      
       this.userData.allWarehouses = !this.userData.allWarehouses
       if (!this.userData.allWarehouses) {
         const allWarehouseIds = [
@@ -1481,6 +1823,8 @@ export default {
     },
     
     isCategorySelected(categoryType) {
+      if (this.isSelfEdit) return false
+      
       let warehouses = []
       
       if (categoryType === 'primary') {
@@ -1495,6 +1839,8 @@ export default {
     },
     
     toggleCategory(categoryType) {
+      if (this.isSelfEdit) return
+      
       let warehouses = []
       
       if (categoryType === 'primary') {
@@ -1521,6 +1867,8 @@ export default {
     },
     
     handleWarehouseSelection(warehouseId) {
+      if (this.isSelfEdit) return
+      
       if (this.userData.allWarehouses) {
         this.userData.allWarehouses = false
       }
@@ -1534,6 +1882,8 @@ export default {
     },
     
     applyPermissionPreset(preset) {
+      if (this.isSelfEdit) return
+      
       let permissions = []
       
       switch (preset) {
@@ -1563,7 +1913,7 @@ export default {
         case 'full':
           permissions = this.permissionCategories.flatMap(category => 
             category.permissions.map(p => p.id)
-          )
+          ).filter(permissionId => this.canAssignPermission(permissionId))
           break
       }
       
@@ -1576,8 +1926,10 @@ export default {
     },
     
     toggleCategorySelection(permissions, event) {
+      if (this.isSelfEdit) return
+      
       const checked = event.target.checked
-      const permissionIds = permissions.map(p => p.id)
+      const permissionIds = permissions.map(p => p.id).filter(id => this.canAssignPermission(id))
       
       if (checked) {
         permissionIds.forEach(id => {
@@ -1593,6 +1945,8 @@ export default {
     },
     
     handlePermissionSelection(permissionId) {
+      if (this.isSelfEdit || !this.canAssignPermission(permissionId)) return
+      
       const index = this.userData.permissions.indexOf(permissionId)
       if (index === -1) {
         this.userData.permissions.push(permissionId)
@@ -1602,14 +1956,23 @@ export default {
     },
     
     autoSetPermissionsByRole() {
+      if (this.isSelfEdit || this.editingUser) return
+      
       switch (this.userData.role) {
         case 'warehouse_manager':
           this.applyPermissionPreset('basic')
           break
           
         case 'company_manager':
+          this.applyPermissionPreset('full')
+          break
+          
         case 'superadmin':
           this.applyPermissionPreset('full')
+          break
+          
+        case 'user':
+          this.applyPermissionPreset('view_only')
           break
       }
     },
@@ -1632,25 +1995,59 @@ export default {
       try {
         this.saving = true
         this.loading = true
-        this.loadingMessage = this.editingUser ? 'جاري تحديث بيانات المستخدم...' : 'جاري إنشاء الحساب...'
+        this.loadingMessage = this.isSelfEdit ? 'جاري تحديث بياناتك...' : 
+          (this.editingUser ? 'جاري تحديث بيانات المستخدم...' : 'جاري إنشاء الحساب...')
         
+        // Prepare warehouse data in Firestore-compatible format
+        let allowedWarehouses = {}
+        if (this.userData.allWarehouses) {
+          allowedWarehouses = { all: true }
+        } else if (this.userData.allowedWarehouses.length > 0) {
+          // Convert array to object format: { warehouseId: true }
+          this.userData.allowedWarehouses.forEach(id => {
+            allowedWarehouses[id] = true
+          })
+        }
+        
+        // Filter permissions based on role and current user's permissions
+        let permissions = [...this.userData.permissions]
+        if (this.userData.role === 'superadmin') {
+          // Superadmin gets all permissions
+          permissions = this.permissionCategories.flatMap(category => 
+            category.permissions.map(p => p.id)
+          )
+        } else if (this.userData.role === 'user') {
+          // Regular users get only view permissions
+          permissions = permissions.filter(p => p.startsWith('view_'))
+        }
+        
+        // Prepare user data for Firestore
         const userData = {
           name: this.userData.name.trim(),
-          email: this.userData.email.trim(),
+          email: this.userData.email.trim().toLowerCase(),
           role: this.userData.role,
-          phone: this.userData.phone ? `${this.userData.phoneCountryCode}${this.userData.phone}` : '',
-          allowed_warehouses: this.userData.allWarehouses 
-            ? ['all'] 
-            : [...this.userData.allowedWarehouses],
-          permissions: this.userData.permissions,
+          phone: this.userData.phone ? 
+            `${this.userData.phoneCountryCode}${this.userData.phone.replace(/\D/g, '')}` 
+            : null,
+          allowed_warehouses: Object.keys(allowedWarehouses).length > 0 ? allowedWarehouses : null,
+          permissions: permissions.length > 0 ? permissions : null,
           is_active: this.userData.isActive,
           two_factor_enabled: this.userData.twoFactorEnabled,
-          notes: this.userData.notes.trim()
+          notes: this.userData.notes.trim() || null,
+          updated_at: firestore.FieldValue.serverTimestamp(),
+          updated_by: this.currentUserId
+        }
+        
+        // Add creation fields for new users
+        if (!this.editingUser) {
+          userData.created_at = firestore.FieldValue.serverTimestamp()
+          userData.created_by = this.currentUserId
         }
         
         let result
         
         if (this.editingUser) {
+          // Update existing user
           result = await this.updateUser({
             userId: this.editingUser.id,
             userData
@@ -1658,9 +2055,12 @@ export default {
           
           this.showNotification({
             type: 'success',
-            message: `تم تحديث المستخدم "${userData.name}" بنجاح`
+            message: this.isSelfEdit ? 
+              'تم تحديث بياناتك بنجاح' : 
+              `تم تحديث المستخدم "${userData.name}" بنجاح`
           })
         } else {
+          // Create new user - handle password
           let password = this.userData.password
           
           if (this.passwordOption === 'auto') {
@@ -1677,7 +2077,8 @@ export default {
           this.createdUser = {
             name: userData.name,
             email: userData.email,
-            role: userData.role
+            role: userData.role,
+            id: result.id
           }
         }
         
@@ -1691,7 +2092,8 @@ export default {
         this.$emit('success', {
           user: result,
           password: this.generatedPassword,
-          isEdit: !!this.editingUser
+          isEdit: !!this.editingUser,
+          isSelfEdit: this.isSelfEdit
         })
         
       } catch (error) {
@@ -1704,6 +2106,8 @@ export default {
           errorMessage = 'البريد الإلكتروني غير صالح'
         } else if (error.code === 'auth/weak-password') {
           errorMessage = 'كلمة المرور ضعيفة جداً'
+        } else if (error.code === 'permission-denied') {
+          errorMessage = 'ليس لديك صلاحية تنفيذ هذه العملية'
         } else if (error.message) {
           errorMessage = error.message
         }
@@ -1727,6 +2131,11 @@ export default {
         this.$router.push(`/users/${this.createdUser.id}`)
       }
       this.closeSuccessModal()
+    },
+    
+    goToAccountSettings() {
+      this.closeModal()
+      this.$router.push('/account/settings')
     },
     
     closeSuccessModal() {
@@ -1765,6 +2174,13 @@ export default {
   mounted() {
     this.loadThemePreference()
     
+    // Get current user info
+    const currentUser = this.$store.getters.currentUser
+    if (currentUser) {
+      this.currentUserId = currentUser.id || currentUser.uid
+      this.currentUserRole = currentUser.role
+    }
+    
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (!localStorage.getItem('theme')) {
         this.isDarkMode = e.matches
@@ -1779,1874 +2195,240 @@ export default {
 </script>
 
 <style scoped>
-/* Base Styles */
-.add-user-module {
-  font-family: 'Tajawal', 'Segoe UI', sans-serif;
-  direction: rtl;
-}
+/* Add these new styles to the existing CSS */
 
-.add-user-module.dark-mode {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --bg-card: #2d2d2d;
-  --bg-input: #3d3d3d;
-  --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --text-muted: #888888;
-  --border-color: #404040;
-  --shadow-color: rgba(0, 0, 0, 0.3);
-  --success-color: #4CAF50;
-  --warning-color: #FF9800;
-  --error-color: #f44336;
-  --info-color: #2196F3;
-  --primary-color: #2196F3;
-  --secondary-color: #6c757d;
-}
-
-/* Trigger Button */
-.add-user-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 6px rgba(33, 150, 243, 0.2);
-}
-
-.add-user-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
-}
-
-/* Modal Overlay - Centered and Responsive */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+/* Unauthorized message */
+.unauthorized-message {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  gap: 0.75rem;
   padding: 1rem;
-  animation: fadeIn 0.2s ease;
-}
-
-.modal-container {
-  width: 100%;
-  max-width: 1000px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background: var(--bg-card, #fff);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px var(--shadow-color, rgba(0, 0, 0, 0.3));
-  animation: slideUp 0.3s ease;
-  overflow: hidden;
-  width: 100%;
-}
-
-/* Modal Header */
-.modal-header {
-  padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.header-content {
-  flex: 1;
-}
-
-.header-content h2 {
-  margin: 0;
-  font-size: 1.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.modal-subtitle {
-  margin: 0.5rem 0 0;
-  opacity: 0.9;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.modal-close {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.modal-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: rotate(90deg);
-}
-
-/* Progress Steps - Mobile Optimized */
-.progress-steps {
-  padding: 1.5rem 2rem;
-  background: var(--bg-secondary, #f8f9fa);
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
-}
-
-.steps-container {
-  display: flex;
-  justify-content: space-between;
-  position: relative;
-  gap: 1rem;
-}
-
-.step-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  position: relative;
-  flex: 1;
-  z-index: 1;
-  min-width: 0;
-}
-
-.step-number {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  border-radius: 50%;
-  background: var(--bg-input, #e9ecef);
-  color: var(--text-secondary, #6c757d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.3s;
-}
-
-.step-item.active .step-number {
-  background: var(--primary-color);
-  color: white;
-  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.2);
-}
-
-.step-item.completed .step-number {
-  background: var(--success-color);
-  color: white;
-}
-
-.step-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.step-info h4 {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text-primary, #333);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.step-info p {
-  margin: 0.25rem 0 0;
-  font-size: 0.75rem;
-  color: var(--text-secondary, #666);
-  display: none;
-}
-
-.step-item.active .step-info h4 {
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-.step-connector {
-  position: absolute;
-  top: 18px;
-  left: -50%;
-  right: 50%;
-  height: 2px;
-  background: var(--border-color, #e0e0e0);
-  z-index: 0;
-}
-
-.step-item.completed .step-connector {
-  background: var(--success-color);
-}
-
-/* Step Content Wrapper */
-.step-content-wrapper {
-  max-height: calc(90vh - 200px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.step-content {
-  padding: 2rem;
-  animation: fadeIn 0.3s ease;
-}
-
-.step-form {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-/* Form Sections */
-.form-section {
-  background: var(--bg-card, #fff);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-color, #e0e0e0);
-}
-
-.form-section h3 {
-  margin: 0 0 1.5rem;
-  color: var(--text-primary, #333);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.25rem;
-  flex-wrap: wrap;
-}
-
-/* Form Grid */
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-
-/* Form Groups */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary, #333);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 8px;
-  background: var(--bg-input, #fff);
-  color: var(--text-primary, #333);
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  width: 100%;
-  -webkit-appearance: none;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-}
-
-.form-group.error input,
-.form-group.error select {
-  border-color: var(--error-color);
-  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
-}
-
-/* Form Hints */
-.form-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary, #666);
-  margin-top: 0.25rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  line-height: 1.4;
-}
-
-/* Error Messages */
-.error-message {
-  font-size: 0.75rem;
-  color: var(--error-color);
-  margin-top: 0.25rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  line-height: 1.4;
-}
-
-/* Role Selector */
-.role-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.role-option {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-input, #f8f9fa);
-  border: 2px solid var(--border-color, #ddd);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-wrap: wrap;
-}
-
-.role-option:hover {
-  border-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.role-option.selected {
-  border-color: var(--primary-color);
-  background: rgba(33, 150, 243, 0.05);
-}
-
-.role-icon {
-  width: 50px;
-  height: 50px;
-  min-width: 50px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-}
-
-.role-option.superadmin .role-icon {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-}
-
-.role-option.company_manager .role-icon {
-  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-}
-
-.role-info {
-  flex: 1;
-  min-width: 200px;
-}
-
-.role-info h4 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary, #333);
-}
-
-.role-info p {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-.role-check {
-  color: var(--primary-color);
-  font-size: 1.25rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-  min-width: 24px;
-}
-
-.role-option.selected .role-check {
-  opacity: 1;
-}
-
-/* Phone Input */
-.phone-input {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.country-code {
-  width: 120px;
-  flex-shrink: 0;
-}
-
-.phone-input input {
-  flex: 1;
-  min-width: 150px;
-}
-
-/* Step 2 Specific Styles */
-.form-sections-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-/* Section Header */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.section-header h3 {
-  margin: 0;
-  flex: 1;
-  min-width: 200px;
-}
-
-.section-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* Warehouse Section */
-.warehouse-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.warehouse-permissions {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.permission-option.all-warehouses {
-  background: var(--bg-input, #f8f9fa);
-  padding: 1rem;
-  border-radius: 10px;
-  border: 2px solid var(--border-color, #ddd);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  cursor: pointer;
-}
-
-.checkbox-custom {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border: 2px solid var(--border-color, #ddd);
-  border-radius: 4px;
-  position: relative;
-  transition: all 0.2s;
-  margin-top: 0.25rem;
-}
-
-.checkbox-label input {
-  display: none;
-}
-
-.checkbox-label input:checked + .checkbox-custom {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.checkbox-label input:checked + .checkbox-custom::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.checkbox-content {
-  flex: 1;
-}
-
-.checkbox-content h4 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary, #333);
-}
-
-.checkbox-content p {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-/* Specific Warehouses */
-.specific-warehouses {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.warehouse-categories {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.category-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.category-header h4 {
-  margin: 0;
-  color: var(--text-primary, #333);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 150px;
-}
-
-.warehouse-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 0.75rem;
-}
-
-.warehouse-option {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 8px;
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.warehouse-option:hover {
-  border-color: var(--primary-color);
-  transform: translateY(-2px);
-}
-
-.warehouse-option.selected {
-  border-color: var(--primary-color);
-  background: rgba(33, 150, 243, 0.05);
-}
-
-.warehouse-option input {
-  display: none;
-}
-
-.warehouse-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.warehouse-icon {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 8px;
-  background: var(--bg-input, #f8f9fa);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.warehouse-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.warehouse-details h5 {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-primary, #333);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.warehouse-details p {
-  margin: 0.25rem 0;
-  font-size: 0.75rem;
-  color: var(--text-secondary, #666);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.warehouse-status {
-  font-size: 0.7rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  white-space: nowrap;
-}
-
-.warehouse-status.active {
-  color: var(--success-color);
-}
-
-.warehouse-status:not(.active) {
-  color: var(--error-color);
-}
-
-.no-warehouses-message {
   background: rgba(255, 152, 0, 0.1);
   border: 1px solid var(--warning-color);
   border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
   color: var(--warning-color);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+  margin: 1rem 0;
 }
 
-.no-warehouses-message i {
-  font-size: 1.5rem;
-}
-
-.no-warehouses-message p {
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Permissions Section */
-.permissions-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.permission-presets {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.permission-presets span {
-  font-size: 0.875rem;
-  color: var(--text-secondary, #666);
-  white-space: nowrap;
-}
-
-.preset-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.preset-btn {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #ddd);
-  color: var(--text-secondary, #666);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.preset-btn:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.permissions-container {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.permissions-summary {
-  background: rgba(33, 150, 243, 0.1);
-  border: 1px solid var(--primary-color);
-  border-radius: 10px;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.permissions-summary i {
-  font-size: 2rem;
-  color: var(--primary-color);
-  flex-shrink: 0;
-}
-
-.permissions-summary h4 {
-  margin: 0;
-  color: var(--text-primary, #333);
-  font-size: 1rem;
-}
-
-.permissions-summary p {
-  margin: 0.25rem 0 0;
-  color: var(--text-secondary, #666);
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.permission-categories {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.permission-category {
-  background: var(--bg-card, #fff);
-  border-radius: 10px;
-  padding: 1rem;
-  border: 1px solid var(--border-color, #ddd);
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.category-header h4 {
-  margin: 0;
-  color: var(--text-primary, #333);
-  flex: 1;
-  min-width: 150px;
-}
-
-.category-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  white-space: nowrap;
-}
-
-.category-toggle input {
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  cursor: pointer;
-}
-
-.permission-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.permission-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-input, #f8f9fa);
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.permission-item:hover {
-  border-color: var(--primary-color);
-  transform: translateX(-4px);
-}
-
-.permission-item.selected {
-  border-color: var(--primary-color);
-  background: rgba(33, 150, 243, 0.05);
-}
-
-.permission-item input {
-  display: none;
-}
-
-.permission-info {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.permission-icon {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 8px;
-  background: var(--bg-card, #fff);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.unauthorized-message i {
   font-size: 1.25rem;
 }
 
-.permission-details {
-  flex: 1;
-  min-width: 200px;
-}
-
-.permission-details h5 {
+.unauthorized-message p {
   margin: 0;
-  font-size: 0.95rem;
-  color: var(--text-primary, #333);
+  font-weight: 500;
 }
 
-.permission-details p {
-  margin: 0.25rem 0 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-.permission-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary, #666);
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--bg-card, #fff);
-  border-radius: 6px;
-  max-width: 200px;
-  line-height: 1.4;
-}
-
-/* Step 3 Specific Styles */
-.password-section,
-.settings-section {
-  background: var(--bg-card, #fff);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-color, #ddd);
-}
-
-.password-section h4,
-.settings-section h4 {
-  margin: 0 0 1rem;
-  color: var(--text-primary, #333);
+/* Current user info */
+.current-user-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.9rem;
   flex-wrap: wrap;
 }
 
-.section-badge {
+.current-user-info i {
+  color: #ffd700;
+}
+
+.role-restriction {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+/* Edit badge */
+.edit-badge {
+  background: rgba(33, 150, 243, 0.2);
+  color: var(--primary-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+/* Role restrictions */
+.role-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.role-option.disabled:hover {
+  border-color: var(--border-color);
+  transform: none;
+  box-shadow: none;
+}
+
+.role-restricted {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--error-color);
+  margin-top: 0.25rem;
+}
+
+/* Permission restrictions */
+.permission-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.permission-item.disabled:hover {
+  border-color: var(--border-color);
+  transform: none;
+}
+
+.permission-restricted {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--error-color);
+  margin-top: 0.25rem;
+}
+
+/* Self edit messages */
+.self-edit-message {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  color: var(--primary-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.self-edit-message i {
+  font-size: 1.5rem;
+}
+
+.self-edit-message p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Self password message */
+.self-password-message {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  color: var(--primary-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.self-password-message i {
+  font-size: 2rem;
+}
+
+.self-password-message p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Status badge in settings */
+.status-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
-  margin-right: 0.5rem;
   white-space: nowrap;
 }
 
-.section-badge.weak {
+.status-badge.active {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+}
+
+.status-badge.inactive {
   background: rgba(244, 67, 54, 0.1);
   color: var(--error-color);
 }
 
-.section-badge.medium {
-  background: rgba(255, 152, 0, 0.1);
+/* Full width summary item */
+.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Hint warnings */
+.hint-warning {
   color: var(--warning-color);
+  font-size: 0.8rem;
+  margin-right: 0.5rem;
 }
 
-.section-badge.strong {
-  background: rgba(76, 175, 80, 0.1);
-  color: var(--success-color);
+.hint-error {
+  color: var(--error-color);
+  font-size: 0.8rem;
+  margin-right: 0.5rem;
 }
 
-.password-options {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.password-option {
-  background: var(--bg-input, #f8f9fa);
-  border-radius: 10px;
-  padding: 1rem;
-  border: 2px solid var(--border-color, #ddd);
-  transition: all 0.2s;
-}
-
-.password-option:hover {
-  border-color: var(--primary-color);
-}
-
-.radio-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  cursor: pointer;
-}
-
-.radio-custom {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border: 2px solid var(--border-color, #ddd);
-  border-radius: 50%;
-  position: relative;
-  margin-top: 0.25rem;
-  transition: all 0.2s;
-}
-
-.radio-label input {
-  display: none;
-}
-
-.radio-label input:checked + .radio-custom {
-  border-color: var(--primary-color);
-}
-
-.radio-label input:checked + .radio-custom::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: var(--primary-color);
-  border-radius: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.option-content {
-  flex: 1;
-  min-width: 200px;
-}
-
-.option-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-  flex-wrap: wrap;
-}
-
-.option-header h5 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary, #333);
-}
-
-.option-recommended {
-  background: var(--success-color);
-  color: white;
-  padding: 0.125rem 0.5rem;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.option-content p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-.manual-password-fields {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color, #ddd);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.password-input {
-  position: relative;
-}
-
-.password-input input {
-  width: 100%;
-  padding-right: 3rem;
-}
-
-.password-toggle {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-secondary, #666);
-  cursor: pointer;
-  padding: 0.25rem;
-  z-index: 1;
-}
-
-.password-strength-indicator {
-  margin-top: 0.5rem;
-}
-
-.strength-bars {
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 0.25rem;
-}
-
-.strength-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--border-color, #ddd);
-  border-radius: 2px;
-  transition: all 0.3s;
-}
-
-.strength-bar.filled.weak {
-  background: var(--error-color);
-}
-
-.strength-bar.filled.medium {
-  background: var(--warning-color);
-}
-
-.strength-bar.filled.strong {
-  background: var(--success-color);
-}
-
-.strength-text {
-  font-size: 0.75rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-.password-requirements {
-  background: var(--bg-input, #f8f9fa);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
-.password-requirements h5 {
-  margin: 0 0 0.75rem;
-  font-size: 0.9rem;
-  color: var(--text-primary, #333);
-}
-
-.password-requirements ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.password-requirements li {
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: color 0.2s;
-}
-
-.password-requirements li.met {
-  color: var(--success-color);
-}
-
-.password-requirements li i.fa-check-circle {
-  color: var(--success-color);
-}
-
-/* Settings Options */
-.settings-options {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.setting-option {
-  background: var(--bg-input, #f8f9fa);
-  border-radius: 10px;
-  padding: 1rem;
-  border: 1px solid var(--border-color, #ddd);
-}
-
-.toggle-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  cursor: pointer;
-  gap: 1rem;
-}
-
-.toggle-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  flex: 1;
-  min-width: 200px;
-}
-
-.toggle-info i {
-  font-size: 1.5rem;
-  color: var(--primary-color);
-  margin-top: 0.25rem;
-}
-
-.toggle-info h5 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary, #333);
-}
-
-.toggle-info p {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #666);
-  line-height: 1.4;
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-  border-radius: 34px;
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background-color: var(--success-color);
-}
-
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(26px);
-}
-
-/* Summary Preview */
-.summary-preview {
-  background: var(--bg-input, #f8f9fa);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 2px solid var(--primary-color);
-  margin-top: 1.5rem;
-}
-
-.summary-preview h4 {
-  margin: 0 0 1rem;
-  color: var(--text-primary, #333);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.summary-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.summary-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: var(--bg-card, #fff);
-  border-radius: 8px;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.summary-label {
-  font-weight: 600;
-  color: var(--text-secondary, #666);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-.summary-value {
-  color: var(--text-primary, #333);
-  font-size: 0.9rem;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.summary-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.summary-badge.warehouse_manager {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-}
-
-.summary-badge.company_manager {
-  background: rgba(156, 39, 176, 0.1);
-  color: #9c27b0;
-}
-
-.summary-badge.superadmin {
-  background: rgba(255, 152, 0, 0.1);
-  color: #ff9800;
-}
-
-.summary-badge.active {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-}
-
-.summary-badge.inactive {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-}
-
-/* Step Actions */
-.step-actions {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color, #ddd);
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* Buttons */
-.btn-primary,
-.btn-secondary,
-.btn-success {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s;
-  border: none;
-  font-size: 0.95rem;
-  white-space: nowrap;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-}
-
-.btn-primary:disabled {
-  opacity: 0.7;
+/* Disabled state styling */
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
-  transform: none !important;
 }
 
-.btn-secondary {
-  background: var(--bg-input, #f8f9fa);
-  color: var(--text-secondary, #666);
-  border: 1px solid var(--border-color, #ddd);
+.warehouse-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background: var(--border-color, #e0e0e0);
-  transform: translateY(-2px);
+.warehouse-option.disabled:hover {
+  border-color: var(--border-color);
+  transform: none;
 }
 
-.btn-success {
-  background: linear-gradient(135deg, var(--success-color) 0%, #388E3C 100%);
-  color: white;
+/* User role icon colors */
+.role-icon.superadmin {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
 }
 
-.btn-success:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+.role-icon.company_manager {
+  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
 }
 
+.role-icon.warehouse_manager {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+}
+
+.role-icon.user {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+/* Add to existing button styles */
 .btn-sm {
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
 }
 
-/* Success Modal */
-.success-modal .modal-content {
-  text-align: center;
-  max-width: 500px;
-}
-
-.success-icon {
-  font-size: 4rem;
-  color: var(--success-color);
-  margin-bottom: 1.5rem;
-}
-
-.success-modal h2 {
-  margin: 0 0 1.5rem;
-  color: var(--text-primary, #333);
-  line-height: 1.4;
-}
-
-.success-details {
-  background: var(--bg-input, #f8f9fa);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  text-align: right;
-}
-
-.detail-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.detail-item:last-child {
-  margin-bottom: 0;
-}
-
-.detail-item i {
-  font-size: 1.5rem;
-  color: var(--primary-color);
-  margin-top: 0.25rem;
-  flex-shrink: 0;
-}
-
-.detail-item > div {
-  flex: 1;
-  min-width: 200px;
-}
-
-.detail-item h4 {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary, #666);
-}
-
-.detail-item p {
-  margin: 0.25rem 0 0;
-  color: var(--text-primary, #333);
-  line-height: 1.4;
-}
-
-.password-display {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.5rem 0;
-  flex-wrap: wrap;
-}
-
-.password-display code {
-  flex: 1;
-  background: var(--bg-card, #fff);
-  padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #ddd);
-  font-family: monospace;
-  font-size: 1rem;
-  text-align: center;
-  min-width: 200px;
-  word-break: break-all;
-}
-
-.copy-btn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-.password-warning {
-  color: var(--warning-color);
-  font-size: 0.85rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-}
-
-.success-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 1rem;
-}
-
-.loading-content {
-  text-align: center;
-  color: white;
-  max-width: 300px;
-}
-
-.loading-content .spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-.loading-content p {
-  font-size: 1.125rem;
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Error Toast */
-.error-toast {
-  position: fixed;
-  bottom: 2rem;
-  left: 1rem;
-  right: 1rem;
-  max-width: 400px;
-  margin: 0 auto;
-  background: var(--bg-card, #fff);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-color, rgba(0, 0, 0, 0.2));
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  animation: slideUp 0.3s ease;
-  z-index: 2000;
-  border-right: 4px solid var(--error-color);
-}
-
-.toast-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  flex: 1;
-}
-
-.toast-content i {
-  font-size: 1.5rem;
-  color: var(--error-color);
-  margin-top: 0.125rem;
-}
-
-.toast-content h4 {
-  margin: 0;
-  color: var(--text-primary, #333);
-  font-size: 0.95rem;
-}
-
-.toast-content p {
-  margin: 0.25rem 0 0;
-  color: var(--text-secondary, #666);
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.toast-close {
-  background: none;
-  border: none;
-  color: var(--text-secondary, #666);
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem;
-  margin-top: -0.25rem;
-}
-
-/* Step Transitions */
-.step-transition-enter-active,
-.step-transition-leave-active {
-  transition: all 0.3s ease;
-}
-
-.step-transition-enter-from,
-.step-transition-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Responsive Design */
-@media (max-width: 992px) {
-  .form-sections-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .step-info p {
-    display: block;
-  }
-}
-
+/* Update existing styles for better mobile */
 @media (max-width: 768px) {
-  .modal-container {
-    max-height: 95vh;
-  }
-  
-  .modal-header {
-    padding: 1rem 1.5rem;
-  }
-  
-  .header-content h2 {
-    font-size: 1.5rem;
-  }
-  
-  .modal-subtitle {
-    font-size: 0.85rem;
-  }
-  
-  .progress-steps {
-    padding: 1rem 1.5rem;
-  }
-  
-  .steps-container {
+  .current-user-info {
     flex-direction: column;
-    gap: 1.5rem;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
   
-  .step-item {
-    width: 100%;
-  }
-  
-  .step-connector {
-    display: block;
-    top: 0;
-    bottom: 0;
-    left: 18px;
-    right: auto;
-    width: 2px;
-    height: calc(100% + 1.5rem);
-    transform: translateY(18px);
-  }
-  
-  .step-content {
-    padding: 1.5rem;
-  }
-  
-  .step-content-wrapper {
-    max-height: calc(95vh - 180px);
-  }
-  
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .warehouse-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .step-actions {
-    flex-direction: column;
-  }
-  
-  .step-actions button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .form-section h3,
-  .section-header h3,
-  .password-section h4,
-  .settings-section h4 {
-    font-size: 1.1rem;
-  }
-  
-  .role-info {
-    min-width: 150px;
-  }
-  
-  .permission-details {
-    min-width: 150px;
-  }
-  
-  .option-content {
-    min-width: 150px;
-  }
-  
-  .toggle-info {
-    min-width: 150px;
-  }
-  
-  .detail-item > div {
-    min-width: 150px;
-  }
-  
-  .password-display code {
-    min-width: 150px;
-  }
-}
-
-@media (max-width: 480px) {
-  .modal-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  .modal-close {
-    align-self: flex-end;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .section-actions {
-    justify-content: flex-start;
-  }
-  
-  .category-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .category-toggle {
-    align-self: flex-start;
-  }
-  
-  .permission-presets {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .preset-buttons {
-    justify-content: flex-start;
-  }
-  
-  .toggle-label {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  .toggle-switch {
-    align-self: flex-start;
-  }
-  
-  .summary-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .success-actions {
-    flex-direction: column;
-  }
-  
-  .success-actions button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .role-option {
-    flex-direction: column;
-    text-align: center;
-    align-items: center;
-  }
-  
-  .role-info {
-    text-align: center;
-  }
-  
-  .phone-input {
-    flex-direction: column;
-  }
-  
-  .country-code {
-    width: 100%;
-  }
-  
-  .permission-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .permission-info {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .permission-hint {
-    max-width: none;
-  }
-}
-
-/* Touch Device Optimizations */
-@media (hover: none) and (pointer: coarse) {
-  .btn-primary,
-  .btn-secondary,
-  .btn-success,
-  .btn-sm,
-  .preset-btn,
-  .copy-btn,
-  .modal-close,
-  .password-toggle,
-  .toast-close {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  .role-option,
-  .warehouse-option,
-  .permission-item,
-  .password-option,
-  .setting-option {
-    min-height: 44px;
-  }
-  
-  .checkbox-custom,
-  .radio-custom {
-    min-width: 24px;
-    min-height: 24px;
-  }
-  
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-width: 24px;
-    min-height: 24px;
-  }
-  
-  .toggle-switch {
-    min-width: 60px;
-    min-height: 34px;
-  }
-  
-  .toggle-slider:before {
-    min-width: 26px;
-    min-height: 26px;
+  .role-restriction {
+    font-size: 0.75rem;
   }
 }
 </style>
