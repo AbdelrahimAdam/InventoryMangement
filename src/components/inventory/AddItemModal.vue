@@ -388,6 +388,8 @@
   </div>
 </template>
 
+ 
+
 <script>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useStore } from 'vuex';
@@ -418,7 +420,7 @@ export default {
     const isFormResetting = ref(false);
     const isUpdatingExisting = ref(false);
     
-    // Form field refs
+    // Form field refs (keep as is)
     const nameInput = ref(null);
     const codeInput = ref(null);
     const colorInput = ref(null);
@@ -526,7 +528,7 @@ export default {
       }
     }, { immediate: true });
 
-    // Enhanced existing item checker with exact match
+    // Enhanced existing item checker - UPDATED to use store's search
     const checkExistingItem = async () => {
       if (isFormResetting.value) return;
       
@@ -542,57 +544,36 @@ export default {
       }
 
       try {
-        console.log('🔍 Searching for exact match:', {
+        console.log('🔍 Searching for existing item:', {
           name: cleanName,
           code: cleanCode,
           color: cleanColor,
           warehouse_id: cleanWarehouseId
         });
 
-        // Search in local inventory first
-        const inventory = store.state.inventory || [];
-        let exactMatch = null;
+        // Use the store's search system to find matching items
+        const searchResults = await store.dispatch('searchItemsForTransactions', {
+          searchTerm: cleanCode,
+          warehouseId: cleanWarehouseId,
+          limitResults: 50
+        });
 
-        for (const item of inventory) {
+        console.log('📋 Search results:', searchResults);
+
+        // Look for exact match
+        let exactMatch = null;
+        for (const item of searchResults) {
           const itemName = item.name?.trim().toLowerCase() || '';
           const itemCode = item.code?.trim().toLowerCase() || '';
           const itemColor = item.color?.trim().toLowerCase() || '';
           
+          // Check for exact match on name, code, color, and warehouse
           if (itemName === cleanName.toLowerCase() && 
               itemCode === cleanCode.toLowerCase() && 
               itemColor === cleanColor.toLowerCase() && 
               item.warehouse_id === cleanWarehouseId) {
             exactMatch = item;
             break;
-          }
-        }
-
-        // If not found locally, search in Firestore
-        if (!exactMatch) {
-          try {
-            // Use store's search function with exact parameters
-            const searchResults = await store.dispatch('searchItemsForTransactions', {
-              searchTerm: cleanCode, // Search by code for exact match
-              warehouseId: cleanWarehouseId,
-              limitResults: 50
-            });
-
-            // Find exact match in results
-            for (const item of searchResults) {
-              const itemName = item.name?.trim().toLowerCase() || '';
-              const itemCode = item.code?.trim().toLowerCase() || '';
-              const itemColor = item.color?.trim().toLowerCase() || '';
-              
-              if (itemName === cleanName.toLowerCase() && 
-                  itemCode === cleanCode.toLowerCase() && 
-                  itemColor === cleanColor.toLowerCase() && 
-                  item.warehouse_id === cleanWarehouseId) {
-                exactMatch = item;
-                break;
-              }
-            }
-          } catch (firestoreError) {
-            console.warn('Firestore search failed:', firestoreError);
           }
         }
 
@@ -606,7 +587,7 @@ export default {
             previewPhoto.value = exactMatch.photo_url;
           }
           
-          // Auto-fill other fields
+          // Auto-fill other fields from existing item
           formData.value.supplier = exactMatch.supplier || '';
           formData.value.item_location = exactMatch.item_location || '';
           formData.value.notes = exactMatch.notes || '';
@@ -944,6 +925,7 @@ export default {
       }
     };
 
+    // UPDATED handleSubmit method to properly integrate with Vuex store
     const handleSubmit = async () => {
       if (!validateForm()) return;
 
@@ -952,15 +934,16 @@ export default {
       successMessage.value = '';
 
       try {
-        // Upload photo if selected
+        // Upload photo if selected (only if it's a new file)
         let photoUrl = null;
-        if (selectedFile.value && !previewPhoto.value.startsWith('data:image/')) {
+        if (selectedFile.value && previewPhoto.value.startsWith('data:image/')) {
           photoUrl = await uploadPhotoToStorage();
-        } else if (previewPhoto.value && previewPhoto.value.startsWith('data:image/')) {
-          photoUrl = previewPhoto.value;
+        } else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
+          // Keep existing photo URL if it's from an existing item
+          photoUrl = existingItem.value?.photo_url || previewPhoto.value;
         }
 
-        // Prepare item data - COMPATIBLE WITH UPDATED STORE ACTION
+        // Prepare item data - CORRECT FORMAT FOR YOUR VUEX STORE
         const itemData = {
           name: formData.value.name.trim(),
           code: formData.value.code.trim(),
@@ -969,38 +952,30 @@ export default {
           cartons_count: formData.value.cartons_count || 0,
           per_carton_count: formData.value.per_carton_count || 12,
           single_bottles_count: formData.value.single_bottles_count || 0,
-          // Convert empty strings to null as per Firestore rules
           supplier: formData.value.supplier?.trim() || null,
           item_location: formData.value.item_location?.trim() || null,
           notes: formData.value.notes?.trim() || null,
-          photo_url: photoUrl || null,
-          // REQUIRED BY FIRESTORE RULES:
-          created_by: store.state.user?.uid,
-          updated_by: store.state.user?.uid
+          photo_url: photoUrl || existingItem.value?.photo_url || null,
+          created_by: currentUserId.value,
+          updated_by: currentUserId.value
         };
 
-        // If updating existing item, add the item ID and flag
-        if (existingItem.value) {
+        // If updating existing item, add the item ID
+        if (existingItem.value && existingItem.value.id) {
           itemData.existingItemId = existingItem.value.id;
           itemData.isUpdatingExisting = true;
           
-          // Store action will handle preserving original fields
           console.log('🔄 UPDATING existing item with ID:', existingItem.value.id);
+          console.log('📊 Item data for update:', {
+            ...itemData,
+            existingItemId: existingItem.value.id,
+            isUpdatingExisting: true
+          });
+        } else {
+          console.log('➕ CREATING new item');
         }
 
-        // Log for debugging
-        console.log('📦 Item data for store:', {
-          itemData: {
-            ...itemData,
-            created_by: 'HIDDEN',
-            updated_by: 'HIDDEN'
-          },
-          isUpdatingExisting: existingItem.value ? true : false,
-          existingItemId: existingItem.value?.id,
-          isAddingCartons: isAddingCartonsComputed.value
-        });
-
-        // Call store action with all required parameters
+        // Call store action - IMPORTANT: Pass the parameters YOUR store action expects
         const result = await store.dispatch('addInventoryItem', {
           itemData,
           isAddingCartons: isAddingCartonsComputed.value
@@ -1008,19 +983,21 @@ export default {
 
         console.log('✅ Store action result:', result);
 
-        // Show success message based on result
-        if (result?.message) {
+        // Handle success message based on result
+        if (result && result.message) {
           successMessage.value = result.message;
-        } else if (result?.type === 'created') {
+        } else if (result && result.type === 'created') {
           successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
-        } else if (result?.type === 'updated') {
+        } else if (result && result.type === 'updated') {
           successMessage.value = '✅ تم تحديث الكميات بنجاح!';
+        } else if (result && result.success) {
+          successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
         } else {
           successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
         }
 
         // Update local store immediately for instant search
-        if (result?.item && result.item.id) {
+        if (result && result.item && result.item.id) {
           store.commit('UPDATE_INVENTORY_ITEM', result.item);
           console.log('🔄 Item added to local store for instant search');
         }
@@ -1062,6 +1039,136 @@ export default {
         loading.value = false;
       }
     };
+
+    // NEW: Alternative search function for exact matching
+    const searchForExactMatch = async () => {
+      const cleanName = formData.value.name?.trim() || '';
+      const cleanCode = formData.value.code?.trim() || '';
+      const cleanColor = formData.value.color?.trim() || '';
+      const cleanWarehouseId = formData.value.warehouse_id;
+      
+      if (!cleanName || !cleanCode || !cleanColor || !cleanWarehouseId) {
+        return null;
+      }
+
+      try {
+        // Use multiple search strategies
+        let foundItem = null;
+        
+        // Strategy 1: Check local inventory first
+        const localInventory = store.state.inventory || [];
+        foundItem = localInventory.find(item => {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          return (
+            itemName === cleanName.toLowerCase() &&
+            itemCode === cleanCode.toLowerCase() &&
+            itemColor === cleanColor.toLowerCase() &&
+            item.warehouse_id === cleanWarehouseId
+          );
+        });
+
+        if (foundItem) {
+          console.log('✅ Found item in local inventory');
+          return foundItem;
+        }
+
+        // Strategy 2: Use store's search system
+        const searchResults = await store.dispatch('searchInventorySpark', {
+          searchQuery: cleanCode,
+          warehouseId: cleanWarehouseId,
+          limit: 50
+        });
+
+        // Look for exact match in search results
+        for (const item of searchResults) {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          if (itemName === cleanName.toLowerCase() && 
+              itemCode === cleanCode.toLowerCase() && 
+              itemColor === cleanColor.toLowerCase() && 
+              item.warehouse_id === cleanWarehouseId) {
+            console.log('✅ Found item via store search');
+            return item;
+          }
+        }
+
+        // Strategy 3: Search by name if code didn't find exact match
+        if (!foundItem && cleanName.length >= 3) {
+          const nameSearchResults = await store.dispatch('searchInventorySpark', {
+            searchQuery: cleanName,
+            warehouseId: cleanWarehouseId,
+            limit: 50
+          });
+
+          for (const item of nameSearchResults) {
+            const itemName = item.name?.trim().toLowerCase() || '';
+            const itemCode = item.code?.trim().toLowerCase() || '';
+            const itemColor = item.color?.trim().toLowerCase() || '';
+            
+            if (itemName === cleanName.toLowerCase() && 
+                itemCode === cleanCode.toLowerCase() && 
+                itemColor === cleanColor.toLowerCase() && 
+                item.warehouse_id === cleanWarehouseId) {
+              console.log('✅ Found item via name search');
+              return item;
+            }
+          }
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error in searchForExactMatch:', error);
+        return null;
+      }
+    };
+
+    // UPDATED: checkExistingItem function to use the new search
+    const checkExistingItemUpdated = async () => {
+      if (isFormResetting.value) return;
+      
+      const foundItem = await searchForExactMatch();
+      
+      if (foundItem) {
+        existingItem.value = foundItem;
+        isUpdatingExisting.value = true;
+        
+        // Auto-fill existing data
+        if (foundItem.photo_url && !previewPhoto.value) {
+          previewPhoto.value = foundItem.photo_url;
+        }
+        
+        // Fill form with existing data
+        formData.value.supplier = foundItem.supplier || '';
+        formData.value.item_location = foundItem.item_location || '';
+        formData.value.notes = foundItem.notes || '';
+        
+        successMessage.value = '⚠️ تم العثور على صنف موجود. سيتم تحديث الكميات بدلاً من إنشاء صنف جديد.';
+      } else {
+        existingItem.value = null;
+        isUpdatingExisting.value = false;
+        successMessage.value = '';
+      }
+    };
+
+    // Update the watcher to use the new function
+    watch([
+      () => formData.value.name,
+      () => formData.value.code,
+      () => formData.value.color,
+      () => formData.value.warehouse_id
+    ], () => {
+      if (formData.value.name) formData.value.name = formData.value.name.trimStart();
+      if (formData.value.code) formData.value.code = formData.value.code.trimStart();
+      if (formData.value.color) formData.value.color = formData.value.color.trimStart();
+      
+      // Use debounced version of the new function
+      debounce(checkExistingItemUpdated, 500)();
+    });
 
     // Debounce helper
     function debounce(func, wait) {
@@ -1122,6 +1229,7 @@ export default {
   }
 };
 </script>
+       
 <style scoped>
 /* خلفية المودال */
 .modal-overlay {
