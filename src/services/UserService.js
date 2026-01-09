@@ -1,4 +1,4 @@
-// src/services/UserService.js
+// src/services/UserService.js - FULLY COMPATIBLE VERSION
 import { 
   collection,
   doc,
@@ -18,7 +18,8 @@ import {
 import { 
   createUserWithEmailAndPassword,
   updateProfile as updateFirebaseProfile,
-  sendEmailVerification
+  sendEmailVerification,
+  deleteUser as deleteFirebaseUser
 } from 'firebase/auth';
 import { auth, db } from '@/firebase/config';
 
@@ -30,7 +31,7 @@ class UserService {
   }
 
   /**
-   * Check if current user is superadmin
+   * Check if current user is superadmin (PER FIREBASE RULES)
    * @private
    */
   async _checkSuperAdminPermission() {
@@ -38,17 +39,17 @@ class UserService {
       if (!auth.currentUser) {
         throw new Error('يجب تسجيل الدخول أولاً');
       }
-      
+
       const userDoc = await getDoc(doc(db, this.usersCollection, auth.currentUser.uid));
       if (!userDoc.exists()) {
         throw new Error('ملف المستخدم غير موجود');
       }
-      
+
       const userData = userDoc.data();
       if (userData.role !== 'superadmin') {
         throw new Error('ليس لديك صلاحية لإدارة المستخدمين');
       }
-      
+
       return userData;
     } catch (error) {
       console.error('Permission check error:', error);
@@ -147,6 +148,11 @@ class UserService {
    */
   async getUserById(userId) {
     try {
+      // Check if current user can view this user (per Firebase rules)
+      if (!auth.currentUser) {
+        throw new Error('يجب تسجيل الدخول أولاً');
+      }
+
       const userDoc = doc(db, this.usersCollection, userId);
       const userSnap = await getDoc(userDoc);
 
@@ -159,6 +165,13 @@ class UserService {
       }
 
       const userData = userSnap.data();
+      
+      // Check if current user can view this user (self or superadmin)
+      const currentUserId = auth.currentUser.uid;
+      if (currentUserId !== userId && userData.role !== 'superadmin') {
+        throw new Error('ليس لديك صلاحية لعرض هذا المستخدم');
+      }
+
       const formattedUser = {
         id: userSnap.id,
         ...userData,
@@ -183,17 +196,19 @@ class UserService {
   }
 
   /**
-   * Create new user - FIXED VERSION
+   * Create new user - COMPATIBLE WITH FIRESTORE RULES
    * @param {Object} userData - User data from modal
    * @returns {Promise<Object>} - Created user
    */
   async createUser(userData) {
     try {
       console.log('UserService.createUser called with:', userData);
+      
+      // Check if current user is superadmin (per Firebase rules)
       await this._checkSuperAdminPermission();
 
-      // Validate user data
-      const validation = this.validateUserData(userData, false);
+      // Validate user data according to Firebase rules
+      const validation = this.validateUserDataForFirestore(userData, false);
       if (!validation.isValid) {
         console.error('Validation errors:', validation.errors);
         return {
@@ -213,41 +228,50 @@ class UserService {
       const firebaseUser = userCredential.user;
       const userId = firebaseUser.uid;
 
-      // Get default permissions if none provided
-      const defaultPermissions = this.getDefaultPermissionsForRole(userData.role);
-      
-      // Prepare COMPLETE user document for Firestore
+      // Prepare user document according to Firebase rules structure
       const userDoc = {
         name: userData.name ? userData.name.trim() : '',
         email: userData.email ? userData.email.trim().toLowerCase() : '',
-        phone: userData.phone ? userData.phone.trim() : null,
+        phone: userData.phone || null,
+        phoneCountryCode: userData.phoneCountryCode || '+966',
         role: userData.role || 'company_manager',
-        is_active: userData.is_active !== false,
-        // CRITICAL FIX: Save the permissions from modal, not default ones
-        permissions: Array.isArray(userData.permissions) && userData.permissions.length > 0 
-          ? userData.permissions 
-          : defaultPermissions,
-        // CRITICAL FIX: Save allowed_warehouses from modal
-        allowed_warehouses: userData.role === 'warehouse_manager' 
-          ? (Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [])
-          : [],
+        is_active: userData.isActive !== false,
+        two_factor_enabled: userData.twoFactorEnabled || false,
+        notes: userData.notes || '',
+        
+        // CRITICAL: Convert warehouse data to Firestore-compatible format
+        allowed_warehouses: this._formatWarehousesForFirestore(
+          userData.allWarehouses,
+          userData.allowedWarehouses
+        ),
+        
+        // CRITICAL: Send permissions as array (Firestore rules expect array)
+        permissions: Array.isArray(userData.permissions) ? userData.permissions : [],
+        
+        // Metadata fields
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
-        created_by: auth.currentUser?.uid || 'system',
+        created_by: auth.currentUser.uid,
         email_verified: false,
         last_login: null,
         profile_complete: true
       };
 
-      console.log('Creating user document:', userDoc);
+      console.log('Creating user document (Firestore compatible):', userDoc);
 
       // Set user display name in Firebase Auth
       await updateFirebaseProfile(firebaseUser, {
         displayName: userDoc.name
       });
 
-      // Send email verification
-      await sendEmailVerification(firebaseUser);
+      // Send email verification if requested
+      if (userData.sendWelcomeEmail !== false) {
+        try {
+          await sendEmailVerification(firebaseUser);
+        } catch (emailError) {
+          console.warn('Could not send verification email:', emailError);
+        }
+      }
 
       // Save to Firestore
       const userRef = doc(db, this.usersCollection, userId);
@@ -270,9 +294,7 @@ class UserService {
       await this._logUserAction('create', userId, { 
         name: userDoc.name, 
         email: userDoc.email, 
-        role: userDoc.role,
-        permissions: userDoc.permissions,
-        allowed_warehouses: userDoc.allowed_warehouses
+        role: userDoc.role
       });
 
       return {
@@ -296,7 +318,7 @@ class UserService {
   }
 
   /**
-   * Update existing user - FIXED VERSION
+   * Update existing user - COMPATIBLE WITH FIRESTORE RULES
    * @param {string} userId - User ID
    * @param {Object} userData - User data from modal
    * @returns {Promise<Object>} - Updated user
@@ -304,16 +326,33 @@ class UserService {
   async updateUser(userId, userData) {
     try {
       console.log('UserService.updateUser called for:', userId, 'with data:', userData);
-      await this._checkSuperAdminPermission();
-
-      // Get current user data
-      const currentUser = await this.getUserById(userId);
-      if (!currentUser.success) {
-        return currentUser;
+      
+      // Check permissions per Firebase rules
+      if (!auth.currentUser) {
+        throw new Error('يجب تسجيل الدخول أولاً');
       }
 
-      // Validate user data
-      const validation = this.validateUserData(userData, true);
+      // Get current user data
+      const currentUserDoc = await getDoc(doc(db, this.usersCollection, userId));
+      if (!currentUserDoc.exists()) {
+        return {
+          success: false,
+          error: 'المستخدم غير موجود',
+          data: null
+        };
+      }
+
+      const currentUserData = currentUserDoc.data();
+      
+      // Check if current user can update this user (self or superadmin per Firebase rules)
+      const currentUserId = auth.currentUser.uid;
+      if (currentUserId !== userId) {
+        // Not self-update, need superadmin permission
+        await this._checkSuperAdminPermission();
+      }
+
+      // Validate user data for update
+      const validation = this.validateUserDataForFirestore(userData, true);
       if (!validation.isValid) {
         return {
           success: false,
@@ -322,28 +361,39 @@ class UserService {
         };
       }
 
-      // Prepare update data - CRITICAL FIX: Keep permissions and allowed_warehouses from modal
+      // Prepare update data according to Firebase rules
       const updateData = {
-        name: userData.name ? userData.name.trim() : currentUser.data.name,
-        phone: userData.phone ? userData.phone.trim() : currentUser.data.phone || null,
-        role: userData.role || currentUser.data.role,
-        is_active: userData.is_active !== false,
-        // CRITICAL FIX: Update permissions from modal
-        permissions: Array.isArray(userData.permissions) && userData.permissions.length > 0
-          ? userData.permissions
-          : currentUser.data.permissions || [],
-        // CRITICAL FIX: Update allowed_warehouses from modal
-        allowed_warehouses: userData.role === 'warehouse_manager'
-          ? (Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [])
-          : [],
+        name: userData.name ? userData.name.trim() : currentUserData.name,
+        phone: userData.phone || currentUserData.phone || null,
+        phoneCountryCode: userData.phoneCountryCode || currentUserData.phoneCountryCode || '+966',
+        role: userData.role || currentUserData.role,
+        is_active: userData.isActive !== undefined ? userData.isActive : currentUserData.is_active,
+        two_factor_enabled: userData.twoFactorEnabled !== undefined ? userData.twoFactorEnabled : currentUserData.two_factor_enabled,
+        notes: userData.notes !== undefined ? userData.notes : currentUserData.notes || '',
+        
+        // CRITICAL: Convert warehouse data if provided
+        ...(userData.allWarehouses !== undefined || userData.allowedWarehouses !== undefined ? {
+          allowed_warehouses: this._formatWarehousesForFirestore(
+            userData.allWarehouses,
+            userData.allowedWarehouses,
+            currentUserData.allowed_warehouses
+          )
+        } : {}),
+        
+        // CRITICAL: Update permissions if provided
+        ...(userData.permissions !== undefined ? {
+          permissions: Array.isArray(userData.permissions) ? userData.permissions : currentUserData.permissions || []
+        } : {}),
+        
+        // Metadata
         updated_at: serverTimestamp(),
-        updated_by: auth.currentUser?.uid
+        updated_by: currentUserId
       };
 
-      console.log('Updating user with data:', updateData);
+      console.log('Updating user with data (Firestore compatible):', updateData);
 
-      // Update display name in Firebase Auth
-      if (userData.name && userData.name !== currentUser.data.name) {
+      // Update display name in Firebase Auth if needed
+      if (userData.name && userData.name !== currentUserData.name) {
         try {
           const firebaseUser = auth.currentUser;
           if (firebaseUser?.uid === userId) {
@@ -364,18 +414,21 @@ class UserService {
       await this._logUserAction('update', userId, {
         name: updateData.name,
         role: updateData.role,
-        is_active: updateData.is_active,
-        permissions: updateData.permissions,
-        allowed_warehouses: updateData.allowed_warehouses
+        is_active: updateData.is_active
       });
+
+      // Get updated user data
+      const updatedUser = {
+        id: userId,
+        ...currentUserData,
+        ...updateData,
+        created_at: this._formatTimestamp(currentUserData.created_at),
+        updated_at: new Date().toISOString()
+      };
 
       return {
         success: true,
-        data: {
-          ...currentUser.data,
-          ...updateData,
-          updated_at: new Date().toISOString()
-        },
+        data: updatedUser,
         message: 'تم تحديث المستخدم بنجاح'
       };
     } catch (error) {
@@ -389,12 +442,13 @@ class UserService {
   }
 
   /**
-   * Delete user
+   * Delete user - COMPATIBLE WITH FIRESTORE RULES
    * @param {string} userId - User ID
    * @returns {Promise<Object>} - Result
    */
   async deleteUser(userId) {
     try {
+      // Only superadmin can delete users per Firebase rules
       await this._checkSuperAdminPermission();
 
       // Check if user exists
@@ -408,6 +462,8 @@ class UserService {
         };
       }
 
+      const userData = userSnap.data();
+
       // Don't allow self-deletion
       if (auth.currentUser?.uid === userId) {
         return {
@@ -416,8 +472,6 @@ class UserService {
         };
       }
 
-      const userData = userSnap.data();
-      
       // Don't allow deletion of other superadmins
       if (userData.role === 'superadmin') {
         return {
@@ -460,6 +514,7 @@ class UserService {
    */
   async updateUserStatus(userId, isActive) {
     try {
+      // Only superadmin can update user status
       await this._checkSuperAdminPermission();
 
       // Check if user exists
@@ -469,12 +524,12 @@ class UserService {
       if (!userSnap.exists()) {
         return {
           success: false,
-          error: 'المخدم غير موجود'
+          error: 'المستخدم غير موجود'
         };
       }
 
       const userData = userSnap.data();
-      
+
       // Don't allow self-deactivation for superadmins
       if (auth.currentUser?.uid === userId && userData.role === 'superadmin') {
         return {
@@ -586,9 +641,9 @@ class UserService {
       snapshot.forEach((docSnap) => {
         const userData = docSnap.data();
         totalUsers++;
-        
+
         if (userData.is_active !== false) activeUsers++;
-        
+
         switch (userData.role) {
           case 'superadmin':
             superadmins++;
@@ -629,21 +684,6 @@ class UserService {
   }
 
   /**
-   * Generate random password
-   * @param {number} length - Password length
-   * @returns {string} - Generated password
-   */
-  generateRandomPassword(length = 12) {
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * charset.length);
-      password += charset[randomIndex];
-    }
-    return password;
-  }
-
-  /**
    * Log user action for audit trail
    * @private
    */
@@ -667,12 +707,129 @@ class UserService {
   }
 
   /**
-   * Check if user matches search criteria with null checks
+   * Format warehouses for Firestore (CRITICAL FIX)
+   * Converts component data to Firestore-compatible format
+   * @private
+   */
+  _formatWarehousesForFirestore(allWarehouses, allowedWarehouses, currentWarehouses = null) {
+    // If allWarehouses is true, return { all: true }
+    if (allWarehouses === true) {
+      return { all: true };
+    }
+    
+    // If we have allowedWarehouses array from component
+    if (Array.isArray(allowedWarehouses) && allowedWarehouses.length > 0) {
+      // Convert array to object format: { warehouseId: true }
+      const warehouseObject = {};
+      allowedWarehouses.forEach(id => {
+        warehouseObject[id] = true;
+      });
+      return warehouseObject;
+    }
+    
+    // If updating and no new warehouse data provided, return current
+    if (currentWarehouses) {
+      return currentWarehouses;
+    }
+    
+    // Default: empty object
+    return {};
+  }
+
+  /**
+   * Parse warehouses from Firestore to component format
+   * Converts Firestore format to component arrays
+   * @private
+   */
+  _parseWarehousesFromFirestore(warehousesData) {
+    if (!warehousesData) {
+      return { allWarehouses: false, allowedWarehouses: [] };
+    }
+    
+    // If it's an object with 'all: true'
+    if (warehousesData.all === true) {
+      return { allWarehouses: true, allowedWarehouses: [] };
+    }
+    
+    // If it's an object with warehouse IDs as keys
+    if (typeof warehousesData === 'object' && !Array.isArray(warehousesData)) {
+      const allowedWarehouses = Object.keys(warehousesData)
+        .filter(key => warehousesData[key] === true && key !== 'all');
+      return { allWarehouses: false, allowedWarehouses };
+    }
+    
+    // If it's an array (legacy format)
+    if (Array.isArray(warehousesData)) {
+      const hasAll = warehousesData.includes('all');
+      const allowedWarehouses = warehousesData.filter(id => id !== 'all');
+      return { allWarehouses: hasAll, allowedWarehouses };
+    }
+    
+    return { allWarehouses: false, allowedWarehouses: [] };
+  }
+
+  /**
+   * Validate user data according to Firebase rules
+   * @private
+   */
+  validateUserDataForFirestore(userData, isUpdate = false) {
+    const errors = [];
+
+    if (!userData || typeof userData !== 'object') {
+      return {
+        isValid: false,
+        errors: ['بيانات المستخدم غير صالحة']
+      };
+    }
+
+    // Name validation (per Firebase rules: minimum 2 chars)
+    if (!isUpdate || userData.name !== undefined) {
+      const name = userData.name || '';
+      if (typeof name !== 'string' || name.trim().length < 2) {
+        errors.push('الاسم يجب أن يكون على الأقل حرفين');
+      }
+    }
+
+    // Email validation (per Firebase rules)
+    if (!isUpdate) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!userData.email || typeof userData.email !== 'string' || !emailRegex.test(userData.email.trim())) {
+        errors.push('البريد الإلكتروني غير صالح');
+      }
+    }
+
+    // Role validation (per Firebase rules)
+    const validRoles = ['superadmin', 'warehouse_manager', 'company_manager', 'user'];
+    if (userData.role && !validRoles.includes(userData.role)) {
+      errors.push('الدور غير صالح');
+    }
+
+    // Password validation for new users
+    if (!isUpdate && !userData.password) {
+      errors.push('كلمة المرور مطلوبة');
+    }
+
+    // Phone validation (optional)
+    if (userData.phone && typeof userData.phone === 'string') {
+      const phoneDigits = userData.phone.replace(/\D/g, '');
+      if (phoneDigits && (phoneDigits.length < 9 || phoneDigits.length > 15)) {
+        errors.push('رقم الهاتف يجب أن يكون بين 9 و 15 رقماً');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Check if user matches search criteria
    * @private
    */
   _userMatchesSearch(userData, searchTerm) {
     if (!searchTerm || typeof searchTerm !== 'string') return true;
-    
+
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
 
@@ -686,12 +843,12 @@ class UserService {
   }
 
   /**
-   * Calculate search score for relevance sorting with null checks
+   * Calculate search score for relevance sorting
    * @private
    */
   _calculateSearchScore(user, searchTerm) {
     if (!user || !searchTerm || typeof searchTerm !== 'string') return 0;
-    
+
     let score = 0;
     const term = searchTerm.toLowerCase().trim();
 
@@ -708,15 +865,15 @@ class UserService {
    */
   _formatTimestamp(timestamp) {
     if (!timestamp) return null;
-    
+
     if (timestamp instanceof Timestamp) {
       return timestamp.toDate().toISOString();
     }
-    
+
     if (timestamp.toDate) {
       return timestamp.toDate().toISOString();
     }
-    
+
     return timestamp;
   }
 
@@ -739,12 +896,14 @@ class UserService {
       'auth/user-not-found': 'المستخدم غير موجود',
       'auth/wrong-password': 'كلمة المرور غير صحيحة',
       'auth/too-many-requests': 'محاولات كثيرة جداً، يرجى الانتظار',
-      
+
       // Firestore errors
       'permission-denied': 'ليس لديك صلاحية للقيام بهذا الإجراء',
       'not-found': 'المستند غير موجود',
       'already-exists': 'المستند موجود مسبقاً',
-      'unavailable': 'الخدمة غير متاحة حالياً'
+      'unavailable': 'الخدمة غير متاحة حالياً',
+      'failed-precondition': 'الشرط المسبق غير متحقق',
+      'resource-exhausted': 'تم تجاوز الحد المسموح'
     };
 
     if (error.code && errorMessages[error.code]) {
@@ -752,195 +911,6 @@ class UserService {
     }
 
     return error.message || 'حدث خطأ غير متوقع';
-  }
-
-  /**
-   * Validate user data with null checks
-   * @param {Object} userData - User data to validate
-   * @param {boolean} isUpdate - Whether this is an update operation
-   * @returns {Object} - Validation result
-   */
-  validateUserData(userData, isUpdate = false) {
-    const errors = [];
-
-    if (!userData || typeof userData !== 'object') {
-      return {
-        isValid: false,
-        errors: ['بيانات المستخدم غير صالحة']
-      };
-    }
-
-    // Name validation
-    if (!userData.name || typeof userData.name !== 'string' || userData.name.trim().length < 2) {
-      errors.push('الاسم يجب أن يكون على الأقل حرفين');
-    }
-
-    // Email validation
-    if (!isUpdate || userData.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!userData.email || typeof userData.email !== 'string' || !emailRegex.test(userData.email.trim())) {
-        errors.push('البريد الإلكتروني غير صالح');
-      }
-    }
-
-    // Phone validation (optional)
-    if (userData.phone && typeof userData.phone === 'string' && userData.phone.trim()) {
-      const phoneRegex = /^01[0-9]{9}$/;
-      if (!phoneRegex.test(userData.phone.trim())) {
-        errors.push('رقم الهاتف يجب أن يبدأ بـ 01 ويتكون من 11 رقماً');
-      }
-    }
-
-    // Role validation
-    const validRoles = ['superadmin', 'warehouse_manager', 'company_manager'];
-    if (!userData.role || !validRoles.includes(userData.role)) {
-      errors.push('الدور غير صالح');
-    }
-
-    // Password validation for new users
-    if (!isUpdate) {
-      if (!userData.password || typeof userData.password !== 'string' || userData.password.length < 8) {
-        errors.push('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-      }
-    }
-
-    // Warehouse validation for warehouse managers
-    if (userData.role === 'warehouse_manager') {
-      if (!Array.isArray(userData.allowed_warehouses) || userData.allowed_warehouses.length === 0) {
-        errors.push('يجب اختيار مخزن واحد على الأقل لمدير المخازن');
-      }
-    }
-
-    // Permissions validation (optional, but recommended)
-    if (userData.permissions && !Array.isArray(userData.permissions)) {
-      errors.push('صلاحيات المستخدم يجب أن تكون مصفوفة');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  /**
-   * Format user data for display with null checks
-   * @param {Object} user - User object
-   * @returns {Object} - Formatted user
-   */
-  formatUserForDisplay(user) {
-    if (!user || typeof user !== 'object') {
-      return {
-        id: 'غير معروف',
-        name: 'غير معروف',
-        email: '',
-        phone: '-',
-        role: 'user',
-        role_name: 'غير معروف',
-        is_active: false,
-        status: 'غير نشط',
-        status_color: 'red',
-        allowed_warehouses: [],
-        permissions: [],
-        created_at: '-',
-        updated_at: '-',
-        last_login: 'لم يسجل دخول'
-      };
-    }
-
-    return {
-      id: user.id || 'غير معروف',
-      name: user.name || 'غير معروف',
-      email: user.email || '',
-      phone: user.phone || '-',
-      role: user.role || 'user',
-      role_name: this.getRoleName(user.role),
-      is_active: user.is_active !== false,
-      status: user.is_active !== false ? 'نشط' : 'غير نشط',
-      status_color: user.is_active !== false ? 'green' : 'red',
-      allowed_warehouses: Array.isArray(user.allowed_warehouses) ? user.allowed_warehouses : [],
-      permissions: Array.isArray(user.permissions) ? user.permissions : [],
-      created_at: user.created_at ? new Date(user.created_at).toLocaleDateString('ar-EG') : '-',
-      updated_at: user.updated_at ? new Date(user.updated_at).toLocaleDateString('ar-EG') : '-',
-      last_login: user.last_login ? new Date(user.last_login).toLocaleDateString('ar-EG') : 'لم يسجل دخول'
-    };
-  }
-
-  /**
-   * Get role name in Arabic with null checks
-   * @param {string} role - Role key
-   * @returns {string} - Role name in Arabic
-   */
-  getRoleName(role) {
-    if (!role || typeof role !== 'string') return 'غير معروف';
-    
-    const roles = {
-      superadmin: 'المشرف العام',
-      warehouse_manager: 'مدير المخازن',
-      company_manager: 'مدير الشركة'
-    };
-    return roles[role] || role;
-  }
-
-  /**
-   * Get role permissions description with null checks
-   * @param {string} role - Role key
-   * @returns {Array} - Permissions list
-   */
-  getRolePermissions(role) {
-    if (!role || typeof role !== 'string') return [];
-    
-    const permissions = {
-      superadmin: [
-        'الوصول الكامل إلى جميع المخازن',
-        'إدارة المستخدمين والأدوار',
-        'إنشاء وتعديل وحذف الأصناف',
-        'إدارة الحركات والنقل',
-        'تصدير التقارير والبيانات',
-        'إعدادات النظام'
-      ],
-      warehouse_manager: [
-        'الوصول إلى المخازن المحددة فقط',
-        'إنشاء وتعديل الأصناف في المخازن المسموحة',
-        'إدارة الحركات والنقل بين المخازن المسموحة',
-        'عرض التقارير للمخازن المسموحة',
-        'تصدير بيانات المخازن المسموحة'
-      ],
-      company_manager: [
-        'عرض جميع البيانات للقراءة فقط',
-        'تصفية البيانات والتقارير',
-        'تصدير التقارير والبيانات',
-        'لا يمكن التعديل أو الحذف'
-      ]
-    };
-    return permissions[role] || [];
-  }
-
-  /**
-   * Clean user data before saving to Firestore
-   * @param {Object} userData - Raw user data
-   * @returns {Object} - Cleaned user data
-   */
-  cleanUserData(userData) {
-    if (!userData || typeof userData !== 'object') {
-      return {
-        name: '',
-        email: '',
-        role: 'company_manager',
-        is_active: true,
-        allowed_warehouses: [],
-        permissions: []
-      };
-    }
-
-    return {
-      name: userData.name ? userData.name.trim() : '',
-      email: userData.email ? userData.email.trim().toLowerCase() : '',
-      phone: userData.phone ? userData.phone.trim() : null,
-      role: userData.role || 'company_manager',
-      is_active: userData.is_active !== false,
-      allowed_warehouses: Array.isArray(userData.allowed_warehouses) ? userData.allowed_warehouses : [],
-      permissions: Array.isArray(userData.permissions) ? userData.permissions : []
-    };
   }
 
   /**
@@ -952,17 +922,49 @@ class UserService {
     const defaultPermissions = {
       superadmin: ['all'],
       warehouse_manager: [
-        'manage_inventory',
-        'create_transfers',
+        'view_items',
+        'add_items',
+        'edit_items',
+        'view_transactions',
+        'create_transactions',
+        'transfer_items',
         'dispatch_items',
-        'update_items',
         'view_reports',
-        'export_data'
+        'view_dashboard'
       ],
-      company_manager: ['view_reports', 'export_data', 'view_inventory']
+      company_manager: [
+        'view_items',
+        'view_transactions',
+        'view_reports',
+        'view_dashboard',
+        'view_analytics',
+        'export_reports'
+      ],
+      user: [
+        'view_items',
+        'view_transactions',
+        'view_dashboard'
+      ]
     };
-    
-    return defaultPermissions[role] || ['view_reports'];
+
+    return defaultPermissions[role] || ['view_items', 'view_dashboard'];
+  }
+
+  /**
+   * Get role name in Arabic
+   * @param {string} role - Role key
+   * @returns {string} - Role name in Arabic
+   */
+  getRoleName(role) {
+    if (!role || typeof role !== 'string') return 'غير معروف';
+
+    const roles = {
+      superadmin: 'المشرف العام',
+      warehouse_manager: 'مدير المخازن',
+      company_manager: 'مدير الشركة',
+      user: 'مستخدم عادي'
+    };
+    return roles[role] || role;
   }
 
   /**
@@ -973,16 +975,64 @@ class UserService {
    */
   hasPermission(user, permission) {
     if (!user || !permission) return false;
-    
+
     const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
-    
+
     // Superadmins have all permissions
     if (user.role === 'superadmin') return true;
-    
+
     // Check for specific permission or 'all' or 'full_access'
     return userPermissions.includes(permission) || 
            userPermissions.includes('all') || 
            userPermissions.includes('full_access');
+  }
+
+  /**
+   * Check if user has access to warehouse
+   * @param {Object} user - User object
+   * @param {string} warehouseId - Warehouse ID
+   * @returns {boolean} - Whether user has access
+   */
+  hasWarehouseAccess(user, warehouseId) {
+    if (!user || !warehouseId) return false;
+
+    // Superadmins have access to all warehouses
+    if (user.role === 'superadmin') return true;
+
+    // Check if user has access to this warehouse
+    const warehouses = user.allowed_warehouses;
+    
+    if (!warehouses) return false;
+    
+    // If it's an object with 'all: true'
+    if (warehouses.all === true) return true;
+    
+    // If it's an object with warehouse IDs as keys
+    if (typeof warehouses === 'object' && !Array.isArray(warehouses)) {
+      return warehouses[warehouseId] === true;
+    }
+    
+    // If it's an array
+    if (Array.isArray(warehouses)) {
+      return warehouses.includes('all') || warehouses.includes(warehouseId);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Generate random password
+   * @param {number} length - Password length
+   * @returns {string} - Generated password
+   */
+  generateRandomPassword(length = 12) {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * charset.length);
+      password += charset[randomIndex];
+    }
+    return password;
   }
 }
 
