@@ -1,7 +1,7 @@
 <template>
   <div class="user-management" :class="{ 'dark-mode': isDarkMode }">
     <!-- Loading Overlay -->
-    <div v-if="loading && !error" class="loading-overlay">
+    <div v-if="usersLoading && !authError" class="loading-overlay">
       <div class="spinner-container">
         <div class="spinner"></div>
         <p class="loading-text">جاري تحميل بيانات المستخدمين...</p>
@@ -9,15 +9,15 @@
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="error-container">
+    <div v-if="authError && !usersLoading" class="error-container">
       <div class="error-card">
         <div class="error-icon">
           <i class="fas fa-exclamation-triangle"></i>
         </div>
         <h2>حدث خطأ</h2>
-        <p class="error-message">{{ error }}</p>
+        <p class="error-message">{{ authError }}</p>
         <div class="error-actions">
-          <button @click="loadUsers" class="btn-primary">
+          <button @click="init" class="btn-primary">
             <i class="fas fa-redo"></i> إعادة المحاولة
           </button>
           <button @click="$router.push('/dashboard')" class="btn-secondary">
@@ -27,8 +27,26 @@
       </div>
     </div>
 
+    <!-- Permission Error -->
+    <div v-if="!canManageUsers && !usersLoading" class="error-container">
+      <div class="error-card">
+        <div class="error-icon">
+          <i class="fas fa-lock"></i>
+        </div>
+        <h2>صلاحية غير كافية</h2>
+        <p class="error-message">
+          ليس لديك صلاحية للوصول إلى إدارة المستخدمين. يرجى التواصل مع المشرف.
+        </p>
+        <div class="error-actions">
+          <button @click="$router.push('/dashboard')" class="btn-primary">
+            <i class="fas fa-arrow-right"></i> العودة للوحة التحكم
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Content -->
-    <div v-if="!loading && !error" class="main-content">
+    <div v-if="canManageUsers && !usersLoading && !authError" class="main-content">
       <!-- Header -->
       <div class="header-section">
         <div class="header-content">
@@ -38,6 +56,10 @@
             </h1>
             <p class="page-subtitle">
               إدارة مستخدمي النظام، الصلاحيات، والمخازن
+              <span v-if="userProfile" class="user-role-badge">
+                <i :class="getRoleIcon(userProfile.role)"></i>
+                {{ getRoleName(userProfile.role) }}
+              </span>
             </p>
           </div>
           <div class="header-actions">
@@ -130,7 +152,7 @@
               <option value="superadmin">مشرف عام</option>
               <option value="company_manager">مدير شركة</option>
               <option value="warehouse_manager">مدير مخزن</option>
-              <option value="employee">موظف</option>
+              <option value="viewer">مشاهد</option>
             </select>
           </div>
 
@@ -655,7 +677,7 @@
                     <option value="superadmin">مشرف عام</option>
                     <option value="company_manager">مدير شركة</option>
                     <option value="warehouse_manager">مدير مخزن</option>
-                    <option value="employee">موظف</option>
+                    <option value="viewer">مشاهد</option>
                   </select>
                   <span v-if="!userForm.role && formSubmitted" class="error-message">الدور مطلوب</span>
                 </div>
@@ -704,7 +726,7 @@
                       <span class="checkbox-custom"></span>
                       <span class="checkbox-text">جميع المخازن</span>
                     </label>
-                    
+
                     <div class="warehouses-list">
                       <label v-for="warehouse in accessibleWarehouses" :key="warehouse.id" class="checkbox-label warehouse-item">
                         <input 
@@ -966,8 +988,8 @@
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
 import { auth, db } from '@/firebase/config'
-import { updatePassword, sendPasswordResetEmail } from 'firebase/auth'
-import { doc, updateDoc } from 'firebase/firestore'
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
+import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore'
 
 export default {
   name: 'UserManagement',
@@ -975,7 +997,7 @@ export default {
   data() {
     return {
       loading: true,
-      error: null,
+      localError: null,
       refreshing: false,
       exporting: false,
       deleting: false,
@@ -1064,13 +1086,12 @@ export default {
   },
   
   computed: {
-    ...mapState(['allUsers', 'warehouses', 'user', 'usersLoading']),
+    ...mapState(['allUsers', 'warehouses', 'user', 'usersLoading', 'authError']),
     ...mapGetters([
-      'primaryWarehouses', 
-      'dispatchWarehouses', 
-      'accessibleWarehouses',
       'userProfile',
-      'canManageUsers'
+      'canManageUsers',
+      'accessibleWarehouses',
+      'getWarehouseLabel'
     ]),
     
     // Current User ID
@@ -1117,6 +1138,7 @@ export default {
           case 'warehouse_manager':
             stats.warehouseManagers++
             break
+          case 'viewer':
           case 'employee':
             stats.employees++
             break
@@ -1286,33 +1308,39 @@ export default {
   
   methods: {
     ...mapActions([
-      'loadAllUsers',
-      'deleteUser',
-      'updateUserStatus',
+      'loadUsers',
       'showNotification',
-      'createUser',
-      'updateUser'
+      'loadWarehousesEnhanced',
+      'initializeAuth'
     ]),
     
     // Initialization
     async init() {
       try {
         this.loading = true
-        this.error = null
+        this.localError = null
         
-        // Check permissions
+        // التحقق من المصادقة
+        if (!this.user) {
+          await this.initializeAuth()
+        }
+        
+        // التحقق من الصلاحيات
         if (!this.canManageUsers) {
-          this.error = 'ليس لديك صلاحية للوصول إلى إدارة المستخدمين'
+          this.localError = 'ليس لديك صلاحية للوصول إلى إدارة المستخدمين'
           return
         }
         
-        // Load theme preference
+        // تحميل المخازن
+        await this.loadWarehousesEnhanced()
+        
+        // تحميل المستخدمين
+        await this.loadUsers()
+        
+        // تحميل إعدادات السمة
         this.loadThemePreference()
         
-        // Load data
-        await this.loadAllUsers()
-        
-        // Initialize date filters (last 30 days)
+        // تهيئة فلتر التاريخ (آخر 30 يوم)
         const endDate = new Date()
         const startDate = new Date()
         startDate.setDate(startDate.getDate() - 30)
@@ -1322,7 +1350,7 @@ export default {
         
       } catch (error) {
         console.error('Error initializing user management:', error)
-        this.error = 'فشل في تحميل بيانات المستخدمين. يرجى المحاولة مرة أخرى.'
+        this.localError = 'فشل في تحميل بيانات المستخدمين. يرجى المحاولة مرة أخرى.'
         this.showToast('حدث خطأ في تحميل البيانات', 'error')
       } finally {
         this.loading = false
@@ -1355,7 +1383,7 @@ export default {
     async refreshData() {
       try {
         this.refreshing = true
-        await this.loadAllUsers()
+        await this.loadUsers()
         this.showToast('تم تحديث البيانات بنجاح', 'success')
       } catch (error) {
         console.error('Error refreshing data:', error)
@@ -1397,6 +1425,7 @@ export default {
         'superadmin': 'مشرف عام',
         'company_manager': 'مدير شركة',
         'warehouse_manager': 'مدير مخزن',
+        'viewer': 'مشاهد',
         'employee': 'موظف'
       }
       return roles[role] || role
@@ -1407,6 +1436,7 @@ export default {
         'superadmin': 'fas fa-crown',
         'company_manager': 'fas fa-user-tie',
         'warehouse_manager': 'fas fa-warehouse',
+        'viewer': 'fas fa-eye',
         'employee': 'fas fa-user'
       }
       return icons[role] || 'fas fa-user'
@@ -1414,8 +1444,7 @@ export default {
     
     getWarehouseName(warehouseId) {
       if (warehouseId === 'all') return 'جميع المخازن'
-      const warehouse = this.warehouses.find(w => w.id === warehouseId)
-      return warehouse ? (warehouse.name_ar || warehouse.name) : warehouseId
+      return this.getWarehouseLabel(warehouseId)
     },
     
     getUserWarehouseCount(user) {
@@ -1576,7 +1605,7 @@ export default {
     async saveUser() {
       this.formSubmitted = true
       
-      // Validate form
+      // التحقق من النموذج
       if (!this.userForm.name || !this.userForm.email || !this.userForm.role) {
         this.showToast('يرجى ملء جميع الحقول المطلوبة', 'error')
         return
@@ -1607,21 +1636,21 @@ export default {
           allowed_warehouses: this.userForm.allowed_warehouses,
           permissions: this.userForm.permissions,
           notes: this.userForm.notes.trim(),
-          is_active: true
+          is_active: true,
+          profile_complete: true
         }
         
         if (this.editingUser) {
-          // Update existing user
-          await this.updateUser({
-            userId: this.editingUser.id,
-            userData
-          })
+          // تحديث مستخدم موجود
+          await this.updateUser(this.editingUser.id, userData)
           
           this.showToast('تم تحديث المستخدم بنجاح', 'success')
         } else {
-          // Create new user
-          userData.password = this.userForm.password
-          await this.createUser(userData)
+          // إنشاء مستخدم جديد
+          await this.createUser({
+            ...userData,
+            password: this.userForm.password
+          })
           
           this.showToast('تم إنشاء المستخدم بنجاح', 'success')
         }
@@ -1634,6 +1663,174 @@ export default {
         this.showToast(error.message || 'حدث خطأ أثناء حفظ المستخدم', 'error')
       } finally {
         this.savingUser = false
+      }
+    },
+    
+    // Custom methods for user operations
+    async createUser(userData) {
+      try {
+        const { email, password, ...profileData } = userData
+        
+        // إنشاء المستخدم في Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+        const newUser = userCredential.user
+        
+        // إنشاء وثيقة المستخدم في Firestore
+        const userDocData = {
+          ...profileData,
+          email: email,
+          uid: newUser.uid,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+          created_by: this.user?.uid
+        }
+        
+        await setDoc(doc(db, 'users', newUser.uid), userDocData)
+        
+        // إرسال إشعار
+        this.showNotification({
+          type: 'success',
+          message: `تم إنشاء المستخدم ${profileData.name} بنجاح`
+        })
+        
+        return { success: true, userId: newUser.uid }
+        
+      } catch (error) {
+        console.error('Error creating user:', error)
+        
+        let errorMessage = 'فشل في إنشاء المستخدم'
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = 'البريد الإلكتروني مستخدم بالفعل'
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'البريد الإلكتروني غير صالح'
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = 'كلمة المرور ضعيفة'
+        }
+        
+        this.showNotification({
+          type: 'error',
+          message: errorMessage
+        })
+        
+        throw new Error(errorMessage)
+      }
+    },
+    
+    async updateUser(userId, userData) {
+      try {
+        const userRef = doc(db, 'users', userId)
+        
+        // تحديث البيانات
+        const updateData = {
+          ...userData,
+          updated_at: serverTimestamp(),
+          updated_by: this.user?.uid
+        }
+        
+        await updateDoc(userRef, updateData)
+        
+        // إرسال إشعار
+        this.showNotification({
+          type: 'success',
+          message: 'تم تحديث بيانات المستخدم بنجاح'
+        })
+        
+        return { success: true }
+        
+      } catch (error) {
+        console.error('Error updating user:', error)
+        this.showNotification({
+          type: 'error',
+          message: 'فشل في تحديث بيانات المستخدم'
+        })
+        throw error
+      }
+    },
+    
+    async deleteUser(userId) {
+      try {
+        // منع حذف المستخدم الحالي
+        if (userId === this.currentUserId) {
+          throw new Error('لا يمكنك حذف حسابك الخاص')
+        }
+        
+        // حذف من Firestore
+        await deleteDoc(doc(db, 'users', userId))
+        
+        // إرسال إشعار
+        this.showNotification({
+          type: 'success',
+          message: 'تم حذف المستخدم بنجاح'
+        })
+        
+        return { success: true }
+        
+      } catch (error) {
+        console.error('Error deleting user:', error)
+        this.showNotification({
+          type: 'error',
+          message: 'فشل في حذف المستخدم'
+        })
+        throw error
+      }
+    },
+    
+    async updateUserStatus(userId, isActive) {
+      try {
+        const userRef = doc(db, 'users', userId)
+        
+        await updateDoc(userRef, {
+          is_active: isActive,
+          updated_at: serverTimestamp(),
+          updated_by: this.user?.uid
+        })
+        
+        this.showNotification({
+          type: 'success',
+          message: `تم ${isActive ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`
+        })
+        
+        return { success: true }
+        
+      } catch (error) {
+        console.error('Error updating user status:', error)
+        this.showNotification({
+          type: 'error',
+          message: 'فشل في تغيير حالة المستخدم'
+        })
+        throw error
+      }
+    },
+    
+    async bulkUpdateUsers(userIds, updates) {
+      try {
+        const batch = writeBatch(db)
+        
+        userIds.forEach(userId => {
+          const userRef = doc(db, 'users', userId)
+          batch.update(userRef, {
+            ...updates,
+            updated_at: serverTimestamp(),
+            updated_by: this.user?.uid
+          })
+        })
+        
+        await batch.commit()
+        
+        this.showNotification({
+          type: 'success',
+          message: `تم تحديث ${userIds.length} مستخدم بنجاح`
+        })
+        
+        return { success: true }
+        
+      } catch (error) {
+        console.error('Error bulk updating users:', error)
+        this.showNotification({
+          type: 'error',
+          message: 'فشل في التحديث الجماعي'
+        })
+        throw error
       }
     },
     
@@ -1664,10 +1861,10 @@ export default {
         
         if (!confirm(confirmMessage)) return
         
-        await this.updateUserStatus({
-          userId: user.id,
-          isActive: newStatus
-        })
+        await this.updateUserStatus(user.id, newStatus)
+        
+        // إعادة تحميل المستخدمين
+        await this.loadUsers()
         
         this.showToast(
           `تم ${newStatus ? 'تفعيل' : 'تعطيل'} المستخدم بنجاح`,
@@ -1718,7 +1915,7 @@ export default {
           return
         }
         
-        // Confirm deletion
+        // تأكيد الحذف
         const confirmMessage = usersToDelete.length === 1
           ? `هل أنت متأكد من حذف المستخدم "${usersToDelete[0].name}"؟`
           : `هل أنت متأكد من حذف ${usersToDelete.length} مستخدمين؟\n\n` +
@@ -1730,7 +1927,7 @@ export default {
           return
         }
         
-        // Delete users
+        // حذف المستخدمين
         const deletePromises = usersToDelete.map(user => 
           this.deleteUser(user.id).catch(error => {
             console.error(`Error deleting user ${user.id}:`, error)
@@ -1753,10 +1950,13 @@ export default {
           this.showToast(message, 'success')
         }
         
-        // Clear selection
+        // مسح التحديد
         this.selectedUsers = this.selectedUsers.filter(id => 
           !usersToDelete.some(user => user.id === id)
         )
+        
+        // إعادة تحميل المستخدمين
+        await this.loadUsers()
         
       } catch (error) {
         console.error('Error confirming delete:', error)
@@ -1778,11 +1978,10 @@ export default {
         const confirmMessage = `هل تريد تفعيل ${this.selectedUsers.length} مستخدمين؟`
         if (!confirm(confirmMessage)) return
         
-        const activatePromises = this.selectedUsers.map(userId => 
-          this.updateUserStatus({ userId, isActive: true })
-        )
+        await this.bulkUpdateUsers(this.selectedUsers, { is_active: true })
         
-        await Promise.all(activatePromises)
+        // إعادة تحميل المستخدمين
+        await this.loadUsers()
         
         this.showToast(
           `تم تفعيل ${this.selectedUsers.length} مستخدمين بنجاح`,
@@ -1807,11 +2006,10 @@ export default {
         const confirmMessage = `هل تريد تعطيل ${this.selectedUsers.length} مستخدمين؟`
         if (!confirm(confirmMessage)) return
         
-        const deactivatePromises = this.selectedUsers.map(userId => 
-          this.updateUserStatus({ userId, isActive: false })
-        )
+        await this.bulkUpdateUsers(this.selectedUsers, { is_active: false })
         
-        await Promise.all(deactivatePromises)
+        // إعادة تحميل المستخدمين
+        await this.loadUsers()
         
         this.showToast(
           `تم تعطيل ${this.selectedUsers.length} مستخدمين بنجاح`,
@@ -1858,7 +2056,7 @@ export default {
     
     async confirmResetPassword() {
       try {
-        // Validate manual password
+        // التحقق من كلمة المرور اليدوية
         if (this.resetMethod === 'manual') {
           if (!this.newPassword || !this.confirmNewPassword) {
             this.passwordMatchError = 'يجب إدخال كلمة المرور وتأكيدها'
@@ -1879,39 +2077,14 @@ export default {
         this.resetting = true
         
         if (this.resetMethod === 'auto') {
-          // Generate random password
-          const password = this.generateRandomPassword()
+          // إرسال رابط إعادة تعيين كلمة المرور
+          await sendPasswordResetEmail(auth, this.userToReset.email)
           
-          // In a real app, you would call Firebase Admin SDK to update password
-          // For now, we'll simulate the process
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          let message = `تم إعادة تعيين كلمة مرور المستخدم "${this.userToReset.name}"`
-          
-          if (this.sendResetNotification) {
-            // Send password reset email
-            try {
-              await sendPasswordResetEmail(auth, this.userToReset.email)
-              message += ' (تم إرسال رابط إعادة التعيين بالبريد)'
-            } catch (emailError) {
-              console.error('Error sending reset email:', emailError)
-              message += ` - كلمة المرور الجديدة: ${password}`
-            }
-          } else {
-            message += ` - كلمة المرور الجديدة: ${password}`
-          }
-          
-          this.showToast(message, 'success')
+          this.showToast('تم إرسال رابط إعادة تعيين كلمة المرور إلى البريد الإلكتروني', 'success')
           
         } else {
-          // Manual password reset
-          // In a real app, you would call Firebase Admin SDK
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          this.showToast(
-            `تم تعيين كلمة مرور جديدة للمستخدم "${this.userToReset.name}"`,
-            'success'
-          )
+          // هنا يمكن إضافة Cloud Function لتغيير كلمة المرور يدوياً
+          this.showToast('يجب استخدام Cloud Function لتغيير كلمة المرور يدوياً', 'info')
         }
         
         this.cancelResetPassword()
@@ -2111,11 +2284,6 @@ export default {
     
     hideToast() {
       this.toast.show = false
-    },
-    
-    // Load users for error retry
-    async loadUsers() {
-      await this.init()
     }
   },
   
@@ -2148,7 +2316,7 @@ export default {
   }
 }
 </script>
-
+    
 <style scoped>
 /* ===== BASE STYLES ===== */
 .user-management {
