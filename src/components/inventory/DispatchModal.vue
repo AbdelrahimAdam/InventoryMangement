@@ -724,6 +724,47 @@ export default {
       }
     }
 
+    // Calculate detailed dispatch breakdown
+    const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
+      const perCarton = currentItem.per_carton_count || 12;
+      const currentCartons = currentItem.cartons_count || 0;
+      const currentSingles = currentItem.single_bottles_count || 0;
+      
+      // Smart calculation for dispatch
+      let dispatchCartons = 0;
+      let dispatchSingles = 0;
+      
+      // Use singles first if available
+      if (currentSingles > 0) {
+        dispatchSingles = Math.min(currentSingles, dispatchQuantity);
+      }
+      
+      // Calculate remaining after using singles
+      let remaining = dispatchQuantity - dispatchSingles;
+      
+      // Use whole cartons
+      if (remaining > 0) {
+        const cartonsNeeded = Math.floor(remaining / perCarton);
+        dispatchCartons = Math.min(cartonsNeeded, currentCartons);
+        remaining -= (dispatchCartons * perCarton);
+      }
+      
+      // If still remaining, break a carton
+      if (remaining > 0 && currentCartons > dispatchCartons) {
+        dispatchCartons += 1; // Break one more carton
+        // Take what we need from the broken carton
+        dispatchSingles += remaining;
+        // What's left in the broken carton becomes new singles
+        // This is handled by the store action
+      }
+      
+      return {
+        cartons: dispatchCartons,
+        singles: dispatchSingles,
+        perCarton: perCarton
+      };
+    }
+
     // Search function
     const searchSparkFriendly = async () => {
       const term = searchTerm.value.trim()
@@ -994,7 +1035,7 @@ export default {
       form.quantity = maxQuantity
     }
 
-       // FIXED: Submit handler with detailed quantity breakdown
+    // Updated handleSubmit with detailed dispatch calculation
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -1024,125 +1065,55 @@ export default {
         return
       }
 
-      // Get current item state for SMART calculation
+      // Use your EXISTING item data
       const currentItem = selectedItem.value
-      const perCarton = currentItem.per_carton_count || 12
-      const currentCartons = currentItem.cartons_count || 0
-      const currentSingles = currentItem.single_bottles_count || 0
       const totalToDispatch = form.quantity
       
-      // SMART CALCULATION: Determine optimal carton/single breakdown
-      let dispatchCartons = 0
-      let dispatchSingles = 0
+      // Calculate detailed breakdown using the smart calculation function
+      const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
       
-      // Try to use available single bottles first
-      if (currentSingles > 0) {
-        const singlesToUse = Math.min(currentSingles, totalToDispatch)
-        dispatchSingles = singlesToUse
-      }
-      
-      // Calculate remaining after using singles
-      let remainingToDispatch = totalToDispatch - dispatchSingles
-      
-      // Use whole cartons for the rest
-      if (remainingToDispatch > 0) {
-        const cartonsNeeded = Math.floor(remainingToDispatch / perCarton)
-        
-        // Check if we have enough cartons
-        if (currentCartons >= cartonsNeeded) {
-          dispatchCartons = cartonsNeeded
-          remainingToDispatch = remainingToDispatch - (cartonsNeeded * perCarton)
-        } else {
-          // Not enough cartons, use what we have
-          dispatchCartons = currentCartons
-          remainingToDispatch = remainingToDispatch - (currentCartons * perCarton)
-        }
-      }
-      
-      // Handle remaining quantity (need to break a carton)
-      if (remainingToDispatch > 0) {
-        // We need to break a carton for the remaining items
-        if (currentCartons - dispatchCartons > 0) {
-          // We have at least one more carton to break
-          dispatchCartons += 1 // Break one more carton
-          
-          // After breaking, we have full carton bottles minus what we need
-          const bottlesFromBrokenCarton = perCarton
-          dispatchSingles += (bottlesFromBrokenCarton - remainingToDispatch)
-        } else {
-          // No cartons left to break
-          error.value = `لا يوجد عدد كافٍ من الكرتونات. تحتاج إلى ${remainingToDispatch} وحدة إضافية`
-          return
-        }
-      }
-
-      // Final validation to ensure exact match
-      const totalDispatched = (dispatchCartons * perCarton) + dispatchSingles
-      if (totalDispatched !== totalToDispatch) {
-        // Adjust to ensure exact match
-        const difference = totalToDispatch - totalDispatched
-        if (difference > 0) {
-          dispatchSingles += difference
-        }
-      }
+      const { cartons: dispatchCartons, singles: dispatchSingles, perCarton: perCarton } = detailedDispatch
 
       loading.value = true
 
       try {
-        // Prepare dispatch data WITH DETAILED BREAKDOWN
+        // Prepare dispatch data
         const dispatchData = {
-          item_id: selectedItem.value.id,
+          item_id: currentItem.id,
           from_warehouse_id: form.sourceWarehouse,
           destination: getDestinationName(form.destinationBranch),
           
-          // CRITICAL: Send detailed breakdown
+          // Send detailed breakdown
           cartons_count: dispatchCartons,
           per_carton_count: perCarton,
           single_bottles_count: dispatchSingles,
           
-          // Also send total quantity for backward compatibility
-          quantity: form.quantity,
+          // Also send total for compatibility
+          quantity: totalToDispatch,
+          
+          // Current state for store validation
+          current_cartons: currentItem.cartons_count || 0,
+          current_singles: currentItem.single_bottles_count || 0,
+          current_total: ((currentItem.cartons_count || 0) * perCarton) + (currentItem.single_bottles_count || 0),
           
           notes: form.notes || 'صرف إلى فرع',
           priority: form.priority,
-          item_name: selectedItem.value.name || selectedItem.value.item_name,
-          item_code: selectedItem.value.code || selectedItem.value.item_code,
+          item_name: currentItem.name || currentItem.item_name,
+          item_code: currentItem.code || currentItem.item_code,
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          destination_id: form.destinationBranch,
-          user_id: store.state.user?.uid,
-          user_role: userProfile.value?.role,
-          user_name: userProfile.value?.name,
-          
-          // Add detailed breakdown info for debugging
-          detailed_dispatch: {
-            cartons: dispatchCartons,
-            singles: dispatchSingles,
-            per_carton: perCarton,
-            total: form.quantity
-          },
-          
-          // Current state for store validation
-          current_cartons: currentCartons,
-          current_singles: currentSingles,
-          current_total: (currentCartons * perCarton) + currentSingles
+          destination_id: form.destinationBranch
         }
         
-        console.log('📦 Dispatching with details:', {
-          total: form.quantity,
+        // Log dispatch details for debugging
+        console.log('📦 Dispatching item:', {
+          item: currentItem.name || currentItem.item_name,
+          total: totalToDispatch,
           cartons: dispatchCartons,
           singles: dispatchSingles,
           per_carton: perCarton,
-          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`,
-          current_state: {
-            cartons: currentCartons,
-            singles: currentSingles,
-            total: (currentCartons * perCarton) + currentSingles
-          }
+          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
         })
 
-        // Clear relevant cache entries after dispatch
-        clearSearchCache()
-        
         // Use the store dispatch action
         const result = await store.dispatch('dispatchItem', dispatchData)
 
@@ -1158,10 +1129,8 @@ export default {
             successMessage.value += ` (${dispatchSingles} فردي)`
           }
           
-          // Reset form
+          // Reset form and close
           resetForm()
-          
-          // Emit success and close
           setTimeout(() => {
             emit('success', result)
             emit('close')
