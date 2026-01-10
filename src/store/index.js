@@ -141,65 +141,6 @@ async function getFirebaseAuth() {
   return auth;
 }
 
-// Helper function to create complete item from any source
-function createCompleteItem(itemData) {
-  if (!itemData) return null;
-  
-  // Calculate total from detailed breakdown if needed
-  const totalQuantity = (itemData.cartons_count || 0) * (itemData.per_carton_count || 12) + 
-                       (itemData.single_bottles_count || 0);
-  
-  return {
-    id: itemData.id || '',
-    name: itemData.name || '',
-    code: itemData.code || '',
-    color: itemData.color || '',
-    warehouse_id: itemData.warehouse_id || '',
-    
-    // Detailed quantity fields with defaults
-    cartons_count: itemData.cartons_count || 0,
-    per_carton_count: itemData.per_carton_count || 12,
-    single_bottles_count: itemData.single_bottles_count || 0,
-    remaining_quantity: itemData.remaining_quantity || totalQuantity || 0,
-    total_added: itemData.total_added || totalQuantity || 0,
-    
-    // Additional fields
-    supplier: itemData.supplier || '',
-    item_location: itemData.item_location || '',
-    notes: itemData.notes || '',
-    barcode: itemData.barcode || '',
-    sku: itemData.sku || '',
-    category: itemData.category || '',
-    photo_url: itemData.photo_url || null,
-    
-    // User and timestamps
-    created_by: itemData.created_by || '',
-    updated_by: itemData.updated_by || '',
-    created_at: itemData.created_at || null,
-    updated_at: itemData.updated_at || null
-  };
-}
-
-// Helper function to normalize Arabic text
-function normalizeArabicText(text) {
-  if (!text) return '';
-  return text
-    .toString()
-    .normalize('NFKD')
-    .replace(/[\u064B-\u065F]/g, '') // Remove Arabic diacritics
-    .replace(/[إأآا]/g, 'ا') // Normalize Alef
-    .replace(/[ى]/g, 'ي') // Normalize Ya
-    .replace(/[ة]/g, 'ه') // Normalize Ta Marbuta
-    .replace(/[ؤ]/g, 'و') // Normalize Waw with Hamza
-    .replace(/[ئ]/g, 'ي') // Normalize Ya with Hamza
-    .toLowerCase()
-    .trim();
-}
-
-// Helper: Get cache key
-function getCacheKey(searchTerm, warehouseId, limit = SPARK_CONFIG.MAX_RESULTS) {
-  return `${warehouseId || 'all'}:${searchTerm.toLowerCase().trim()}:${limit}:${Date.now() % 10000}`;
-}
 // ============================================
 // SPARK PLAN ENHANCED CONFIGURATION
 // ============================================
