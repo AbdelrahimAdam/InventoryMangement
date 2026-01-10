@@ -1479,7 +1479,7 @@ export default createStore({
   },
 
   actions: {
-    // ============================================
+// ============================================
 // SPARK ENHANCED SMART ARABIC SEARCH
 // ============================================
 async searchInventorySpark({ commit, state, dispatch }, {
@@ -1773,7 +1773,7 @@ async searchHybridSpark({ state, dispatch }, {
 },
 
 // ============================================
-// ENHANCED LOCAL SEARCH
+// ENHANCED LOCAL SEARCH WITH COMPLETE FIELDS
 // ============================================
 async searchLocalSpark({ state }, {
   query,
@@ -1808,12 +1808,17 @@ async searchLocalSpark({ state }, {
 
   console.log(`📍 SPARK Local search found ${matches.length} matches`);
 
+  // Ensure complete fields for all matches
+  const completeMatches = matches.map(item => {
+    return createCompleteItem(item);
+  });
+
   // Sort by relevance
-  return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
+  return removeDuplicatesAndSortByRelevance(completeMatches, searchTerm, limit);
 },
 
 // ============================================
-// ENHANCED FIREBASE SEARCH WITH ARABIC TEXT SUPPORT
+// ENHANCED FIREBASE SEARCH WITH COMPLETE FIELDS
 // ============================================
 async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
   try {
@@ -1872,7 +1877,7 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
     let itemsQuery;
     let searchResults = [];
 
-    // Build optimized query - FIXED: Use better approach for Arabic search
+    // Build optimized query
     if (canAccessAll) {
       // Superadmin or company manager
       if (warehouseId && warehouseId !== 'all') {
@@ -1953,27 +1958,42 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
       return [];
     }
 
-    // Process items
+    // Process items with COMPLETE FIELDS
     const allItems = [];
     snapshot.forEach(doc => {
       try {
         const data = doc.data();
-
+        
+        // CREATE COMPLETE ITEM WITH ALL FIELDS
         const item = {
           id: doc.id,
+          // Basic info
           name: data.name || '',
           code: data.code || '',
           color: data.color || '',
-          supplier: data.supplier || '',
           warehouse_id: data.warehouse_id || '',
+          
+          // 🔴 CRITICAL: Detailed quantity fields
+          cartons_count: data.cartons_count || 0,
+          per_carton_count: data.per_carton_count || 12,
+          single_bottles_count: data.single_bottles_count || 0,
           remaining_quantity: data.remaining_quantity || 0,
-          updated_at: data.updated_at,
-          // Include additional fields for better search
+          total_added: data.total_added || 0,
+          
+          // Additional fields
+          supplier: data.supplier || '',
           item_location: data.item_location || '',
           notes: data.notes || '',
           barcode: data.barcode || '',
           sku: data.sku || '',
-          category: data.category || ''
+          category: data.category || '',
+          photo_url: data.photo_url || null,
+          
+          // User and timestamps
+          created_by: data.created_by || '',
+          updated_by: data.updated_by || '',
+          created_at: data.created_at || null,
+          updated_at: data.updated_at || null
         };
 
         allItems.push(item);
@@ -1982,7 +2002,7 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
       }
     });
 
-    console.log(`✅ SPARK Processed ${allItems.length} items from Firebase`);
+    console.log(`✅ SPARK Processed ${allItems.length} COMPLETE items from Firebase`);
 
     // DEBUG: Check first few items for Arabic text
     if (allItems.length > 0 && searchTerm) {
@@ -1996,6 +2016,7 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
         console.log(`    Normalized Name: "${normalizedName}"`);
         console.log(`    Original Code: "${item.code}"`);
         console.log(`    Normalized Code: "${normalizedCode}"`);
+        console.log(`    Cartons: ${item.cartons_count}, Singles: ${item.single_bottles_count}`);
         console.log(`    Search Term: "${searchTerm}"`);
         console.log(`    Name contains search: ${normalizedName.includes(searchTerm)}`);
         console.log(`    Code contains search: ${normalizedCode.includes(searchTerm)}`);
@@ -2107,6 +2128,7 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
         const normalizedName = normalizeArabicText(item.name);
         const normalizedCode = normalizeArabicText(item.code);
         console.log(`  ${index + 1}. "${item.name}" -> "${normalizedName}" | "${item.code}" -> "${normalizedCode}"`);
+        console.log(`     Cartons: ${item.cartons_count}, Singles: ${item.single_bottles_count}, Total: ${item.total_added}`);
       });
     }
 
