@@ -2407,576 +2407,492 @@ async searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
         commit('SET_OPERATION_LOADING', false);
       }
     },
-    // ============================================
-    // UPDATED ADD INVENTORY ITEM ACTION (WITH CORRECT BUSINESS LOGIC)
-    // ============================================
-    async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons = true }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+   // ============================================
+// UPDATED ADD INVENTORY ITEM ACTION (WITH NAME+CODE+COLOR MATCHING)
+// ============================================
+async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons = true }) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        console.log('🔄 addInventoryItem called with:', {
-          itemData: { 
-            name: itemData.name,
-            code: itemData.code,
-            warehouse_id: itemData.warehouse_id,
-            cartons_count: itemData.cartons_count,
-            single_bottles_count: itemData.single_bottles_count,
-            existingItemId: itemData.existingItemId || 'none'
-          },
-          isAddingCartons
-        });
+  try {
+    console.log('🔄 addInventoryItem called with:', {
+      itemData: { 
+        name: itemData.name,
+        code: itemData.code,
+        color: itemData.color,
+        warehouse_id: itemData.warehouse_id,
+        cartons_count: itemData.cartons_count,
+        single_bottles_count: itemData.single_bottles_count
+      },
+      isAddingCartons
+    });
 
-        // 🔴 VALIDATION 1: User authentication
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
+    // 🔴 VALIDATION 1: User authentication
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+      throw new Error('ليس لديك صلاحية لإضافة أصناف');
+    }
+    if (!state.user?.uid) {
+      throw new Error('معرف المستخدم غير متوفر');
+    }
+
+    // 🔴 VALIDATION 2: Required fields
+    if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.warehouse_id || !itemData.color?.trim()) {
+      throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+    }
+
+    // 🔴 VALIDATION 3: Warehouse access
+    const warehouseId = itemData.warehouse_id;
+    if (state.userProfile.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+        if (!allowedWarehouses.includes(warehouseId)) {
+          throw new Error('ليس لديك صلاحية لإضافة/تعديل أصناف في هذا المخزن');
         }
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لإضافة أصناف');
-        }
-        if (!state.user?.uid) {
-          throw new Error('معرف المستخدم غير متوفر');
-        }
-
-        // 🔴 VALIDATION 2: Required fields
-        if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.warehouse_id) {
-          throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، المخزن)');
-        }
-
-        // 🔴 VALIDATION 3: Warehouse access
-        const warehouseId = itemData.warehouse_id;
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(warehouseId)) {
-              throw new Error('ليس لديك صلاحية لإضافة/تعديل أصناف في هذا المخزن');
-            }
-          }
-        }
-
-        // Check if we're updating an existing item
-        const existingItemId = itemData.existingItemId;
-        const isUpdatingExisting = existingItemId && itemData.isUpdatingExisting;
-
-        if (isUpdatingExisting) {
-          console.log('🔄 UPDATING existing item:', existingItemId);
-          
-          // Get the existing item from Firestore
-          const itemRef = doc(db, 'items', existingItemId);
-          const itemDoc = await getDoc(itemRef);
-
-          if (!itemDoc.exists()) {
-            throw new Error('الصنف غير موجود');
-          }
-
-          const currentItem = itemDoc.data();
-          console.log('📦 Current item data:', {
-            name: currentItem.name,
-            code: currentItem.code,
-            cartons_count: currentItem.cartons_count,
-            per_carton_count: currentItem.per_carton_count,
-            single_bottles_count: currentItem.single_bottles_count,
-            remaining_quantity: currentItem.remaining_quantity,
-            total_added: currentItem.total_added
-          });
-
-          // 🔴 BUSINESS LOGIC CALCULATIONS
-          
-          // 1. عدد الكراتين: ADD NEW TO OLD (cumulative)
-          const newCartonsCount = Number(itemData.cartons_count) || 0;
-          const currentCartonsCount = Number(currentItem.cartons_count) || 0;
-          let totalCartons = currentCartonsCount + newCartonsCount;
-          
-          // 2. عدد في الكرتونه: REPLACE OLD WITH NEW only if user provides new value when adding cartons
-          const currentPerCarton = Number(currentItem.per_carton_count) || 12;
-          const newPerCartonCount = Number(itemData.per_carton_count) || 0;
-          
-          let finalPerCartonCount = currentPerCarton;
-          if (isAddingCartons && newPerCartonCount > 0 && newCartonsCount > 0) {
-            // User is adding cartons AND specified per_carton count
-            finalPerCartonCount = newPerCartonCount;
-            console.log(`🔁 Replacing per_carton: ${currentPerCarton} → ${newPerCartonCount}`);
-          } else if (newPerCartonCount > 0 && newCartonsCount === 0) {
-            // User specified per_carton but not adding cartons - still update
-            finalPerCartonCount = newPerCartonCount;
-            console.log(`✏️ Updating per_carton: ${currentPerCarton} → ${newPerCartonCount}`);
-          }
-          
-          // 3. عدد القزاز الفردي: REPLACE OLD WITH NEW (user enters new total, not to add)
-          const currentSingleBottlesCount = Number(currentItem.single_bottles_count) || 0;
-          let newSingleBottlesCount = currentSingleBottlesCount; // Default: keep old value
-          
-          // Check if user provided a new single bottles count
-          if ('single_bottles_count' in itemData && itemData.single_bottles_count !== undefined) {
-            newSingleBottlesCount = Number(itemData.single_bottles_count) || 0;
-            console.log(`🔄 User entered new single bottles count: ${newSingleBottlesCount} (replacing old: ${currentSingleBottlesCount})`);
-          }
-          
-          // 🔴 IMPORTANT: Convert single bottles to cartons if they complete a full carton
-          const bottlesPerCarton = finalPerCartonCount;
-          let additionalCartonsFromSingles = 0;
-          let finalSingleBottlesCount = newSingleBottlesCount;
-          
-          if (newSingleBottlesCount >= bottlesPerCarton) {
-            // Convert complete sets of bottles to cartons
-            additionalCartonsFromSingles = Math.floor(newSingleBottlesCount / bottlesPerCarton);
-            finalSingleBottlesCount = newSingleBottlesCount % bottlesPerCarton;
-            
-            console.log(`🔄 Converting single bottles to cartons: ${newSingleBottlesCount} bottles → ${additionalCartonsFromSingles} cartons + ${finalSingleBottlesCount} singles`);
-            
-            // Add converted cartons to total
-            totalCartons += additionalCartonsFromSingles;
-          }
-          
-          // 4. Calculate quantity changes
-          // Old total quantity
-          const oldTotalQuantity = 
-            (currentCartonsCount * currentPerCarton) + currentSingleBottlesCount;
-          
-          // New total quantity  
-          const newTotalQuantity = 
-            (totalCartons * finalPerCartonCount) + finalSingleBottlesCount;
-          
-          // Calculate added quantity from CARTONS ONLY (not from single bottles replacement)
-          const oldCartonsQuantity = currentCartonsCount * currentPerCarton;
-          const newCartonsQuantity = totalCartons * finalPerCartonCount;
-          const cartonsQuantityAdded = Math.max(0, newCartonsQuantity - oldCartonsQuantity);
-          
-          // 5. Calculate new totals for database
-          const currentRemaining = Number(currentItem.remaining_quantity) || 0;
-          const currentTotalAdded = Number(currentItem.total_added) || 0;
-          
-          const newRemaining = newTotalQuantity; // New total becomes current remaining
-          const newTotalAdded = currentTotalAdded + cartonsQuantityAdded; // Only add carton increases
-
-          console.log('📊 BUSINESS LOGIC CALCULATIONS:', {
-            // Old values
-            oldCartons: currentCartonsCount,
-            oldPerCarton: currentPerCarton,
-            oldSingle: currentSingleBottlesCount,
-            oldRemaining: currentRemaining,
-            oldTotalAdded: currentTotalAdded,
-            oldTotalQty: oldTotalQuantity,
-            
-            // New inputs
-            newCartonsInput: newCartonsCount,
-            newPerCartonInput: newPerCartonCount,
-            newSingleInput: newSingleBottlesCount,
-            
-            // After conversion logic
-            additionalCartonsFromSingles: additionalCartonsFromSingles,
-            finalSingleBottles: finalSingleBottlesCount,
-            finalCartons: totalCartons,
-            finalPerCarton: finalPerCartonCount,
-            
-            // Quantity calculations
-            newTotalQty: newTotalQuantity,
-            cartonsQuantityAdded: cartonsQuantityAdded,
-            newRemaining: newRemaining,
-            newTotalAdded: newTotalAdded,
-            
-            // Business rule summary
-            cartonsRule: 'OLD + NEW (cumulative)',
-            perCartonRule: 'REPLACE only if adding cartons & specified per_carton',
-            singleBottlesRule: 'REPLACE OLD WITH NEW (user enters new total)',
-            singleConversionRule: 'Convert to cartons if >= per_carton_count',
-            totalAddedRule: 'Accumulates only carton quantity increases'
-          });
-
-          // 🔴 VALIDATION: Ensure positive carton quantity was added (if in adding mode)
-          if (isAddingCartons && cartonsQuantityAdded <= 0 && newCartonsCount > 0) {
-            throw new Error('يجب إدخال كمية صحيحة للإضافة (أكبر من صفر)');
-          }
-
-          // Prepare update data
-          const updateData = {
-            cartons_count: totalCartons,
-            per_carton_count: finalPerCartonCount,
-            single_bottles_count: finalSingleBottlesCount,
-            remaining_quantity: newRemaining,
-            updated_at: serverTimestamp(),
-            updated_by: state.user.uid  // 🔴 REQUIRED BY FIRESTORE RULES
-          };
-
-          // Only update total_added if we're adding carton quantity
-          if (cartonsQuantityAdded > 0) {
-            updateData.total_added = newTotalAdded;
-          }
-
-          // Update optional fields only if provided
-          if (itemData.supplier !== undefined) {
-            updateData.supplier = itemData.supplier?.trim() || null;
-          } else if (currentItem.supplier !== undefined) {
-            updateData.supplier = currentItem.supplier;
-          }
-
-          if (itemData.item_location !== undefined) {
-            updateData.item_location = itemData.item_location?.trim() || null;
-          } else if (currentItem.item_location !== undefined) {
-            updateData.item_location = currentItem.item_location;
-          }
-
-          if (itemData.notes !== undefined) {
-            updateData.notes = itemData.notes?.trim() || null;
-          } else if (currentItem.notes !== undefined) {
-            updateData.notes = currentItem.notes;
-          }
-
-          if (itemData.photo_url !== undefined) {
-            updateData.photo_url = itemData.photo_url;
-          } else if (currentItem.photo_url !== undefined) {
-            updateData.photo_url = currentItem.photo_url;
-          }
-
-          // 🔴 CRITICAL: Preserve original fields that shouldn't change
-          // Firestore rules prevent changing these, so we must keep original values
-          updateData.name = currentItem.name;
-          updateData.code = currentItem.code;
-          updateData.color = currentItem.color;
-          updateData.warehouse_id = currentItem.warehouse_id;
-          updateData.created_by = currentItem.created_by || state.user.uid;
-
-          console.log('💾 Update data to save:', {
-            ...updateData,
-            name: 'PRESERVED',
-            code: 'PRESERVED',
-            color: 'PRESERVED',
-            warehouse_id: 'PRESERVED',
-            created_by: 'PRESERVED'
-          });
-
-          // Update the item in Firestore
-          await updateDoc(itemRef, updateData);
-
-          // Create transaction record
-          let transactionType = 'UPDATE';
-          let totalDelta = 0;
-          
-          if (cartonsQuantityAdded > 0) {
-            transactionType = 'ADD';
-            totalDelta = cartonsQuantityAdded;
-          } else if (newTotalQuantity !== oldTotalQuantity) {
-            transactionType = 'ADJUST';
-            totalDelta = newTotalQuantity - oldTotalQuantity;
-          }
-          
-          // Helper function for transaction notes
-          const generateTransactionNotes = (type, cartonsAdded, newSingles, oldSingles, convertedCartons, userNotes) => {
-            if (userNotes && userNotes.trim()) {
-              return userNotes;
-            }
-            
-            const parts = [];
-            
-            if (cartonsAdded > 0) {
-              parts.push(`إضافة ${cartonsAdded} كراتين`);
-            }
-            
-            if (newSingles !== oldSingles) {
-              parts.push(`تغيير القزاز الفردي من ${oldSingles} إلى ${newSingles}`);
-            }
-            
-            if (convertedCartons > 0) {
-              parts.push(`(تحويل ${convertedCartons} كرتون من القزاز الفردي)`);
-            }
-            
-            if (parts.length === 0) {
-              return 'تحديث بيانات الصنف';
-            }
-            
-            return parts.join('، ');
-          };
-          
-          // Helper function for success message
-          const generateSuccessMessage = (itemName, cartonsAdded, oldSingles, newSingles, convertedCartons, cartonsQuantityAdded) => {
-            const parts = [`✅ تم تحديث الصنف "${itemName}" بنجاح`];
-            
-            if (cartonsAdded > 0) {
-              parts.push(`تمت إضافة ${cartonsAdded} كراتين`);
-            }
-            
-            if (newSingles !== oldSingles) {
-              parts.push(`تم تغيير القزاز الفردي من ${oldSingles} إلى ${newSingles}`);
-            }
-            
-            if (convertedCartons > 0) {
-              parts.push(`تم تحويل ${convertedCartons} كرتون من القزاز الفردي`);
-            }
-            
-            if (cartonsQuantityAdded > 0) {
-              parts.push(`الكمية المضافة: ${cartonsQuantityAdded} وحدة`);
-            }
-            
-            return parts.join(' - ');
-          };
-          
-          if (transactionType !== 'UPDATE' || newCartonsCount > 0 || newSingleBottlesCount !== currentSingleBottlesCount) {
-            const transactionData = {
-              type: transactionType,
-              item_id: existingItemId,
-              item_name: currentItem.name,
-              item_code: currentItem.code,
-              from_warehouse: null,
-              to_warehouse: warehouseId,
-              cartons_delta: newCartonsCount,
-              per_carton_updated: finalPerCartonCount,
-              single_delta: newSingleBottlesCount - currentSingleBottlesCount,
-              total_delta: totalDelta,
-              new_remaining: newRemaining,
-              user_id: state.user.uid,
-              timestamp: serverTimestamp(),
-              notes: generateTransactionNotes(
-                transactionType,
-                newCartonsCount,
-                newSingleBottlesCount,
-                currentSingleBottlesCount,
-                additionalCartonsFromSingles,
-                itemData.notes
-              ),
-              created_by: state.userProfile?.name || state.user?.email || 'نظام',
-              details: {
-                single_bottles_replaced: true,
-                old_single_bottles: currentSingleBottlesCount,
-                new_single_bottles: newSingleBottlesCount,
-                converted_to_cartons: additionalCartonsFromSingles,
-                final_single_bottles: finalSingleBottlesCount
-              }
-            };
-
-            await addDoc(collection(db, 'transactions'), transactionData);
-            commit('ADD_RECENT_TRANSACTION', transactionData);
-          }
-
-          // Create item history record
-          const itemHistoryData = {
-            item_id: existingItemId,
-            warehouse_id: warehouseId,
-            change_type: 'UPDATE',
-            old_quantity: currentRemaining,
-            new_quantity: newRemaining,
-            quantity_delta: totalDelta,
-            user_id: state.user.uid,
-            timestamp: serverTimestamp(),
-            details: {
-              name: currentItem.name,
-              code: currentItem.code,
-              color: currentItem.color,
-              old_cartons: currentCartonsCount,
-              new_cartons: totalCartons,
-              old_per_carton: currentPerCarton,
-              new_per_carton: finalPerCartonCount,
-              old_single: currentSingleBottlesCount,
-              new_single_input: newSingleBottlesCount,
-              final_single: finalSingleBottlesCount,
-              single_bottles_converted_to_cartons: additionalCartonsFromSingles,
-              cartons_added: newCartonsCount,
-              cartons_quantity_added: cartonsQuantityAdded,
-              notes: itemData.notes,
-              business_rules_applied: {
-                cartons: 'OLD + NEW (cumulative)',
-                per_carton: (isAddingCartons && newPerCartonCount > 0) ? 'REPLACED' : 'KEPT_OLD',
-                single_bottles: 'REPLACED (user enters new total)',
-                single_conversion: additionalCartonsFromSingles > 0 ? `Converted ${additionalCartonsFromSingles} cartons from singles` : 'No conversion needed'
-              }
-            }
-          };
-
-          await addDoc(collection(db, 'item_history'), itemHistoryData);
-
-          // Update local Vuex state
-          const updatedItem = {
-            id: existingItemId,
-            ...currentItem,
-            ...updateData
-          };
-
-          const convertedItem = InventoryService.convertForDisplay(updatedItem);
-          commit('UPDATE_INVENTORY_ITEM', convertedItem);
-
-          // Clear search cache
-          searchCache.clear();
-
-          // Generate success message
-          const successMessage = generateSuccessMessage(
-            currentItem.name,
-            newCartonsCount,
-            currentSingleBottlesCount,
-            newSingleBottlesCount,
-            additionalCartonsFromSingles,
-            cartonsQuantityAdded
-          );
-          
-          dispatch('showNotification', {
-            type: 'success',
-            message: successMessage
-          });
-
-          return {
-            success: true,
-            type: 'updated',
-            item: convertedItem,
-            cartonsAdded: cartonsQuantityAdded,
-            newRemaining: newRemaining,
-            convertedCartons: additionalCartonsFromSingles,
-            singleBottlesReplaced: newSingleBottlesCount !== currentSingleBottlesCount,
-            message: successMessage
-          };
-
-        } else {
-          // 🔴 CREATE NEW ITEM
-          console.log('➕ CREATING new item');
-          
-          // Calculate total quantity
-          const cartonsCount = Number(itemData.cartons_count) || 0;
-          const perCartonCount = Number(itemData.per_carton_count) || 12;
-          const singleBottlesCount = Number(itemData.single_bottles_count) || 0;
-          
-          // 🔴 Apply business logic for new items too: convert singles to cartons if complete
-          let finalCartonsCount = cartonsCount;
-          let finalSingleBottlesCount = singleBottlesCount;
-          let additionalCartonsFromSingles = 0;
-          
-          if (singleBottlesCount >= perCartonCount) {
-            additionalCartonsFromSingles = Math.floor(singleBottlesCount / perCartonCount);
-            finalSingleBottlesCount = singleBottlesCount % perCartonCount;
-            finalCartonsCount += additionalCartonsFromSingles;
-            
-            console.log(`🔄 Converting single bottles for new item: ${singleBottlesCount} bottles → ${additionalCartonsFromSingles} cartons + ${finalSingleBottlesCount} singles`);
-          }
-          
-          const totalQuantity = (finalCartonsCount * perCartonCount) + finalSingleBottlesCount;
-
-          // 🔴 VALIDATION: Ensure positive quantity for new items
-          if (totalQuantity <= 0) {
-            throw new Error('يجب إدخال كمية صحيحة للإضافة (أكبر من صفر)');
-          }
-
-          const cleanData = {
-            name: itemData.name.trim(),
-            code: itemData.code.trim(),
-            color: itemData.color?.trim() || '',
-            warehouse_id: itemData.warehouse_id,
-            cartons_count: finalCartonsCount,
-            per_carton_count: perCartonCount,
-            single_bottles_count: finalSingleBottlesCount,
-            supplier: itemData.supplier?.trim() || null,
-            item_location: itemData.item_location?.trim() || null,
-            notes: itemData.notes?.trim() || null,
-            photo_url: itemData.photo_url || null,
-            remaining_quantity: totalQuantity,
-            total_added: totalQuantity,
-            created_at: serverTimestamp(),
-            updated_at: serverTimestamp(),
-            created_by: state.user.uid,
-            updated_by: state.user.uid
-          };
-
-          console.log('💾 New item data to save:', {
-            ...cleanData,
-            created_by: 'HIDDEN',
-            updated_by: 'HIDDEN',
-            conversion_note: additionalCartonsFromSingles > 0 ? 
-              `Converted ${additionalCartonsFromSingles} cartons from singles` : 
-              'No conversion needed'
-          });
-
-          const docRef = await addDoc(collection(db, 'items'), cleanData);
-
-          const transactionData = {
-            type: TRANSACTION_TYPES.ADD,
-            item_id: docRef.id,
-            item_name: cleanData.name,
-            item_code: cleanData.code,
-            from_warehouse: null,
-            to_warehouse: cleanData.warehouse_id,
-            cartons_delta: finalCartonsCount,
-            per_carton_updated: cleanData.per_carton_count,
-            single_delta: cleanData.single_bottles_count,
-            total_delta: totalQuantity,
-            new_remaining: totalQuantity,
-            user_id: state.user.uid,
-            timestamp: serverTimestamp(),
-            notes: additionalCartonsFromSingles > 0 ? 
-              `إضافة جديدة (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : 
-              (cleanData.notes || 'عملية إضافة جديدة'),
-            created_by: state.userProfile?.name || state.user?.email || 'نظام'
-          };
-
-          await addDoc(collection(db, 'transactions'), transactionData);
-
-          // Create item history record
-          const itemHistoryData = {
-            item_id: docRef.id,
-            warehouse_id: warehouseId,
-            change_type: 'ADD',
-            old_quantity: 0,
-            new_quantity: totalQuantity,
-            quantity_delta: totalQuantity,
-            user_id: state.user.uid,
-            timestamp: serverTimestamp(),
-            details: {
-              name: cleanData.name,
-              code: cleanData.code,
-              color: cleanData.color,
-              cartons_added: finalCartonsCount,
-              per_carton: perCartonCount,
-              single_added: finalSingleBottlesCount,
-              single_bottles_converted_to_cartons: additionalCartonsFromSingles,
-              total_added: totalQuantity,
-              notes: cleanData.notes,
-              business_rules_applied: {
-                single_conversion: additionalCartonsFromSingles > 0 ? 
-                  `Converted ${additionalCartonsFromSingles} cartons from singles` : 
-                  'No conversion needed'
-              }
-            }
-          };
-
-          await addDoc(collection(db, 'item_history'), itemHistoryData);
-
-          const newItem = InventoryService.convertForDisplay({
-            id: docRef.id,
-            ...cleanData
-          });
-
-          commit('ADD_RECENT_TRANSACTION', transactionData);
-          commit('UPDATE_INVENTORY_ITEM', newItem);
-
-          // Clear search cache
-          searchCache.clear();
-
-          dispatch('showNotification', {
-            type: 'success',
-            message: additionalCartonsFromSingles > 0 ? 
-              `✅ تم إضافة الصنف "${cleanData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي. الكمية الإجمالية: ${totalQuantity} وحدة` :
-              `✅ تم إضافة الصنف "${cleanData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
-          });
-
-          return { 
-            id: docRef.id, 
-            item: newItem, 
-            type: 'created',
-            convertedCartons: additionalCartonsFromSingles,
-            message: additionalCartonsFromSingles > 0 ? 
-              `تم إضافة صنف جديد ${cleanData.name} مع تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي` :
-              `تم إضافة صنف جديد ${cleanData.name}`
-          };
-        }
-
-      } catch (error) {
-        console.error('❌ Error adding inventory item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ غير متوقع أثناء إضافة الصنف'
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
       }
-    },
+    }
+
+    // ============================================
+    // 🔴 STEP 1: CHECK FOR EXISTING ITEM WITH SAME NAME, CODE, COLOR IN SAME WAREHOUSE
+    // ============================================
+    console.log('🔍 Checking for existing item with same name, code, color in warehouse...');
+    
+    let existingItem = null;
+    let existingItemId = null;
+    
+    const cleanedData = {
+      name: itemData.name.trim(),
+      code: itemData.code.trim(),
+      color: itemData.color.trim(),
+      warehouse_id: warehouseId
+    };
+
+    console.log('🔍 Searching for item with:', cleanedData);
+
+    try {
+      // Query Firestore for exact match: name + code + color + warehouse
+      const itemsRef = collection(db, 'items');
+      const q = query(
+        itemsRef,
+        where('name', '==', cleanedData.name),
+        where('code', '==', cleanedData.code),
+        where('color', '==', cleanedData.color),
+        where('warehouse_id', '==', cleanedData.warehouse_id),
+        limit(1)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        existingItem = snapshot.docs[0].data();
+        existingItemId = snapshot.docs[0].id;
+        console.log('✅ Found existing item with same name+code+color+warehouse:', {
+          id: existingItemId,
+          name: existingItem.name,
+          code: existingItem.code,
+          color: existingItem.color,
+          warehouse: existingItem.warehouse_id,
+          cartons_count: existingItem.cartons_count,
+          per_carton_count: existingItem.per_carton_count,
+          single_bottles_count: existingItem.single_bottles_count,
+          total_added: existingItem.total_added,
+          remaining_quantity: existingItem.remaining_quantity
+        });
+      } else {
+        console.log('📭 No existing item found - will create new item');
+      }
+    } catch (error) {
+      console.error('❌ Error checking existing item:', error.message);
+      // If there's an error in checking, we'll create a new item to be safe
+      console.log('⚠️ Will create new item due to check error');
+    }
+
+    // ============================================
+    // 🔴 STEP 2: BUSINESS LOGIC CALCULATIONS
+    // ============================================
+    
+    if (existingItem && existingItemId) {
+      console.log('🔄 UPDATING existing item with ID:', existingItemId);
+      
+      // Get the item reference
+      const itemRef = doc(db, 'items', existingItemId);
+      
+      // 🔴 BUSINESS RULE 1: عدد الكراتين - OLD + NEW (only if adding cartons)
+      const newCartonsCount = Number(itemData.cartons_count) || 0;
+      const currentCartonsCount = Number(existingItem.cartons_count) || 0;
+      let finalCartonsCount = currentCartonsCount;
+      
+      if (isAddingCartons && newCartonsCount > 0) {
+        finalCartonsCount = currentCartonsCount + newCartonsCount;
+        console.log(`➕ عدد الكراتين: ${currentCartonsCount} + ${newCartonsCount} = ${finalCartonsCount}`);
+      } else {
+        console.log(`📝 عدد الكراتين remains: ${currentCartonsCount} (no new cartons added)`);
+      }
+      
+      // 🔴 BUSINESS RULE 2: عدد في الكرتونه - REPLACE OLD WITH NEW (only if user provides)
+      const currentPerCarton = Number(existingItem.per_carton_count) || 12;
+      const newPerCartonCount = Number(itemData.per_carton_count) || 0;
+      let finalPerCartonCount = currentPerCarton;
+      
+      if (newPerCartonCount > 0) {
+        finalPerCartonCount = newPerCartonCount;
+        console.log(`🔄 عدد في الكرتونه: ${currentPerCarton} → ${newPerCartonCount}`);
+      } else {
+        console.log(`📝 عدد في الكرتونه remains: ${currentPerCarton}`);
+      }
+      
+      // 🔴 BUSINESS RULE 3: عدد القزاز الفردي - REPLACE OLD WITH NEW (user enters new total)
+      const currentSingleBottlesCount = Number(existingItem.single_bottles_count) || 0;
+      const newSingleBottlesCount = Number(itemData.single_bottles_count) || 0;
+      let finalSingleBottlesCount = currentSingleBottlesCount;
+      
+      // If user provided a value (including zero), replace the old value
+      if (itemData.single_bottles_count !== undefined) {
+        finalSingleBottlesCount = newSingleBottlesCount;
+        console.log(`🔄 عدد القزاز الفردي: ${currentSingleBottlesCount} → ${newSingleBottlesCount}`);
+      } else {
+        console.log(`📝 عدد القزاز الفردي remains: ${currentSingleBottlesCount}`);
+      }
+      
+      // 🔴 BUSINESS RULE 4: Convert single bottles to cartons if they complete a full carton
+      let additionalCartonsFromSingles = 0;
+      if (finalSingleBottlesCount >= finalPerCartonCount) {
+        additionalCartonsFromSingles = Math.floor(finalSingleBottlesCount / finalPerCartonCount);
+        finalSingleBottlesCount = finalSingleBottlesCount % finalPerCartonCount;
+        finalCartonsCount += additionalCartonsFromSingles;
+        
+        console.log(`🔄 Converting single bottles to cartons: added ${additionalCartonsFromSingles} cartons, remaining singles: ${finalSingleBottlesCount}`);
+      }
+      
+      // 🔴 BUSINESS RULE 5: Calculate quantities
+      const currentRemaining = Number(existingItem.remaining_quantity) || 0;
+      const currentTotalAdded = Number(existingItem.total_added) || 0;
+      
+      // Calculate quantity from NEW cartons only (not from conversion)
+      const oldCartonsQuantity = currentCartonsCount * currentPerCarton;
+      const newCartonsQuantity = finalCartonsCount * finalPerCartonCount;
+      const cartonsQuantityAdded = Math.max(0, newCartonsQuantity - oldCartonsQuantity);
+      
+      // Calculate new totals
+      const newTotalQuantity = (finalCartonsCount * finalPerCartonCount) + finalSingleBottlesCount;
+      const newTotalAdded = currentTotalAdded + cartonsQuantityAdded; // Only add carton increases
+      
+      console.log('📊 BUSINESS LOGIC RESULTS:', {
+        // Old values
+        oldCartons: currentCartonsCount,
+        oldPerCarton: currentPerCarton,
+        oldSingle: currentSingleBottlesCount,
+        oldRemaining: currentRemaining,
+        oldTotalAdded: currentTotalAdded,
+        
+        // New inputs
+        newCartonsInput: newCartonsCount,
+        newPerCartonInput: newPerCartonCount,
+        newSingleInput: newSingleBottlesCount,
+        
+        // After business logic
+        finalCartons: finalCartonsCount,
+        finalPerCarton: finalPerCartonCount,
+        finalSingle: finalSingleBottlesCount,
+        additionalCartonsFromSingles,
+        
+        // Quantity calculations
+        newRemaining: newTotalQuantity,
+        cartonsQuantityAdded,
+        newTotalAdded: newTotalAdded,
+        
+        // Summary
+        isUpdatingExisting: true,
+        isAddingCartons: isAddingCartons && newCartonsCount > 0,
+        cartonsRuleApplied: 'OLD + NEW (only if adding cartons)',
+        perCartonRuleApplied: 'REPLACE OLD WITH NEW (only if user provides)',
+        singleBottlesRuleApplied: 'REPLACE OLD WITH NEW (user enters new total)'
+      });
+      
+      // Prepare update data
+      const updateData = {
+        cartons_count: finalCartonsCount,
+        per_carton_count: finalPerCartonCount,
+        single_bottles_count: finalSingleBottlesCount,
+        remaining_quantity: newTotalQuantity,
+        updated_at: serverTimestamp(),
+        updated_by: state.user.uid
+      };
+      
+      // Only update total_added if carton quantity was added
+      if (cartonsQuantityAdded > 0) {
+        updateData.total_added = newTotalAdded;
+      }
+      
+      // Update optional fields if provided
+      if (itemData.supplier !== undefined) {
+        updateData.supplier = itemData.supplier?.trim() || null;
+      }
+      
+      if (itemData.item_location !== undefined) {
+        updateData.item_location = itemData.item_location?.trim() || null;
+      }
+      
+      if (itemData.notes !== undefined) {
+        updateData.notes = itemData.notes?.trim() || null;
+      }
+      
+      if (itemData.photo_url !== undefined) {
+        updateData.photo_url = itemData.photo_url;
+      }
+      
+      // 🔴 CRITICAL: Preserve original matching fields
+      updateData.name = cleanedData.name; // Same as existing
+      updateData.code = cleanedData.code; // Same as existing
+      updateData.color = cleanedData.color; // Same as existing
+      updateData.warehouse_id = cleanedData.warehouse_id; // Same as existing
+      updateData.created_by = existingItem.created_by || state.user.uid;
+      
+      console.log('💾 Update data for existing item:', updateData);
+      
+      // Update the item in Firestore
+      await updateDoc(itemRef, updateData);
+      
+      // Create transaction record if quantity was added
+      if (cartonsQuantityAdded > 0) {
+        const transactionData = {
+          type: 'ADD',
+          item_id: existingItemId,
+          item_name: cleanedData.name,
+          item_code: cleanedData.code,
+          from_warehouse: null,
+          to_warehouse: warehouseId,
+          cartons_delta: newCartonsCount,
+          per_carton_updated: finalPerCartonCount,
+          single_delta: newSingleBottlesCount - currentSingleBottlesCount,
+          total_delta: cartonsQuantityAdded,
+          new_remaining: newTotalQuantity,
+          user_id: state.user.uid,
+          timestamp: serverTimestamp(),
+          notes: itemData.notes || `إضافة كميات: ${newCartonsCount} كراتين`,
+          created_by: state.userProfile?.name || state.user?.email || 'نظام',
+          details: {
+            old_quantities: {
+              cartons: currentCartonsCount,
+              per_carton: currentPerCarton,
+              single: currentSingleBottlesCount,
+              remaining: currentRemaining,
+              total_added: currentTotalAdded
+            },
+            new_quantities: {
+              cartons: finalCartonsCount,
+              per_carton: finalPerCartonCount,
+              single: finalSingleBottlesCount,
+              remaining: newTotalQuantity,
+              total_added: newTotalAdded
+            },
+            business_rules_applied: {
+              cartons: 'OLD + NEW',
+              per_carton: 'REPLACED',
+              single_bottles: 'REPLACED',
+              single_conversion: additionalCartonsFromSingles > 0 ? `Converted ${additionalCartonsFromSingles} cartons from singles` : 'No conversion'
+            }
+          }
+        };
+        
+        await addDoc(collection(db, 'transactions'), transactionData);
+        commit('ADD_RECENT_TRANSACTION', transactionData);
+      }
+      
+      // Create item history record
+      const itemHistoryData = {
+        item_id: existingItemId,
+        warehouse_id: warehouseId,
+        change_type: 'UPDATE',
+        old_quantity: currentRemaining,
+        new_quantity: newTotalQuantity,
+        quantity_delta: cartonsQuantityAdded,
+        user_id: state.user.uid,
+        timestamp: serverTimestamp(),
+        details: {
+          name: cleanedData.name,
+          code: cleanedData.code,
+          color: cleanedData.color,
+          old_cartons: currentCartonsCount,
+          new_cartons: finalCartonsCount,
+          old_per_carton: currentPerCarton,
+          new_per_carton: finalPerCartonCount,
+          old_single: currentSingleBottlesCount,
+          new_single: finalSingleBottlesCount,
+          single_bottles_converted_to_cartons: additionalCartonsFromSingles,
+          cartons_added: newCartonsCount,
+          cartons_quantity_added: cartonsQuantityAdded,
+          notes: itemData.notes,
+          business_rules_applied: {
+            matching_criteria: 'name+code+color+warehouse',
+            cartons: 'OLD + NEW',
+            per_carton: 'REPLACED if user provides',
+            single_bottles: 'REPLACED (user enters new total)',
+            single_conversion: additionalCartonsFromSingles > 0 ? 'Converted to cartons' : 'No conversion'
+          }
+        }
+      };
+      
+      await addDoc(collection(db, 'item_history'), itemHistoryData);
+      
+      // Update local Vuex state
+      const updatedItem = {
+        id: existingItemId,
+        ...existingItem,
+        ...updateData
+      };
+      
+      const convertedItem = InventoryService.convertForDisplay ? 
+        InventoryService.convertForDisplay(updatedItem) : updatedItem;
+      
+      commit('UPDATE_INVENTORY_ITEM', convertedItem);
+      
+      dispatch('showNotification', {
+        type: 'success',
+        message: `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${cartonsQuantityAdded} وحدة`
+      });
+      
+      return {
+        success: true,
+        type: 'updated',
+        item: convertedItem,
+        cartonsAdded: cartonsQuantityAdded,
+        newRemaining: newTotalQuantity,
+        convertedCartons: additionalCartonsFromSingles,
+        message: `تم تحديث الصنف "${cleanedData.name}" بنجاح`
+      };
+      
+    } else {
+      // ============================================
+      // 🔴 CREATE NEW ITEM (no existing match found)
+      // ============================================
+      console.log('➕ CREATING new item (no matching name+code+color found)');
+      
+      // Calculate quantities for new item
+      const cartonsCount = Number(itemData.cartons_count) || 0;
+      const perCartonCount = Number(itemData.per_carton_count) || 12;
+      const singleBottlesCount = Number(itemData.single_bottles_count) || 0;
+      
+      // Convert single bottles to cartons if complete
+      let finalCartonsCount = cartonsCount;
+      let finalSingleBottlesCount = singleBottlesCount;
+      let additionalCartonsFromSingles = 0;
+      
+      if (singleBottlesCount >= perCartonCount) {
+        additionalCartonsFromSingles = Math.floor(singleBottlesCount / perCartonCount);
+        finalSingleBottlesCount = singleBottlesCount % perCartonCount;
+        finalCartonsCount += additionalCartonsFromSingles;
+        
+        console.log(`🔄 Converting single bottles for new item: ${singleBottlesCount} → ${additionalCartonsFromSingles} cartons + ${finalSingleBottlesCount} singles`);
+      }
+      
+      // Calculate total quantity
+      const totalQuantity = (finalCartonsCount * perCartonCount) + finalSingleBottlesCount;
+      
+      if (totalQuantity <= 0) {
+        throw new Error('يجب إدخال كمية صحيحة للإضافة (أكبر من صفر)');
+      }
+      
+      // Prepare data for new item
+      const newItemData = {
+        name: cleanedData.name,
+        code: cleanedData.code,
+        color: cleanedData.color,
+        warehouse_id: warehouseId,
+        cartons_count: finalCartonsCount,
+        per_carton_count: perCartonCount,
+        single_bottles_count: finalSingleBottlesCount,
+        supplier: itemData.supplier?.trim() || null,
+        item_location: itemData.item_location?.trim() || null,
+        notes: itemData.notes?.trim() || null,
+        photo_url: itemData.photo_url || null,
+        remaining_quantity: totalQuantity,
+        total_added: totalQuantity, // First addition = total quantity
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+        created_by: state.user.uid,
+        updated_by: state.user.uid
+      };
+      
+      console.log('💾 New item data:', newItemData);
+      
+      // Add new item to Firestore
+      const docRef = await addDoc(collection(db, 'items'), newItemData);
+      
+      // Create transaction record
+      const transactionData = {
+        type: 'ADD',
+        item_id: docRef.id,
+        item_name: cleanedData.name,
+        item_code: cleanedData.code,
+        from_warehouse: null,
+        to_warehouse: warehouseId,
+        cartons_delta: finalCartonsCount,
+        per_carton_updated: perCartonCount,
+        single_delta: finalSingleBottlesCount,
+        total_delta: totalQuantity,
+        new_remaining: totalQuantity,
+        user_id: state.user.uid,
+        timestamp: serverTimestamp(),
+        notes: additionalCartonsFromSingles > 0 ? 
+          `إضافة جديدة (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : 
+          'عملية إضافة جديدة',
+        created_by: state.userProfile?.name || state.user?.email || 'نظام',
+        details: {
+          matching_check: 'No existing item found with same name+code+color+warehouse',
+          single_conversion: additionalCartonsFromSingles > 0 ? `Converted ${additionalCartonsFromSingles} cartons from singles` : 'No conversion'
+        }
+      };
+      
+      await addDoc(collection(db, 'transactions'), transactionData);
+      
+      // Add to local state
+      const newItem = {
+        id: docRef.id,
+        ...newItemData
+      };
+      
+      const convertedItem = InventoryService.convertForDisplay ? 
+        InventoryService.convertForDisplay(newItem) : newItem;
+      
+      commit('ADD_RECENT_TRANSACTION', transactionData);
+      commit('UPDATE_INVENTORY_ITEM', convertedItem);
+      
+      dispatch('showNotification', {
+        type: 'success',
+        message: additionalCartonsFromSingles > 0 ? 
+          `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي` :
+          `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
+      });
+      
+      return { 
+        success: true,
+        type: 'created',
+        id: docRef.id, 
+        item: convertedItem, 
+        convertedCartons: additionalCartonsFromSingles,
+        message: additionalCartonsFromSingles > 0 ? 
+          `تم إضافة صنف جديد ${cleanedData.name} مع تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي` :
+          `تم إضافة صنف جديد ${cleanedData.name}`
+      };
+    }
+
+  } catch (error) {
+    console.error('❌ Error adding inventory item:', error);
+    commit('SET_OPERATION_ERROR', error.message);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ غير متوقع أثناء إضافة/تعديث الصنف'
+    });
+
+    throw error;
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
     // ============================================
     // EXISTING ACTIONS (PRESERVED)
     // ============================================
