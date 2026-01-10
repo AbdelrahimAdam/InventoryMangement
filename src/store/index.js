@@ -2407,7 +2407,7 @@ async searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
         commit('SET_OPERATION_LOADING', false);
       }
     },
-   // ============================================
+  // ============================================
 // UPDATED ADD INVENTORY ITEM ACTION (WITH NAME+CODE+COLOR MATCHING)
 // ============================================
 async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons = true }) {
@@ -2505,7 +2505,6 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
     } catch (error) {
       console.error('❌ Error checking existing item:', error.message);
-      // If there's an error in checking, we'll create a new item to be safe
       console.log('⚠️ Will create new item due to check error');
     }
 
@@ -2527,8 +2526,6 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       if (isAddingCartons && newCartonsCount > 0) {
         finalCartonsCount = currentCartonsCount + newCartonsCount;
         console.log(`➕ عدد الكراتين: ${currentCartonsCount} + ${newCartonsCount} = ${finalCartonsCount}`);
-      } else {
-        console.log(`📝 عدد الكراتين remains: ${currentCartonsCount} (no new cartons added)`);
       }
       
       // 🔴 BUSINESS RULE 2: عدد في الكرتونه - REPLACE OLD WITH NEW (only if user provides)
@@ -2539,8 +2536,6 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       if (newPerCartonCount > 0) {
         finalPerCartonCount = newPerCartonCount;
         console.log(`🔄 عدد في الكرتونه: ${currentPerCarton} → ${newPerCartonCount}`);
-      } else {
-        console.log(`📝 عدد في الكرتونه remains: ${currentPerCarton}`);
       }
       
       // 🔴 BUSINESS RULE 3: عدد القزاز الفردي - REPLACE OLD WITH NEW (user enters new total)
@@ -2552,8 +2547,6 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       if (itemData.single_bottles_count !== undefined) {
         finalSingleBottlesCount = newSingleBottlesCount;
         console.log(`🔄 عدد القزاز الفردي: ${currentSingleBottlesCount} → ${newSingleBottlesCount}`);
-      } else {
-        console.log(`📝 عدد القزاز الفردي remains: ${currentSingleBottlesCount}`);
       }
       
       // 🔴 BUSINESS RULE 4: Convert single bottles to cartons if they complete a full carton
@@ -2580,35 +2573,12 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       const newTotalAdded = currentTotalAdded + cartonsQuantityAdded; // Only add carton increases
       
       console.log('📊 BUSINESS LOGIC RESULTS:', {
-        // Old values
-        oldCartons: currentCartonsCount,
-        oldPerCarton: currentPerCarton,
-        oldSingle: currentSingleBottlesCount,
-        oldRemaining: currentRemaining,
-        oldTotalAdded: currentTotalAdded,
-        
-        // New inputs
-        newCartonsInput: newCartonsCount,
-        newPerCartonInput: newPerCartonCount,
-        newSingleInput: newSingleBottlesCount,
-        
-        // After business logic
         finalCartons: finalCartonsCount,
         finalPerCarton: finalPerCartonCount,
         finalSingle: finalSingleBottlesCount,
-        additionalCartonsFromSingles,
-        
-        // Quantity calculations
         newRemaining: newTotalQuantity,
         cartonsQuantityAdded,
-        newTotalAdded: newTotalAdded,
-        
-        // Summary
-        isUpdatingExisting: true,
-        isAddingCartons: isAddingCartons && newCartonsCount > 0,
-        cartonsRuleApplied: 'OLD + NEW (only if adding cartons)',
-        perCartonRuleApplied: 'REPLACE OLD WITH NEW (only if user provides)',
-        singleBottlesRuleApplied: 'REPLACE OLD WITH NEW (user enters new total)'
+        newTotalAdded: newTotalAdded
       });
       
       // Prepare update data
@@ -2644,10 +2614,10 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
       
       // 🔴 CRITICAL: Preserve original matching fields
-      updateData.name = cleanedData.name; // Same as existing
-      updateData.code = cleanedData.code; // Same as existing
-      updateData.color = cleanedData.color; // Same as existing
-      updateData.warehouse_id = cleanedData.warehouse_id; // Same as existing
+      updateData.name = cleanedData.name;
+      updateData.code = cleanedData.code;
+      updateData.color = cleanedData.color;
+      updateData.warehouse_id = cleanedData.warehouse_id;
       updateData.created_by = existingItem.created_by || state.user.uid;
       
       console.log('💾 Update data for existing item:', updateData);
@@ -2672,29 +2642,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
           user_id: state.user.uid,
           timestamp: serverTimestamp(),
           notes: itemData.notes || `إضافة كميات: ${newCartonsCount} كراتين`,
-          created_by: state.userProfile?.name || state.user?.email || 'نظام',
-          details: {
-            old_quantities: {
-              cartons: currentCartonsCount,
-              per_carton: currentPerCarton,
-              single: currentSingleBottlesCount,
-              remaining: currentRemaining,
-              total_added: currentTotalAdded
-            },
-            new_quantities: {
-              cartons: finalCartonsCount,
-              per_carton: finalPerCartonCount,
-              single: finalSingleBottlesCount,
-              remaining: newTotalQuantity,
-              total_added: newTotalAdded
-            },
-            business_rules_applied: {
-              cartons: 'OLD + NEW',
-              per_carton: 'REPLACED',
-              single_bottles: 'REPLACED',
-              single_conversion: additionalCartonsFromSingles > 0 ? `Converted ${additionalCartonsFromSingles} cartons from singles` : 'No conversion'
-            }
-          }
+          created_by: state.userProfile?.name || state.user?.email || 'نظام'
         };
         
         await addDoc(collection(db, 'transactions'), transactionData);
@@ -2724,40 +2672,48 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
           single_bottles_converted_to_cartons: additionalCartonsFromSingles,
           cartons_added: newCartonsCount,
           cartons_quantity_added: cartonsQuantityAdded,
-          notes: itemData.notes,
-          business_rules_applied: {
-            matching_criteria: 'name+code+color+warehouse',
-            cartons: 'OLD + NEW',
-            per_carton: 'REPLACED if user provides',
-            single_bottles: 'REPLACED (user enters new total)',
-            single_conversion: additionalCartonsFromSingles > 0 ? 'Converted to cartons' : 'No conversion'
-          }
+          notes: itemData.notes
         }
       };
       
       await addDoc(collection(db, 'item_history'), itemHistoryData);
       
-      // Update local Vuex state
+      // 🔴 CRITICAL FIX: Create COMPLETE updated item WITHOUT InventoryService.convertForDisplay
       const updatedItem = {
         id: existingItemId,
+        // Keep all existing fields
         ...existingItem,
-        ...updateData
+        // Add updated fields
+        ...updateData,
+        // Ensure these critical fields are included
+        cartons_count: finalCartonsCount,
+        per_carton_count: finalPerCartonCount,
+        single_bottles_count: finalSingleBottlesCount,
+        remaining_quantity: newTotalQuantity,
+        total_added: newTotalAdded,
+        // Timestamps
+        updated_at: updateData.updated_at
       };
       
-      const convertedItem = InventoryService.convertForDisplay ? 
-        InventoryService.convertForDisplay(updatedItem) : updatedItem;
+      console.log('📤 COMPLETE updated item to return:', {
+        ...updatedItem,
+        created_by: 'HIDDEN',
+        updated_by: 'HIDDEN'
+      });
       
-      commit('UPDATE_INVENTORY_ITEM', convertedItem);
+      // Update local Vuex state with COMPLETE item
+      commit('UPDATE_INVENTORY_ITEM', updatedItem);
       
       dispatch('showNotification', {
         type: 'success',
         message: `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${cartonsQuantityAdded} وحدة`
       });
       
+      // 🔴 CRITICAL FIX: Return COMPLETE item data
       return {
         success: true,
         type: 'updated',
-        item: convertedItem,
+        item: updatedItem,  // Return the complete item
         cartonsAdded: cartonsQuantityAdded,
         newRemaining: newTotalQuantity,
         convertedCartons: additionalCartonsFromSingles,
@@ -2809,7 +2765,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         notes: itemData.notes?.trim() || null,
         photo_url: itemData.photo_url || null,
         remaining_quantity: totalQuantity,
-        total_added: totalQuantity, // First addition = total quantity
+        total_added: totalQuantity,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
         created_by: state.user.uid,
@@ -2839,26 +2795,26 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         notes: additionalCartonsFromSingles > 0 ? 
           `إضافة جديدة (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : 
           'عملية إضافة جديدة',
-        created_by: state.userProfile?.name || state.user?.email || 'نظام',
-        details: {
-          matching_check: 'No existing item found with same name+code+color+warehouse',
-          single_conversion: additionalCartonsFromSingles > 0 ? `Converted ${additionalCartonsFromSingles} cartons from singles` : 'No conversion'
-        }
+        created_by: state.userProfile?.name || state.user?.email || 'نظام'
       };
       
       await addDoc(collection(db, 'transactions'), transactionData);
       
-      // Add to local state
+      // 🔴 CRITICAL FIX: Create COMPLETE new item WITHOUT InventoryService.convertForDisplay
       const newItem = {
         id: docRef.id,
         ...newItemData
       };
       
-      const convertedItem = InventoryService.convertForDisplay ? 
-        InventoryService.convertForDisplay(newItem) : newItem;
+      console.log('📤 COMPLETE new item to return:', {
+        ...newItem,
+        created_by: 'HIDDEN',
+        updated_by: 'HIDDEN'
+      });
       
+      // Add to local state with COMPLETE item
       commit('ADD_RECENT_TRANSACTION', transactionData);
-      commit('UPDATE_INVENTORY_ITEM', convertedItem);
+      commit('UPDATE_INVENTORY_ITEM', newItem);
       
       dispatch('showNotification', {
         type: 'success',
@@ -2867,11 +2823,12 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
           `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
       });
       
+      // 🔴 CRITICAL FIX: Return COMPLETE item data
       return { 
         success: true,
         type: 'created',
         id: docRef.id, 
-        item: convertedItem, 
+        item: newItem,  // Return the complete item
         convertedCartons: additionalCartonsFromSingles,
         message: additionalCartonsFromSingles > 0 ? 
           `تم إضافة صنف جديد ${cleanedData.name} مع تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي` :
