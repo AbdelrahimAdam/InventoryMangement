@@ -1528,6 +1528,74 @@ export default {
     };
     
     // ============================================
+    // CRITICAL: ENHANCED EXISTING ITEM CHECKER
+    // ============================================
+    const checkForExistingItem = async (itemData) => {
+      try {
+        const { name, code, color, warehouse_id } = itemData;
+        
+        if (!name || !code || !color || !warehouse_id) {
+          return null;
+        }
+        
+        console.log('🔍 Enhanced existing item check for:', {
+          name: name.trim(),
+          code: code.trim(),
+          color: color.trim(),
+          warehouse_id
+        });
+        
+        // Method 1: Check local inventory first
+        const cleanName = name.trim().toLowerCase();
+        const cleanCode = code.trim().toLowerCase();
+        const cleanColor = color.trim().toLowerCase();
+        
+        for (const item of allInventory.value) {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          if (itemName === cleanName && 
+              itemCode === cleanCode && 
+              itemColor === cleanColor && 
+              item.warehouse_id === warehouse_id) {
+            console.log('✅ Found in local inventory:', item);
+            return item;
+          }
+        }
+        
+        // Method 2: Use store search as backup
+        const searchResults = await store.dispatch('searchInventorySpark', {
+          searchQuery: code.trim(),
+          warehouseId: warehouse_id,
+          limit: 100,
+          strategy: 'exact'
+        });
+        
+        for (const item of searchResults) {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          if (itemName === cleanName && 
+              itemCode === cleanCode && 
+              itemColor === cleanColor && 
+              item.warehouse_id === warehouse_id) {
+            console.log('✅ Found via store search:', item);
+            return item;
+          }
+        }
+        
+        console.log('❌ No existing item found');
+        return null;
+        
+      } catch (error) {
+        console.error('Error checking existing item:', error);
+        return null;
+      }
+    };
+    
+    // ============================================
     // ITEM ACTION HANDLERS WITH STORE INTEGRATION
     // ============================================
     const canEditItem = (item) => {
@@ -1666,11 +1734,33 @@ export default {
     const handleItemSaved = async (result) => {
       showAddModal.value = false;
       
-      console.log('✅ handleItemSaved called with:', result);
+      console.log('✅ handleItemSaved called with result:', {
+        type: result?.type,
+        id: result?.id,
+        cartonsAdded: result?.cartonsAdded,
+        convertedCartons: result?.convertedCartons,
+        newRemaining: result?.newRemaining
+      });
       
-      // The store action already handles the update in Vuex state
-      // We just need to handle UI updates
+      // Show notification from result if available
+      if (result?.message) {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: result.message
+        });
+      } else if (result?.type === 'updated') {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `✅ تم تحديث الصنف "${result.item?.name}" بنجاح`
+        });
+      } else if (result?.type === 'created') {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `✅ تم إضافة الصنف الجديد "${result.item?.name}" بنجاح`
+        });
+      }
       
+      // Refresh search if active
       if (searchTerm.value.trim()) {
         await handleLiveSearch();
       }
@@ -1678,29 +1768,8 @@ export default {
       // Force refresh inventory data
       await store.dispatch('refreshInventorySilently');
       
-      let successMessage = '';
-      
-      if (result?.type === 'updated') {
-        successMessage = `✅ تم تحديث كميات الصنف "${result.item?.name}" بنجاح`;
-        if (result.cartonsAdded > 0) {
-          successMessage += `. تمت إضافة ${result.cartonsAdded} كراتين`;
-        }
-        if (result.convertedCartons > 0) {
-          successMessage += `. تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي`;
-        }
-      } else if (result?.type === 'created') {
-        successMessage = `✅ تم إضافة الصنف الجديد "${result.item?.name}" بنجاح`;
-        if (result.convertedCartons > 0) {
-          successMessage += `. تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي`;
-        }
-      } else {
-        successMessage = '✅ تم حفظ التغييرات بنجاح!';
-      }
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: successMessage
-      });
+      // Force UI update
+      await store.dispatch('loadAllInventory', { forceRefresh: false });
     };
     
     const handleItemUpdated = async (updatedItem) => {
@@ -2379,6 +2448,9 @@ export default {
       handleTransferSuccess,
       handleDispatchSuccess,
       
+      // Helper functions
+      checkForExistingItem,
+      
       // Virtual scrolling
       onScroll,
       onMobileScroll,
@@ -2389,7 +2461,7 @@ export default {
     };
   }
 };
-</script>      
+</script>
            
 <style scoped>
 /* Enhanced Custom Scrollbar */
