@@ -4493,119 +4493,170 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     },
 
-    async transferItem({ commit, state, dispatch }, transferData) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+   async transferItem({ commit, state, dispatch }, transferData) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
+  try {
+    console.log('🔄 Transfer action called with:', transferData);
+
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+
+    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+      throw new Error('ليس لديك صلاحية لنقل الأصناف');
+    }
+
+    // Validate required fields - USE EXACT FIELD NAMES
+    if (!transferData.item_id || !transferData.from_warehouse_id || !transferData.to_warehouse_id) {
+      throw new Error('بيانات النقل غير مكتملة (معرف الصنف، المخزن المصدر، المخزن الهدف)');
+    }
+
+    if (transferData.from_warehouse_id === transferData.to_warehouse_id) {
+      throw new Error('لا يمكن نقل الصنف إلى نفس المخزن');
+    }
+
+    // Check warehouse access
+    if (state.userProfile.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+        if (!allowedWarehouses.includes(transferData.from_warehouse_id) ||
+            !allowedWarehouses.includes(transferData.to_warehouse_id)) {
+          throw new Error('ليس لديك صلاحية للنقل من/إلى هذه المخازن');
         }
-
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لنقل الأصناف');
-        }
-
-        if (!transferData.item_id || !transferData.from_warehouse_id || !transferData.to_warehouse_id) {
-          throw new Error('بيانات النقل غير مكتملة');
-        }
-
-        if (transferData.from_warehouse_id === transferData.to_warehouse_id) {
-          throw new Error('لا يمكن نقل الصنف إلى نفس المخزن');
-        }
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(transferData.from_warehouse_id) ||
-                !allowedWarehouses.includes(transferData.to_warehouse_id)) {
-              throw new Error('ليس لديك صلاحية للنقل من/إلى هذه المخازن');
-            }
-          }
-        }
-
-        const itemRef = doc(db, 'items', transferData.item_id);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const itemData = itemDoc.data();
-
-        if (itemData.warehouse_id !== transferData.from_warehouse_id) {
-          throw new Error('الصنف ليس في المخزن المصدر المحدد');
-        }
-
-        const availableQuantity = itemData.remaining_quantity || 0;
-        const transferQuantity = (transferData.cartons_count || 0) * (transferData.per_carton_count || 0) + 
-                                (transferData.single_bottles_count || 0);
-
-        if (transferQuantity > availableQuantity) {
-          throw new Error('الكمية المطلوبة للنقل أكبر من الكمية المتاحة');
-        }
-
-        const newQuantity = availableQuantity - transferQuantity;
-
-        const updateData = {
-          warehouse_id: transferData.to_warehouse_id,
-          remaining_quantity: newQuantity,
-          updated_at: serverTimestamp(),
-          updated_by: state.user.uid
-        };
-
-        await updateDoc(itemRef, updateData);
-
-        const transactionData = {
-          type: TRANSACTION_TYPES.TRANSFER,
-          item_id: transferData.item_id,
-          item_name: itemData.name,
-          item_code: itemData.code,
-          from_warehouse: transferData.from_warehouse_id,
-          to_warehouse: transferData.to_warehouse_id,
-          cartons_delta: transferData.cartons_count || 0,
-          per_carton_updated: transferData.per_carton_count || itemData.per_carton_count || 12,
-          single_delta: transferData.single_bottles_count || 0,
-          total_delta: transferQuantity,
-          new_remaining: newQuantity,
-          user_id: state.user.uid,
-          timestamp: serverTimestamp(),
-          notes: transferData.notes || 'نقل بين المخازن',
-          created_by: state.userProfile?.name || state.user?.email || 'نظام'
-        };
-
-        await addDoc(collection(db, 'transactions'), transactionData);
-
-        const updatedItem = InventoryService.convertForDisplay({
-          id: transferData.item_id,
-          ...itemData,
-          ...updateData
-        });
-
-        commit('UPDATE_INVENTORY_ITEM', updatedItem);
-        commit('ADD_RECENT_TRANSACTION', transactionData);
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم نقل الصنف "${itemData.name}" بنجاح من المخزن`
-        });
-
-        return { success: true, item: updatedItem };
-
-      } catch (error) {
-        console.error('❌ Error transferring item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ أثناء نقل الصنف'
-        });
-
-        throw error;
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
       }
-    },
+    }
+
+    // Get item document
+    const itemRef = doc(db, 'items', transferData.item_id);
+    const itemDoc = await getDoc(itemRef);
+
+    if (!itemDoc.exists()) {
+      throw new Error('الصنف غير موجود');
+    }
+
+    const itemData = itemDoc.data();
+    
+    // Verify item is in source warehouse
+    if (itemData.warehouse_id !== transferData.from_warehouse_id) {
+      throw new Error(`الصنف ليس في المخزن المصدر المحدد. يوجد في: ${itemData.warehouse_id}`);
+    }
+
+    // Get current detailed counts
+    const currentCartons = Number(itemData.cartons_count) || 0;
+    const currentSingles = Number(itemData.single_bottles_count) || 0;
+    const perCarton = Number(itemData.per_carton_count) || 12;
+    
+    // Get transfer counts (default to 0 if not provided)
+    const transferCartons = Number(transferData.cartons_count) || 0;
+    const transferSingles = Number(transferData.single_bottles_count) || 0;
+    
+    // Validate detailed counts
+    if (transferCartons > currentCartons) {
+      throw new Error(`عدد الكرتونات المطلوبة (${transferCartons}) أكبر من المتاح (${currentCartons})`);
+    }
+    
+    if (transferSingles > currentSingles) {
+      throw new Error(`عدد القزاز الفردي المطلوب (${transferSingles}) أكبر من المتاح (${currentSingles})`);
+    }
+
+    // Calculate total quantities
+    const transferTotalQuantity = (transferCartons * perCarton) + transferSingles;
+    const currentTotalQuantity = (currentCartons * perCarton) + currentSingles;
+    
+    if (transferTotalQuantity <= 0) {
+      throw new Error('يجب إدخال كمية صحيحة للنقل (أكبر من صفر)');
+    }
+
+    if (transferTotalQuantity > currentTotalQuantity) {
+      throw new Error(`الكمية المطلوبة للنقل (${transferTotalQuantity}) أكبر من الكمية المتاحة (${currentTotalQuantity})`);
+    }
+
+    // Calculate new counts
+    const newCartons = currentCartons - transferCartons;
+    const newSingles = currentSingles - transferSingles;
+    const newTotalQuantity = (newCartons * perCarton) + newSingles;
+
+    console.log('📊 Transfer calculations:', {
+      current: { cartons: currentCartons, singles: currentSingles, total: currentTotalQuantity },
+      transfer: { cartons: transferCartons, singles: transferSingles, total: transferTotalQuantity },
+      new: { cartons: newCartons, singles: newSingles, total: newTotalQuantity },
+      perCarton: perCarton
+    });
+
+    // ✅ CRITICAL FIX: Update ALL quantity fields
+    const updateData = {
+      warehouse_id: transferData.to_warehouse_id,
+      cartons_count: newCartons,
+      single_bottles_count: newSingles,
+      remaining_quantity: newTotalQuantity,
+      updated_at: serverTimestamp(),
+      updated_by: state.user.uid
+    };
+
+    console.log('💾 Updating item with:', updateData);
+    await updateDoc(itemRef, updateData);
+
+    // Create transaction record
+    const transactionData = {
+      type: TRANSACTION_TYPES.TRANSFER,
+      item_id: transferData.item_id,
+      item_name: itemData.name || 'Unknown',
+      item_code: itemData.code || '',
+      from_warehouse: transferData.from_warehouse_id,
+      to_warehouse: transferData.to_warehouse_id,
+      cartons_delta: -transferCartons,
+      per_carton_updated: perCarton,
+      single_delta: -transferSingles,
+      total_delta: -transferTotalQuantity,
+      new_remaining: newTotalQuantity,
+      user_id: state.user.uid,
+      timestamp: serverTimestamp(),
+      notes: transferData.notes || 'نقل بين المخازن',
+      created_by: state.userProfile?.name || state.user?.email || 'نظام'
+    };
+
+    console.log('📝 Creating transaction:', transactionData);
+    await addDoc(collection(db, 'transactions'), transactionData);
+
+    // Update local state with COMPLETE item data
+    const updatedItem = {
+      id: transferData.item_id,
+      ...itemData,
+      ...updateData
+    };
+
+    const convertedItem = InventoryService.convertForDisplay(updatedItem);
+    commit('UPDATE_INVENTORY_ITEM', convertedItem);
+    commit('ADD_RECENT_TRANSACTION', transactionData);
+
+    dispatch('showNotification', {
+      type: 'success',
+      message: `تم نقل ${transferTotalQuantity} وحدة من "${itemData.name}" بنجاح من ${transferData.from_warehouse_id} إلى ${transferData.to_warehouse_id}`
+    });
+
+    return { 
+      success: true, 
+      id: transferData.item_id,
+      item: convertedItem,
+      transferTotalQuantity 
+    };
+
+  } catch (error) {
+    console.error('❌ Error transferring item:', error);
+    commit('SET_OPERATION_ERROR', error.message);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ أثناء نقل الصنف'
+    });
+
+    throw error;
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
 // ============================================
 // UPDATED: DISPATCH ITEM ACTION (With Detailed Field Updates)
 // ============================================
