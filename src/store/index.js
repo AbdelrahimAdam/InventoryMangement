@@ -4493,13 +4493,20 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     },
 
-   async transferItem({ commit, state, dispatch }, transferData) {
+  async transferItem({ commit, state, dispatch }, transferData) {
   commit('SET_OPERATION_LOADING', true);
   commit('CLEAR_OPERATION_ERROR');
 
   try {
-    console.log('🔄 Transfer action called with:', transferData);
+    console.log('🔄 START TRANSFER:', {
+      item_id: transferData.item_id,
+      from_warehouse: transferData.from_warehouse_id,
+      to_warehouse: transferData.to_warehouse_id,
+      cartons: transferData.cartons_count,
+      singles: transferData.single_bottles_count
+    });
 
+    // ========== VALIDATION ==========
     if (!state.userProfile) {
       throw new Error('يجب تسجيل الدخول أولاً');
     }
@@ -4508,7 +4515,7 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       throw new Error('ليس لديك صلاحية لنقل الأصناف');
     }
 
-    // Validate required fields - USE EXACT FIELD NAMES
+    // Validate required fields
     if (!transferData.item_id || !transferData.from_warehouse_id || !transferData.to_warehouse_id) {
       throw new Error('بيانات النقل غير مكتملة (معرف الصنف، المخزن المصدر، المخزن الهدف)');
     }
@@ -4528,131 +4535,498 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     }
 
-    // Get item document
-    const itemRef = doc(db, 'items', transferData.item_id);
-    const itemDoc = await getDoc(itemRef);
-
-    if (!itemDoc.exists()) {
-      throw new Error('الصنف غير موجود');
-    }
-
-    const itemData = itemDoc.data();
+    // ========== ATOMIC TRANSACTION ==========
+    console.log('⚡ Starting atomic transaction for transfer...');
     
-    // Verify item is in source warehouse
-    if (itemData.warehouse_id !== transferData.from_warehouse_id) {
-      throw new Error(`الصنف ليس في المخزن المصدر المحدد. يوجد في: ${itemData.warehouse_id}`);
-    }
+    const result = await runTransaction(db, async (transaction) => {
+      // ========== STEP 1: GET SOURCE ITEM ==========
+      const sourceItemRef = doc(db, 'items', transferData.item_id);
+      const sourceItemDoc = await transaction.get(sourceItemRef);
+      
+      if (!sourceItemDoc.exists()) {
+        throw new Error('الصنف غير موجود في المصدر');
+      }
 
-    // Get current detailed counts
-    const currentCartons = Number(itemData.cartons_count) || 0;
-    const currentSingles = Number(itemData.single_bottles_count) || 0;
-    const perCarton = Number(itemData.per_carton_count) || 12;
-    
-    // Get transfer counts (default to 0 if not provided)
-    const transferCartons = Number(transferData.cartons_count) || 0;
-    const transferSingles = Number(transferData.single_bottles_count) || 0;
-    
-    // Validate detailed counts
-    if (transferCartons > currentCartons) {
-      throw new Error(`عدد الكرتونات المطلوبة (${transferCartons}) أكبر من المتاح (${currentCartons})`);
-    }
-    
-    if (transferSingles > currentSingles) {
-      throw new Error(`عدد القزاز الفردي المطلوب (${transferSingles}) أكبر من المتاح (${currentSingles})`);
-    }
+      const sourceItem = sourceItemDoc.data();
+      console.log('📦 Source item data:', {
+        id: transferData.item_id,
+        name: sourceItem.name,
+        code: sourceItem.code,
+        color: sourceItem.color,
+        warehouse: sourceItem.warehouse_id,
+        cartons: sourceItem.cartons_count,
+        singles: sourceItem.single_bottles_count,
+        per_carton: sourceItem.per_carton_count,
+        total: sourceItem.remaining_quantity
+      });
 
-    // Calculate total quantities
-    const transferTotalQuantity = (transferCartons * perCarton) + transferSingles;
-    const currentTotalQuantity = (currentCartons * perCarton) + currentSingles;
-    
-    if (transferTotalQuantity <= 0) {
-      throw new Error('يجب إدخال كمية صحيحة للنقل (أكبر من صفر)');
-    }
+      // Verify source warehouse matches
+      if (sourceItem.warehouse_id !== transferData.from_warehouse_id) {
+        throw new Error(`الصنف ليس في المخزن المصدر المحدد. يوجد في: ${sourceItem.warehouse_id}`);
+      }
 
-    if (transferTotalQuantity > currentTotalQuantity) {
-      throw new Error(`الكمية المطلوبة للنقل (${transferTotalQuantity}) أكبر من الكمية المتاحة (${currentTotalQuantity})`);
-    }
+      // ========== STEP 2: VALIDATE QUANTITIES ==========
+      const currentCartons = Number(sourceItem.cartons_count) || 0;
+      const currentSingles = Number(sourceItem.single_bottles_count) || 0;
+      const perCarton = Number(sourceItem.per_carton_count) || 12;
+      
+      const transferCartons = Number(transferData.cartons_count) || 0;
+      const transferSingles = Number(transferData.single_bottles_count) || 0;
+      
+      console.log('🔢 Quantity validation:', {
+        current: { cartons: currentCartons, singles: currentSingles },
+        transfer: { cartons: transferCartons, singles: transferSingles },
+        perCarton: perCarton
+      });
 
-    // Calculate new counts
-    const newCartons = currentCartons - transferCartons;
-    const newSingles = currentSingles - transferSingles;
-    const newTotalQuantity = (newCartons * perCarton) + newSingles;
+      // Validate cartons
+      if (transferCartons > currentCartons) {
+        throw new Error(`عدد الكرتونات المطلوبة (${transferCartons}) أكبر من المتاح (${currentCartons})`);
+      }
+      
+      // Validate singles
+      if (transferSingles > currentSingles) {
+        throw new Error(`عدد القزاز الفردي المطلوب (${transferSingles}) أكبر من المتاح (${currentSingles})`);
+      }
 
-    console.log('📊 Transfer calculations:', {
-      current: { cartons: currentCartons, singles: currentSingles, total: currentTotalQuantity },
-      transfer: { cartons: transferCartons, singles: transferSingles, total: transferTotalQuantity },
-      new: { cartons: newCartons, singles: newSingles, total: newTotalQuantity },
-      perCarton: perCarton
+      // Calculate total quantities
+      const transferTotalQuantity = (transferCartons * perCarton) + transferSingles;
+      const currentTotalQuantity = (currentCartons * perCarton) + currentSingles;
+      
+      if (transferTotalQuantity <= 0) {
+        throw new Error('يجب إدخال كمية صحيحة للنقل (أكبر من صفر)');
+      }
+
+      if (transferTotalQuantity > currentTotalQuantity) {
+        throw new Error(`الكمية المطلوبة للنقل (${transferTotalQuantity}) أكبر من الكمية المتاحة (${currentTotalQuantity})`);
+      }
+
+      // ========== STEP 3: UPDATE SOURCE ITEM (REDUCE) ==========
+      const newSourceCartons = currentCartons - transferCartons;
+      const newSourceSingles = currentSingles - transferSingles;
+      const newSourceTotal = (newSourceCartons * perCarton) + newSourceSingles;
+
+      console.log('📉 Source item update:', {
+        before: { cartons: currentCartons, singles: currentSingles, total: currentTotalQuantity },
+        after: { cartons: newSourceCartons, singles: newSourceSingles, total: newSourceTotal }
+      });
+
+      // Update source item
+      transaction.update(sourceItemRef, {
+        cartons_count: newSourceCartons,
+        single_bottles_count: newSourceSingles,
+        remaining_quantity: newSourceTotal,
+        updated_at: serverTimestamp(),
+        updated_by: state.user.uid
+      });
+
+      // ========== STEP 4: CHECK DESTINATION ITEM (SAME LOGIC AS addInventoryItem) ==========
+      console.log('🔍 Checking for existing item in destination...');
+      
+      // Clean data for comparison (same as addInventoryItem)
+      const cleanedData = {
+        name: sourceItem.name.trim(),
+        code: sourceItem.code.trim(),
+        color: sourceItem.color?.trim() || '',
+        warehouse_id: transferData.to_warehouse_id
+      };
+
+      console.log('🔍 Looking for item with:', cleanedData);
+
+      // Query for existing item in destination (SAME LOGIC AS addInventoryItem)
+      const itemsRef = collection(db, 'items');
+      const destQuery = query(
+        itemsRef,
+        where('name', '==', cleanedData.name),
+        where('code', '==', cleanedData.code),
+        where('color', '==', cleanedData.color),
+        where('warehouse_id', '==', cleanedData.warehouse_id),
+        limit(1)
+      );
+      
+      const destSnapshot = await getDocs(destQuery);
+      let destItemRef;
+      let isNewItem = false;
+      let existingDestinationItem = null;
+
+      if (!destSnapshot.empty) {
+        // ✅ ITEM EXISTS IN DESTINATION - UPDATE IT (SAME BUSINESS LOGIC AS addInventoryItem)
+        destItemRef = doc(db, 'items', destSnapshot.docs[0].id);
+        existingDestinationItem = destSnapshot.docs[0].data();
+        
+        console.log('✅ Found existing item in destination:', {
+          id: destSnapshot.docs[0].id,
+          cartons: existingDestinationItem.cartons_count,
+          singles: existingDestinationItem.single_bottles_count,
+          per_carton: existingDestinationItem.per_carton_count
+        });
+
+        // Get current destination quantities
+        const destCartons = Number(existingDestinationItem.cartons_count) || 0;
+        const destSingles = Number(existingDestinationItem.single_bottles_count) || 0;
+        const destPerCarton = Number(existingDestinationItem.per_carton_count) || perCarton;
+        
+        // 🔴 BUSINESS RULE: عدد الكراتين - ADD TRANSFER CARTONS TO EXISTING
+        const newDestCartons = destCartons + transferCartons;
+        
+        // 🔴 BUSINESS RULE: عدد في الكرتونه - KEEP DESTINATION'S PER_CARTON (unless source is different?)
+        // For now, keep destination's per_carton_count
+        const finalPerCarton = destPerCarton;
+        
+        // 🔴 BUSINESS RULE: عدد القزاز الفردي - ADD TRANSFER SINGLES TO EXISTING
+        const newDestSingles = destSingles + transferSingles;
+        
+        // 🔴 BUSINESS RULE: Convert single bottles to cartons if they complete a full carton
+        let additionalCartonsFromSingles = 0;
+        let finalDestSingles = newDestSingles;
+        let finalDestCartons = newDestCartons;
+        
+        if (finalDestSingles >= finalPerCarton) {
+          additionalCartonsFromSingles = Math.floor(finalDestSingles / finalPerCarton);
+          finalDestSingles = finalDestSingles % finalPerCarton;
+          finalDestCartons += additionalCartonsFromSingles;
+          
+          console.log(`🔄 Converting singles to cartons in destination: ${additionalCartonsFromSingles} cartons added`);
+        }
+        
+        // Calculate new total
+        const newDestTotal = (finalDestCartons * finalPerCarton) + finalDestSingles;
+        
+        console.log('📈 Destination item update:', {
+          before: { cartons: destCartons, singles: destSingles, total: (destCartons * destPerCarton) + destSingles },
+          after: { cartons: finalDestCartons, singles: finalDestSingles, total: newDestTotal },
+          added: { cartons: transferCartons, singles: transferSingles },
+          converted: additionalCartonsFromSingles
+        });
+
+        // Prepare update data (SAME STRUCTURE AS addInventoryItem)
+        const updateData = {
+          cartons_count: finalDestCartons,
+          per_carton_count: finalPerCarton,
+          single_bottles_count: finalDestSingles,
+          remaining_quantity: newDestTotal,
+          updated_at: serverTimestamp(),
+          updated_by: state.user.uid
+        };
+
+        // Update total_added only if carton quantity was added
+        const cartonsQuantityAdded = transferCartons * finalPerCarton;
+        if (cartonsQuantityAdded > 0) {
+          updateData.total_added = (existingDestinationItem.total_added || 0) + cartonsQuantityAdded;
+        }
+        
+        // Update optional fields from source if destination doesn't have them
+        if (!existingDestinationItem.supplier && sourceItem.supplier) {
+          updateData.supplier = sourceItem.supplier.trim();
+        }
+        
+        if (!existingDestinationItem.item_location && sourceItem.item_location) {
+          updateData.item_location = sourceItem.item_location.trim();
+        }
+        
+        if (!existingDestinationItem.notes && sourceItem.notes) {
+          updateData.notes = sourceItem.notes.trim();
+        }
+
+        transaction.update(destItemRef, updateData);
+
+      } else {
+        // ❌ ITEM DOESN'T EXIST IN DESTINATION - CREATE NEW (SAME LOGIC AS addInventoryItem)
+        console.log('➕ Creating new item in destination (no matching item found)');
+        
+        destItemRef = doc(collection(db, 'items'));
+        isNewItem = true;
+        
+        // Calculate quantities for new item
+        let finalTransferCartons = transferCartons;
+        let finalTransferSingles = transferSingles;
+        let additionalCartonsFromSingles = 0;
+        
+        // 🔴 BUSINESS RULE: Convert single bottles to cartons if complete
+        if (finalTransferSingles >= perCarton) {
+          additionalCartonsFromSingles = Math.floor(finalTransferSingles / perCarton);
+          finalTransferSingles = finalTransferSingles % perCarton;
+          finalTransferCartons += additionalCartonsFromSingles;
+          
+          console.log(`🔄 Converting singles for new item: ${finalTransferSingles} → ${additionalCartonsFromSingles} cartons + ${finalTransferSingles} singles`);
+        }
+        
+        // Calculate total quantity
+        const destTotalQuantity = (finalTransferCartons * perCarton) + finalTransferSingles;
+        
+        // Prepare new item data (SAME STRUCTURE AS addInventoryItem)
+        const newItemData = {
+          name: cleanedData.name,
+          code: cleanedData.code,
+          color: cleanedData.color,
+          warehouse_id: cleanedData.warehouse_id,
+          cartons_count: finalTransferCartons,
+          per_carton_count: perCarton,
+          single_bottles_count: finalTransferSingles,
+          supplier: sourceItem.supplier?.trim() || null,
+          item_location: sourceItem.item_location?.trim() || null,
+          notes: sourceItem.notes?.trim() || null,
+          photo_url: sourceItem.photo_url || null,
+          remaining_quantity: destTotalQuantity,
+          total_added: destTotalQuantity,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+          created_by: state.user.uid,
+          updated_by: state.user.uid
+        };
+
+        console.log('📝 New destination item data:', newItemData);
+        
+        transaction.set(destItemRef, newItemData);
+      }
+
+      // ========== STEP 5: CREATE TRANSACTION RECORD ==========
+      const transactionRef = doc(collection(db, 'transactions'));
+      
+      const transactionRecord = {
+        type: TRANSACTION_TYPES.TRANSFER,
+        
+        // Source item info
+        source_item_id: transferData.item_id,
+        item_name: sourceItem.name,
+        item_code: sourceItem.code,
+        item_color: sourceItem.color || '',
+        
+        // Warehouse info
+        from_warehouse: transferData.from_warehouse_id,
+        to_warehouse: transferData.to_warehouse_id,
+        
+        // Detailed transfer quantities
+        cartons_transferred: transferCartons,
+        per_carton_count: perCarton,
+        singles_transferred: transferSingles,
+        total_quantity_transferred: transferTotalQuantity,
+        
+        // Source item before/after
+        source_before: {
+          cartons_count: currentCartons,
+          single_bottles_count: currentSingles,
+          remaining_quantity: currentTotalQuantity
+        },
+        source_after: {
+          cartons_count: newSourceCartons,
+          single_bottles_count: newSourceSingles,
+          remaining_quantity: newSourceTotal
+        },
+        
+        // Destination info
+        destination_item_id: destItemRef.id,
+        is_new_destination_item: isNewItem,
+        destination_item_exists: !!existingDestinationItem,
+        
+        // User info
+        user_id: state.user.uid,
+        user_name: state.userProfile?.name || state.user?.email,
+        user_role: state.userProfile?.role,
+        user_email: state.user?.email,
+        
+        // Timestamps
+        timestamp: serverTimestamp(),
+        created_at: serverTimestamp(),
+        
+        // Metadata
+        notes: transferData.notes || 'نقل بين المخازن',
+        transfer_type: 'warehouse_transfer',
+        detailed_breakdown: true,
+        atomic_operation: true,
+        
+        // Additional info
+        source_warehouse_name: transferData.from_warehouse_name || '',
+        destination_warehouse_name: transferData.to_warehouse_name || '',
+        created_by: state.userProfile?.name || state.user?.email || 'نظام'
+      };
+
+      transaction.set(transactionRef, transactionRecord);
+
+      // ========== STEP 6: CREATE ITEM HISTORY RECORDS ==========
+      // Source item history
+      const sourceHistoryRef = doc(collection(db, 'item_history'));
+      const sourceHistoryData = {
+        item_id: transferData.item_id,
+        warehouse_id: transferData.from_warehouse_id,
+        change_type: 'TRANSFER_OUT',
+        
+        // Detailed quantity changes
+        old_cartons: currentCartons,
+        old_single_bottles: currentSingles,
+        old_quantity: currentTotalQuantity,
+        
+        new_cartons: newSourceCartons,
+        new_single_bottles: newSourceSingles,
+        new_quantity: newSourceTotal,
+        
+        cartons_delta: -transferCartons,
+        single_bottles_delta: -transferSingles,
+        quantity_delta: -transferTotalQuantity,
+        
+        // Transfer details
+        transfer_to_warehouse: transferData.to_warehouse_id,
+        transfer_to_item_id: destItemRef.id,
+        
+        // User info
+        user_id: state.user.uid,
+        user_name: state.userProfile?.name || state.user?.email,
+        timestamp: serverTimestamp(),
+        
+        details: {
+          name: sourceItem.name,
+          code: sourceItem.code,
+          color: sourceItem.color,
+          notes: transferData.notes,
+          transaction_id: transactionRef.id
+        }
+      };
+      
+      transaction.set(sourceHistoryRef, sourceHistoryData);
+
+      // Destination item history
+      const destHistoryRef = doc(collection(db, 'item_history'));
+      const destHistoryData = {
+        item_id: destItemRef.id,
+        warehouse_id: transferData.to_warehouse_id,
+        change_type: isNewItem ? 'CREATE' : 'TRANSFER_IN',
+        
+        // For existing items, track before/after
+        ...(existingDestinationItem ? {
+          old_cartons: existingDestinationItem.cartons_count || 0,
+          old_single_bottles: existingDestinationItem.single_bottles_count || 0,
+          old_quantity: existingDestinationItem.remaining_quantity || 0
+        } : {}),
+        
+        // Transfer details
+        transfer_from_warehouse: transferData.from_warehouse_id,
+        transfer_from_item_id: transferData.item_id,
+        
+        // User info
+        user_id: state.user.uid,
+        user_name: state.userProfile?.name || state.user?.email,
+        timestamp: serverTimestamp(),
+        
+        details: {
+          name: sourceItem.name,
+          code: sourceItem.code,
+          color: sourceItem.color,
+          cartons_received: transferCartons,
+          singles_received: transferSingles,
+          total_received: transferTotalQuantity,
+          notes: transferData.notes,
+          transaction_id: transactionRef.id,
+          is_new_item: isNewItem
+        }
+      };
+      
+      transaction.set(destHistoryRef, destHistoryData);
+
+      // Return comprehensive result
+      return {
+        sourceItemId: transferData.item_id,
+        destItemId: destItemRef.id,
+        isNewItem: isNewItem,
+        transferTotalQuantity,
+        sourceUpdate: {
+          cartons_count: newSourceCartons,
+          single_bottles_count: newSourceSingles,
+          remaining_quantity: newSourceTotal
+        },
+        transactionId: transactionRef.id,
+        transactionData: transactionRecord,
+        existingDestinationItem: existingDestinationItem
+      };
     });
 
-    // ✅ CRITICAL FIX: Update ALL quantity fields
-    const updateData = {
-      warehouse_id: transferData.to_warehouse_id,
-      cartons_count: newCartons,
-      single_bottles_count: newSingles,
-      remaining_quantity: newTotalQuantity,
-      updated_at: serverTimestamp(),
-      updated_by: state.user.uid
+    // ========== UPDATE LOCAL VUEX STATE ==========
+    console.log('✅ Atomic transaction completed successfully');
+    
+    // 1. Update source item in local inventory
+    const sourceIndex = state.inventory.findIndex(item => item.id === transferData.item_id);
+    if (sourceIndex !== -1) {
+      const updatedSourceItem = {
+        ...state.inventory[sourceIndex],
+        cartons_count: result.sourceUpdate.cartons_count,
+        single_bottles_count: result.sourceUpdate.single_bottles_count,
+        remaining_quantity: result.sourceUpdate.remaining_quantity,
+        updated_at: new Date()
+      };
+      
+      commit('UPDATE_INVENTORY_ITEM', updatedSourceItem);
+    }
+    
+    // 2. Add transaction to recent transactions
+    const transactionRecord = {
+      id: result.transactionId,
+      ...result.transactionData,
+      timestamp: new Date()
     };
+    
+    commit('ADD_RECENT_TRANSACTION', transactionRecord);
 
-    console.log('💾 Updating item with:', updateData);
-    await updateDoc(itemRef, updateData);
-
-    // Create transaction record
-    const transactionData = {
-      type: TRANSACTION_TYPES.TRANSFER,
-      item_id: transferData.item_id,
-      item_name: itemData.name || 'Unknown',
-      item_code: itemData.code || '',
-      from_warehouse: transferData.from_warehouse_id,
-      to_warehouse: transferData.to_warehouse_id,
-      cartons_delta: -transferCartons,
-      per_carton_updated: perCarton,
-      single_delta: -transferSingles,
-      total_delta: -transferTotalQuantity,
-      new_remaining: newTotalQuantity,
-      user_id: state.user.uid,
-      timestamp: serverTimestamp(),
-      notes: transferData.notes || 'نقل بين المخازن',
-      created_by: state.userProfile?.name || state.user?.email || 'نظام'
-    };
-
-    console.log('📝 Creating transaction:', transactionData);
-    await addDoc(collection(db, 'transactions'), transactionData);
-
-    // Update local state with COMPLETE item data
-    const updatedItem = {
-      id: transferData.item_id,
-      ...itemData,
-      ...updateData
-    };
-
-    const convertedItem = InventoryService.convertForDisplay(updatedItem);
-    commit('UPDATE_INVENTORY_ITEM', convertedItem);
-    commit('ADD_RECENT_TRANSACTION', transactionData);
+    // 3. Show success notification
+    const message = result.isNewItem 
+      ? `تم إنشاء صنف جديد في المخزن الهدف وتم نقل ${result.transferTotalQuantity} وحدة`
+      : `تم نقل ${result.transferTotalQuantity} وحدة إلى المخزن الهدف بنجاح`;
 
     dispatch('showNotification', {
       type: 'success',
-      message: `تم نقل ${transferTotalQuantity} وحدة من "${itemData.name}" بنجاح من ${transferData.from_warehouse_id} إلى ${transferData.to_warehouse_id}`
+      title: 'تم النقل بنجاح',
+      message: message,
+      icon: 'check-circle',
+      timeout: 5000
     });
 
-    return { 
-      success: true, 
-      id: transferData.item_id,
-      item: convertedItem,
-      transferTotalQuantity 
+    // 4. Log detailed transfer info
+    console.log('📊 Transfer completed successfully:', {
+      sourceItem: transferData.item_id,
+      destinationItem: result.destItemId,
+      isNewItem: result.isNewItem,
+      quantityTransferred: result.transferTotalQuantity,
+      transactionId: result.transactionId
+    });
+
+    return {
+      success: true,
+      message: 'تم النقل بنجاح',
+      transactionId: result.transactionId,
+      transferTotalQuantity: result.transferTotalQuantity,
+      sourceItemId: transferData.item_id,
+      destinationItemId: result.destItemId,
+      isNewDestinationItem: result.isNewItem,
+      details: result.transactionData
     };
 
   } catch (error) {
-    console.error('❌ Error transferring item:', error);
+    console.error('❌ TRANSFER FAILED:', error);
+    console.error('Error stack:', error.stack);
+    
     commit('SET_OPERATION_ERROR', error.message);
+    
+    // Detailed error notification
+    let errorMessage = error.message;
+    if (error.message.includes('ليس لديك صلاحية')) {
+      errorMessage = 'ليس لديك صلاحية لإجراء عملية النقل.';
+    } else if (error.message.includes('الصنف ليس في المخزن المصدر')) {
+      errorMessage = 'الصنف المحدد ليس في المخزن المصدر. ربما تم نقله مؤخراً.';
+    } else if (error.message.includes('أكبر من المتاح')) {
+      errorMessage = 'الكمية المطلوبة تتجاوز الكمية المتاحة.';
+    }
 
     dispatch('showNotification', {
       type: 'error',
-      message: error.message || 'حدث خطأ أثناء نقل الصنف'
+      title: 'فشل النقل',
+      message: errorMessage,
+      icon: 'alert-circle',
+      timeout: 7000
     });
 
-    throw error;
+    return {
+      success: false,
+      message: errorMessage,
+      error: error
+    };
   } finally {
     commit('SET_OPERATION_LOADING', false);
   }
