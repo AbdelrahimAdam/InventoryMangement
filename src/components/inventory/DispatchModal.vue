@@ -994,7 +994,7 @@ export default {
       form.quantity = maxQuantity
     }
 
-    // FIXED: Submit handler with detailed quantity breakdown
+       // FIXED: Submit handler with SMART detailed quantity breakdown
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -1024,62 +1024,174 @@ export default {
         return
       }
 
-      // CRITICAL: Calculate detailed breakdown from total quantity
-      let dispatchCartons = 0
-      let dispatchSingleBottles = 0
-      let perCarton = 12  // Default
+      // Get current item state
+      const currentItem = selectedItem.value
+      const perCarton = currentItem.per_carton_count || 12
+      const currentCartons = currentItem.cartons_count || 0
+      const currentSingles = currentItem.single_bottles_count || 0
+      const totalToDispatch = form.quantity
       
-      if (selectedItem.value.per_carton_count && selectedItem.value.per_carton_count > 0) {
-        perCarton = selectedItem.value.per_carton_count
-        dispatchCartons = Math.floor(form.quantity / perCarton)
-        dispatchSingleBottles = form.quantity % perCarton
-      } else {
-        // If no carton details, dispatch as single bottles
-        dispatchSingleBottles = form.quantity
+      console.log('🔍 Current item state:', {
+        currentCartons,
+        currentSingles,
+        perCarton,
+        currentTotal: (currentCartons * perCarton) + currentSingles,
+        totalToDispatch
+      })
+
+      // SMART CALCULATION: Intelligently determine what to dispatch
+      let dispatchCartons = 0
+      let dispatchSingles = 0
+      
+      // Method 1: Try to use available single bottles first
+      if (currentSingles > 0) {
+        const singlesToUse = Math.min(currentSingles, totalToDispatch)
+        dispatchSingles = singlesToUse
       }
+      
+      // Calculate remaining after using singles
+      let remainingToDispatch = totalToDispatch - dispatchSingles
+      
+      // Method 2: Use whole cartons for the rest
+      if (remainingToDispatch > 0) {
+        const cartonsNeeded = Math.floor(remainingToDispatch / perCarton)
+        
+        // Check if we have enough cartons
+        if (currentCartons >= cartonsNeeded) {
+          dispatchCartons = cartonsNeeded
+          remainingToDispatch = remainingToDispatch - (cartonsNeeded * perCarton)
+        } else {
+          // Not enough cartons, use what we have
+          dispatchCartons = currentCartons
+          remainingToDispatch = remainingToDispatch - (currentCartons * perCarton)
+        }
+      }
+      
+      // Method 3: Handle remaining quantity (need to break a carton)
+      if (remainingToDispatch > 0) {
+        // We need to break a carton for the remaining items
+        if (currentCartons - dispatchCartons > 0) {
+          // We have at least one more carton to break
+          dispatchCartons += 1 // Break one more carton
+          
+          // After breaking, we have full carton bottles minus what we need
+          const bottlesFromBrokenCarton = perCarton
+          dispatchSingles += (bottlesFromBrokenCarton - remainingToDispatch)
+        } else {
+          // No cartons left to break, show error
+          error.value = `لا يوجد عدد كافٍ من الكرتونات. تحتاج إلى ${remainingToDispatch} وحدة إضافية`
+          return
+        }
+      }
+
+      // Final validation
+      const totalDispatched = (dispatchCartons * perCarton) + dispatchSingles
+      if (totalDispatched !== totalToDispatch) {
+        console.warn('⚠️ Quantity mismatch:', {
+          expected: totalToDispatch,
+          actual: totalDispatched,
+          dispatchCartons,
+          dispatchSingles,
+          perCarton
+        })
+        
+        // Adjust to ensure exact match
+        const difference = totalToDispatch - totalDispatched
+        if (difference > 0) {
+          // Add to singles
+          dispatchSingles += difference
+        } else if (difference < 0) {
+          // Remove from singles
+          dispatchSingles = Math.max(0, dispatchSingles + difference)
+        }
+      }
+
+      // Calculate what will remain after dispatch
+      const newCartons = currentCartons - dispatchCartons
+      const newSingles = currentSingles - dispatchSingles
+      const remainingSinglesAfterDispatch = Math.max(0, newSingles)
+      
+      // Final safety check
+      if (newCartons < 0 || remainingSinglesAfterDispatch < 0) {
+        error.value = 'حساب الكمية غير صحيح. يرجى المحاولة مرة أخرى.'
+        return
+      }
+
+      console.log('📊 Dispatch calculation:', {
+        // Before
+        before: {
+          cartons: currentCartons,
+          singles: currentSingles,
+          total: (currentCartons * perCarton) + currentSingles
+        },
+        // Dispatch
+        dispatch: {
+          cartons: dispatchCartons,
+          singles: dispatchSingles,
+          total: (dispatchCartons * perCarton) + dispatchSingles,
+          perCarton
+        },
+        // After
+        after: {
+          cartons: newCartons,
+          singles: remainingSinglesAfterDispatch,
+          total: (newCartons * perCarton) + remainingSinglesAfterDispatch
+        },
+        // Validation
+        validation: {
+          dispatchedTotal: (dispatchCartons * perCarton) + dispatchSingles,
+          requestedTotal: totalToDispatch,
+          matches: ((dispatchCartons * perCarton) + dispatchSingles) === totalToDispatch
+        }
+      })
 
       loading.value = true
 
       try {
         // Prepare dispatch data WITH DETAILED BREAKDOWN
         const dispatchData = {
-          item_id: selectedItem.value.id,
+          item_id: currentItem.id,
           from_warehouse_id: form.sourceWarehouse,
           destination: getDestinationName(form.destinationBranch),
           
           // CRITICAL: Send detailed breakdown
           cartons_count: dispatchCartons,
           per_carton_count: perCarton,
-          single_bottles_count: dispatchSingleBottles,
+          single_bottles_count: dispatchSingles,
           
           // Also send total quantity for backward compatibility
-          quantity: form.quantity,
+          quantity: totalToDispatch,
           
-          notes: form.notes || 'إرسال إلى فرع',
-          priority: form.priority,
-          item_name: selectedItem.value.name || selectedItem.value.item_name,
-          item_code: selectedItem.value.code || selectedItem.value.item_code,
+          // Item info
+          item_name: currentItem.name || currentItem.item_name,
+          item_code: currentItem.code || currentItem.item_code,
+          color: currentItem.color || '',
+          
+          // Additional info
+          notes: form.notes || 'صرف إلى فرع',
+          priority: form.priority || 'normal',
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
           destination_id: form.destinationBranch,
+          
+          // User info
           user_id: store.state.user?.uid,
           user_role: userProfile.value?.role,
           user_name: userProfile.value?.name,
           
-          // Add detailed breakdown info for debugging
-          detailed_dispatch: {
-            cartons: dispatchCartons,
-            singles: dispatchSingleBottles,
-            per_carton: perCarton,
-            total: form.quantity
-          }
+          // Current state for validation
+          current_cartons: currentCartons,
+          current_singles: currentSingles,
+          current_total: (currentCartons * perCarton) + currentSingles,
+          
+          // Expected new state
+          expected_new_cartons: newCartons,
+          expected_new_singles: remainingSinglesAfterDispatch,
+          expected_new_total: (newCartons * perCarton) + remainingSinglesAfterDispatch
         }
         
-        console.log('📦 Dispatching with details:', {
-          total: form.quantity,
-          cartons: dispatchCartons,
-          singles: dispatchSingleBottles,
-          per_carton: perCarton,
-          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingleBottles} = ${(dispatchCartons * perCarton) + dispatchSingleBottles}`
+        console.log('📦 Sending to store dispatch:', {
+          dispatchData,
+          calculation: `(${dispatchCartons} كرتون × ${perCarton}) + ${dispatchSingles} فردي = ${totalToDispatch}`
         })
 
         // Clear relevant cache entries after dispatch
@@ -1092,10 +1204,17 @@ export default {
           successMessage.value = 'تم صرف الصنف بنجاح'
           
           // Show detailed confirmation
-          if (dispatchCartons > 0) {
-            successMessage.value += ` (${dispatchCartons} كرتون × ${perCarton} + ${dispatchSingleBottles} فردي)`
-          } else if (dispatchSingleBottles > 0) {
-            successMessage.value += ` (${dispatchSingleBottles} فردي)`
+          if (dispatchCartons > 0 && dispatchSingles > 0) {
+            successMessage.value += ` (${dispatchCartons} كرتون × ${perCarton} + ${dispatchSingles} فردي)`
+          } else if (dispatchCartons > 0) {
+            successMessage.value += ` (${dispatchCartons} كرتون × ${perCarton})`
+          } else if (dispatchSingles > 0) {
+            successMessage.value += ` (${dispatchSingles} فردي)`
+          }
+          
+          // Show what remains
+          if (result.detailedUpdate) {
+            successMessage.value += ` | المتبقي: ${result.detailedUpdate.cartons_count} كرتون × ${perCarton} + ${result.detailedUpdate.single_bottles_count} فردي = ${result.newQuantity}`
           }
           
           // Reset form
@@ -1105,19 +1224,86 @@ export default {
           setTimeout(() => {
             emit('success', result)
             emit('close')
-          }, 1500)
+          }, 2000)
         } else {
-          throw new Error(result?.error || 'فشل في عملية الصرف')
+          throw new Error(result?.error || result?.message || 'فشل في عملية الصرف')
         }
         
       } catch (err) {
         console.error('❌ Dispatch error:', err)
-        error.value = err.message || 'فشل في عملية الصرف'
+        
+        // User-friendly error messages
+        let errorMessage = err.message || 'فشل في عملية الصرف'
+        
+        if (errorMessage.includes('insufficient') || errorMessage.includes('كافٍ')) {
+          errorMessage = 'الكمية غير متاحة. يرجى التحقق من الكمية المتاحة.'
+        } else if (errorMessage.includes('transaction') || errorMessage.includes('atomic')) {
+          errorMessage = 'حدث خطأ في المعاملة. يرجى المحاولة مرة أخرى.'
+        }
+        
+        error.value = errorMessage
+        
+        // Show error notification
+        store.dispatch('showNotification', {
+          type: 'error',
+          title: 'فشل الصرف',
+          message: errorMessage,
+          icon: 'alert-circle',
+          timeout: 7000
+        })
       } finally {
         loading.value = false
       }
     }
 
+    // ============================================
+    // Helper function to handle quantity changes
+    // ============================================
+    const updateQuantity = () => {
+      if (!selectedItem.value) return
+      
+      const maxQuantity = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+      
+      // Ensure quantity is valid
+      if (form.quantity > maxQuantity) {
+        form.quantity = maxQuantity
+      }
+      if (form.quantity < 1 && maxQuantity > 0) {
+        form.quantity = 1
+      }
+      
+      // Round to nearest integer
+      form.quantity = Math.round(form.quantity)
+    }
+
+    // ============================================
+    // Quantity control functions
+    // ============================================
+    const increaseQuantity = () => {
+      if (!selectedItem.value) return
+      
+      const maxQuantity = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+      if (form.quantity < maxQuantity) {
+        form.quantity++
+      }
+    }
+
+    const decreaseQuantity = () => {
+      if (form.quantity > 1) {
+        form.quantity--
+      }
+    }
+
+    const setMaxQuantity = () => {
+      if (!selectedItem.value) return
+      
+      const maxQuantity = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+      form.quantity = maxQuantity
+    }
+
+    // ============================================
+    // Reset form function
+    // ============================================
     const resetForm = () => {
       Object.assign(form, {
         sourceWarehouse: '',
@@ -1133,19 +1319,39 @@ export default {
       searchResults.value = []
       isSearching.value = false
       lastSearchStats.value = null
+      
+      // Also reset any other state if needed
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+        searchTimeout.value = null
+      }
     }
 
-    // Watch for inventory changes to update cache
+    // ============================================
+    // Watch for inventory changes
+    // ============================================
     watch(() => store.state.inventory, (newInventory) => {
       if (newInventory && newInventory.length > 0) {
         // Invalidate cache when inventory updates
         clearSearchCache()
+        
+        // If we have a selected item, refresh its data
+        if (selectedItem.value) {
+          const updatedItem = newInventory.find(item => item.id === selectedItem.value.id)
+          if (updatedItem) {
+            selectedItem.value = updatedItem
+          }
+        }
       }
     }, { deep: true })
 
+    // ============================================
     // Load dispatch warehouses when modal opens
+    // ============================================
     watch(() => props.isOpen, async (isOpen) => {
       if (isOpen) {
+        console.log('🚀 Dispatch modal opening...')
+        
         // Reset form when modal opens
         resetForm()
         
@@ -1160,36 +1366,60 @@ export default {
             // Method 1: Use getDispatchWarehouses action
             try {
               warehouses = await store.dispatch('getDispatchWarehouses')
+              console.log('✅ Got dispatch warehouses from action:', warehouses.length)
             } catch (error) {
+              console.warn('⚠️ Failed to get dispatch warehouses from action:', error.message)
+              
               // Method 2: Filter from all warehouses
               const allWarehouses = store.state.warehouses || []
               warehouses = allWarehouses.filter(w => 
                 w.type === 'dispatch' || w.is_dispatch
               )
+              console.log('✅ Filtered dispatch warehouses:', warehouses.length)
             }
             
             if (warehouses && warehouses.length > 0) {
               dispatchWarehouses.value = warehouses
+              console.log('🏢 Dispatch warehouses loaded:', warehouses.map(w => w.name_ar))
+            } else {
+              console.warn('⚠️ No dispatch warehouses found')
             }
           } catch (error) {
             console.error('❌ Error loading dispatch warehouses:', error)
           } finally {
             loading.value = false
           }
+        } else {
+          console.log('✅ Using cached dispatch warehouses:', dispatchWarehouses.value.length)
+        }
+        
+        // If a specific item was passed as prop, select it
+        if (props.item && props.item.id) {
+          console.log('🎯 Pre-selecting item from props:', props.item)
+          selectedItem.value = props.item
+          form.sourceWarehouse = props.item.warehouse_id
+          form.quantity = 1
         }
       }
     }, { immediate: true })
 
+    // ============================================
+    // Cleanup on unmount
+    // ============================================
     onUnmounted(() => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
-      debouncedSearch.cancel()
+      if (debouncedSearch && debouncedSearch.cancel) {
+        debouncedSearch.cancel()
+      }
       // Clear cache to free memory
       clearSearchCache()
     })
 
+    // ============================================
     // Return all required properties
+    // ============================================
     return {
       // Form and state
       form,
@@ -1218,7 +1448,10 @@ export default {
       
       // Methods
       selectItem,
-      clearSelection: () => selectedItem.value = null,
+      clearSelection: () => {
+        selectedItem.value = null
+        form.quantity = 1
+      },
       clearSearch,
       onWarehouseChange,
       increaseQuantity,
@@ -1239,14 +1472,28 @@ export default {
       // Computed for submit button
       isSubmitDisabled: computed(() => {
         if (loading.value) return true
-        if (!selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0) {
+        
+        // Basic validation
+        if (!selectedItem.value || 
+            !form.destinationBranch || 
+            !form.sourceWarehouse || 
+            form.quantity <= 0) {
           return true
         }
+        
         // Check if quantity exceeds available
-        const available = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+        const available = selectedItem.value.remaining_quantity || 
+                         selectedItem.value.quantity || 0
+        
         if (form.quantity > available) {
           return true
         }
+        
+        // Additional check for warehouse access
+        if (!isSuperadmin.value && !hasAccessToSelectedWarehouse.value) {
+          return true
+        }
+        
         return false
       }),
       
@@ -1261,7 +1508,6 @@ export default {
   }
 }
 </script>
-
 <style scoped>
 .rtl {
   direction: rtl;
