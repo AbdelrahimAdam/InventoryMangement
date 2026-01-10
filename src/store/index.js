@@ -196,9 +196,9 @@ function normalizeArabicText(text) {
     .trim();
 }
 
-// Helper function to get cache key
-function getCacheKey(query, warehouseId, limit) {
-  return `${normalizeArabicText(query)}_${warehouseId}_${limit}`;
+// Helper: Get cache key
+function getCacheKey(searchTerm, warehouseId, limit = SPARK_CONFIG.MAX_RESULTS) {
+  return `${warehouseId || 'all'}:${searchTerm.toLowerCase().trim()}:${limit}:${Date.now() % 10000}`;
 }
 // ============================================
 // SPARK PLAN ENHANCED CONFIGURATION
