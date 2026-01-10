@@ -416,7 +416,6 @@ export default {
     const previewPhoto = ref('');
     const fileInput = ref(null);
     const isFormResetting = ref(false);
-    const isUpdatingExisting = ref(false);
     
     // Form field refs
     const nameInput = ref(null);
@@ -447,12 +446,19 @@ export default {
     });
 
     // Computed properties
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     const storeOperationLoading = computed(() => store.state.operationLoading);
     const storeOperationError = computed(() => store.state.operationError);
     const currentUser = computed(() => store.state.user);
     const currentUserId = computed(() => store.state.user?.uid);
     const userProfile = computed(() => store.state.userProfile);
+    
+    // Warehouse label helper
+    const getWarehouseLabel = (warehouseId) => {
+      if (!warehouseId) return '';
+      const warehouse = accessibleWarehouses.value.find(w => w.id === warehouseId);
+      return warehouse ? warehouse.name_ar || warehouse.name : warehouseId;
+    };
 
     const cartonsTotal = computed(() => {
       return formData.value.cartons_count * formData.value.per_carton_count;
@@ -468,65 +474,65 @@ export default {
       return totalQuantity.value > 0;
     });
 
+    // CRITICAL FIX: Proper isAddingCartons logic that matches store expectations
+    const isAddingCartons = computed(() => {
+      // User is adding cartons if they entered cartons_count > 0
+      return formData.value.cartons_count > 0;
+    });
+
     const isFormValid = computed(() => {
       if (isFormResetting.value) return false;
-      if (!formData.value.name.trim()) return false;
-      if (!formData.value.code.trim()) return false;
-      if (!formData.value.color.trim()) return false;
+      
+      // Basic required fields
+      if (!formData.value.name?.trim()) return false;
+      if (!formData.value.code?.trim()) return false;
+      if (!formData.value.color?.trim()) return false;
       if (!formData.value.warehouse_id) return false;
       
-      // For new items, ensure at least one quantity is positive
-      if (!existingItem.value && totalQuantity.value <= 0) {
-        return false;
+      // Quantity validation based on mode
+      if (addMode.value === 'cartons') {
+        if (formData.value.cartons_count <= 0) return false;
+        if (formData.value.per_carton_count <= 0) return false;
+      } else if (addMode.value === 'single') {
+        if (formData.value.single_bottles_count <= 0) return false;
+      } else if (addMode.value === 'both') {
+        const hasCartons = formData.value.cartons_count > 0 && formData.value.per_carton_count > 0;
+        const hasSingles = formData.value.single_bottles_count > 0;
+        if (!hasCartons && !hasSingles) return false;
       }
       
-      // For existing items, at least one field should be updated
-      if (existingItem.value) {
-        const hasQuantityUpdate = 
-          (addMode.value === 'cartons' && formData.value.cartons_count > 0) ||
-          (addMode.value === 'single' && formData.value.single_bottles_count > 0) ||
-          (addMode.value === 'both' && totalQuantity.value > 0);
-          
-        const hasOtherUpdate = 
-          formData.value.supplier !== existingItem.value.supplier ||
-          formData.value.item_location !== existingItem.value.item_location ||
-          formData.value.notes !== existingItem.value.notes ||
-          (selectedFile.value && previewPhoto.value);
-          
-        return hasQuantityUpdate || hasOtherUpdate;
+      // For new items (not updating existing), ensure total quantity > 0
+      if (!existingItem.value && totalQuantity.value <= 0) {
+        return false;
       }
       
       return true;
     });
 
-    const isAddingCartonsComputed = computed(() => {
-      return (addMode.value === 'cartons' || addMode.value === 'both') && formData.value.cartons_count > 0;
-    });
-
     // Watchers
     watch(() => props.isOpen, (newVal) => {
       if (newVal) {
+        // Auto-focus on name field
         setTimeout(() => {
           if (nameInput.value) {
             nameInput.value.focus();
           }
         }, 100);
         
+        // Set default warehouse if not set
         if (accessibleWarehouses.value.length > 0 && !formData.value.warehouse_id) {
-          const mainWarehouse = store.getters.mainWarehouse;
-          formData.value.warehouse_id = mainWarehouse?.id || accessibleWarehouses.value[0].id;
+          formData.value.warehouse_id = accessibleWarehouses.value[0].id;
         }
       }
     });
 
     watch(accessibleWarehouses, (newWarehouses) => {
       if (newWarehouses.length > 0 && !formData.value.warehouse_id) {
-        const mainWarehouse = store.getters.mainWarehouse;
-        formData.value.warehouse_id = mainWarehouse?.id || newWarehouses[0].id;
+        formData.value.warehouse_id = newWarehouses[0].id;
       }
     }, { immediate: true });
 
-    // Enhanced existing item checker with direct Firestore query
+    // SIMPLIFIED: Existing item checker that works with store's logic
     const checkExistingItem = async () => {
       if (isFormResetting.value) return;
       
@@ -538,126 +544,41 @@ export default {
       // We need all 4 fields to search
       if (!cleanName || !cleanCode || !cleanColor || !cleanWarehouseId) {
         existingItem.value = null;
-        isUpdatingExisting.value = false;
         return;
       }
 
       try {
-        console.log('🔍 Searching for EXACT match:', {
-          name: cleanName,
-          code: cleanCode,
-          color: cleanColor,
-          warehouse_id: cleanWarehouseId
+        // Check in local inventory first (fastest)
+        const localInventory = store.state.inventory || [];
+        const foundItem = localInventory.find(item => {
+          const itemName = item.name?.trim().toLowerCase() || '';
+          const itemCode = item.code?.trim().toLowerCase() || '';
+          const itemColor = item.color?.trim().toLowerCase() || '';
+          
+          return itemName === cleanName.toLowerCase() && 
+                 itemCode === cleanCode.toLowerCase() && 
+                 itemColor === cleanColor.toLowerCase() && 
+                 item.warehouse_id === cleanWarehouseId;
         });
 
-        // METHOD 1: Direct Firestore query for exact match
-        let foundItem = null;
-        
-        try {
-          // Import Firestore functions
-          const { collection, query, where, getDocs } = await import('firebase/firestore');
-          const { db } = await import('@/firebase/config');
-          
-          if (!db) {
-            console.error('Firestore not initialized');
-            throw new Error('Database not available');
-          }
-          
-          const itemsRef = collection(db, 'items');
-          const q = query(
-            itemsRef,
-            where('name', '==', cleanName),
-            where('code', '==', cleanCode),
-            where('color', '==', cleanColor),
-            where('warehouse_id', '==', cleanWarehouseId)
-          );
-          
-          const snapshot = await getDocs(q);
-          
-          if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            foundItem = {
-              id: doc.id,
-              ...doc.data()
-            };
-            console.log('✅ Found exact match via direct Firestore query:', foundItem);
-          }
-        } catch (firestoreError) {
-          console.warn('Direct Firestore query failed:', firestoreError);
-        }
-
-        // METHOD 2: If direct query failed, use store's search
-        if (!foundItem) {
-          console.log('Trying store search as fallback...');
-          const searchResults = await store.dispatch('searchInventorySpark', {
-            searchQuery: cleanCode,
-            warehouseId: cleanWarehouseId,
-            limit: 50
-          });
-
-          // Look for exact match in results
-          for (const item of searchResults) {
-            const itemName = item.name?.trim().toLowerCase() || '';
-            const itemCode = item.code?.trim().toLowerCase() || '';
-            const itemColor = item.color?.trim().toLowerCase() || '';
-            
-            if (itemName === cleanName.toLowerCase() && 
-                itemCode === cleanCode.toLowerCase() && 
-                itemColor === cleanColor.toLowerCase() && 
-                item.warehouse_id === cleanWarehouseId) {
-              foundItem = item;
-              console.log('✅ Found via store search:', foundItem);
-              break;
-            }
-          }
-        }
-
-        // METHOD 3: Check local inventory as last resort
-        if (!foundItem) {
-          const localInventory = store.state.inventory || [];
-          for (const item of localInventory) {
-            const itemName = item.name?.trim().toLowerCase() || '';
-            const itemCode = item.code?.trim().toLowerCase() || '';
-            const itemColor = item.color?.trim().toLowerCase() || '';
-            
-            if (itemName === cleanName.toLowerCase() && 
-                itemCode === cleanCode.toLowerCase() && 
-                itemColor === cleanColor.toLowerCase() && 
-                item.warehouse_id === cleanWarehouseId) {
-              foundItem = item;
-              console.log('✅ Found in local inventory:', foundItem);
-              break;
-            }
-          }
-        }
-
         if (foundItem) {
-          console.log('🎯 Setting existing item:', foundItem);
+          console.log('✅ Found existing item in local inventory:', foundItem);
           existingItem.value = foundItem;
-          isUpdatingExisting.value = true;
           
           // Auto-fill photo if available
           if (foundItem.photo_url && !previewPhoto.value) {
             previewPhoto.value = foundItem.photo_url;
           }
           
-          // Auto-fill other fields
-          formData.value.supplier = foundItem.supplier || '';
-          formData.value.item_location = foundItem.item_location || '';
-          formData.value.notes = foundItem.notes || '';
-          
-          // Show update mode summary
-          successMessage.value = '⚠️ تم العثور على صنف موجود. سيتم تحديث الكميات بدلاً من إنشاء صنف جديد.';
+          successMessage.value = '⚠️ تم العثور على صنف موجود. سيتم تحديث الكميات.';
         } else {
-          console.log('❌ No existing item found, will create new');
+          console.log('❌ No existing item found');
           existingItem.value = null;
-          isUpdatingExisting.value = false;
           successMessage.value = '';
         }
       } catch (error) {
-        console.error('❌ Error checking existing item:', error);
+        console.error('Error checking existing item:', error);
         existingItem.value = null;
-        isUpdatingExisting.value = false;
       }
     };
 
@@ -694,7 +615,6 @@ export default {
 
     const resetForm = () => {
       isFormResetting.value = true;
-      isUpdatingExisting.value = false;
       
       const currentWarehouseId = formData.value.warehouse_id;
       
@@ -702,8 +622,7 @@ export default {
         name: '',
         code: '',
         color: '',
-        warehouse_id: currentWarehouseId || (accessibleWarehouses.value.length > 0 ? 
-          (store.getters.mainWarehouse?.id || accessibleWarehouses.value[0].id) : ''),
+        warehouse_id: currentWarehouseId || (accessibleWarehouses.value.length > 0 ? accessibleWarehouses.value[0].id : ''),
         supplier: '',
         item_location: '',
         cartons_count: 0,
@@ -732,7 +651,6 @@ export default {
 
     const clearFormAfterSuccess = () => {
       isFormResetting.value = true;
-      isUpdatingExisting.value = false;
       
       const currentWarehouseId = formData.value.warehouse_id;
       
@@ -869,9 +787,7 @@ export default {
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            setTimeout(() => {
-              resolve(e.target.result);
-            }, 1000);
+            resolve(e.target.result);
           };
           reader.readAsDataURL(selectedFile.value);
         });
@@ -917,7 +833,8 @@ export default {
       }
 
       // Permission check
-      if (!store.getters.canEdit) {
+      const userRole = userProfile.value?.role || '';
+      if (!['superadmin', 'warehouse_manager'].includes(userRole)) {
         errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         return false;
       }
@@ -979,6 +896,7 @@ export default {
       }
     };
 
+    // CRITICAL FIX: Updated handleSubmit with proper store integration
     const handleSubmit = async () => {
       if (!validateForm()) return;
 
@@ -989,33 +907,24 @@ export default {
       try {
         console.log('🚀 SUBMIT STARTED =================================');
         console.log('📋 Form data:', formData.value);
-        console.log('🔍 Existing item status:', {
-          exists: !!existingItem.value,
-          id: existingItem.value?.id,
-          name: existingItem.value?.name,
-          code: existingItem.value?.code
-        });
+        console.log('🔍 Existing item:', existingItem.value);
+        console.log('🎯 isAddingCartons:', isAddingCartons.value);
 
-        // UPLOAD PHOTO LOGIC WITH PROPER URL HANDLING
+        // Handle photo upload
         let photoUrl = null;
         
-        // Case 1: New photo selected
         if (selectedFile.value && previewPhoto.value.startsWith('data:image/')) {
           photoUrl = await uploadPhotoToStorage();
-          console.log('📸 New photo uploaded, URL:', photoUrl ? 'Yes (base64)' : 'No');
-        } 
-        // Case 2: Existing photo from existing item (keep it)
-        else if (existingItem.value?.photo_url) {
+          console.log('📸 New photo uploaded (base64)');
+        } else if (existingItem.value?.photo_url) {
           photoUrl = existingItem.value.photo_url;
-          console.log('🖼️ Using existing item photo:', photoUrl.substring(0, 50) + '...');
-        }
-        // Case 3: Preview photo from clipboard or existing preview
-        else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
+          console.log('🖼️ Using existing item photo');
+        } else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
           photoUrl = previewPhoto.value;
           console.log('📋 Using preview photo (base64)');
         }
 
-        // Prepare item data with proper photo URL handling
+        // Prepare item data for store
         const itemData = {
           name: formData.value.name.trim(),
           code: formData.value.code.trim(),
@@ -1024,45 +933,36 @@ export default {
           cartons_count: Number(formData.value.cartons_count) || 0,
           per_carton_count: Number(formData.value.per_carton_count) || 12,
           single_bottles_count: Number(formData.value.single_bottles_count) || 0,
-          // Optional fields (convert empty strings to null)
           supplier: formData.value.supplier?.trim() || null,
           item_location: formData.value.item_location?.trim() || null,
           notes: formData.value.notes?.trim() || null,
-          // PHOTO URL: Use uploaded photo, existing photo, or null
           photo_url: photoUrl || null,
-          // REQUIRED BY VUEX STORE AND FIRESTORE RULES:
           created_by: currentUserId.value,
           updated_by: currentUserId.value
         };
 
-        // CRITICAL: If updating existing item, add the item ID
+        // CRITICAL: Add existing item ID if found
         if (existingItem.value && existingItem.value.id) {
           itemData.existingItemId = existingItem.value.id;
           itemData.isUpdatingExisting = true;
-          
-          console.log('🔄 WILL UPDATE existing item:', {
-            id: existingItem.value.id,
-            existingItemId: itemData.existingItemId,
-            isUpdatingExisting: itemData.isUpdatingExisting,
-            photoUrlExists: !!photoUrl,
-            photoUrlType: photoUrl ? (photoUrl.startsWith('data:') ? 'base64' : 'url') : 'none'
-          });
+          console.log('🔄 Will update existing item ID:', existingItem.value.id);
         } else {
-          console.log('➕ WILL CREATE new item (no existing item found)');
+          console.log('➕ Will create new item');
         }
 
         console.log('📦 Prepared itemData for store:', {
           ...itemData,
           created_by: 'HIDDEN',
           updated_by: 'HIDDEN',
-          photo_url: itemData.photo_url ? (itemData.photo_url.substring(0, 50) + '...') : 'null'
+          photo_url: itemData.photo_url ? 'EXISTS' : 'null'
         });
 
-        // Call store action
-        console.log('📤 Dispatching to store...');
+        // Call store action with CORRECT parameters
+        console.log('📤 Dispatching to store with isAddingCartons:', isAddingCartons.value);
+        
         const result = await store.dispatch('addInventoryItem', {
           itemData,
-          isAddingCartons: isAddingCartonsComputed.value
+          isAddingCartons: isAddingCartons.value  // CRITICAL: Use computed property
         });
 
         console.log('✅ Store action result:', result);
@@ -1071,59 +971,36 @@ export default {
           throw new Error('No result returned from store action');
         }
 
-        // Show success message
+        // Success message based on result type
         if (result.type === 'updated') {
-          successMessage.value = '✅ تم تحديث الكميات بنجاح!';
-          if (photoUrl && !existingItem.value?.photo_url) {
-            successMessage.value += ' تم إضافة صورة جديدة.';
-          } else if (photoUrl && existingItem.value?.photo_url) {
-            successMessage.value += ' تم تحديث الصورة.';
+          successMessage.value = '✅ تم تحديث الصنف بنجاح!';
+          if (result.cartonsAdded > 0) {
+            successMessage.value += ` تمت إضافة ${result.cartonsAdded} وحدة.`;
+          }
+          if (result.convertedCartons > 0) {
+            successMessage.value += ` تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي.`;
           }
         } else if (result.type === 'created') {
           successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
-          if (photoUrl) {
-            successMessage.value += ' تم إضافة صورة للصنف.';
+          if (result.convertedCartons > 0) {
+            successMessage.value += ` تم تحويل ${result.convertedCartons} كرتون من القزاز الفردي.`;
           }
         } else if (result.success) {
           successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
-        } else {
-          successMessage.value = '✅ تمت العملية بنجاح!';
         }
 
-        // Update local store
-        if (result.item && result.item.id) {
-          store.commit('UPDATE_INVENTORY_ITEM', result.item);
-          console.log('🔄 Item updated in local store');
-        }
+        // Emit success to parent (Inventory component)
+        emit('success', result);
 
-        // Silent background refresh
-        setTimeout(async () => {
-          try {
-            await store.dispatch('refreshInventorySilently');
-            console.log('✅ Inventory silently refreshed');
-          } catch (refreshError) {
-            console.warn('⚠️ Silent refresh failed:', refreshError.message);
-          }
-        }, 500);
-        
         // Clear form after success
         setTimeout(() => {
-          store.dispatch('clearOperationError');
           clearFormAfterSuccess();
         }, 1500);
         
       } catch (error) {
         console.error('❌ ERROR in handleSubmit:', error);
         
-        // Debug: Log the full error
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          stack: error.stack
-        });
-
-        // Display appropriate error message
-        if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('permission-denied')) {
+        if (error.message?.includes('PERMISSION_DENIED')) {
           errorMessage.value = 'ليس لديك صلاحية للقيام بهذه العملية';
         } else if (error.message?.includes('يجب تسجيل الدخول')) {
           errorMessage.value = 'يجب تسجيل الدخول أولاً';
@@ -1131,12 +1008,10 @@ export default {
           errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
         } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
           errorMessage.value = error.message;
-        } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
-          errorMessage.value = 'خطأ في الاتصال بالشبكة';
         } else if (storeOperationError.value) {
           errorMessage.value = storeOperationError.value;
         } else {
-          errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
+          errorMessage.value = `❌ حدث خطأ: ${error.message || 'خطأ غير معروف'}`;
         }
       } finally {
         loading.value = false;
@@ -1187,7 +1062,6 @@ export default {
       singleBottlesInput,
       notesInput,
       submitButton,
-      isUpdatingExisting,
       closeModal,
       handleSubmit,
       resetForm,
@@ -1198,7 +1072,8 @@ export default {
       handlePasteFromClipboard,
       removePhoto,
       focusNextField,
-      handleKeyDown
+      handleKeyDown,
+      getWarehouseLabel
     };
   }
 };
