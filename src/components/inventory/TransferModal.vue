@@ -1054,57 +1054,39 @@ export default {
       loading.value = true
 
       try {
-        // Prepare transfer data EXACTLY as the store expects
+        // ✅ FIXED: Prepare transfer data - ONLY send fields that the store expects
         const transferData = {
-          // REQUIRED FIELDS
+          // REQUIRED FIELDS (must match store expectations)
           item_id: formData.item_id,
           from_warehouse_id: formData.from_warehouse_id,
           to_warehouse_id: formData.to_warehouse_id,
           
-          // QUANTITY FIELDS (store uses these for transaction)
+          // QUANTITY FIELDS (store uses these to calculate transfer)
           cartons_count: formData.cartons_count || 0,
-          per_carton_count: formData.per_carton_count || selectedItem.value?.per_carton_count || 12,
           single_bottles_count: formData.single_bottles_count || 0,
+          // Note: per_carton_count is NOT needed here - store will use item's current per_carton_count
           
-          // ADDITIONAL INFO
-          notes: formData.notes || 'نقل بين المخازن',
-          
-          // ITEM DETAILS (for transaction record)
-          item_name: selectedItem.value.name,
-          item_code: selectedItem.value.code,
-          item_color: selectedItem.value.color,
-          
-          // WAREHOUSE NAMES (for transaction record)
-          from_warehouse_name: getWarehouseName(formData.from_warehouse_id),
-          to_warehouse_name: getWarehouseName(formData.to_warehouse_id),
-          
-          // USER INFO
-          user_id: store.state.user?.uid,
-          user_role: userProfile.value?.role,
-          user_name: userProfile.value?.name
+          // OPTIONAL FIELD
+          notes: formData.notes || 'نقل بين المخازن'
         }
 
-        console.log('📦 DEBUG - Transfer data being sent:', {
+        console.log('📦 SENDING TRANSFER DATA:', {
           item_id: transferData.item_id,
           from_warehouse_id: transferData.from_warehouse_id,
           to_warehouse_id: transferData.to_warehouse_id,
           cartons_count: transferData.cartons_count,
           single_bottles_count: transferData.single_bottles_count,
           total_quantity: totalRequestedQuantity.value,
-          hasFields: {
-            item_id: !!transferData.item_id,
-            from_warehouse_id: !!transferData.from_warehouse_id,
-            to_warehouse_id: !!transferData.to_warehouse_id,
-            cartons_count: !!transferData.cartons_count,
-            single_bottles_count: !!transferData.single_bottles_count
-          }
+          notes: transferData.notes
         })
 
-        // Use the store transfer action
+        // ✅ Use the store's transferItem action
         const result = await store.dispatch('transferItem', transferData)
 
-        if (result?.id) {
-          successMessage.value = 'تم نقل الصنف بنجاح'
+        console.log('✅ TRANSFER RESULT:', result)
+
+        if (result?.success) {
+          successMessage.value = `✅ تم نقل ${result.transferTotalQuantity} وحدة بنجاح!`
           
           // Reset form after successful transfer
           resetForm()
@@ -1115,17 +1097,33 @@ export default {
             emit('close')
           }, 1500)
         } else {
-          throw new Error('فشل في عملية النقل')
+          throw new Error('فشل في عملية النقل: لم يتم إرجاع نتيجة ناجحة')
         }
         
       } catch (err) {
-        console.error('❌ Transfer Modal - Error:', err)
-        error.value = err.message || 'فشل في عملية النقل. يرجى المحاولة مرة أخرى.'
+        console.error('❌ TRANSFER ERROR DETAILS:', err)
+        console.error('❌ Error stack:', err.stack)
         
-        // More detailed error message
-        if (err.message.includes('غير مكتملة')) {
+        // Better error messages
+        if (err.message.includes('بيانات النقل غير مكتملة')) {
           error.value = 'بيانات النقل غير مكتملة. يرجى التحقق من جميع الحقول المطلوبة.'
+        } else if (err.message.includes('غير مكتملة')) {
+          error.value = 'بيانات النقل غير مكتملة. يرجى التحقق من جميع الحقول المطلوبة.'
+        } else if (err.message.includes('ليس لديك صلاحية')) {
+          error.value = 'ليس لديك صلاحية لإجراء عملية النقل.'
+        } else if (err.message.includes('الصنف ليس في المخزن المصدر')) {
+          error.value = 'الصنف المحدد ليس في المخزن المصدر. ربما تم نقله مؤخراً.'
+        } else if (err.message.includes('أكبر من المتاح')) {
+          error.value = 'الكمية المطلوبة تتجاوز الكمية المتاحة. يرجى التحقق من الكمية.'
+        } else {
+          error.value = `فشل في عملية النقل: ${err.message || 'يرجى المحاولة مرة أخرى'}`
         }
+        
+        // Show notification for better UX
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.value
+        })
       } finally {
         loading.value = false
       }
