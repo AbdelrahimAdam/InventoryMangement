@@ -5032,6 +5032,317 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
   }
 },
 // ============================================
+// SIMPLE CREATE USER ACTION (EXACT MATCH TO MODAL)
+// ============================================
+async createUser({ commit, state, dispatch }, userData) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
+
+  try {
+    console.log('🔄 CREATE USER - SIMPLE MATCH:', {
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      permissions: userData.permissions?.length || 0,
+      warehouses: userData.allowedWarehouses?.length || 0,
+      allWarehouses: userData.allWarehouses
+    });
+
+    // 🔴 1. ONLY SUPERADMIN CAN CREATE USERS
+    if (state.userProfile?.role !== 'superadmin') {
+      throw new Error('فقط المشرف العام يمكنه إنشاء مستخدمين');
+    }
+
+    // 🔴 2. CHECK REQUIRED FIELDS
+    if (!userData.name?.trim() || !userData.email?.trim() || !userData.role) {
+      throw new Error('الاسم والبريد والدور مطلوبون');
+    }
+
+    // 🔴 3. CHECK EMAIL
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userData.email)) {
+      throw new Error('البريد الإلكتروني غير صالح');
+    }
+
+    // Check if email exists
+    const usersRef = collection(db, 'users');
+    const emailQuery = query(usersRef, where('email', '==', userData.email.toLowerCase().trim()), limit(1));
+    const emailSnapshot = await getDocs(emailQuery);
+    
+    if (!emailSnapshot.empty) {
+      throw new Error('البريد الإلكتروني مستخدم بالفعل');
+    }
+
+    // 🔴 4. CHECK WAREHOUSES (from modal's checkboxes)
+    let allowedWarehouses = {};
+    
+    if (userData.allWarehouses === true) {
+      allowedWarehouses = { all: true };
+    } else if (userData.allowedWarehouses && Array.isArray(userData.allowedWarehouses) && userData.allowedWarehouses.length > 0) {
+      userData.allowedWarehouses.forEach(warehouseId => {
+        allowedWarehouses[warehouseId] = true;
+      });
+    } else {
+      throw new Error('يجب تحديد المخازن المسموح بها');
+    }
+
+    console.log('🏭 Warehouse access:', allowedWarehouses);
+
+    // 🔴 5. CHECK PERMISSIONS (from modal's checkboxes)
+    const permissions = userData.permissions || [];
+    
+    if (permissions.length === 0) {
+      throw new Error('يجب تحديد صلاحيات للمستخدم');
+    }
+
+    console.log('🔑 Permissions from modal:', permissions);
+
+    // 🔴 6. ALWAYS ADD VIEW PERMISSIONS (default for all users)
+    const defaultViewPermissions = [
+      'view_items',      // View items in allowed warehouses
+      'view_invoices',   // View invoices
+      'view_reports',    // View reports
+      'view_movements'   // View item movements
+    ];
+
+    // Combine selected + default view permissions
+    const allPermissions = [...new Set([...defaultViewPermissions, ...permissions])];
+
+    console.log('✅ Final permissions:', {
+      selected: permissions.length,
+      defaults: defaultViewPermissions.length,
+      total: allPermissions.length
+    });
+
+    // 🔴 7. CREATE FIREBASE AUTH USER
+    const { createUserWithEmailAndPassword } = await import('firebase/auth');
+
+    let password = userData.password;
+    if (!password || password === 'auto') {
+      // Simple password generation
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      password = Array.from(crypto.getRandomValues(new Uint32Array(10)))
+        .map(value => chars[value % chars.length])
+        .join('');
+    }
+
+    const userCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
+    const firebaseUser = userCredential.user;
+
+    // 🔴 8. SAVE USER TO FIRESTORE (EXACT MATCH TO MODAL DATA)
+    const userDoc = {
+      // Basic info (from modal)
+      id: firebaseUser.uid,
+      uid: firebaseUser.uid,
+      name: userData.name.trim(),
+      email: userData.email.trim().toLowerCase(),
+      role: userData.role,
+      
+      // Permissions (from modal checkboxes + defaults)
+      permissions: allPermissions,
+      
+      // Warehouses (from modal checkboxes)
+      allowed_warehouses: allowedWarehouses,
+      
+      // Contact info (from modal)
+      phone: userData.phone || '',
+      phoneCountryCode: userData.phoneCountryCode || '+966',
+      
+      // Account settings (from modal)
+      is_active: userData.isActive !== false,
+      two_factor_enabled: userData.twoFactorEnabled || false,
+      
+      // Notes (from modal)
+      notes: userData.notes || '',
+      
+      // Timestamps
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+      created_by: state.user.uid,
+      created_by_name: state.userProfile?.name || state.user?.email,
+      
+      // Simple metadata
+      last_login: null,
+      login_count: 0
+    };
+
+    console.log('💾 Saving user to Firestore...');
+    await setDoc(doc(db, 'users', firebaseUser.uid), userDoc);
+
+    // 🔴 9. UPDATE LOCAL STATE
+    const newUser = {
+      id: firebaseUser.uid,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      permissions: allPermissions,
+      allowed_warehouses: allowedWarehouses,
+      is_active: userData.isActive !== false,
+      created_at: new Date().toISOString()
+    };
+
+    commit('SET_ALL_USERS', [...state.allUsers, newUser]);
+
+    // 🔴 10. SHOW SUCCESS
+    const warehouseText = userData.allWarehouses ? 
+      'جميع المخازن' : 
+      `${Object.keys(allowedWarehouses).length} مخزن`;
+
+    dispatch('showNotification', {
+      type: 'success',
+      message: `تم إنشاء ${userData.name}<br>الصلاحيات: ${permissions.length}<br>المخازن: ${warehouseText}`,
+      timeout: 8000,
+      html: true
+    });
+
+    // 🔴 11. RETURN RESULT (exact match what modal expects)
+    return {
+      success: true,
+      user: newUser,
+      password: userData.sendWelcomeEmail ? null : password,
+      message: 'تم إنشاء المستخدم بنجاح'
+    };
+
+  } catch (error) {
+    console.error('❌ CREATE USER ERROR:', error);
+
+    let errorMessage = error.message;
+    
+    // Simple Arabic error messages
+    if (error.code === 'auth/email-already-in-use') {
+      errorMessage = 'البريد مستخدم بالفعل';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'بريد غير صالح';
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = 'كلمة مرور ضعيفة';
+    }
+
+    commit('SET_OPERATION_ERROR', errorMessage);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: errorMessage,
+      timeout: 5000
+    });
+
+    return {
+      success: false,
+      message: errorMessage
+    };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
+// ============================================
+// SIMPLE UPDATE USER ACTION (EXACT MATCH TO MODAL)
+// ============================================
+async updateUser({ commit, state, dispatch }, { userId, userData }) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
+
+  try {
+    console.log('🔄 UPDATE USER - SIMPLE:', {
+      userId,
+      name: userData.name,
+      role: userData.role,
+      permissions: userData.permissions?.length || 0
+    });
+
+    // 🔴 1. CHECK PERMISSIONS
+    if (state.userProfile?.role !== 'superadmin') {
+      throw new Error('فقط المشرف العام يمكنه تعديل المستخدمين');
+    }
+
+    // 🔴 2. GET EXISTING USER
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      throw new Error('المستخدم غير موجود');
+    }
+
+    const existingUser = userDoc.data();
+
+    // 🔴 3. PREPARE UPDATE DATA (EXACT FROM MODAL)
+    const updateData = {
+      updated_at: serverTimestamp(),
+      updated_by: state.user.uid
+    };
+
+    // Add fields from modal
+    if (userData.name !== undefined) updateData.name = userData.name.trim();
+    if (userData.role !== undefined) updateData.role = userData.role;
+    if (userData.phone !== undefined) updateData.phone = userData.phone;
+    if (userData.isActive !== undefined) updateData.is_active = userData.isActive;
+    if (userData.notes !== undefined) updateData.notes = userData.notes;
+
+    // 🔴 4. HANDLE PERMISSIONS (from modal checkboxes)
+    if (userData.permissions !== undefined) {
+      const defaultViewPermissions = ['view_items', 'view_invoices', 'view_reports', 'view_movements'];
+      const allPermissions = [...new Set([...defaultViewPermissions, ...userData.permissions])];
+      updateData.permissions = allPermissions;
+    }
+
+    // 🔴 5. HANDLE WAREHOUSES (from modal checkboxes)
+    if (userData.allowedWarehouses !== undefined || userData.allWarehouses !== undefined) {
+      let allowedWarehouses = {};
+      
+      if (userData.allWarehouses === true) {
+        allowedWarehouses = { all: true };
+      } else if (userData.allowedWarehouses && Array.isArray(userData.allowedWarehouses)) {
+        userData.allowedWarehouses.forEach(warehouseId => {
+          allowedWarehouses[warehouseId] = true;
+        });
+      }
+      
+      updateData.allowed_warehouses = allowedWarehouses;
+    }
+
+    console.log('💾 Updating user with:', updateData);
+
+    // 🔴 6. UPDATE FIRESTORE
+    await updateDoc(userRef, updateData);
+
+    // 🔴 7. UPDATE LOCAL STATE
+    const updatedUser = { ...existingUser, ...updateData, id: userId };
+    const updatedUsers = state.allUsers.map(user => 
+      user.id === userId ? updatedUser : user
+    );
+    
+    commit('SET_ALL_USERS', updatedUsers);
+
+    // 🔴 8. SHOW SUCCESS
+    dispatch('showNotification', {
+      type: 'success',
+      message: `تم تحديث ${userData.name || 'المستخدم'}`,
+      timeout: 5000
+    });
+
+    return {
+      success: true,
+      user: updatedUser
+    };
+
+  } catch (error) {
+    console.error('❌ UPDATE ERROR:', error);
+    
+    commit('SET_OPERATION_ERROR', error.message);
+    
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'فشل التحديث',
+      timeout: 5000
+    });
+
+    return {
+      success: false,
+      message: error.message
+    };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},    
+// ============================================
 // UPDATED: DISPATCH ITEM ACTION (With Detailed Field Updates)
 // ============================================
 async dispatchItem({ commit, state, dispatch }, dispatchData) {
