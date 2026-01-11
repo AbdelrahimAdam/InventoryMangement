@@ -267,6 +267,9 @@
                 <!-- Warehouse Info -->
                 <div v-if="selectedWarehouseForInvoice" class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 sm:gap-2">
                   <span>المخزن: {{ getWarehouseLabel(selectedWarehouseForInvoice) }}</span>
+                  <span v-if="totalItemsInWarehouse > 0" class="text-green-600 dark:text-green-400">
+                    ({{ totalItemsInWarehouse }} صنف متاح)
+                  </span>
                 </div>
                 
                 <!-- Error message if no warehouses available -->
@@ -279,7 +282,7 @@
               </div>
             </div>
 
-            <!-- Step 3: Add Items - Mobile Optimized -->
+            <!-- Step 3: Add Items - Mobile Optimized with SPARK Search -->
             <div>
               <div class="flex items-center justify-between mb-2 sm:mb-3">
                 <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
@@ -287,18 +290,18 @@
                   إضافة الأصناف للفاتورة
                 </h4>
                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ availableItemsForInvoice.length }} صنف متاح
+                  {{ filteredSearchResults.length }} صنف متطابق
                 </div>
               </div>
 
-              <!-- Search Items -->
+              <!-- Search Items - Enhanced with SPARK Search System -->
               <div class="relative mb-3 sm:mb-4">
                 <input 
                   v-model="itemSearch" 
-                  @input="searchItems" 
+                  @input="debouncedSearchItems"
                   type="text" 
                   class="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  placeholder="ابحث عن صنف..."
+                  placeholder="ابحث عن صنف بالاسم، الكود، اللون، المورد، المخزن..."
                   :disabled="!selectedWarehouseForInvoice"
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -306,49 +309,96 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
                 </div>
+                <div v-if="searchingItems" class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                  <div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
               </div>
 
-              <!-- Available Items Grid - Responsive -->
-              <div v-if="availableItemsForInvoice.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <!-- Search Stats and Source -->
+              <div v-if="itemSearch.trim() && filteredSearchResults.length > 0" class="mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center flex-wrap gap-2">
+                <span>🔍 بحث: "{{ itemSearch }}"</span>
+                <span>•</span>
+                <span>تم العثور على {{ filteredSearchResults.length }} صنف</span>
+                <span v-if="lastSearchSource" class="flex items-center gap-1">
+                  • <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs">
+                    {{ getSearchSourceLabel(lastSearchSource) }}
+                  </span>
+                </span>
+                <span v-if="searchingItems" class="flex items-center gap-1">
+                  • <span class="animate-pulse text-blue-500">جاري البحث...</span>
+                </span>
+              </div>
+
+              <!-- Available Items Grid - Enhanced with SPARK Search -->
+              <div v-if="filteredSearchResults.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div 
-                  v-for="item in availableItemsForInvoice" 
+                  v-for="item in filteredSearchResults" 
                   :key="item.id"
                   @click="addItemToInvoice(item)"
                   class="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
-                      <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</p>
+                      <!-- Item Name and Code -->
+                      <div class="flex items-start gap-2">
+                        <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
+                        <span v-if="item.code" class="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full flex-shrink-0">
+                          {{ item.code }}
+                        </span>
+                      </div>
+                      
+                      <!-- Item Details -->
                       <div class="mt-2 flex items-center flex-wrap gap-1">
                         <span :class="['text-xs px-1.5 sm:px-2 py-0.5 rounded', getQuantityClass(item.remaining_quantity)]">
                           {{ formatNumber(item.remaining_quantity) }} متبقي
                         </span>
                         <span class="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
-                          السعر: {{ formatCurrency(item.sale_price || 0) }}
+                          السعر: {{ formatCurrency(item.sale_price || item.unitPrice || 0) }}
+                        </span>
+                      </div>
+                      
+                      <!-- Warehouse and Additional Details -->
+                      <div v-if="item.warehouse_id || item.color || item.supplier" class="mt-2 flex items-center flex-wrap gap-1">
+                        <span v-if="item.warehouse_id" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded truncate">
+                          {{ getWarehouseLabel(item.warehouse_id) }}
+                        </span>
+                        <span v-if="item.color" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                          {{ item.color }}
+                        </span>
+                        <span v-if="item.supplier" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded truncate">
+                          {{ item.supplier }}
                         </span>
                       </div>
                     </div>
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0 mr-1 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <!-- No Items Available -->
-              <div v-else-if="selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+              <!-- Search Results Empty State -->
+              <div v-else-if="itemSearch.trim() && !searchingItems" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
                 </svg>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 sm:mt-3">لا توجد أصناف</h4>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 sm:mt-3">لا توجد أصناف مطابقة</h4>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {{ itemSearch ? 'لا توجد أصناف مطابقة للبحث' : 'لا توجد أصناف متاحة في هذا المخزن' }}
+                  لم يتم العثور على أصناف تطابق "{{ itemSearch }}"
                 </p>
+                <div class="mt-3 text-xs text-gray-500 dark:text-gray-400 text-right">
+                  <p class="font-medium mb-1">جرب البحث بـ:</p>
+                  <ul class="space-y-1">
+                    <li>• الاسم: {{ itemSearch }} الأحمر</li>
+                    <li>• الكود: INV-{{ itemSearch.toUpperCase() }}</li>
+                    <li>• المورد: {{ itemSearch }}</li>
+                    <li>• المخزن: {{ getWarehouseLabel(selectedWarehouseForInvoice) }}</li>
+                  </ul>
+                </div>
               </div>
 
               <!-- Please Select Warehouse -->
-              <div v-else class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+              <div v-else-if="!selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
@@ -356,6 +406,36 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   يرجى اختيار مخزن لعرض الأصناف المتاحة
                 </p>
+              </div>
+
+              <!-- Empty Warehouse -->
+              <div v-else-if="selectedWarehouseForInvoice && filteredSearchResults.length === 0 && !itemSearch.trim()" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 sm:p-6 text-center">
+                <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-yellow-400 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
+                </svg>
+                <h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mt-2 sm:mt-3">المخزن فارغ</h4>
+                <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  لا توجد أصناف متاحة في مخزن {{ getWarehouseLabel(selectedWarehouseForInvoice) }}
+                </p>
+                <div class="mt-3">
+                  <button @click="searchAllWarehouses = !searchAllWarehouses" class="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+                    {{ searchAllWarehouses ? 'البحث في المخزن الحالي فقط' : 'البحث في جميع المخازن' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Search Tips -->
+              <div v-if="!itemSearch.trim() && selectedWarehouseForInvoice" class="mt-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <p class="font-medium mb-1 flex items-center gap-1">💡 نصائح البحث:</p>
+                <ul class="space-y-1 text-right">
+                  <li>• ابحث بالاسم، الكود، اللون، المورد، أو المخزن</li>
+                  <li>• البحث يدعم اللغة العربية والإنجليزية</li>
+                  <li>• أدخل 2 أحرف على الأقل للبدء</li>
+                  <li>• البحث الذكي يتطابق مع أي جزء من الاسم</li>
+                  <li v-if="searchAllWarehouses" class="text-blue-600 dark:text-blue-400">
+                    • البحث حالياً يشمل جميع المخازن
+                  </li>
+                </ul>
               </div>
             </div>
 
@@ -392,6 +472,9 @@
                         <div class="flex-1 min-w-0">
                           <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
                           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</p>
+                          <div v-if="item.warehouseId" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            المخزن: {{ getWarehouseLabel(item.warehouseId) }}
+                          </div>
                         </div>
                         <button @click="removeItem(index)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2 flex-shrink-0">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -482,6 +565,9 @@
                       <div class="col-span-4 p-3">
                         <div class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ item.name }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{{ item.code }}</div>
+                        <div v-if="item.warehouseId" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          المخزن: {{ getWarehouseLabel(item.warehouseId) }}
+                        </div>
                       </div>
 
                       <!-- Unit Price -->
@@ -1488,7 +1574,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
@@ -1528,7 +1613,7 @@ export default {
     const realtimeUnsubscribe = ref(null);
     
     // ============================================
-    // SECTION 2: INVOICE SYSTEM STATE
+    // SECTION 2: INVOICE SYSTEM STATE WITH SPARK SEARCH
     // ============================================
     const showInvoiceSystem = ref(false);
     const showInvoiceForm = ref(false);
@@ -1540,6 +1625,13 @@ export default {
     const currentPage = ref(1);
     const itemsPerPageInvoices = ref(10);
     const selectedWarehouseForInvoice = ref('');
+    
+    // SPARK Search specific state
+    const searchingItems = ref(false);
+    const searchResults = ref([]);
+    const lastSearchSource = ref('');
+    const searchAllWarehouses = ref(false);
+    const searchDebounceTimeout = ref(null);
     
     // Invoice Form State
     const invoiceForm = ref({
@@ -1559,10 +1651,9 @@ export default {
     
     const editingInvoice = ref(null);
     const invoices = ref([]);
-    const availableItemsForInvoice = ref([]);
     
     // ============================================
-    // SECTION 3: COMPUTED PROPERTIES FROM STORE - UPDATED
+    // SECTION 3: COMPUTED PROPERTIES FROM STORE
     // ============================================
     // User properties from store
     const userRole = computed(() => store.getters.userRole || '');
@@ -1574,10 +1665,10 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // Store getters - UPDATED to use new logic
+    // Store getters
     const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
     
-    // FIXED: Use accessibleWarehouses getter instead of dispatchFromWarehouses
+    // Use accessibleWarehouses getter
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
     
     // For invoice system: show all warehouses that the user has access to
@@ -1592,7 +1683,7 @@ export default {
     
     const canViewDispatches = computed(() => store.getters.isAuthenticated);
     
-    // FIXED: Check if user can dispatch based on permissions
+    // Check if user can dispatch based on permissions
     const canPerformDispatch = computed(() => {
       return store.getters.canDispatch || 
              userRole.value === 'superadmin' || 
@@ -1600,7 +1691,37 @@ export default {
     });
     
     // ============================================
-    // SECTION 4: ORIGINAL DISPATCH COMPUTED PROPERTIES
+    // SECTION 4: SPARK SEARCH COMPUTED PROPERTIES
+    // ============================================
+    // Filter search results based on selected warehouse
+    const filteredSearchResults = computed(() => {
+      if (!searchResults.value.length) {
+        return [];
+      }
+      
+      // If no warehouse selected or search all warehouses enabled, return all results
+      if (!selectedWarehouseForInvoice.value || searchAllWarehouses.value) {
+        return searchResults.value;
+      }
+      
+      // Filter results based on selected warehouse
+      return searchResults.value.filter(item => {
+        return item.warehouse_id === selectedWarehouseForInvoice.value;
+      });
+    });
+    
+    // Count items in selected warehouse
+    const totalItemsInWarehouse = computed(() => {
+      if (!selectedWarehouseForInvoice.value) return 0;
+      
+      return allInventory.value.filter(item => 
+        item.remaining_quantity > 0 && 
+        item.warehouse_id === selectedWarehouseForInvoice.value
+      ).length;
+    });
+    
+    // ============================================
+    // SECTION 5: ORIGINAL DISPATCH COMPUTED PROPERTIES
     // ============================================
     // Dispatch transactions (type = 'DISPATCH')
     const dispatchTransactions = computed(() => {
@@ -1747,7 +1868,7 @@ export default {
     const hasFilters = computed(() => historySearch.value.trim() || historyWarehouseFilter.value || dateFilter.value !== 'all');
     
     // ============================================
-    // SECTION 5: INVOICE SYSTEM COMPUTED PROPERTIES
+    // SECTION 6: INVOICE SYSTEM COMPUTED PROPERTIES
     // ============================================
     const totalInvoices = computed(() => invoices.value.length);
     
@@ -1845,7 +1966,7 @@ export default {
     });
     
     // ============================================
-    // SECTION 6: UTILITY FUNCTIONS
+    // SECTION 7: UTILITY FUNCTIONS
     // ============================================
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -1927,6 +2048,16 @@ export default {
       return labels[filter] || filter;
     };
     
+    const getSearchSourceLabel = (source) => {
+      const labels = {
+        'cache': 'ذاكرة التخزين',
+        'firebase': 'القاعدة الكاملة',
+        'local_fallback': 'بحث محلي',
+        'warehouse_load': 'تحميل من المخزن'
+      };
+      return labels[source] || source;
+    };
+    
     const calculateDispatchValue = (dispatch) => {
       const quantity = Math.abs(dispatch.total_delta || 0);
       const pricePerItem = 50;
@@ -1988,7 +2119,203 @@ export default {
     };
     
     // ============================================
-    // SECTION 7: ORIGINAL DISPATCH ACTIONS
+    // SECTION 8: SPARK SEARCH FUNCTIONS
+    // ============================================
+    const debouncedSearchItems = () => {
+      if (searchDebounceTimeout.value) {
+        clearTimeout(searchDebounceTimeout.value);
+      }
+      
+      searchDebounceTimeout.value = setTimeout(() => {
+        searchItemsWithSpark();
+      }, 300);
+    };
+    
+    const searchItemsWithSpark = async () => {
+      if (!itemSearch.value.trim() || itemSearch.value.trim().length < 2) {
+        searchResults.value = [];
+        lastSearchSource.value = '';
+        return;
+      }
+
+      searchingItems.value = true;
+
+      try {
+        console.log(`🔍 SPARK Searching for: "${itemSearch.value}"`);
+        
+        // Determine search parameters
+        const searchQuery = itemSearch.value.trim();
+        const warehouseId = searchAllWarehouses.value ? null : selectedWarehouseForInvoice.value;
+        
+        // Try to use store's SPARK search functionality
+        let results = [];
+        let source = '';
+        
+        if (store.dispatch && typeof store.dispatch === 'function') {
+          try {
+            // Try the comprehensive SPARK search first
+            const searchResult = await store.dispatch('searchInventorySpark', {
+              searchQuery,
+              warehouseId,
+              limit: 100,
+              strategy: 'firebase_first'
+            });
+            
+            results = searchResult || [];
+            source = 'firebase';
+            
+            // Fallback to local search if firebase returns empty
+            if (results.length === 0) {
+              console.log('Firebase search returned empty, trying local search...');
+              const localResults = await store.dispatch('searchLocalSpark', {
+                query: searchQuery,
+                warehouseId,
+                limit: 50
+              });
+              
+              if (localResults && localResults.length > 0) {
+                results = localResults;
+                source = 'local_fallback';
+              }
+            }
+          } catch (error) {
+            console.error('SPARK search error:', error);
+            
+            // Fallback to local search
+            const localResults = await store.dispatch('searchLocalSpark', {
+              query: searchQuery,
+              warehouseId,
+              limit: 50
+            });
+            
+            results = localResults || [];
+            source = 'local_fallback';
+          }
+        } else {
+          // Fallback to basic local search if store doesn't have SPARK search
+          results = performBasicLocalSearch(searchQuery, warehouseId);
+          source = 'cache';
+        }
+        
+        // Format results for display
+        searchResults.value = results.map(item => {
+          return {
+            id: item.id,
+            name: item.name || '',
+            code: item.code || '',
+            color: item.color || '',
+            supplier: item.supplier || '',
+            warehouse_id: item.warehouse_id || '',
+            remaining_quantity: item.remaining_quantity || 0,
+            sale_price: item.sale_price || item.unitPrice || 0,
+            cartons_count: item.cartons_count || 0,
+            single_bottles_count: item.single_bottles_count || 0,
+            per_carton_count: item.per_carton_count || 12,
+            item_location: item.item_location || '',
+            notes: item.notes || '',
+            updated_at: item.updated_at || null
+          };
+        });
+        
+        lastSearchSource.value = source;
+        
+        console.log(`✅ SPARK Search completed: Found ${searchResults.value.length} items from ${source}`);
+        
+      } catch (error) {
+        console.error('❌ Error in SPARK search:', error);
+        
+        // Ultimate fallback to basic filtering
+        searchResults.value = performBasicLocalSearch(itemSearch.value.trim(), selectedWarehouseForInvoice.value);
+        lastSearchSource.value = 'cache';
+        
+        store.dispatch('showNotification', {
+          type: 'warning',
+          message: 'البحث المحدود - استخدمنا البيانات المحلية'
+        });
+      } finally {
+        searchingItems.value = false;
+      }
+    };
+    
+    const performBasicLocalSearch = (searchQuery, warehouseId) => {
+      let items = allInventory.value.filter(item => item.remaining_quantity > 0);
+      
+      if (warehouseId) {
+        items = items.filter(item => item.warehouse_id === warehouseId);
+      }
+      
+      if (searchQuery) {
+        const term = searchQuery.toLowerCase().trim();
+        items = items.filter(item => 
+          item.name?.toLowerCase().includes(term) ||
+          item.code?.toLowerCase().includes(term) ||
+          item.color?.toLowerCase().includes(term) ||
+          item.supplier?.toLowerCase().includes(term)
+        );
+      }
+      
+      // Filter out items already in the invoice
+      const currentItemIds = new Set(invoiceForm.value.items.map(item => item.id));
+      items = items.filter(item => !currentItemIds.has(item.id));
+      
+      return items.sort((a, b) => b.remaining_quantity - a.remaining_quantity);
+    };
+    
+    const loadWarehouseItems = async () => {
+      if (!selectedWarehouseForInvoice.value) {
+        searchResults.value = [];
+        return;
+      }
+
+      // If there's a search term, use SPARK search functionality
+      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
+        await searchItemsWithSpark();
+        return;
+      }
+
+      // Otherwise, load all items from the selected warehouse
+      searchingItems.value = true;
+
+      try {
+        console.log(`📦 Loading items for warehouse: ${selectedWarehouseForInvoice.value}`);
+        
+        let results = [];
+        
+        // Try to use store's enhanced search with empty query
+        if (store.dispatch && typeof store.dispatch === 'function') {
+          try {
+            const searchResult = await store.dispatch('searchFirebaseSparkEnhanced', {
+              query: '', // Empty query to get all items
+              warehouseId: selectedWarehouseForInvoice.value,
+              limit: 200
+            });
+            
+            results = searchResult || [];
+            lastSearchSource.value = 'warehouse_load';
+          } catch (error) {
+            console.error('Error loading warehouse items with SPARK:', error);
+            results = performBasicLocalSearch('', selectedWarehouseForInvoice.value);
+            lastSearchSource.value = 'cache';
+          }
+        } else {
+          results = performBasicLocalSearch('', selectedWarehouseForInvoice.value);
+          lastSearchSource.value = 'cache';
+        }
+        
+        searchResults.value = results;
+        
+        console.log(`✅ Loaded ${results.length} items from warehouse`);
+        
+      } catch (error) {
+        console.error('❌ Error loading warehouse items:', error);
+        searchResults.value = [];
+      } finally {
+        searchingItems.value = false;
+      }
+    };
+    
+    // ============================================
+    // SECTION 9: ORIGINAL DISPATCH ACTIONS
     // ============================================
     const selectItemForDispatch = (item) => {
       if (!canPerformDispatch.value) {
@@ -2255,7 +2582,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 8: INVOICE SYSTEM ACTIONS
+    // SECTION 10: INVOICE SYSTEM ACTIONS
     // ============================================
     const toggleInvoiceSystem = () => {
       showInvoiceSystem.value = !showInvoiceSystem.value;
@@ -2280,7 +2607,10 @@ export default {
         status: 'draft'
       };
       selectedWarehouseForInvoice.value = '';
-      availableItemsForInvoice.value = [];
+      itemSearch.value = '';
+      searchResults.value = [];
+      lastSearchSource.value = '';
+      searchAllWarehouses.value = false;
       editingInvoice.value = null;
       showInvoiceForm.value = true;
     };
@@ -2292,6 +2622,9 @@ export default {
         items: invoice.items.map(item => ({ ...item }))
       };
       selectedWarehouseForInvoice.value = invoice.warehouseId;
+      itemSearch.value = '';
+      searchResults.value = [];
+      lastSearchSource.value = '';
       editingInvoice.value = invoice;
       showInvoiceForm.value = true;
       loadWarehouseItems();
@@ -2314,7 +2647,10 @@ export default {
         status: 'draft'
       };
       selectedWarehouseForInvoice.value = '';
-      availableItemsForInvoice.value = [];
+      itemSearch.value = '';
+      searchResults.value = [];
+      lastSearchSource.value = '';
+      searchAllWarehouses.value = false;
       editingInvoice.value = null;
     };
     
@@ -2322,37 +2658,6 @@ export default {
       if (invoiceForm.value.type !== 'B2B') {
         invoiceForm.value.customer.taxId = '';
       }
-    };
-    
-    const loadWarehouseItems = () => {
-      if (!selectedWarehouseForInvoice.value) {
-        availableItemsForInvoice.value = [];
-        return;
-      }
-      
-      let items = allInventory.value.filter(item => 
-        item.remaining_quantity > 0 && 
-        item.warehouse_id === selectedWarehouseForInvoice.value
-      );
-      
-      // Filter out items already in the invoice
-      const currentItemIds = new Set(invoiceForm.value.items.map(item => item.id));
-      items = items.filter(item => !currentItemIds.has(item.id));
-      
-      // Apply search filter if any
-      if (itemSearch.value.trim()) {
-        const term = itemSearch.value.toLowerCase().trim();
-        items = items.filter(item => 
-          item.name?.toLowerCase().includes(term) ||
-          item.code?.toLowerCase().includes(term)
-        );
-      }
-      
-      availableItemsForInvoice.value = items.sort((a, b) => b.remaining_quantity - a.remaining_quantity);
-    };
-    
-    const searchItems = () => {
-      loadWarehouseItems();
     };
     
     const addItemToInvoice = (item) => {
@@ -2376,17 +2681,20 @@ export default {
           });
         }
       } else {
-        // Add new item
+        // Add new item with complete data from SPARK search
         invoiceForm.value.items.push({
           id: item.id,
           name: item.name,
           code: item.code,
-          unitPrice: item.sale_price || 0,
+          unitPrice: item.sale_price || item.unitPrice || 0,
           quantity: 1,
           discount: 0,
-          total: item.sale_price || 0,
+          total: item.sale_price || item.unitPrice || 0,
           maxQuantity: item.remaining_quantity,
-          warehouseId: item.warehouse_id
+          warehouseId: item.warehouse_id,
+          color: item.color,
+          supplier: item.supplier,
+          originalItem: item
         });
         
         store.dispatch('showNotification', {
@@ -2395,14 +2703,29 @@ export default {
         });
       }
       
-      // Remove from available items
-      loadWarehouseItems();
+      // Remove from search results
+      searchResults.value = searchResults.value.filter(i => i.id !== item.id);
+      
+      // Refresh search if there's still a search term
+      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
+        searchItemsWithSpark();
+      } else {
+        loadWarehouseItems();
+      }
     };
     
     const removeItem = (index) => {
       const itemName = invoiceForm.value.items[index].name;
+      const removedItem = invoiceForm.value.items[index];
+      
       invoiceForm.value.items.splice(index, 1);
-      loadWarehouseItems();
+      
+      // Refresh search to include the removed item again
+      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
+        searchItemsWithSpark();
+      } else {
+        loadWarehouseItems();
+      }
       
       store.dispatch('showNotification', {
         type: 'info',
@@ -3196,7 +3519,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 9: DATA LOADING FUNCTIONS
+    // SECTION 11: DATA LOADING FUNCTIONS
     // ============================================
     const loadInvoices = async () => {
       try {
@@ -3302,7 +3625,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 10: LIFECYCLE HOOKS
+    // SECTION 12: LIFECYCLE HOOKS AND WATCHERS
     // ============================================
     onMounted(() => {
       console.log('Dispatch page with invoices mounted');
@@ -3313,13 +3636,45 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value);
       }
+      if (searchDebounceTimeout.value) {
+        clearTimeout(searchDebounceTimeout.value);
+      }
       if (realtimeUnsubscribe.value) {
         realtimeUnsubscribe.value();
       }
     });
     
-    watch(() => [allInventory.value, allTransactions.value], () => {
-      // Data updates are handled by real-time listener
+    // Watch for warehouse changes to reload items
+    watch(selectedWarehouseForInvoice, () => {
+      if (selectedWarehouseForInvoice.value) {
+        if (itemSearch.value.trim()) {
+          searchItemsWithSpark();
+        } else {
+          loadWarehouseItems();
+        }
+      } else {
+        searchResults.value = [];
+      }
+    });
+    
+    // Watch for search all warehouses toggle
+    watch(searchAllWarehouses, () => {
+      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
+        searchItemsWithSpark();
+      } else if (selectedWarehouseForInvoice.value) {
+        loadWarehouseItems();
+      }
+    });
+    
+    // Watch for inventory changes to refresh search
+    watch(() => allInventory.value, () => {
+      if (selectedWarehouseForInvoice.value) {
+        if (itemSearch.value.trim()) {
+          searchItemsWithSpark();
+        } else {
+          loadWarehouseItems();
+        }
+      }
     }, { deep: true });
     
     return {
@@ -3354,7 +3709,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       endIndex,
       hasFilters,
       
-      // Invoice system state
+      // Invoice system state with SPARK search
       showInvoiceSystem,
       showInvoiceForm,
       saving,
@@ -3367,8 +3722,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       invoiceForm,
       editingInvoice,
       invoices,
-      availableItemsForInvoice,
       availableWarehouses,
+      
+      // SPARK Search specific
+      searchingItems,
+      filteredSearchResults,
+      totalItemsInWarehouse,
+      lastSearchSource,
+      searchAllWarehouses,
       
       // Computed properties
       totalInvoices,
@@ -3396,6 +3757,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getWarehouseLabel,
       getDestinationLabel,
       getDateFilterLabel,
+      getSearchSourceLabel,
       calculateDispatchValue,
       getDispatchQuantityClass,
       getQuantityClass,
@@ -3418,14 +3780,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       printDispatch,
       exportDispatches,
       
-      // Invoice system actions
+      // Invoice system actions with SPARK search
       toggleInvoiceSystem,
       createNewInvoice,
       editInvoice,
       cancelInvoiceForm,
       onInvoiceTypeChange,
       loadWarehouseItems,
-      searchItems,
+      debouncedSearchItems,
       addItemToInvoice,
       removeItem,
       increaseQuantity,
@@ -3447,9 +3809,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   }
 };
 </script>
-
 <style scoped>
-/* Mobile-optimized styles for invoice section */
+/* Mobile-optimized styles for invoice section with SPARK Search */
 @media (max-width: 640px) {
   .mobile\:text-xs {
     font-size: 0.75rem;
@@ -3506,7 +3867,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   .btn-success,
   .input-field,
   select,
-  .pagination-btn {
+  .pagination-btn,
+  .search-input {
     min-height: 44px; /* Minimum touch target size */
     min-width: 44px;
   }
@@ -3516,7 +3878,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   }
 }
 
-/* Improved mobile scrolling */
+/* Improved mobile scrolling for search results */
 @media (max-width: 768px) {
   .mobile-scroll {
     -webkit-overflow-scrolling: touch;
@@ -3526,9 +3888,15 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   .mobile-no-scroll {
     overflow: hidden;
   }
+  
+  /* Adjust search results grid for mobile */
+  .search-results-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
 }
 
-/* Mobile-specific optimizations */
+/* Mobile-specific optimizations for SPARK Search */
 @media (max-width: 640px) {
   .mobile-hide {
     display: none;
@@ -3567,6 +3935,18 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
+  
+  /* Adjust search stats for mobile */
+  .search-stats-mobile {
+    font-size: 0.7rem;
+    gap: 0.25rem;
+  }
+  
+  /* Search source badge mobile */
+  .search-source-badge {
+    padding: 0.125rem 0.375rem;
+    font-size: 0.65rem;
+  }
 }
 
 /* Custom styles for the integrated system */
@@ -3594,12 +3974,66 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply w-full px-3 sm:px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
 }
 
+/* SPARK Search specific input styles */
+.search-input {
+  @apply w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400;
+}
+
 .action-btn {
   @apply p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors;
 }
 
 .pagination-btn {
   @apply px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+}
+
+/* SPARK Search specific styles */
+.search-source-badge {
+  @apply px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs;
+}
+
+.search-stats-container {
+  @apply mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center flex-wrap gap-2;
+}
+
+.search-loading-indicator {
+  @apply absolute inset-y-0 left-0 pl-3 flex items-center;
+}
+
+.search-loading-spinner {
+  @apply animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full;
+}
+
+.search-results-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6;
+}
+
+.search-result-card {
+  @apply p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98;
+}
+
+.search-empty-state {
+  @apply bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center;
+}
+
+.search-tips-container {
+  @apply mt-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg;
+}
+
+.search-tips-title {
+  @apply font-medium mb-1 flex items-center gap-1;
+}
+
+.search-tips-list {
+  @apply space-y-1 text-right;
+}
+
+.search-tip-item {
+  @apply text-xs;
+}
+
+.search-tip-highlight {
+  @apply text-blue-600 dark:text-blue-400;
 }
 
 /* Additional custom styles */
@@ -3652,6 +4086,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   .print\:border {
     border: 1px solid #000 !important;
   }
+  
+  /* Hide search interface when printing */
+  .search-interface {
+    display: none !important;
+  }
 }
 
 /* Loading animation */
@@ -3683,7 +4122,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4;
 }
 
-/* Badge variants */
+/* Badge variants for SPARK Search */
 .badge-primary {
   @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
 }
@@ -3700,7 +4139,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
 }
 
-/* Card hover effects */
+.badge-info {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300;
+}
+
+/* Card hover effects for search results */
 .card-hover {
   @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
 }
@@ -3723,7 +4166,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
-/* Custom animations */
+.bg-gradient-search {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* Custom animations for SPARK Search */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -3737,6 +4184,21 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-effect {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }
 
 /* Responsive table container */
@@ -3796,6 +4258,15 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply bg-red-500;
 }
 
+/* Search status indicators */
+.status-dot-searching {
+  @apply bg-yellow-500 animate-pulse;
+}
+
+.status-dot-loaded {
+  @apply bg-green-500;
+}
+
 /* Responsive padding utilities */
 .responsive-padding {
   @apply px-3 sm:px-4 lg:px-6;
@@ -3819,6 +4290,10 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   z-index: 3000;
 }
 
+.z-search {
+  z-index: 1500;
+}
+
 /* Invoice type indicators */
 .invoice-type-b2b {
   @apply border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20;
@@ -3832,6 +4307,15 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20;
 }
 
+/* Search result item indicators */
+.search-item-highlight {
+  @apply border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-900/20;
+}
+
+.search-item-new {
+  @apply border-l-4 border-green-500 bg-green-50 dark:bg-green-900/20;
+}
+
 /* Responsive typography */
 .responsive-heading {
   @apply text-lg sm:text-xl lg:text-2xl font-bold;
@@ -3843,6 +4327,15 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 
 .responsive-body {
   @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* SPARK Search specific typography */
+.search-stats-text {
+  @apply text-xs sm:text-sm text-gray-500 dark:text-gray-400;
+}
+
+.search-source-text {
+  @apply text-xs font-medium;
 }
 
 /* Custom transitions */
@@ -3908,6 +4401,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply border-gray-300 dark:border-gray-600;
 }
 
+/* Search item border utilities */
+.border-search-item {
+  @apply border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500;
+}
+
 /* Responsive margin utilities */
 .margin-responsive {
   @apply my-3 sm:my-4 lg:my-6;
@@ -3927,6 +4425,15 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   @apply border-green-500 focus:border-green-500 focus:ring-green-500;
 }
 
+/* Search input validation */
+.search-input-valid {
+  @apply border-green-500 focus:border-green-500 focus:ring-green-500;
+}
+
+.search-input-loading {
+  @apply border-blue-500 focus:border-blue-500 focus:ring-blue-500;
+}
+
 /* Responsive height utilities */
 .h-responsive {
   @apply h-auto sm:h-64 lg:h-96;
@@ -3941,9 +4448,22 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   cursor: grabbing;
 }
 
+.cursor-search {
+  cursor: text;
+}
+
+.cursor-add-item {
+  cursor: pointer;
+}
+
 /* Responsive min-height utilities */
 .min-h-responsive {
   @apply min-h-[150px] sm:min-h-[200px] lg:min-h-[300px];
+}
+
+/* SPARK Search results min-height */
+.min-h-search-results {
+  min-height: 200px;
 }
 
 /* Invoice print styles */
@@ -3965,9 +4485,17 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   .invoice-print .page-break {
     page-break-before: always;
   }
+  
+  /* Hide search interface when printing */
+  .search-interface,
+  .search-input,
+  .search-results,
+  .search-stats {
+    display: none !important;
+  }
 }
 
-/* Performance optimizations */
+/* Performance optimizations for SPARK Search */
 .lazy-load {
   opacity: 0;
   transform: translateY(10px);
@@ -3979,95 +4507,9 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   transform: translateY(0);
 }
 
-/* Optimize animations */
-.will-change-transform {
-  will-change: transform;
-}
-
-/* Reduce motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Image optimization */
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-/* Font loading optimization */
-@font-face {
-  font-display: swap;
-}
-
-/* Invoice details card styling */
-.invoice-details-card {
-  @apply bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6;
-}
-
-.invoice-details-card h3 {
-  @apply text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200 dark:border-gray-700;
-}
-
-.invoice-details-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6;
-}
-
-.invoice-details-section {
-  @apply space-y-3 sm:space-y-4;
-}
-
-.invoice-details-label {
-  @apply block text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400;
-}
-
-.invoice-details-value {
-  @apply text-base sm:text-lg font-semibold text-gray-900 dark:text-white;
-}
-
-.invoice-items-table {
-  @apply w-full divide-y divide-gray-200 dark:divide-gray-700 mt-3 sm:mt-4;
-}
-
-.invoice-items-table th {
-  @apply px-3 sm:px-4 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800;
-}
-
-.invoice-items-table td {
-  @apply px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white;
-}
-
-.invoice-totals-section {
-  @apply bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 sm:p-4 lg:p-5 mt-4 sm:mt-6 border border-gray-200 dark:border-gray-700;
-}
-
-.invoice-total-row {
-  @apply flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0;
-}
-
-.invoice-total-label {
-  @apply text-xs sm:text-sm text-gray-600 dark:text-gray-400;
-}
-
-.invoice-total-value {
-  @apply text-sm sm:text-base font-semibold text-gray-900 dark:text-white;
-}
-
-.invoice-total-final {
-  @apply text-lg sm:text-xl font-bold text-green-600 dark:text-green-400;
-}
-
-/* Performance optimization classes */
-.debounced-input {
-  transition: border-color 0.3s ease;
-}
-
+/* Virtual scrolling for search results */
 .virtual-scroll-container {
-  overflow-y: auto;
+  @apply overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700;
   height: 400px;
 }
 
@@ -4093,18 +4535,22 @@ img {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Invoice form optimizations */
-.invoice-form-section {
+/* SPARK Search form optimizations */
+.search-form-section {
   @apply transition-all duration-200 ease-in-out;
 }
 
-.invoice-form-loading {
+.search-form-loading {
   @apply opacity-50 pointer-events-none;
 }
 
 /* Data loading optimizations */
 .skeleton-loader {
   @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+}
+
+.skeleton-loader-search {
+  @apply animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-lg h-20;
 }
 
 /* Optimize modal rendering */
@@ -4141,6 +4587,23 @@ img {
   @apply flex justify-between items-center mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 dark:border-gray-700;
 }
 
+/* Search result card styling */
+.search-result-card-header {
+  @apply flex items-center justify-between;
+}
+
+.search-result-card-title {
+  @apply text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate;
+}
+
+.search-result-card-details {
+  @apply mt-2 flex items-center flex-wrap gap-1;
+}
+
+.search-result-card-meta {
+  @apply mt-2 flex items-center flex-wrap gap-1;
+}
+
 /* Responsive invoice grid */
 .invoice-grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
@@ -4166,6 +4629,19 @@ img {
 
 .invoice-summary-total {
   @apply text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-300 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-blue-200 dark:border-blue-700;
+}
+
+/* SPARK Search summary card */
+.search-summary-card {
+  @apply bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg sm:rounded-xl border border-purple-200 dark:border-purple-700 p-3 sm:p-4;
+}
+
+.search-summary-title {
+  @apply text-sm sm:text-base font-bold text-purple-900 dark:text-purple-300 mb-2 sm:mb-3;
+}
+
+.search-summary-stats {
+  @apply flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm;
 }
 
 /* Dispatch details card */
@@ -4198,14 +4674,23 @@ img {
   @apply text-xs text-gray-500 dark:text-gray-400 italic;
 }
 
-/* Optimized button styles */
+/* Optimized button styles for search */
 .optimized-btn {
   @apply transform-gpu transition-transform duration-200 hover:scale-105 active:scale-95;
+}
+
+.search-btn {
+  @apply transform-gpu transition-all duration-200 hover:scale-102 active:scale-98;
 }
 
 /* Invoice actions toolbar */
 .invoice-actions-toolbar {
   @apply flex items-center space-x-1 sm:space-x-2 space-x-reverse bg-gray-50 dark:bg-gray-800 rounded-lg p-1 sm:p-2;
+}
+
+/* Search actions toolbar */
+.search-actions-toolbar {
+  @apply flex items-center space-x-1 sm:space-x-2 space-x-reverse bg-purple-50 dark:bg-purple-900/20 rounded-lg p-1 sm:p-2;
 }
 
 /* Data table optimizations */
@@ -4221,7 +4706,7 @@ img {
   @apply px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white;
 }
 
-/* Lazy loading for images */
+/* Lazy loading for search images */
 .lazy-image {
   @apply opacity-0 transition-opacity duration-300;
 }
@@ -4230,7 +4715,7 @@ img {
   @apply opacity-100;
 }
 
-/* Invoice print optimization */
+/* SPARK Search print optimization */
 @media print {
   .print-optimize * {
     print-color-adjust: exact;
@@ -4240,27 +4725,50 @@ img {
   .break-inside-avoid {
     break-inside: avoid;
   }
+  
+  /* Hide search interface completely */
+  .search-section,
+  [class*="search-"],
+  [class*="spark-"] {
+    display: none !important;
+  }
 }
 
-/* Responsive invoice form */
+/* Responsive SPARK Search form */
 @media (max-width: 768px) {
-  .invoice-form-responsive {
+  .search-form-responsive {
     @apply space-y-3;
   }
   
-  .invoice-form-responsive .grid {
+  .search-form-responsive .grid {
     @apply grid-cols-1 gap-3;
+  }
+  
+  .search-input-responsive {
+    @apply text-sm;
+  }
+  
+  .search-btn-responsive {
+    @apply w-full justify-center;
   }
 }
 
-/* Dispatch system optimizations */
-.dispatch-system-optimized {
+/* SPARK Search system optimizations */
+.search-system-optimized {
   @apply transition-opacity duration-300;
 }
 
-/* Loading state optimizations */
+.search-system-loading {
+  @apply opacity-50 pointer-events-none;
+}
+
+/* Loading state optimizations for search */
 .loading-state-optimized {
   @apply animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800;
+}
+
+.search-loading-state {
+  @apply animate-pulse bg-gradient-to-r from-purple-200 to-indigo-200 dark:from-purple-800 dark:to-indigo-800;
 }
 
 /* Export button optimizations */
@@ -4274,9 +4782,400 @@ img {
   animation: shimmer 2s infinite;
 }
 
+.search-btn-optimized {
+  @apply relative overflow-hidden bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
+}
+
+.search-btn-optimized::after {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full;
+  animation: shimmer 1.5s infinite;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Search transition effects */
+.search-transition-enter-active,
+.search-transition-leave-active {
+  transition: all 0.3s ease;
+}
+
+.search-transition-enter-from,
+.search-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.search-transition-enter-to,
+.search-transition-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Item transition effects */
+.item-transition-enter-active,
+.item-transition-leave-active {
+  transition: all 0.2s ease;
+}
+
+.item-transition-enter-from,
+.item-transition-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.item-transition-enter-to,
+.item-transition-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Search result animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Responsive animation delays */
+@media (max-width: 640px) {
+  .fade-in-up {
+    animation-duration: 0.2s;
+  }
+}
+
+/* Search overlay styles */
+.search-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center;
+}
+
+.search-overlay-content {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+}
+
+/* Keyboard navigation for search */
+.search-keyboard-nav:focus {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+/* Accessibility improvements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .search-input {
+    border: 2px solid currentColor;
+  }
+  
+  .search-result-card {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduce motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-pulse,
+  .animate-slide-in,
+  .fade-in-up,
+  .shimmer-effect {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode specific search improvements */
+@media (prefers-color-scheme: dark) {
+  .search-input {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+  
+  .search-input::placeholder {
+    color: #9ca3af;
+  }
+  
+  .search-result-card:hover {
+    background-color: #4b5563;
+    border-color: #60a5fa;
+  }
+  
+  .search-tips-container {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+}
+
+/* Light mode specific search improvements */
+@media (prefers-color-scheme: light) {
+  .search-input {
+    background-color: #ffffff;
+    border-color: #d1d5db;
+    color: #111827;
+  }
+  
+  .search-input::placeholder {
+    color: #6b7280;
+  }
+  
+  .search-result-card:hover {
+    background-color: #f3f4f6;
+    border-color: #3b82f6;
+  }
+  
+  .search-tips-container {
+    background-color: #f9fafb;
+    border-color: #e5e7eb;
+  }
+}
+
+/* Print mode improvements */
+@media print {
+  .no-print-search {
+    display: none !important;
+  }
+  
+  .search-section {
+    break-inside: avoid;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .search-result-card {
+    padding: 1rem;
+    min-height: 80px;
+  }
+  
+  .search-input {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+  
+  .search-btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* High DPI screen optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .search-loading-spinner {
+    border-width: 3px;
+  }
+}
+
+/* Wide screen optimizations */
+@media (min-width: 1920px) {
+  .search-results-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .search-result-card {
+    padding: 1.5rem;
+  }
+}
+
+/* Small screen optimizations */
+@media (max-width: 360px) {
+  .search-stats-container {
+    font-size: 0.65rem;
+  }
+  
+  .search-source-badge {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.6rem;
+  }
+  
+  .search-result-card {
+    padding: 0.75rem;
+  }
+}
+
+/* Landscape mode optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+  .search-results-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-height: 250px;
+    overflow-y: auto;
+  }
+}
+
+/* Loading skeleton for search */
+.search-skeleton {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg h-20 mb-3;
+}
+
+.search-skeleton-title {
+  @apply h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-2;
+}
+
+.search-skeleton-details {
+  @apply h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/2;
+}
+
+/* Smooth scrolling for search results */
+.search-results-container {
+  scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+.search-result-card:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+/* Loading overlay for search */
+.search-loading-overlay {
+  @apply absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10;
+}
+
+/* Empty search state */
+.search-empty-state-icon {
+  @apply mx-auto h-12 w-12 text-gray-400 dark:text-gray-500;
+}
+
+.search-empty-state-title {
+  @apply mt-3 text-sm font-medium text-gray-900 dark:text-white;
+}
+
+.search-empty-state-description {
+  @apply mt-1 text-xs text-gray-500 dark:text-gray-400;
+}
+
+/* Search filter styles */
+.search-filter-badge {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.search-filter-remove {
+  @apply mr-1 hover:text-blue-900 dark:hover:text-blue-200 cursor-pointer;
+}
+
+/* Search pagination */
+.search-pagination {
+  @apply flex items-center justify-center space-x-2 mt-4;
+}
+
+.search-pagination-btn {
+  @apply px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.search-pagination-info {
+  @apply text-xs text-gray-500 dark:text-gray-400;
+}
+
+/* Search result counter */
+.search-result-counter {
+  @apply text-xs font-medium px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300;
+}
+
+/* Search highlight animation */
+@keyframes highlight {
+  0% {
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.search-highlight {
+  animation: highlight 1s ease-out;
+}
+
+/* Responsive search tips */
+@media (max-width: 480px) {
+  .search-tips-list {
+    font-size: 0.7rem;
+  }
+  
+  .search-tip-item {
+    line-height: 1.4;
+  }
+}
+
+/* Search performance warning */
+.search-performance-warning {
+  @apply text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded-lg mt-2;
+}
+
+/* Search connection status */
+.search-connection-status {
+  @apply inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full;
+}
+
+.search-connection-online {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+}
+
+.search-connection-offline {
+  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+}
+
+.search-connection-slow {
+  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+}
+
+/* Search type indicators */
+.search-type-indicator {
+  @apply inline-block w-2 h-2 rounded-full mr-1;
+}
+
+.search-type-firebase {
+  @apply bg-blue-500;
+}
+
+.search-type-cache {
+  @apply bg-green-500;
+}
+
+.search-type-local {
+  @apply bg-yellow-500;
+}
+
+/* Search animation delays for staggered loading */
+.search-item-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.search-item-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.search-item-delay-3 {
+  animation-delay: 0.3s;
+}
+
+.search-item-delay-4 {
+  animation-delay: 0.4s;
+}
+
+.search-item-delay-5 {
+  animation-delay: 0.5s;
 }
 </style>
