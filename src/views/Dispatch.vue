@@ -1037,7 +1037,7 @@
       </div>
 
       <!-- ============================================ -->
-      <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) -->
+      <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) - UPDATED -->
       <!-- ============================================ -->
       <div v-else>
         <!-- Stats Cards - Mobile Optimized -->
@@ -1085,7 +1085,7 @@
           </div>
         </div>
 
-        <!-- Create Dispatch Section - Mobile Optimized -->
+        <!-- Create Dispatch Section - Mobile Optimized - FIXED QUANTITY DISPLAY -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 lg:mb-8">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 lg:mb-6">
             <div>
@@ -1109,7 +1109,7 @@
                 </svg>
               </div>
 
-              <!-- Warehouse Filter for Available Items - FIXED SECTION -->
+              <!-- Warehouse Filter for Available Items -->
               <select
                 v-model="selectedWarehouse"
                 @change="updateAvailableItems"
@@ -1141,7 +1141,7 @@
             </div>
           </div>
 
-          <!-- Available Items -->
+          <!-- Available Items - FIXED QUANTITY DISPLAY -->
           <div v-if="availableItems.length > 0" class="mt-3 sm:mt-4">
             <div class="flex items-center justify-between mb-2 sm:mb-3">
               <h3 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
@@ -1164,10 +1164,11 @@
                   <div class="flex-1 min-w-0">
                     <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
                     <div class="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
-                      <span class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 rounded truncate">{{ item.code }}</span>
+                      <span v-if="item.code" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 rounded truncate">{{ item.code }}</span>
+                      <!-- FIXED: Use item.remaining_quantity which should be available from inventory data -->
                       <span class="text-xs px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap" 
                             :class="getQuantityClass(item.remaining_quantity)">
-                        {{ formatNumber(item.remaining_quantity) }} متبقي
+                        {{ formatNumber(item.remaining_quantity || 0) }} متبقي
                       </span>
                     </div>
                   </div>
@@ -1205,7 +1206,7 @@
           </div>
         </div>
 
-        <!-- Dispatch History - Mobile Optimized -->
+        <!-- Dispatch History - Mobile Optimized - FIXED QUANTITY DISPLAY -->
         <div class="dispatch-table-container bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
           <div class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
@@ -1404,11 +1405,11 @@
                       <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code || 'N/A' }}</div>
                     </div>
 
-                    <!-- Quantity -->
+                    <!-- Quantity - FIXED: Use getDispatchQuantity() helper -->
                     <div class="col-span-1 px-2">
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
-                            :class="getDispatchQuantityClass(dispatch.total_delta)">
-                        {{ formatNumber(Math.abs(dispatch.total_delta || 0)) }}
+                            :class="getDispatchQuantityClass(getDispatchQuantity(dispatch))">
+                        {{ formatNumber(getDispatchQuantity(dispatch)) }}
                       </span>
                     </div>
 
@@ -1476,9 +1477,10 @@
                         <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ formatDate(dispatch.timestamp) }} - {{ formatTime(dispatch.timestamp) }}</div>
                       </div>
+                      <!-- FIXED: Use getDispatchQuantity() helper -->
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
-                            :class="getDispatchQuantityClass(dispatch.total_delta)">
-                        {{ formatNumber(Math.abs(dispatch.total_delta)) }}
+                            :class="getDispatchQuantityClass(getDispatchQuantity(dispatch))">
+                        {{ formatNumber(getDispatchQuantity(dispatch)) }}
                       </span>
                     </div>
 
@@ -1584,7 +1586,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
