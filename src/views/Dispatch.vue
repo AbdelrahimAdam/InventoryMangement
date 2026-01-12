@@ -1977,7 +1977,7 @@ export default {
     });
     
     // ============================================
-    // SECTION 7: UTILITY FUNCTIONS
+    // SECTION 7: UPDATED UTILITY FUNCTIONS
     // ============================================
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -2069,17 +2069,60 @@ export default {
       return labels[source] || source;
     };
     
+    // ✅ UPDATED: Calculate dispatch value with better quantity detection
     const calculateDispatchValue = (dispatch) => {
-      const quantity = Math.abs(dispatch.total_delta || 0);
-      const pricePerItem = 50;
+      // Try multiple possible quantity fields in order of priority
+      let quantity = 0;
+      
+      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
+        quantity = Math.abs(dispatch.quantity);
+      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
+        quantity = Math.abs(dispatch.total_delta);
+      } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
+        // Calculate from cartons
+        quantity = Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
+                   Math.abs(dispatch.single_bottles_count || 0);
+      } else if (dispatch.detailedUpdate?.remaining_quantity !== undefined) {
+        quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
+      }
+      
+      // Use a reasonable default price per item
+      const pricePerItem = 50; // أو استخدم سعر الصنف الفعلي إذا كان متوفرًا
       return quantity * pricePerItem;
     };
     
-    const getDispatchQuantityClass = (quantity) => {
-      const qty = Math.abs(quantity || 0);
-      if (qty < 10) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
-      if (qty < 50) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+    // ✅ UPDATED: Get dispatch quantity class with better quantity detection
+    const getDispatchQuantityClass = (dispatch) => {
+      let quantity = 0;
+      
+      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
+        quantity = Math.abs(dispatch.quantity);
+      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
+        quantity = Math.abs(dispatch.total_delta);
+      } else if (typeof dispatch === 'number') {
+        quantity = Math.abs(dispatch);
+      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
+        quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
+      }
+      
+      if (quantity < 10) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
+      if (quantity < 50) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
       return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300';
+    };
+    
+    // ✅ UPDATED: Helper to get quantity for display
+    const getDispatchQuantity = (dispatch) => {
+      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
+        return Math.abs(dispatch.quantity);
+      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
+        return Math.abs(dispatch.total_delta);
+      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
+        return Math.abs(dispatch.detailedUpdate.remaining_quantity);
+      } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
+        return Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
+               Math.abs(dispatch.single_bottles_count || 0);
+      }
+      return 0;
     };
     
     const getQuantityClass = (quantity) => {
@@ -2337,47 +2380,60 @@ export default {
       selectedItemForDispatch.value = null;
     };
     
+    // ✅ UPDATED FIXED VERSION: handleDispatchSuccess with better error handling
     const handleDispatchSuccess = async (dispatchData) => {
       try {
         console.log('🚀 Starting dispatch from page with data:', dispatchData);
-        console.log('📋 Complete dispatch data received:', JSON.stringify(dispatchData, null, 2));
+        console.log('📋 Complete dispatch data received:', dispatchData);
         
-        // ✅ UPDATED: Use EXACT same fields and validation as store dispatchItem action
-        // Validate required fields exactly like store
+        // ✅ FIXED: Check for all possible field names
+        // Get item ID from multiple possible fields
+        const itemId = dispatchData.item_id || dispatchData.id;
+        if (!itemId) {
+          console.error('Missing item_id/id. Data:', dispatchData);
+          throw new Error('معرف الصنف (item_id أو id) مفقود');
+        }
+        
+        // Get from warehouse ID from multiple possible fields
+        const fromWarehouseId = dispatchData.from_warehouse_id || dispatchData.sourceWarehouse;
+        if (!fromWarehouseId) {
+          console.error('Missing from_warehouse_id/sourceWarehouse. Data:', dispatchData);
+          throw new Error('المخزن المصدر (from_warehouse_id أو sourceWarehouse) مفقود');
+        }
+        
+        // Get destination from multiple possible fields
+        let destination = dispatchData.destination;
+        if (!destination) {
+          destination = getDestinationLabel(dispatchData.destination_id) || 
+                       getDestinationLabel(dispatchData.destinationBranch) ||
+                       'موقع صرف';
+        }
+        
+        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch || 'external';
+        
+        // Get additional required data
+        const itemName = dispatchData.item_name || selectedItemForDispatch.value?.name || 'صنف غير محدد';
+        const itemCode = dispatchData.item_code || selectedItemForDispatch.value?.code || '';
+        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(fromWarehouseId);
+        
+        // Validate required fields
         const missingFields = [];
-        
-        // Check for item_id (exact field name used in store)
-        if (!dispatchData.item_id) {
-          missingFields.push('معرف الصنف (item_id)');
-        }
-        
-        // Check for from_warehouse_id (exact field name used in store)
-        if (!dispatchData.from_warehouse_id) {
-          missingFields.push('المخزن المصدر (from_warehouse_id)');
-        }
-        
-        // Check for destination (exact field name used in store)
-        if (!dispatchData.destination) {
-          missingFields.push('الوجهة (destination)');
-        }
+        if (!itemId) missingFields.push('item_id أو id');
+        if (!fromWarehouseId) missingFields.push('from_warehouse_id أو sourceWarehouse');
+        if (!destination) missingFields.push('destination أو destination_id أو destinationBranch');
         
         if (missingFields.length > 0) {
           console.error('❌ Missing required fields:', missingFields);
-          throw new Error(`بيانات الصرف غير مكتملة: ${missingFields.join('، ')}`);
+          console.error('Received data:', dispatchData);
+          throw new Error(`بيانات الصرف غير مكتملة. الحقول المفقودة: ${missingFields.join('، ')}`);
         }
 
-        // ✅ Get additional required data
-        const itemName = dispatchData.item_name || selectedItemForDispatch.value?.name || 'صنف غير محدد';
-        const itemCode = dispatchData.item_code || selectedItemForDispatch.value?.code || '';
-        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(dispatchData.from_warehouse_id);
-        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch || 'external';
-        
         // Prepare dispatch payload EXACTLY as store expects
         const dispatchPayload = {
           // REQUIRED FIELDS (must match store validation)
-          item_id: dispatchData.item_id,
-          from_warehouse_id: dispatchData.from_warehouse_id,
-          destination: dispatchData.destination,
+          item_id: itemId,
+          from_warehouse_id: fromWarehouseId,
+          destination: destination,
           
           // Detailed quantities (match store field names)
           cartons_count: dispatchData.cartons_count || 0,
@@ -2399,7 +2455,9 @@ export default {
         // Call store dispatch action with properly formatted payload
         const result = await store.dispatch('dispatchItem', dispatchPayload);
 
-        if (result.success) {
+        if (result?.success) {
+          console.log('✅ Dispatch successful:', result);
+          
           showDispatchModal.value = false;
           selectedItemForDispatch.value = null;
           currentHistoryPage.value = 1;
@@ -2407,22 +2465,39 @@ export default {
           store.dispatch('showNotification', {
             type: 'success',
             title: 'تم الصرف بنجاح',
-            message: result.message || 'تمت عملية الصرف بنجاح'
+            message: result.message || `تم صرف ${result.detailedUpdate?.remaining_quantity || 0} وحدة بنجاح`
           });
           
           // ✅ NEW: Refresh dispatch history from store
           await loadDispatchHistory();
+          
+          return result;
         } else {
-          throw new Error(result.message || 'فشل في عملية الصرف');
+          const errorMsg = result?.message || result?.error || 'فشل في عملية الصرف';
+          throw new Error(errorMsg);
         }
         
       } catch (error) {
         console.error('❌ Error in dispatch:', error);
+        console.error('Error details:', error.stack);
+        
+        // Show detailed error message
+        let errorMessage = error.message || 'حدث خطأ في عملية الصرف';
+        
+        // Add more context for common errors
+        if (error.message.includes('بيانات الصرف غير مكتملة')) {
+          errorMessage += ' - يرجى التحقق من بيانات الصرف المطلوبة';
+        } else if (error.message.includes('ليس لديك صلاحية')) {
+          errorMessage += ' - يرجى التحقق من صلاحيات المستخدم';
+        }
+        
         store.dispatch('showNotification', {
           type: 'error',
           title: 'فشل الصرف',
-          message: error.message || 'حدث خطأ في عملية الصرف'
+          message: errorMessage
         });
+        
+        throw error; // Re-throw to let component handle it if needed
       }
     };
     
@@ -2468,13 +2543,15 @@ export default {
       }
     };
     
+    // ✅ UPDATED: View dispatch details with better quantity display
     const viewDispatchDetails = (dispatch) => {
+      const quantity = getDispatchQuantity(dispatch);
       const details = `
 تفاصيل الصرف:
 
-• الصنف: ${dispatch.item_name}
+• الصنف: ${dispatch.item_name || 'غير محدد'}
 • الكود: ${dispatch.item_code || 'N/A'}
-• الكمية: ${Math.abs(dispatch.total_delta)} وحدة
+• الكمية: ${quantity} وحدة
 • من مخزن: ${getWarehouseLabel(dispatch.from_warehouse)}
 • إلى: ${getDestinationLabel(dispatch.destination || dispatch.to_warehouse)}
 • التاريخ: ${formatDateTime(dispatch.timestamp)}
@@ -2486,8 +2563,10 @@ export default {
       alert(details);
     };
     
+    // ✅ UPDATED: Print dispatch with better quantity display
     const printDispatch = (dispatch) => {
       const printWindow = window.open('', '_blank');
+      const quantity = getDispatchQuantity(dispatch);
       const printContent = `
         <html dir="rtl">
         <head>
@@ -2529,7 +2608,7 @@ export default {
             </tr>
             <tr>
               <th>اسم الصنف</th>
-              <td>${dispatch.item_name}</td>
+              <td>${dispatch.item_name || 'غير محدد'}</td>
             </tr>
             <tr>
               <th>كود الصنف</th>
@@ -2537,7 +2616,7 @@ export default {
             </tr>
             <tr>
               <th>الكمية</th>
-              <td>${Math.abs(dispatch.total_delta)} وحدة</td>
+              <td>${quantity} وحدة</td>
             </tr>
             <tr>
               <th>من مخزن</th>
@@ -2608,7 +2687,7 @@ export default {
           'الوقت': formatTime(dispatch.timestamp),
           'اسم الصنف': dispatch.item_name || '',
           'كود الصنف': dispatch.item_code || '',
-          'الكمية': Math.abs(dispatch.total_delta || 0),
+          'الكمية': getDispatchQuantity(dispatch),
           'من مخزن': getWarehouseLabel(dispatch.from_warehouse),
           'إلى': getDestinationLabel(dispatch.destination || dispatch.to_warehouse),
           'القيمة': calculateDispatchValue(dispatch),
@@ -3906,6 +3985,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getSearchSourceLabel,
       calculateDispatchValue,
       getDispatchQuantityClass,
+      getDispatchQuantity,
       getQuantityClass,
       getInvoiceTypeLabel,
       getInvoiceTypeClass,
