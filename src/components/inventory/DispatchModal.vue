@@ -251,23 +251,20 @@
                     'text-sm font-medium',
                     getStockClass(item.remaining_quantity || item.quantity || 0)
                   ]">
-                    {{ getTotalAvailableQuantity(item) }}
+                    {{ item.remaining_quantity || item.quantity || 0 }}
                   </span>
-                  <div v-if="item.per_carton_count" class="text-xs text-gray-500 dark:text-gray-400">
-                    ({{ item.cartons_count || 0 }}×{{ item.per_carton_count }} + {{ item.single_bottles_count || 0 }})
-                  </div>
                 </div>
 
                 <!-- Action Button -->
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || getTotalAvailableQuantity(item) <= 0"
+                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || (item.remaining_quantity || item.quantity || 0) <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                        : getTotalAvailableQuantity(item) <= 0 || (!isSuperadmin && !canPerformDispatch)
+                        : (item.remaining_quantity || item.quantity || 0) <= 0 || (!isSuperadmin && !canPerformDispatch)
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
                     ]"
@@ -336,26 +333,16 @@
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
-              <div class="text-sm font-medium" :class="getStockClass(getTotalAvailableQuantity(selectedItem))">
-                {{ getTotalAvailableQuantity(selectedItem) }}
-                <span v-if="selectedItem.per_carton_count" class="text-xs text-blue-600 dark:text-blue-400">
-                  ({{ selectedItem.cartons_count || 0 }}×{{ selectedItem.per_carton_count }} + {{ selectedItem.single_bottles_count || 0 }})
-                </span>
+              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity || selectedItem.quantity || 0)">
+                {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }}
               </div>
             </div>
-            <!-- Inventory Warning -->
-            <div v-if="getTotalAvailableQuantity(selectedItem) <= 0" class="col-span-2">
-              <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <div class="flex items-center">
-                  <svg class="h-5 w-5 text-red-400 dark:text-red-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                  </svg>
-                  <div class="flex-1">
-                    <p class="text-sm text-red-600 dark:text-red-300">
-                      هذا الصنف ليس لديه مخزون متاح للصرف. يرجى اختيار صنف آخر.
-                    </p>
-                  </div>
-                </div>
+            <!-- Detailed Quantity Info -->
+            <div v-if="selectedItem.per_carton_count" class="col-span-2">
+              <div class="text-xs text-blue-600 dark:text-blue-400">التفصيل</div>
+              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                {{ selectedItem.cartons_count || 0 }} كرتون × {{ selectedItem.per_carton_count }} + 
+                {{ selectedItem.single_bottles_count || 0 }} فردي
               </div>
             </div>
           </div>
@@ -374,7 +361,7 @@
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 الكمية المراد صرفها
                 <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                  (الحد الأقصى: {{ getTotalAvailableQuantity(selectedItem) }})
+                  (الحد الأقصى: {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }})
                 </span>
                 <span v-if="selectedItem.per_carton_count" class="text-xs font-normal text-blue-500 dark:text-blue-400">
                   • كل كرتون: {{ selectedItem.per_carton_count }}
@@ -383,7 +370,7 @@
               <div class="flex items-center space-x-3 space-x-reverse">
                 <button
                   @click="decreaseQuantity"
-                  :disabled="loading || form.quantity <= 1 || getTotalAvailableQuantity(selectedItem) <= 0"
+                  :disabled="loading || form.quantity <= 1"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,17 +380,17 @@
                 <input
                   v-model.number="form.quantity"
                   type="number"
-                  :max="getTotalAvailableQuantity(selectedItem)"
+                  :max="selectedItem.remaining_quantity || selectedItem.quantity || 0"
                   min="1"
                   step="1"
                   required
-                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
+                  :disabled="loading"
                   class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   @input="updateQuantity"
                 >
                 <button
                   @click="increaseQuantity"
-                  :disabled="loading || form.quantity >= getTotalAvailableQuantity(selectedItem) || getTotalAvailableQuantity(selectedItem) <= 0"
+                  :disabled="loading || form.quantity >= (selectedItem.remaining_quantity || selectedItem.quantity || 0)"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,26 +405,22 @@
                 <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">تفصيل الكمية:</div>
                 <div class="text-sm text-gray-800 dark:text-gray-200">
                   <span v-if="form.quantity > 0">
-                    {{ calculateDetailedDispatch(selectedItem, form.quantity).cartons }} كرتون × {{ selectedItem.per_carton_count }}
-                    + {{ calculateDetailedDispatch(selectedItem, form.quantity).singles }} فردي
+                    {{ Math.floor(form.quantity / (selectedItem.per_carton_count || 12)) }} كرتون × {{ selectedItem.per_carton_count || 12 }}
+                    + {{ form.quantity % (selectedItem.per_carton_count || 12) }} فردي
                   </span>
                   <span v-else class="text-gray-500 dark:text-gray-400">
                     ادخل كمية لرؤية التفاصيل
                   </span>
                 </div>
-                <!-- Available Breakdown -->
-                <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  المخزون المتاح: {{ selectedItem.cartons_count || 0 }} كرتون × {{ selectedItem.per_carton_count }} + {{ selectedItem.single_bottles_count || 0 }} فردي
-                </div>
               </div>
               
               <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  سيتبقى بعد الصرف: {{ getTotalAvailableQuantity(selectedItem) - form.quantity }}
+                  سيتبقى بعد الصرف: {{ (selectedItem.remaining_quantity || selectedItem.quantity || 0) - form.quantity }}
                 </span>
                 <button
                   @click="setMaxQuantity"
-                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
+                  :disabled="loading"
                   class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-50"
                 >
                   استخدام الكل
@@ -453,7 +436,7 @@
                   v-for="priorityOption in priorityOptions"
                   :key="priorityOption.value"
                   @click="form.priority = priorityOption.value"
-                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
+                  :disabled="loading"
                   :class="[
                     'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center space-x-2 space-x-reverse',
                     form.priority === priorityOption.value
@@ -473,7 +456,7 @@
               <textarea
                 v-model="form.notes"
                 rows="2"
-                :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
+                :disabled="loading"
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="أضف أي ملاحظات حول عملية الصرف..."
               ></textarea>
@@ -718,37 +701,10 @@ export default {
       return 'text-green-600 dark:text-green-400'
     }
 
-    // Calculate total available quantity
-    const getTotalAvailableQuantity = (item) => {
-      if (!item) return 0
-      
-      const cartons = item.cartons_count || 0
-      const perCarton = item.per_carton_count || 12
-      const singles = item.single_bottles_count || 0
-      
-      return (cartons * perCarton) + singles
-    }
-
-    // Calculate cartons for dispatch (simplified logic)
-    const calculateCartonsForDispatch = () => {
-      if (!selectedItem.value || !form.quantity || form.quantity <= 0) return 0
-      
-      const perCarton = selectedItem.value.per_carton_count || 12
-      return Math.floor(form.quantity / perCarton)
-    }
-
-    // Calculate singles for dispatch (simplified logic)
-    const calculateSinglesForDispatch = () => {
-      if (!selectedItem.value || !form.quantity || form.quantity <= 0) return 0
-      
-      const perCarton = selectedItem.value.per_carton_count || 12
-      return form.quantity % perCarton
-    }
-
     // Select item function
     const selectItem = (item) => {
       if ((!isSuperadmin.value && !canPerformDispatch.value) || 
-          getTotalAvailableQuantity(item) <= 0) {
+          (item.remaining_quantity || item.quantity || 0) <= 0) {
         return
       }
       selectedItem.value = item
@@ -759,7 +715,7 @@ export default {
     // Update quantity
     const updateQuantity = () => {
       // Ensure quantity doesn't exceed available
-      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
+      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
       if (form.quantity > maxQuantity) {
         form.quantity = maxQuantity
       }
@@ -768,27 +724,301 @@ export default {
       }
     }
 
-    // Calculate detailed dispatch breakdown - SIMPLIFIED VERSION
+    // Calculate detailed dispatch breakdown
     const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
-      if (!currentItem || dispatchQuantity <= 0) {
-        return { cartons: 0, singles: 0, perCarton: 12 }
+      const perCarton = currentItem.per_carton_count || 12;
+      const currentCartons = currentItem.cartons_count || 0;
+      const currentSingles = currentItem.single_bottles_count || 0;
+      
+      // Smart calculation for dispatch
+      let dispatchCartons = 0;
+      let dispatchSingles = 0;
+      
+      // Use singles first if available
+      if (currentSingles > 0) {
+        dispatchSingles = Math.min(currentSingles, dispatchQuantity);
       }
       
-      const perCarton = currentItem.per_carton_count || 12
-      const cartons = Math.floor(dispatchQuantity / perCarton)
-      const singles = dispatchQuantity % perCarton
+      // Calculate remaining after using singles
+      let remaining = dispatchQuantity - dispatchSingles;
+      
+      // Use whole cartons
+      if (remaining > 0) {
+        const cartonsNeeded = Math.floor(remaining / perCarton);
+        dispatchCartons = Math.min(cartonsNeeded, currentCartons);
+        remaining -= (dispatchCartons * perCarton);
+      }
+      
+      // If still remaining, break a carton
+      if (remaining > 0 && currentCartons > dispatchCartons) {
+        dispatchCartons += 1; // Break one more carton
+        // Take what we need from the broken carton
+        dispatchSingles += remaining;
+        // What's left in the broken carton becomes new singles
+        // This is handled by the store action
+      }
       
       return {
-        cartons: cartons,
-        singles: singles,
-        perCarton: perCarton,
-        total: dispatchQuantity
+        cartons: dispatchCartons,
+        singles: dispatchSingles,
+        perCarton: perCarton
+      };
+    }
+
+    // Search function
+    const searchSparkFriendly = async () => {
+      const term = searchTerm.value.trim()
+      
+      if (term.length === 0) {
+        searchResults.value = []
+        lastSearchStats.value = null
+        return
+      }
+      
+      try {
+        isSearching.value = true
+        
+        const startTime = performance.now()
+        
+        // Check cache first
+        const cacheKey = `${form.sourceWarehouse || 'all'}:${term}`
+        const cachedData = searchCache.value.get(cacheKey)
+        const now = Date.now()
+        
+        if (cachedData && (now - cachedData.timestamp) < CACHE_TTL) {
+          searchResults.value = cachedData.results.slice(0, MAX_RESULTS)
+          lastSearchStats.value = {
+            total: cachedData.results.length,
+            duration: Math.round(performance.now() - startTime),
+            source: 'cache'
+          }
+          isSearching.value = false
+          return
+        }
+        
+        let results = []
+        let searchSource = ''
+        
+        // Try multiple search actions
+        const searchActions = [
+          'searchInventorySmart',
+          'searchItemsForTransactions',
+          'searchItems',
+          'searchInventoryLive'
+        ]
+        
+        for (const actionName of searchActions) {
+          try {
+            if (store._actions[actionName]) {
+              const storeResults = await store.dispatch(actionName, {
+                searchQuery: term,
+                searchTerm: term,
+                warehouseId: form.sourceWarehouse || 'all',
+                limit: MAX_RESULTS
+              })
+              
+              if (storeResults && storeResults.length > 0) {
+                results = storeResults.filter(item => 
+                  (item.remaining_quantity || item.quantity || 0) > 0
+                ).slice(0, MAX_RESULTS)
+                searchSource = actionName
+                break
+              }
+            }
+          } catch (storeError) {
+            continue
+          }
+        }
+        
+        // If all store searches fail, use local search
+        if (results.length === 0) {
+          results = searchComprehensiveLocal(term)
+          searchSource = 'local_comprehensive'
+        }
+        
+        // Update cache
+        if (results.length > 0) {
+          searchCache.value.set(cacheKey, {
+            results: results,
+            timestamp: now,
+            source: searchSource
+          })
+          
+          // Clean old cache entries
+          if (searchCache.value.size > 50) {
+            const oldestKey = Array.from(searchCache.value.keys())[0]
+            searchCache.value.delete(oldestKey)
+          }
+        }
+        
+        searchResults.value = results
+        
+        const searchTime = performance.now() - startTime
+        lastSearchStats.value = {
+          total: results.length,
+          duration: Math.round(searchTime),
+          source: searchSource
+        }
+        
+      } catch (error) {
+        console.error('❌ Search error:', error)
+        searchResults.value = []
+        lastSearchStats.value = null
+      } finally {
+        isSearching.value = false
+      }
+    }
+    
+    // Comprehensive local search
+    const searchComprehensiveLocal = (term) => {
+      const termLower = term.toLowerCase()
+      
+      // Get all items
+      const allItems = inventory.value || []
+      
+      // Apply warehouse filter if specified
+      let filteredItems = allItems
+      if (form.sourceWarehouse) {
+        filteredItems = filteredItems.filter(item => 
+          item.warehouse_id === form.sourceWarehouse
+        )
+      }
+      
+      if (filteredItems.length === 0) {
+        return []
+      }
+      
+      // Define all possible search fields
+      const SEARCH_FIELDS = [
+        'name', 'item_name',
+        'code', 'item_code',
+        'color',
+        'supplier',
+        'item_location', 'location',
+        'warehouse_id',
+        'notes'
+      ]
+      
+      // Search with fuzzy matching
+      const matches = []
+      
+      for (const item of filteredItems) {
+        let matched = false
+        
+        // Check each search field
+        for (const field of SEARCH_FIELDS) {
+          const value = item[field]
+          if (!value) continue
+
+          const stringValue = value.toString().toLowerCase()
+          
+          // Multiple matching strategies
+          if (stringValue.includes(termLower)) {
+            matched = true
+            break
+          }
+          
+          // Partial word matching
+          if (termLower.length > 1) {
+            const valueWords = stringValue.split(/\s+/)
+            const searchWords = termLower.split(/\s+/)
+            
+            // Check if all search words are found in any order
+            if (searchWords.every(word => 
+              valueWords.some(valueWord => valueWord.includes(word))
+            )) {
+              matched = true
+              break
+            }
+          }
+        }
+        
+        if (matched) {
+          matches.push(item)
+          if (matches.length >= MAX_RESULTS) break
+        }
+      }
+      
+      return matches.slice(0, MAX_RESULTS)
+    }
+    
+    // Load initial items
+    const loadInitialWarehouseItems = () => {
+      if (!form.sourceWarehouse) {
+        searchResults.value = []
+        lastSearchStats.value = null
+        return
+      }
+      
+      const allItems = inventory.value || []
+      
+      // Get items from selected warehouse
+      const warehouseItems = allItems.filter(item => 
+        item.warehouse_id === form.sourceWarehouse && 
+        (item.remaining_quantity || item.quantity || 0) > 0
+      ).slice(0, 20)
+      
+      searchResults.value = warehouseItems
+      lastSearchStats.value = null
+    }
+    
+    // Clear cache
+    const clearSearchCache = () => {
+      searchCache.value.clear()
+    }
+
+    // Debounced search
+    const debouncedSearch = debounce(searchSparkFriendly, SEARCH_DEBOUNCE)
+    
+    const handleSearch = () => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+      }
+      
+      isSearching.value = true
+      
+      if (!searchTerm.value || searchTerm.value.trim().length === 0) {
+        searchResults.value = []
+        lastSearchStats.value = null
+        isSearching.value = false
+        return
+      }
+      
+      // Start search immediately for better UX
+      searchTimeout.value = setTimeout(() => {
+        debouncedSearch()
+      }, 150)
+    }
+    
+    const clearSearch = () => {
+      searchTerm.value = ''
+      searchResults.value = []
+      isSearching.value = false
+      lastSearchStats.value = null
+      
+      if (form.sourceWarehouse) {
+        loadInitialWarehouseItems()
+      }
+    }
+
+    const onWarehouseChange = () => {
+      selectedItem.value = null
+      searchTerm.value = ''
+      searchResults.value = []
+      error.value = ''
+      lastSearchStats.value = null
+      
+      // Clear cache when warehouse changes
+      clearSearchCache()
+      
+      if (form.sourceWarehouse) {
+        loadInitialWarehouseItems()
       }
     }
 
     // Quantity helper functions
     const increaseQuantity = () => {
-      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
+      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
       if (form.quantity < maxQuantity) {
         form.quantity++
       }
@@ -801,11 +1031,11 @@ export default {
     }
 
     const setMaxQuantity = () => {
-      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
+      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
       form.quantity = maxQuantity
     }
 
-    // Updated handleSubmit with proper return data
+    // Updated handleSubmit with detailed dispatch calculation
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -830,16 +1060,6 @@ export default {
         errors.push('يرجى إدخال كمية صحيحة')
       }
       
-      // Check if item has available quantity
-      const availableQuantity = getTotalAvailableQuantity(selectedItem.value)
-      if (availableQuantity <= 0) {
-        errors.push('هذا الصنف ليس لديه مخزون متاح للصرف')
-      }
-      
-      if (form.quantity > availableQuantity) {
-        errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز المخزون المتاح (${availableQuantity})`)
-      }
-      
       if (errors.length > 0) {
         error.value = errors.join('، ')
         return
@@ -849,27 +1069,10 @@ export default {
       const currentItem = selectedItem.value
       const totalToDispatch = form.quantity
       
-      // Calculate detailed breakdown using the fixed calculation function
+      // Calculate detailed breakdown using the smart calculation function
       const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
       
       const { cartons: dispatchCartons, singles: dispatchSingles, perCarton: perCarton } = detailedDispatch
-
-      // Final validation before dispatch
-      if (dispatchCartons === 0 && dispatchSingles === 0) {
-        error.value = 'لا يمكن صرف كمية صفرية. يرجى التحقق من المخزون المتاح.'
-        return
-      }
-
-      const calculatedTotal = (dispatchCartons * perCarton) + dispatchSingles
-      if (calculatedTotal !== totalToDispatch) {
-        console.warn('Quantity mismatch:', {
-          calculated: calculatedTotal,
-          requested: totalToDispatch,
-          dispatchCartons,
-          dispatchSingles,
-          perCarton
-        })
-      }
 
       loading.value = true
 
@@ -879,7 +1082,6 @@ export default {
           item_id: currentItem.id,
           from_warehouse_id: form.sourceWarehouse,
           destination: getDestinationName(form.destinationBranch),
-          destination_id: form.destinationBranch,
           
           // Send detailed breakdown
           cartons_count: dispatchCartons,
@@ -892,14 +1094,14 @@ export default {
           // Current state for store validation
           current_cartons: currentItem.cartons_count || 0,
           current_singles: currentItem.single_bottles_count || 0,
-          current_total: getTotalAvailableQuantity(currentItem),
+          current_total: ((currentItem.cartons_count || 0) * perCarton) + (currentItem.single_bottles_count || 0),
           
           notes: form.notes || 'صرف إلى فرع',
           priority: form.priority,
           item_name: currentItem.name || currentItem.item_name,
           item_code: currentItem.code || currentItem.item_code,
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          color: currentItem.color || ''
+          destination_id: form.destinationBranch
         }
         
         // Log dispatch details for debugging
@@ -909,8 +1111,7 @@ export default {
           cartons: dispatchCartons,
           singles: dispatchSingles,
           per_carton: perCarton,
-          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`,
-          available: getTotalAvailableQuantity(currentItem)
+          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
         })
 
         // Use the store dispatch action
@@ -928,43 +1129,14 @@ export default {
             successMessage.value += ` (${dispatchSingles} فردي)`
           }
           
-          // Prepare the complete result to return
-          const dispatchResult = {
-            success: true,
-            message: 'تم الصرف بنجاح',
-            transactionId: result.transactionId,
-            newQuantity: result.newTotal || result.newQuantity,
-            detailedUpdate: result.detailedUpdate,
-            // CRITICAL: Include the item ID that the page expects
-            item_id: currentItem.id,
-            id: currentItem.id, // Also include as 'id' for compatibility
-            item: currentItem, // Include the full item object
-            cartons_count: dispatchCartons,
-            single_bottles_count: dispatchSingles,
-            per_carton_count: perCarton,
-            total_quantity_dispatched: totalToDispatch,
-            source_warehouse_id: form.sourceWarehouse,
-            destination: getDestinationName(form.destinationBranch),
-            // Include everything from the store result
-            ...result
-          }
-          
-          console.log('📤 Returning dispatch result:', {
-            item_id: dispatchResult.item_id,
-            id: dispatchResult.id,
-            success: dispatchResult.success,
-            message: dispatchResult.message
-          })
-          
           // Reset form and close
           resetForm()
           setTimeout(() => {
-            // Emit with the complete data
-            emit('success', dispatchResult)
+            emit('success', result)
             emit('close')
           }, 1500)
         } else {
-          throw new Error(result?.error || result?.message || 'فشل في عملية الصرف')
+          throw new Error(result?.error || 'فشل في عملية الصرف')
         }
         
       } catch (err) {
@@ -992,8 +1164,61 @@ export default {
       lastSearchStats.value = null
     }
 
-    // Search function and other functions remain the same...
+    // Watch for inventory changes to update cache
+    watch(() => store.state.inventory, (newInventory) => {
+      if (newInventory && newInventory.length > 0) {
+        // Invalidate cache when inventory updates
+        clearSearchCache()
+      }
+    }, { deep: true })
 
+    // Load dispatch warehouses when modal opens
+    watch(() => props.isOpen, async (isOpen) => {
+      if (isOpen) {
+        // Reset form when modal opens
+        resetForm()
+        
+        // Load dispatch warehouses if not already loaded
+        if (dispatchWarehouses.value.length === 0) {
+          try {
+            loading.value = true
+            
+            // Try multiple ways to get dispatch warehouses
+            let warehouses = []
+            
+            // Method 1: Use getDispatchWarehouses action
+            try {
+              warehouses = await store.dispatch('getDispatchWarehouses')
+            } catch (error) {
+              // Method 2: Filter from all warehouses
+              const allWarehouses = store.state.warehouses || []
+              warehouses = allWarehouses.filter(w => 
+                w.type === 'dispatch' || w.is_dispatch
+              )
+            }
+            
+            if (warehouses && warehouses.length > 0) {
+              dispatchWarehouses.value = warehouses
+            }
+          } catch (error) {
+            console.error('❌ Error loading dispatch warehouses:', error)
+          } finally {
+            loading.value = false
+          }
+        }
+      }
+    }, { immediate: true })
+
+    onUnmounted(() => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+      }
+      debouncedSearch.cancel()
+      // Clear cache to free memory
+      clearSearchCache()
+    })
+
+    // Return all required properties
     return {
       // Form and state
       form,
@@ -1023,17 +1248,21 @@ export default {
       // Methods
       selectItem,
       clearSelection: () => selectedItem.value = null,
+      clearSearch,
+      onWarehouseChange,
       increaseQuantity,
       decreaseQuantity,
       setMaxQuantity,
       updateQuantity,
       getWarehouseName,
+      getWarehouseType: (warehouseId) => {
+        const warehouse = warehouses.value.find(w => w.id === warehouseId)
+        return warehouse?.type || ''
+      },
       getDestinationName,
       getStockClass,
-      getTotalAvailableQuantity,
-      calculateCartonsForDispatch,
-      calculateSinglesForDispatch,
       isWarehouseAccessible,
+      handleSearch,
       handleSubmit,
       
       // Computed for submit button
@@ -1043,12 +1272,8 @@ export default {
           return true
         }
         // Check if quantity exceeds available
-        const available = getTotalAvailableQuantity(selectedItem.value)
+        const available = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
         if (form.quantity > available) {
-          return true
-        }
-        // Check if item has any available quantity
-        if (available <= 0) {
           return true
         }
         return false
@@ -1065,7 +1290,6 @@ export default {
   }
 }
 </script>
-
 <style scoped>
 .rtl {
   direction: rtl;
