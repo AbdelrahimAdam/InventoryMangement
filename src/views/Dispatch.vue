@@ -2341,18 +2341,49 @@ export default {
       try {
         console.log('🚀 Starting dispatch from page with data:', dispatchData);
         
-        // Validate required fields for store dispatch
-        if (!dispatchData.item_id || !dispatchData.from_warehouse_id || !dispatchData.destination) {
-          throw new Error('بيانات الصرف غير مكتملة');
+        // ✅ FIXED: Better validation that checks the actual data structure
+        // Log the complete dispatchData for debugging
+        console.log('📋 Complete dispatch data received:', JSON.stringify(dispatchData, null, 2));
+        
+        // Check for all required fields with better debugging
+        const missingFields = [];
+        
+        // Item ID is required
+        if (!dispatchData.item_id && !dispatchData.id) {
+          missingFields.push('item_id or id');
+        }
+        
+        // From warehouse is required
+        if (!dispatchData.from_warehouse_id && !dispatchData.sourceWarehouse) {
+          missingFields.push('from_warehouse_id or sourceWarehouse');
+        }
+        
+        // Destination is required (can be ID or name)
+        if (!dispatchData.destination && !dispatchData.destination_id && !dispatchData.destinationBranch) {
+          missingFields.push('destination, destination_id, or destinationBranch');
+        }
+        
+        if (missingFields.length > 0) {
+          console.error('❌ Missing required fields:', missingFields);
+          throw new Error(`بيانات الصرف غير مكتملة. الحقول المفقودة: ${missingFields.join(', ')}`);
         }
 
+        // ✅ FIXED: Extract data from different possible property names
+        const itemId = dispatchData.item_id || dispatchData.id;
+        const fromWarehouseId = dispatchData.from_warehouse_id || dispatchData.sourceWarehouse;
+        const destination = dispatchData.destination || getDestinationLabel(dispatchData.destination_id) || dispatchData.destinationBranch;
+        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch;
+        
+        // ✅ FIXED: Get warehouse name properly
+        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(fromWarehouseId);
+        
         // Call the store dispatch action with proper data
         const result = await store.dispatch('dispatchItem', {
-          item_id: dispatchData.item_id,
-          from_warehouse_id: dispatchData.from_warehouse_id,
-          from_warehouse_name: getWarehouseLabel(dispatchData.from_warehouse_id),
-          destination: dispatchData.destination,
-          destination_id: dispatchData.destination_id,
+          item_id: itemId,
+          from_warehouse_id: fromWarehouseId,
+          from_warehouse_name: fromWarehouseName,
+          destination: destination,
+          destination_id: destinationId,
           cartons_count: dispatchData.cartons_count || 0,
           single_bottles_count: dispatchData.single_bottles_count || 0,
           per_carton_count: dispatchData.per_carton_count || 12,
@@ -2375,6 +2406,8 @@ export default {
           
           // ✅ NEW: Refresh dispatch history from store
           await loadDispatchHistory();
+        } else {
+          throw new Error(result.error || 'فشل في عملية الصرف');
         }
         
       } catch (error) {
@@ -2469,7 +2502,7 @@ export default {
               @page { margin: 0.5in; }
             }
             .company-info { margin-bottom: 20px; text-align: center; font-size: 12px; color: #666; }
-            .logo { width: 80px; height: 80px; background: #4f46e5; color: white; border-radius: 8px; display: flex; align-items-center justify-content: center; margin: 0 auto 15px; font-size: 32px; font-weight: bold; }
+            .logo { width: 80px; height: 80px; background: #4f46e5; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 32px; font-weight: bold; }
           </style>
         </head>
         <body>
@@ -3915,7 +3948,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   }
 };
 </script>
-
 <style scoped>
 /* تحسين عرض نموذج الفاتورة */
 .invoice-form-container {
