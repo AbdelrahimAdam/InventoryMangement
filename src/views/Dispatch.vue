@@ -158,7 +158,7 @@
         </div>
 
         <!-- Invoice Creation/Editing Form - MOBILE OPTIMIZED -->
-        <div v-if="showInvoiceForm" class="invoice-form-container bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto">
+        <div v-if="showInvoiceForm" class="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto">
           <!-- Form Header - Mobile Optimized -->
           <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
@@ -178,18 +178,18 @@
 
           <!-- Main Form Content - Mobile Optimized -->
           <div class="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 overflow-y-auto max-h-[calc(100vh-180px)]">
-            <!-- Step 1: Invoice Type and Customer Information - Optimized Width -->
+            <!-- Step 1: Invoice Type and Customer Information - Responsive Grid -->
             <div>
               <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
                 <span class="h-5 w-5 sm:h-6 sm:w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">1</span>
                 <span class="truncate">معلومات الفاتورة والعميل</span>
               </h4>
               
-              <div class="invoice-form-grid">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <!-- Invoice Type -->
-                <div class="lg:col-span-2 form-field-full">
+                <div class="sm:col-span-2">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">نوع الفاتورة *</label>
-                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white max-w-md mx-auto lg:mx-0">
+                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="B2B">فاتورة ضريبية (B2B) - نشاط تجاري</option>
                     <option value="B2C">فاتورة ضريبية (B2C) - مستهلك نهائي</option>
                     <option value="simplified">فاتورة مبسطة</option>
@@ -197,7 +197,7 @@
                 </div>
 
                 <!-- Payment Method -->
-                <div class="form-field-container">
+                <div>
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">طريقة الدفع *</label>
                   <select v-model="invoiceForm.paymentMethod" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="cash">نقدي</option>
@@ -208,45 +208,45 @@
                 </div>
 
                 <!-- Customer Name -->
-                <div class="form-field-container">
+                <div>
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">اسم العميل *</label>
                   <input v-model="invoiceForm.customer.name" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="اسم العميل الكامل" required>
                 </div>
 
                 <!-- Customer Phone -->
-                <div class="form-field-container">
+                <div>
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">رقم الهاتف *</label>
                   <input v-model="invoiceForm.customer.phone" type="tel" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="01XXXXXXXXX" required>
                 </div>
 
                 <!-- Tax ID (for B2B only) -->
-                <div v-if="invoiceForm.type === 'B2B'" class="lg:col-span-2 form-field-full">
+                <div v-if="invoiceForm.type === 'B2B'" class="sm:col-span-2">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">الرقم الضريبي *</label>
-                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white max-w-md" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
+                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
                 </div>
 
                 <!-- Customer Address -->
-                <div class="lg:col-span-2 form-field-full">
+                <div class="sm:col-span-2">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">العنوان</label>
                   <input v-model="invoiceForm.customer.address" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="عنوان العميل">
                 </div>
 
                 <!-- Notes -->
-                <div class="lg:col-span-2 form-field-full">
+                <div class="sm:col-span-2">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">ملاحظات</label>
                   <textarea v-model="invoiceForm.notes" rows="2" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
               </div>
             </div>
 
-            <!-- Step 2: Warehouse Selection - Optimized -->
+            <!-- Step 2: Warehouse Selection -->
             <div>
               <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
                 <span class="h-5 w-5 sm:h-6 sm:w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">2</span>
                 اختر المخزن
               </h4>
               
-              <div class="warehouse-select-container">
+              <div class="relative">
                 <select 
                   v-model="selectedWarehouseForInvoice" 
                   @change="loadWarehouseItems" 
@@ -300,7 +300,7 @@
                   v-model="itemSearch" 
                   @input="debouncedSearchItems"
                   type="text" 
-                  class="search-input"
+                  class="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="ابحث عن صنف بالاسم، الكود، اللون، المورد، المخزن..."
                   :disabled="!selectedWarehouseForInvoice"
                 >
@@ -315,12 +315,12 @@
               </div>
 
               <!-- Search Stats and Source -->
-              <div v-if="itemSearch.trim() && filteredSearchResults.length > 0" class="search-stats-container">
+              <div v-if="itemSearch.trim() && filteredSearchResults.length > 0" class="mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center flex-wrap gap-2">
                 <span>🔍 بحث: "{{ itemSearch }}"</span>
                 <span>•</span>
                 <span>تم العثور على {{ filteredSearchResults.length }} صنف</span>
                 <span v-if="lastSearchSource" class="flex items-center gap-1">
-                  • <span class="search-source-badge">
+                  • <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs">
                     {{ getSearchSourceLabel(lastSearchSource) }}
                   </span>
                 </span>
@@ -330,12 +330,12 @@
               </div>
 
               <!-- Available Items Grid - Enhanced with SPARK Search -->
-              <div v-if="filteredSearchResults.length > 0" class="search-results-grid">
+              <div v-if="filteredSearchResults.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div 
                   v-for="item in filteredSearchResults" 
                   :key="item.id"
                   @click="addItemToInvoice(item)"
-                  class="search-result-card"
+                  class="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
@@ -378,7 +378,7 @@
               </div>
 
               <!-- Search Results Empty State -->
-              <div v-else-if="itemSearch.trim() && !searchingItems" class="search-empty-state">
+              <div v-else-if="itemSearch.trim() && !searchingItems" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
                 </svg>
@@ -398,7 +398,7 @@
               </div>
 
               <!-- Please Select Warehouse -->
-              <div v-else-if="!selectedWarehouseForInvoice" class="search-empty-state">
+              <div v-else-if="!selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
@@ -425,14 +425,14 @@
               </div>
 
               <!-- Search Tips -->
-              <div v-if="!itemSearch.trim() && selectedWarehouseForInvoice" class="search-tips-container">
-                <p class="search-tips-title">💡 نصائح البحث:</p>
-                <ul class="search-tips-list">
-                  <li class="search-tip-item">• ابحث بالاسم، الكود، اللون، المورد، أو المخزن</li>
-                  <li class="search-tip-item">• البحث يدعم اللغة العربية والإنجليزية</li>
-                  <li class="search-tip-item">• أدخل 2 أحرف على الأقل للبدء</li>
-                  <li class="search-tip-item">• البحث الذكي يتطابق مع أي جزء من الاسم</li>
-                  <li v-if="searchAllWarehouses" class="search-tip-item search-tip-highlight">
+              <div v-if="!itemSearch.trim() && selectedWarehouseForInvoice" class="mt-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <p class="font-medium mb-1 flex items-center gap-1">💡 نصائح البحث:</p>
+                <ul class="space-y-1 text-right">
+                  <li>• ابحث بالاسم، الكود، اللون، المورد، أو المخزن</li>
+                  <li>• البحث يدعم اللغة العربية والإنجليزية</li>
+                  <li>• أدخل 2 أحرف على الأقل للبدء</li>
+                  <li>• البحث الذكي يتطابق مع أي جزء من الاسم</li>
+                  <li v-if="searchAllWarehouses" class="text-blue-600 dark:text-blue-400">
                     • البحث حالياً يشمل جميع المخازن
                   </li>
                 </ul>
@@ -448,7 +448,7 @@
               </h4>
 
               <!-- Selected Items Table - Mobile Optimized -->
-              <div class="selected-items-container border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 <!-- Table Header - Hidden on Mobile, Card View Instead -->
                 <div class="hidden sm:grid sm:grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                   <div class="col-span-4 p-3">الصنف</div>
@@ -465,7 +465,7 @@
                     <div
                       v-for="(item, index) in invoiceForm.items"
                       :key="item.id"
-                      class="selected-item-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
+                      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
                     >
                       <!-- Item Header -->
                       <div class="flex justify-between items-start mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
@@ -559,7 +559,7 @@
                     <div
                       v-for="(item, index) in invoiceForm.items"
                       :key="item.id"
-                      class="dispatch-table-row grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
+                      class="grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                     >
                       <!-- Item Name and Details -->
                       <div class="col-span-4 p-3">
@@ -654,7 +654,7 @@
                 ملخص الفاتورة
               </h4>
 
-              <div class="invoice-summary-card">
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg sm:rounded-xl border border-blue-200 dark:border-blue-700 p-3 sm:p-4 lg:p-5">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   <!-- Invoice Details -->
                   <div>
@@ -1015,7 +1015,7 @@
           </div>
 
           <!-- Pagination - Mobile Optimized -->
-          <div v-if="filteredInvoices.length > 0" class="pagination-container">
+          <div v-if="filteredInvoices.length > 0" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
               <div class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center sm:text-right">
                 عرض <span class="font-medium">{{ startInvoiceIndex + 1 }}</span> إلى <span class="font-medium">{{ endInvoiceIndex }}</span> من <span class="font-medium">{{ filteredInvoices.length }}</span> فاتورة
@@ -1037,7 +1037,7 @@
       </div>
 
       <!-- ============================================ -->
-      <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) - UPDATED -->
+      <!-- ORIGINAL DISPATCH SECTION (When Invoice System is OFF) -->
       <!-- ============================================ -->
       <div v-else>
         <!-- Stats Cards - Mobile Optimized -->
@@ -1085,7 +1085,7 @@
           </div>
         </div>
 
-        <!-- Create Dispatch Section - Mobile Optimized - FIXED QUANTITY DISPLAY -->
+        <!-- Create Dispatch Section - Mobile Optimized -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 lg:mb-8">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 lg:mb-6">
             <div>
@@ -1109,7 +1109,7 @@
                 </svg>
               </div>
 
-              <!-- Warehouse Filter for Available Items -->
+              <!-- Warehouse Filter for Available Items - FIXED SECTION -->
               <select
                 v-model="selectedWarehouse"
                 @change="updateAvailableItems"
@@ -1141,7 +1141,7 @@
             </div>
           </div>
 
-          <!-- Available Items - FIXED QUANTITY DISPLAY -->
+          <!-- Available Items -->
           <div v-if="availableItems.length > 0" class="mt-3 sm:mt-4">
             <div class="flex items-center justify-between mb-2 sm:mb-3">
               <h3 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
@@ -1153,7 +1153,7 @@
               </div>
             </div>
 
-            <div class="available-items-grid">
+            <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
               <div 
                 v-for="item in displayedAvailableItems" 
                 :key="item.id"
@@ -1164,11 +1164,10 @@
                   <div class="flex-1 min-w-0">
                     <p class="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
                     <div class="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
-                      <span v-if="item.code" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 rounded truncate">{{ item.code }}</span>
-                      <!-- FIXED: Use item.remaining_quantity which should be available from inventory data -->
+                      <span class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 rounded truncate">{{ item.code }}</span>
                       <span class="text-xs px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap" 
                             :class="getQuantityClass(item.remaining_quantity)">
-                        {{ formatNumber(item.remaining_quantity || 0) }} متبقي
+                        {{ formatNumber(item.remaining_quantity) }} متبقي
                       </span>
                     </div>
                   </div>
@@ -1206,8 +1205,8 @@
           </div>
         </div>
 
-        <!-- Dispatch History - Mobile Optimized - FIXED QUANTITY DISPLAY -->
-        <div class="dispatch-table-container bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
+        <!-- Dispatch History - Mobile Optimized -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
           <div class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
               <div>
@@ -1215,7 +1214,7 @@
                 <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">جميع عمليات الصرف المسجلة في النظام</p>
               </div>
 
-              <div class="filters-container">
+              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 <!-- Search History -->
                 <div class="relative flex-1 sm:flex-initial min-w-0">
                   <input
@@ -1362,86 +1361,76 @@
             <!-- Desktop Table -->
             <div class="hidden lg:block">
               <!-- Fixed Table Headers -->
-              <div class="dispatch-table-header">
-                <div class="grid grid-cols-12 gap-2 px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[800px]">
-                  <div class="col-span-2 text-right px-2">التاريخ والوقت</div>
-                  <div class="col-span-2 text-right px-2">الصنف</div>
-                  <div class="col-span-1 text-right px-2">الكمية</div>
-                  <div class="col-span-2 text-right px-2">من مخزن</div>
-                  <div class="col-span-2 text-right px-2">إلى</div>
-                  <div class="col-span-1 text-right px-2">القيمة</div>
-                  <div class="col-span-1 text-right px-2">بواسطة</div>
-                  <div class="col-span-1 text-right px-2">الإجراءات</div>
+              <div class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <div class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <div class="col-span-2 text-right">التاريخ والوقت</div>
+                  <div class="col-span-2 text-right">الصنف</div>
+                  <div class="col-span-2 text-right">من مخزن</div>
+                  <div class="col-span-1 text-right">إلى</div>
+                  <div class="col-span-1 text-right">الكمية</div>
+                  <div class="col-span-1 text-right">القيمة</div>
+                  <div class="col-span-1 text-right">بواسطة</div>
+                  <div class="col-span-2 text-right">الإجراءات</div>
                 </div>
               </div>
 
               <!-- Scrollable Table Body -->
-              <div class="overflow-x-auto" style="max-height: calc(100vh - 400px); min-height: 200px;">
-                <div class="min-w-full">
-                  <div 
-                    v-if="filteredDispatchHistory.length === 0 && !loading"
-                    class="py-8 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                    </svg>
-                    <p class="mt-2 text-sm">لا توجد عمليات صرف</p>
-                  </div>
-                  
+              <div class="overflow-y-auto" style="max-height: calc(100vh - 400px);">
+                <div class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <div 
                     v-for="dispatch in paginatedHistory" 
                     :key="dispatch.id" 
-                    class="dispatch-table-row grid grid-cols-12 gap-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700 min-w-[800px]"
+                    class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700"
                   >
                     <!-- Date & Time -->
-                    <div class="col-span-2 px-2">
+                    <div class="col-span-2">
                       <div class="text-sm text-gray-900 dark:text-white">{{ formatDate(dispatch.timestamp) }}</div>
                       <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(dispatch.timestamp) }}</div>
                     </div>
 
                     <!-- Item -->
-                    <div class="col-span-2 px-2">
-                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name || 'غير محدد' }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code || 'N/A' }}</div>
-                    </div>
-
-                    <!-- Quantity - FIXED: Use getDispatchQuantity() helper -->
-                    <div class="col-span-1 px-2">
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
-                            :class="getDispatchQuantityClass(getDispatchQuantity(dispatch))">
-                        {{ formatNumber(getDispatchQuantity(dispatch)) }}
-                      </span>
+                    <div class="col-span-2">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code }}</div>
                     </div>
 
                     <!-- From Warehouse -->
-                    <div class="col-span-2 px-2 text-sm text-gray-900 dark:text-white truncate">
-                      {{ getWarehouseLabel(dispatch.from_warehouse) || 'غير محدد' }}
+                    <div class="col-span-2 text-sm text-gray-900 dark:text-white truncate">
+                      {{ getWarehouseLabel(dispatch.from_warehouse) }}
                     </div>
 
                     <!-- Destination -->
-                    <div class="col-span-2 px-2 text-sm text-gray-900 dark:text-white truncate">
-                      {{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) || 'خارج النظام' }}
+                    <div class="col-span-1 text-sm text-gray-900 dark:text-white truncate">
+                      {{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) }}
+                    </div>
+
+                    <!-- Quantity -->
+                    <div class="col-span-1">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
+                            :class="getDispatchQuantityClass(dispatch.total_delta)">
+                        {{ formatNumber(Math.abs(dispatch.total_delta)) }}
+                      </span>
                     </div>
 
                     <!-- Value -->
-                    <div class="col-span-1 px-2 text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div class="col-span-1 text-sm font-medium text-gray-900 dark:text-white truncate">
                       {{ formatCurrency(calculateDispatchValue(dispatch)) }}
                     </div>
 
                     <!-- User -->
-                    <div class="col-span-1 px-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+                    <div class="col-span-1 text-sm text-gray-500 dark:text-gray-400 truncate">
                       {{ dispatch.user_name || dispatch.created_by || 'مستخدم النظام' }}
                     </div>
 
                     <!-- Actions -->
-                    <div class="col-span-1 px-2">
+                    <div class="col-span-2">
                       <div class="flex items-center space-x-1 space-x-reverse">
                         <button 
                           @click="viewDispatchDetails(dispatch)"
                           class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
                           title="عرض التفاصيل"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                           </svg>
@@ -1451,7 +1440,7 @@
                           class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
                           title="طباعة"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                           </svg>
                         </button>
@@ -1477,10 +1466,9 @@
                         <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ formatDate(dispatch.timestamp) }} - {{ formatTime(dispatch.timestamp) }}</div>
                       </div>
-                      <!-- FIXED: Use getDispatchQuantity() helper -->
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
-                            :class="getDispatchQuantityClass(getDispatchQuantity(dispatch))">
-                        {{ formatNumber(getDispatchQuantity(dispatch)) }}
+                            :class="getDispatchQuantityClass(dispatch.total_delta)">
+                        {{ formatNumber(Math.abs(dispatch.total_delta)) }}
                       </span>
                     </div>
 
@@ -1537,7 +1525,7 @@
             </div>
 
             <!-- Pagination -->
-            <div v-if="totalHistoryPages > 1" class="pagination-container">
+            <div v-if="totalHistoryPages > 1" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-right">
                   عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredDispatchHistory.length) }} من {{ filteredDispatchHistory.length }}
@@ -1677,10 +1665,6 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // ✅ NEW: Dispatch history from store
-    const dispatchHistory = computed(() => store.state.dispatchHistory || []);
-    const dispatchHistoryLoading = computed(() => store.state.dispatchHistoryLoading || false);
-    
     // Store getters
     const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
     
@@ -1709,20 +1693,24 @@ export default {
     // ============================================
     // SECTION 4: SPARK SEARCH COMPUTED PROPERTIES
     // ============================================
+    // Filter search results based on selected warehouse
     const filteredSearchResults = computed(() => {
       if (!searchResults.value.length) {
         return [];
       }
       
+      // If no warehouse selected or search all warehouses enabled, return all results
       if (!selectedWarehouseForInvoice.value || searchAllWarehouses.value) {
         return searchResults.value;
       }
       
+      // Filter results based on selected warehouse
       return searchResults.value.filter(item => {
         return item.warehouse_id === selectedWarehouseForInvoice.value;
       });
     });
     
+    // Count items in selected warehouse
     const totalItemsInWarehouse = computed(() => {
       if (!selectedWarehouseForInvoice.value) return 0;
       
@@ -1735,9 +1723,9 @@ export default {
     // ============================================
     // SECTION 5: ORIGINAL DISPATCH COMPUTED PROPERTIES
     // ============================================
-    // ✅ UPDATED: Use store dispatchHistory instead of filtering transactions
+    // Dispatch transactions (type = 'DISPATCH')
     const dispatchTransactions = computed(() => {
-      return dispatchHistory.value;
+      return (allTransactions.value || []).filter(t => t.type === 'DISPATCH');
     });
     
     // Stats
@@ -1792,9 +1780,9 @@ export default {
       return availableItems.value.slice(0, 8);
     });
     
-    // ✅ UPDATED: Filter dispatch history - Use store dispatchHistory
+    // Filter dispatch history
     const filteredDispatchHistory = computed(() => {
-      let filtered = [...dispatchHistory.value];
+      let filtered = [...dispatchTransactions.value];
       
       if (historySearch.value.trim()) {
         const term = historySearch.value.toLowerCase().trim();
@@ -1978,7 +1966,7 @@ export default {
     });
     
     // ============================================
-    // SECTION 7: UPDATED UTILITY FUNCTIONS
+    // SECTION 7: UTILITY FUNCTIONS
     // ============================================
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -2070,60 +2058,17 @@ export default {
       return labels[source] || source;
     };
     
-    // ✅ UPDATED: Calculate dispatch value with better quantity detection
     const calculateDispatchValue = (dispatch) => {
-      // Try multiple possible quantity fields in order of priority
-      let quantity = 0;
-      
-      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
-        quantity = Math.abs(dispatch.quantity);
-      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
-        quantity = Math.abs(dispatch.total_delta);
-      } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
-        // Calculate from cartons
-        quantity = Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
-                   Math.abs(dispatch.single_bottles_count || 0);
-      } else if (dispatch.detailedUpdate?.remaining_quantity !== undefined) {
-        quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
-      }
-      
-      // Use a reasonable default price per item
-      const pricePerItem = 50; // أو استخدم سعر الصنف الفعلي إذا كان متوفرًا
+      const quantity = Math.abs(dispatch.total_delta || 0);
+      const pricePerItem = 50;
       return quantity * pricePerItem;
     };
     
-    // ✅ UPDATED: Get dispatch quantity class with better quantity detection
-    const getDispatchQuantityClass = (dispatch) => {
-      let quantity = 0;
-      
-      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
-        quantity = Math.abs(dispatch.quantity);
-      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
-        quantity = Math.abs(dispatch.total_delta);
-      } else if (typeof dispatch === 'number') {
-        quantity = Math.abs(dispatch);
-      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
-        quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
-      }
-      
-      if (quantity < 10) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
-      if (quantity < 50) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+    const getDispatchQuantityClass = (quantity) => {
+      const qty = Math.abs(quantity || 0);
+      if (qty < 10) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
+      if (qty < 50) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
       return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300';
-    };
-    
-    // ✅ UPDATED: Helper to get quantity for display
-    const getDispatchQuantity = (dispatch) => {
-      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
-        return Math.abs(dispatch.quantity);
-      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
-        return Math.abs(dispatch.total_delta);
-      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
-        return Math.abs(dispatch.detailedUpdate.remaining_quantity);
-      } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
-        return Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
-               Math.abs(dispatch.single_bottles_count || 0);
-      }
-      return 0;
     };
     
     const getQuantityClass = (quantity) => {
@@ -2198,14 +2143,17 @@ export default {
       try {
         console.log(`🔍 SPARK Searching for: "${itemSearch.value}"`);
         
+        // Determine search parameters
         const searchQuery = itemSearch.value.trim();
         const warehouseId = searchAllWarehouses.value ? null : selectedWarehouseForInvoice.value;
         
+        // Try to use store's SPARK search functionality
         let results = [];
         let source = '';
         
         if (store.dispatch && typeof store.dispatch === 'function') {
           try {
+            // Try the comprehensive SPARK search first
             const searchResult = await store.dispatch('searchInventorySpark', {
               searchQuery,
               warehouseId,
@@ -2216,6 +2164,7 @@ export default {
             results = searchResult || [];
             source = 'firebase';
             
+            // Fallback to local search if firebase returns empty
             if (results.length === 0) {
               console.log('Firebase search returned empty, trying local search...');
               const localResults = await store.dispatch('searchLocalSpark', {
@@ -2232,6 +2181,7 @@ export default {
           } catch (error) {
             console.error('SPARK search error:', error);
             
+            // Fallback to local search
             const localResults = await store.dispatch('searchLocalSpark', {
               query: searchQuery,
               warehouseId,
@@ -2242,10 +2192,12 @@ export default {
             source = 'local_fallback';
           }
         } else {
+          // Fallback to basic local search if store doesn't have SPARK search
           results = performBasicLocalSearch(searchQuery, warehouseId);
           source = 'cache';
         }
         
+        // Format results for display
         searchResults.value = results.map(item => {
           return {
             id: item.id,
@@ -2272,6 +2224,7 @@ export default {
       } catch (error) {
         console.error('❌ Error in SPARK search:', error);
         
+        // Ultimate fallback to basic filtering
         searchResults.value = performBasicLocalSearch(itemSearch.value.trim(), selectedWarehouseForInvoice.value);
         lastSearchSource.value = 'cache';
         
@@ -2301,6 +2254,7 @@ export default {
         );
       }
       
+      // Filter out items already in the invoice
       const currentItemIds = new Set(invoiceForm.value.items.map(item => item.id));
       items = items.filter(item => !currentItemIds.has(item.id));
       
@@ -2313,11 +2267,13 @@ export default {
         return;
       }
 
+      // If there's a search term, use SPARK search functionality
       if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
         await searchItemsWithSpark();
         return;
       }
 
+      // Otherwise, load all items from the selected warehouse
       searchingItems.value = true;
 
       try {
@@ -2325,10 +2281,11 @@ export default {
         
         let results = [];
         
+        // Try to use store's enhanced search with empty query
         if (store.dispatch && typeof store.dispatch === 'function') {
           try {
             const searchResult = await store.dispatch('searchFirebaseSparkEnhanced', {
-              query: '',
+              query: '', // Empty query to get all items
               warehouseId: selectedWarehouseForInvoice.value,
               limit: 200
             });
@@ -2358,7 +2315,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE - FIXED VERSION
+    // SECTION 9: ORIGINAL DISPATCH ACTIONS
     // ============================================
     const selectItemForDispatch = (item) => {
       if (!canPerformDispatch.value) {
@@ -2381,125 +2338,15 @@ export default {
       selectedItemForDispatch.value = null;
     };
     
-    // ✅ UPDATED FIXED VERSION: handleDispatchSuccess with better error handling
-    const handleDispatchSuccess = async (dispatchData) => {
-      try {
-        console.log('🚀 Starting dispatch from page with data:', dispatchData);
-        console.log('📋 Complete dispatch data received:', dispatchData);
-        
-        // ✅ FIXED: Check for all possible field names
-        // Get item ID from multiple possible fields
-        const itemId = dispatchData.item_id || dispatchData.id;
-        if (!itemId) {
-          console.error('Missing item_id/id. Data:', dispatchData);
-          throw new Error('معرف الصنف (item_id أو id) مفقود');
-        }
-        
-        // Get from warehouse ID from multiple possible fields
-        const fromWarehouseId = dispatchData.from_warehouse_id || dispatchData.sourceWarehouse;
-        if (!fromWarehouseId) {
-          console.error('Missing from_warehouse_id/sourceWarehouse. Data:', dispatchData);
-          throw new Error('المخزن المصدر (from_warehouse_id أو sourceWarehouse) مفقود');
-        }
-        
-        // Get destination from multiple possible fields
-        let destination = dispatchData.destination;
-        if (!destination) {
-          destination = getDestinationLabel(dispatchData.destination_id) || 
-                       getDestinationLabel(dispatchData.destinationBranch) ||
-                       'موقع صرف';
-        }
-        
-        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch || 'external';
-        
-        // Get additional required data
-        const itemName = dispatchData.item_name || selectedItemForDispatch.value?.name || 'صنف غير محدد';
-        const itemCode = dispatchData.item_code || selectedItemForDispatch.value?.code || '';
-        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(fromWarehouseId);
-        
-        // Validate required fields
-        const missingFields = [];
-        if (!itemId) missingFields.push('item_id أو id');
-        if (!fromWarehouseId) missingFields.push('from_warehouse_id أو sourceWarehouse');
-        if (!destination) missingFields.push('destination أو destination_id أو destinationBranch');
-        
-        if (missingFields.length > 0) {
-          console.error('❌ Missing required fields:', missingFields);
-          console.error('Received data:', dispatchData);
-          throw new Error(`بيانات الصرف غير مكتملة. الحقول المفقودة: ${missingFields.join('، ')}`);
-        }
-
-        // Prepare dispatch payload EXACTLY as store expects
-        const dispatchPayload = {
-          // REQUIRED FIELDS (must match store validation)
-          item_id: itemId,
-          from_warehouse_id: fromWarehouseId,
-          destination: destination,
-          
-          // Detailed quantities (match store field names)
-          cartons_count: dispatchData.cartons_count || 0,
-          single_bottles_count: dispatchData.single_bottles_count || 0,
-          per_carton_count: dispatchData.per_carton_count || 12,
-          quantity: dispatchData.quantity || 0,
-          
-          // Additional data (match store field names)
-          item_name: itemName,
-          item_code: itemCode,
-          from_warehouse_name: fromWarehouseName,
-          destination_id: destinationId,
-          notes: dispatchData.notes || 'صرف من خلال نظام الصرف',
-          priority: dispatchData.priority || 'normal'
-        };
-
-        console.log('📤 Sending to store dispatchItem with payload:', dispatchPayload);
-        
-        // Call store dispatch action with properly formatted payload
-        const result = await store.dispatch('dispatchItem', dispatchPayload);
-
-        if (result?.success) {
-          console.log('✅ Dispatch successful:', result);
-          
-          showDispatchModal.value = false;
-          selectedItemForDispatch.value = null;
-          currentHistoryPage.value = 1;
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            title: 'تم الصرف بنجاح',
-            message: result.message || `تم صرف ${result.detailedUpdate?.remaining_quantity || 0} وحدة بنجاح`
-          });
-          
-          // ✅ NEW: Refresh dispatch history from store
-          await loadDispatchHistory();
-          
-          return result;
-        } else {
-          const errorMsg = result?.message || result?.error || 'فشل في عملية الصرف';
-          throw new Error(errorMsg);
-        }
-        
-      } catch (error) {
-        console.error('❌ Error in dispatch:', error);
-        console.error('Error details:', error.stack);
-        
-        // Show detailed error message
-        let errorMessage = error.message || 'حدث خطأ في عملية الصرف';
-        
-        // Add more context for common errors
-        if (error.message.includes('بيانات الصرف غير مكتملة')) {
-          errorMessage += ' - يرجى التحقق من بيانات الصرف المطلوبة';
-        } else if (error.message.includes('ليس لديك صلاحية')) {
-          errorMessage += ' - يرجى التحقق من صلاحيات المستخدم';
-        }
-        
-        store.dispatch('showNotification', {
-          type: 'error',
-          title: 'فشل الصرف',
-          message: errorMessage
-        });
-        
-        throw error; // Re-throw to let component handle it if needed
-      }
+    const handleDispatchSuccess = () => {
+      showDispatchModal.value = false;
+      selectedItemForDispatch.value = null;
+      currentHistoryPage.value = 1;
+      
+      store.dispatch('showNotification', {
+        type: 'success',
+        message: 'تمت عملية الصرف بنجاح'
+      });
     };
     
     const handleSearch = () => {
@@ -2513,12 +2360,6 @@ export default {
     
     const applyHistoryFilters = () => {
       currentHistoryPage.value = 1;
-      console.log('Applying filters:', {
-        search: historySearch.value,
-        warehouse: historyWarehouseFilter.value,
-        dateFilter: dateFilter.value,
-        history: filteredDispatchHistory.value.length
-      });
     };
     
     const clearHistoryFilters = () => {
@@ -2544,15 +2385,13 @@ export default {
       }
     };
     
-    // ✅ UPDATED: View dispatch details with better quantity display
     const viewDispatchDetails = (dispatch) => {
-      const quantity = getDispatchQuantity(dispatch);
       const details = `
 تفاصيل الصرف:
 
-• الصنف: ${dispatch.item_name || 'غير محدد'}
+• الصنف: ${dispatch.item_name}
 • الكود: ${dispatch.item_code || 'N/A'}
-• الكمية: ${quantity} وحدة
+• الكمية: ${Math.abs(dispatch.total_delta)} وحدة
 • من مخزن: ${getWarehouseLabel(dispatch.from_warehouse)}
 • إلى: ${getDestinationLabel(dispatch.destination || dispatch.to_warehouse)}
 • التاريخ: ${formatDateTime(dispatch.timestamp)}
@@ -2564,10 +2403,8 @@ export default {
       alert(details);
     };
     
-    // ✅ UPDATED: Print dispatch with better quantity display
     const printDispatch = (dispatch) => {
       const printWindow = window.open('', '_blank');
-      const quantity = getDispatchQuantity(dispatch);
       const printContent = `
         <html dir="rtl">
         <head>
@@ -2609,7 +2446,7 @@ export default {
             </tr>
             <tr>
               <th>اسم الصنف</th>
-              <td>${dispatch.item_name || 'غير محدد'}</td>
+              <td>${dispatch.item_name}</td>
             </tr>
             <tr>
               <th>كود الصنف</th>
@@ -2617,7 +2454,7 @@ export default {
             </tr>
             <tr>
               <th>الكمية</th>
-              <td>${quantity} وحدة</td>
+              <td>${Math.abs(dispatch.total_delta)} وحدة</td>
             </tr>
             <tr>
               <th>من مخزن</th>
@@ -2688,7 +2525,7 @@ export default {
           'الوقت': formatTime(dispatch.timestamp),
           'اسم الصنف': dispatch.item_name || '',
           'كود الصنف': dispatch.item_code || '',
-          'الكمية': getDispatchQuantity(dispatch),
+          'الكمية': Math.abs(dispatch.total_delta || 0),
           'من مخزن': getWarehouseLabel(dispatch.from_warehouse),
           'إلى': getDestinationLabel(dispatch.destination || dispatch.to_warehouse),
           'القيمة': calculateDispatchValue(dispatch),
@@ -2745,33 +2582,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 10: NEW DISPATCH HISTORY LOADING FUNCTION
-    // ============================================
-    const loadDispatchHistory = async () => {
-      try {
-        console.log('🔄 Loading dispatch history from store...');
-        
-        // Use store action to load dispatch history
-        await store.dispatch('loadDispatchHistory', {
-          search: historySearch.value.trim(),
-          warehouse: historyWarehouseFilter.value,
-          dateFrom: dateFilter.value === 'custom' ? customDateFrom.value : '',
-          dateTo: dateFilter.value === 'custom' ? customDateTo.value : ''
-        });
-        
-        console.log(`✅ Dispatch history loaded: ${dispatchHistory.value.length} records`);
-        
-      } catch (error) {
-        console.error('❌ Error loading dispatch history:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل سجل الصرف'
-        });
-      }
-    };
-    
-    // ============================================
-    // SECTION 11: INVOICE SYSTEM ACTIONS (ALL REMAIN THE SAME)
+    // SECTION 10: INVOICE SYSTEM ACTIONS
     // ============================================
     const toggleInvoiceSystem = () => {
       showInvoiceSystem.value = !showInvoiceSystem.value;
@@ -2850,9 +2661,11 @@ export default {
     };
     
     const addItemToInvoice = (item) => {
+      // Check if item already exists in invoice
       const existingItemIndex = invoiceForm.value.items.findIndex(i => i.id === item.id);
       
       if (existingItemIndex !== -1) {
+        // If item exists, increase quantity (up to max available)
         const existingItem = invoiceForm.value.items[existingItemIndex];
         if (existingItem.quantity < item.remaining_quantity) {
           existingItem.quantity++;
@@ -2868,6 +2681,7 @@ export default {
           });
         }
       } else {
+        // Add new item with complete data from SPARK search
         invoiceForm.value.items.push({
           id: item.id,
           name: item.name,
@@ -2889,8 +2703,10 @@ export default {
         });
       }
       
+      // Remove from search results
       searchResults.value = searchResults.value.filter(i => i.id !== item.id);
       
+      // Refresh search if there's still a search term
       if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
         searchItemsWithSpark();
       } else {
@@ -2904,6 +2720,7 @@ export default {
       
       invoiceForm.value.items.splice(index, 1);
       
+      // Refresh search to include the removed item again
       if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
         searchItemsWithSpark();
       } else {
@@ -3018,6 +2835,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     const printInvoice = (invoice) => {
       const printWindow = window.open('', '_blank');
       
+      // Calculate totals for the specific invoice
       const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
       const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
       const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
@@ -3177,11 +2995,13 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       try {
         loading.value = true;
         
+        // Calculate totals for the specific invoice
         const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
         const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
         const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
         const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
         
+        // Create HTML content for PDF
         const element = document.createElement('div');
         element.innerHTML = `
           <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
@@ -3296,6 +3116,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           </div>
         `;
         
+        // PDF options
         const opt = {
           margin: [10, 10, 10, 10],
           filename: `فاتورة_${invoice.invoiceNumber}_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -3315,6 +3136,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
+        // Generate and download PDF
         await html2pdf().set(opt).from(element).save();
         
         store.dispatch('showNotification', {
@@ -3345,6 +3167,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
+        // Create HTML content for all invoices
         const element = document.createElement('div');
         element.innerHTML = `
           <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
@@ -3419,6 +3242,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           </div>
         `;
         
+        // PDF options
         const opt = {
           margin: [10, 10, 10, 10],
           filename: `تقرير_الفواتير_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -3438,6 +3262,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
+        // Generate and download PDF
         await html2pdf().set(opt).from(element).save();
         
         store.dispatch('showNotification', {
@@ -3462,6 +3287,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       try {
         loading.value = true;
         
+        // First, restore inventory quantities
         const invoice = invoices.value.find(inv => inv.id === invoiceId);
         if (invoice && invoice.items) {
           const batch = writeBatch(db);
@@ -3478,9 +3304,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           await batch.commit();
         }
         
+        // Delete the invoice
         const invoiceRef = doc(db, 'invoices', invoiceId);
         await deleteDoc(invoiceRef);
         
+        // Refresh invoices list
         await loadInvoices();
         
         store.dispatch('showNotification', {
@@ -3505,6 +3333,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       try {
         saving.value = true;
         
+        // Validate required fields for B2B invoices
         if (invoiceForm.value.type === 'B2B' && (!invoiceForm.value.customer.taxId || invoiceForm.value.customer.taxId.length < 9)) {
           store.dispatch('showNotification', {
             type: 'error',
@@ -3514,6 +3343,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
+        // Validate phone number
         const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
         if (!phoneRegex.test(invoiceForm.value.customer.phone)) {
           store.dispatch('showNotification', {
@@ -3524,11 +3354,13 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
+        // Calculate totals
         const subtotal = invoiceForm.value.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
         const discount = invoiceForm.value.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
         const tax = (invoiceForm.value.type === 'B2B' || invoiceForm.value.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
         const total = subtotal - discount + tax;
         
+        // Prepare invoice data
         const invoiceData = {
           ...invoiceForm.value,
           warehouseId: selectedWarehouseForInvoice.value,
@@ -3545,6 +3377,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         let invoiceId;
         
         if (editingInvoice.value) {
+          // Update existing invoice
           const invoiceRef = doc(db, 'invoices', editingInvoice.value.id);
           await updateDoc(invoiceRef, invoiceData);
           invoiceId = editingInvoice.value.id;
@@ -3554,10 +3387,12 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
             message: 'تم تحديث الفاتورة بنجاح'
           });
         } else {
+          // Generate invoice number
           const lastInvoice = invoices.value[0];
           const lastNumber = lastInvoice ? lastInvoice.invoiceNumber : 0;
           const invoiceNumber = lastNumber + 1;
           
+          // Create new invoice
           invoiceData.invoiceNumber = invoiceNumber;
           const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
           invoiceId = docRef.id;
@@ -3568,34 +3403,23 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           });
         }
         
+        // Update inventory quantities
+        const batch = writeBatch(db);
+        
         for (const item of invoiceForm.value.items) {
-          try {
-            await store.dispatch('dispatchItem', {
-              item_id: item.id,
-              from_warehouse_id: selectedWarehouseForInvoice.value,
-              from_warehouse_name: getWarehouseLabel(selectedWarehouseForInvoice.value),
-              destination: `فاتورة #${invoiceData.invoiceNumber}`,
-              destination_id: invoiceId,
-              quantity: item.quantity,
-              item_name: item.name,
-              item_code: item.code,
-              notes: `صرف عبر فاتورة #${invoiceData.invoiceNumber} - عميل: ${invoiceForm.value.customer.name}`,
-              priority: 'normal'
-            });
-          } catch (dispatchError) {
-            console.error(`Error dispatching item ${item.name}:`, dispatchError);
-            store.dispatch('showNotification', {
-              type: 'error',
-              message: `خطأ في صرف الصنف ${item.name}: ${dispatchError.message}`
+          if (item.id) {
+            const itemRef = doc(db, 'items', item.id);
+            batch.update(itemRef, {
+              remaining_quantity: increment(-(item.quantity || 0))
             });
           }
         }
         
+        await batch.commit();
+        
+        // Reset form and reload invoices
         cancelInvoiceForm();
         await loadInvoices();
-        
-        // ✅ NEW: Refresh dispatch history from store when invoice creates dispatches
-        await loadDispatchHistory();
         
       } catch (error) {
         console.error('Error saving invoice:', error);
@@ -3610,6 +3434,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     
     const saveAndPrint = async () => {
       await saveInvoice();
+      // The print will be handled by the notification or user action
     };
     
     const exportInvoicesToExcel = async () => {
@@ -3694,7 +3519,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 12: DATA LOADING FUNCTIONS
+    // SECTION 11: DATA LOADING FUNCTIONS
     // ============================================
     const loadInvoices = async () => {
       try {
@@ -3736,6 +3561,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
             ...doc.data()
           }));
 
+          // Show notification for new dispatches
           if (transactions.length > 0 && dispatchTransactions.value.length > 0) {
             const latestTransaction = transactions[0];
             const isNew = !dispatchTransactions.value.find(t => t.id === latestTransaction.id);
@@ -3746,9 +3572,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                 message: `صرف جديد: ${latestTransaction.item_name} - ${Math.abs(latestTransaction.total_delta)} وحدة`,
                 duration: 5000
               });
-              
-              // ✅ NEW: Refresh dispatch history when new dispatch arrives
-              loadDispatchHistory();
             }
           }
         });
@@ -3757,39 +3580,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       } catch (error) {
         console.error('Error setting up real-time dispatch updates:', error);
       }
-    };
-    
-    const diagnoseDispatchIssues = () => {
-      console.log('=== Dispatch System Diagnostics ===');
-      console.log('1. User Info:', {
-        role: userRole.value,
-        canViewDispatches: canViewDispatches.value,
-        canPerformDispatch: canPerformDispatch.value
-      });
-      
-      console.log('2. Store State:', {
-        warehouses: store.state.warehouses?.length || 0,
-        transactions: store.state.transactions?.length || 0,
-        inventory: store.state.inventory?.length || 0,
-        dispatchHistory: store.state.dispatchHistory?.length || 0
-      });
-      
-      console.log('3. Available Warehouses:', availableWarehousesForDispatch.value);
-      console.log('4. Selected Warehouse:', selectedWarehouse.value);
-      
-      console.log('5. Dispatch History:', {
-        storeHistory: dispatchHistory.value?.length || 0,
-        filteredHistory: filteredDispatchHistory.value?.length || 0
-      });
-      
-      console.log('6. Search Term:', searchTerm.value);
-      console.log('7. Available Items:', availableItems.value?.length || 0);
-      
-      if (dispatchTransactions.value.length > 0) {
-        console.log('Sample Dispatch Data:', dispatchTransactions.value.slice(0, 3));
-      }
-      
-      console.log('=== End Diagnostics ===');
     };
     
     const loadInitialData = async () => {
@@ -3812,21 +3602,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           await store.dispatch('loadWarehouses');
         }
         
-        // ✅ NEW: Load dispatch history from store
-        await loadDispatchHistory();
-        
-        if (store.state.inventory.length === 0) {
-          await store.dispatch('fetchInventory');
+        if (store.state.transactions.length === 0) {
+          await store.dispatch('fetchTransactions');
         }
         
+        // Auto-select first warehouse if only one is available
         if (availableWarehousesForDispatch.value.length === 1) {
           selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
         }
-        
-        console.log('Dispatch history loaded:', dispatchHistory.value.length);
-        console.log('Filtered history:', filteredDispatchHistory.value.length);
-        
-        diagnoseDispatchIssues();
         
         setupRealtimeUpdates();
         
@@ -3842,7 +3625,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 13: LIFECYCLE HOOKS AND WATCHERS
+    // SECTION 12: LIFECYCLE HOOKS AND WATCHERS
     // ============================================
     onMounted(() => {
       console.log('Dispatch page with invoices mounted');
@@ -3861,14 +3644,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
-    // ✅ NEW: Watch for dispatch history filters and reload data
-    watch([historySearch, historyWarehouseFilter, dateFilter, customDateFrom, customDateTo], () => {
-      if (dateFilter.value === 'custom' && (!customDateFrom.value || !customDateTo.value)) {
-        return;
-      }
-      loadDispatchHistory();
-    });
-    
     // Watch for warehouse changes to reload items
     watch(selectedWarehouseForInvoice, () => {
       if (selectedWarehouseForInvoice.value) {
@@ -3882,6 +3657,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
+    // Watch for search all warehouses toggle
     watch(searchAllWarehouses, () => {
       if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
         searchItemsWithSpark();
@@ -3890,6 +3666,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
+    // Watch for inventory changes to refresh search
     watch(() => allInventory.value, () => {
       if (selectedWarehouseForInvoice.value) {
         if (itemSearch.value.trim()) {
@@ -3954,9 +3731,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       lastSearchSource,
       searchAllWarehouses,
       
-      // ✅ NEW: Dispatch history loading state
-      dispatchHistoryLoading,
-      
       // Computed properties
       totalInvoices,
       totalSales,
@@ -3986,7 +3760,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getSearchSourceLabel,
       calculateDispatchValue,
       getDispatchQuantityClass,
-      getDispatchQuantity,
       getQuantityClass,
       getInvoiceTypeLabel,
       getInvoiceTypeClass,
