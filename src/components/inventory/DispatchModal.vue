@@ -251,20 +251,23 @@
                     'text-sm font-medium',
                     getStockClass(item.remaining_quantity || item.quantity || 0)
                   ]">
-                    {{ item.remaining_quantity || item.quantity || 0 }}
+                    {{ getTotalAvailableQuantity(item) }}
                   </span>
+                  <div v-if="item.per_carton_count" class="text-xs text-gray-500 dark:text-gray-400">
+                    ({{ item.cartons_count || 0 }}×{{ item.per_carton_count }} + {{ item.single_bottles_count || 0 }})
+                  </div>
                 </div>
 
                 <!-- Action Button -->
                 <div class="col-span-3 p-3 text-center">
                   <button
                     @click="selectItem(item)"
-                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || (item.remaining_quantity || item.quantity || 0) <= 0"
+                    :disabled="loading || (!isSuperadmin && !canPerformDispatch) || getTotalAvailableQuantity(item) <= 0"
                     :class="[
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200',
                       selectedItem?.id === item.id
                         ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                        : (item.remaining_quantity || item.quantity || 0) <= 0 || (!isSuperadmin && !canPerformDispatch)
+                        : getTotalAvailableQuantity(item) <= 0 || (!isSuperadmin && !canPerformDispatch)
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
                     ]"
@@ -333,16 +336,26 @@
             </div>
             <div>
               <div class="text-xs text-blue-600 dark:text-blue-400">الكمية المتاحة</div>
-              <div class="text-sm font-medium" :class="getStockClass(selectedItem.remaining_quantity || selectedItem.quantity || 0)">
-                {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }}
+              <div class="text-sm font-medium" :class="getStockClass(getTotalAvailableQuantity(selectedItem))">
+                {{ getTotalAvailableQuantity(selectedItem) }}
+                <span v-if="selectedItem.per_carton_count" class="text-xs text-blue-600 dark:text-blue-400">
+                  ({{ selectedItem.cartons_count || 0 }}×{{ selectedItem.per_carton_count }} + {{ selectedItem.single_bottles_count || 0 }})
+                </span>
               </div>
             </div>
-            <!-- Detailed Quantity Info -->
-            <div v-if="selectedItem.per_carton_count" class="col-span-2">
-              <div class="text-xs text-blue-600 dark:text-blue-400">التفصيل</div>
-              <div class="text-sm font-medium text-blue-900 dark:text-blue-200">
-                {{ selectedItem.cartons_count || 0 }} كرتون × {{ selectedItem.per_carton_count }} + 
-                {{ selectedItem.single_bottles_count || 0 }} فردي
+            <!-- Inventory Warning -->
+            <div v-if="getTotalAvailableQuantity(selectedItem) <= 0" class="col-span-2">
+              <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <div class="flex items-center">
+                  <svg class="h-5 w-5 text-red-400 dark:text-red-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                  <div class="flex-1">
+                    <p class="text-sm text-red-600 dark:text-red-300">
+                      هذا الصنف ليس لديه مخزون متاح للصرف. يرجى اختيار صنف آخر.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -361,7 +374,7 @@
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 الكمية المراد صرفها
                 <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
-                  (الحد الأقصى: {{ selectedItem.remaining_quantity || selectedItem.quantity || 0 }})
+                  (الحد الأقصى: {{ getTotalAvailableQuantity(selectedItem) }})
                 </span>
                 <span v-if="selectedItem.per_carton_count" class="text-xs font-normal text-blue-500 dark:text-blue-400">
                   • كل كرتون: {{ selectedItem.per_carton_count }}
@@ -370,7 +383,7 @@
               <div class="flex items-center space-x-3 space-x-reverse">
                 <button
                   @click="decreaseQuantity"
-                  :disabled="loading || form.quantity <= 1"
+                  :disabled="loading || form.quantity <= 1 || getTotalAvailableQuantity(selectedItem) <= 0"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,17 +393,17 @@
                 <input
                   v-model.number="form.quantity"
                   type="number"
-                  :max="selectedItem.remaining_quantity || selectedItem.quantity || 0"
+                  :max="getTotalAvailableQuantity(selectedItem)"
                   min="1"
                   step="1"
                   required
-                  :disabled="loading"
+                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
                   class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   @input="updateQuantity"
                 >
                 <button
                   @click="increaseQuantity"
-                  :disabled="loading || form.quantity >= (selectedItem.remaining_quantity || selectedItem.quantity || 0)"
+                  :disabled="loading || form.quantity >= getTotalAvailableQuantity(selectedItem) || getTotalAvailableQuantity(selectedItem) <= 0"
                   class="w-10 h-10 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -405,22 +418,26 @@
                 <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">تفصيل الكمية:</div>
                 <div class="text-sm text-gray-800 dark:text-gray-200">
                   <span v-if="form.quantity > 0">
-                    {{ Math.floor(form.quantity / (selectedItem.per_carton_count || 12)) }} كرتون × {{ selectedItem.per_carton_count || 12 }}
-                    + {{ form.quantity % (selectedItem.per_carton_count || 12) }} فردي
+                    {{ calculateDetailedDispatch(selectedItem, form.quantity).cartons }} كرتون × {{ selectedItem.per_carton_count }}
+                    + {{ calculateDetailedDispatch(selectedItem, form.quantity).singles }} فردي
                   </span>
                   <span v-else class="text-gray-500 dark:text-gray-400">
                     ادخل كمية لرؤية التفاصيل
                   </span>
                 </div>
+                <!-- Available Breakdown -->
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  المخزون المتاح: {{ selectedItem.cartons_count || 0 }} كرتون × {{ selectedItem.per_carton_count }} + {{ selectedItem.single_bottles_count || 0 }} فردي
+                </div>
               </div>
               
               <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  سيتبقى بعد الصرف: {{ (selectedItem.remaining_quantity || selectedItem.quantity || 0) - form.quantity }}
+                  سيتبقى بعد الصرف: {{ getTotalAvailableQuantity(selectedItem) - form.quantity }}
                 </span>
                 <button
                   @click="setMaxQuantity"
-                  :disabled="loading"
+                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
                   class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-50"
                 >
                   استخدام الكل
@@ -436,7 +453,7 @@
                   v-for="priorityOption in priorityOptions"
                   :key="priorityOption.value"
                   @click="form.priority = priorityOption.value"
-                  :disabled="loading"
+                  :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
                   :class="[
                     'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center space-x-2 space-x-reverse',
                     form.priority === priorityOption.value
@@ -456,7 +473,7 @@
               <textarea
                 v-model="form.notes"
                 rows="2"
-                :disabled="loading"
+                :disabled="loading || getTotalAvailableQuantity(selectedItem) <= 0"
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="أضف أي ملاحظات حول عملية الصرف..."
               ></textarea>
@@ -701,10 +718,21 @@ export default {
       return 'text-green-600 dark:text-green-400'
     }
 
+    // Calculate total available quantity
+    const getTotalAvailableQuantity = (item) => {
+      if (!item) return 0
+      
+      const cartons = item.cartons_count || 0
+      const perCarton = item.per_carton_count || 12
+      const singles = item.single_bottles_count || 0
+      
+      return (cartons * perCarton) + singles
+    }
+
     // Select item function
     const selectItem = (item) => {
       if ((!isSuperadmin.value && !canPerformDispatch.value) || 
-          (item.remaining_quantity || item.quantity || 0) <= 0) {
+          getTotalAvailableQuantity(item) <= 0) {
         return
       }
       selectedItem.value = item
@@ -715,7 +743,7 @@ export default {
     // Update quantity
     const updateQuantity = () => {
       // Ensure quantity doesn't exceed available
-      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
+      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
       if (form.quantity > maxQuantity) {
         form.quantity = maxQuantity
       }
@@ -724,45 +752,84 @@ export default {
       }
     }
 
-    // Calculate detailed dispatch breakdown
+    // FIXED: Calculate detailed dispatch breakdown
     const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
-      const perCarton = currentItem.per_carton_count || 12;
-      const currentCartons = currentItem.cartons_count || 0;
-      const currentSingles = currentItem.single_bottles_count || 0;
+      if (!currentItem || dispatchQuantity <= 0) {
+        return { cartons: 0, singles: 0, perCarton: 12 }
+      }
       
-      // Smart calculation for dispatch
-      let dispatchCartons = 0;
-      let dispatchSingles = 0;
+      const perCarton = currentItem.per_carton_count || 12
+      const currentCartons = currentItem.cartons_count || 0
+      const currentSingles = currentItem.single_bottles_count || 0
       
-      // Use singles first if available
+      console.log('🔢 Detailed dispatch calculation:', {
+        requested: dispatchQuantity,
+        available: getTotalAvailableQuantity(currentItem),
+        currentCartons,
+        currentSingles,
+        perCarton
+      })
+      
+      // Validate available quantity
+      const totalAvailable = getTotalAvailableQuantity(currentItem)
+      if (dispatchQuantity > totalAvailable) {
+        console.warn('Requested quantity exceeds available')
+        return { cartons: 0, singles: 0, perCarton }
+      }
+      
+      // If no quantity available, return zeros
+      if (totalAvailable <= 0) {
+        return { cartons: 0, singles: 0, perCarton }
+      }
+      
+      let dispatchCartons = 0
+      let dispatchSingles = 0
+      let remainingToDispatch = dispatchQuantity
+      
+      // Strategy 1: Use single bottles first
       if (currentSingles > 0) {
-        dispatchSingles = Math.min(currentSingles, dispatchQuantity);
+        const singlesToUse = Math.min(currentSingles, remainingToDispatch)
+        dispatchSingles += singlesToUse
+        remainingToDispatch -= singlesToUse
       }
       
-      // Calculate remaining after using singles
-      let remaining = dispatchQuantity - dispatchSingles;
-      
-      // Use whole cartons
-      if (remaining > 0) {
-        const cartonsNeeded = Math.floor(remaining / perCarton);
-        dispatchCartons = Math.min(cartonsNeeded, currentCartons);
-        remaining -= (dispatchCartons * perCarton);
+      // Strategy 2: Use whole cartons
+      if (remainingToDispatch > 0 && currentCartons > 0) {
+        const cartonsNeeded = Math.floor(remainingToDispatch / perCarton)
+        const cartonsToUse = Math.min(cartonsNeeded, currentCartons)
+        
+        if (cartonsToUse > 0) {
+          dispatchCartons += cartonsToUse
+          remainingToDispatch -= (cartonsToUse * perCarton)
+        }
       }
       
-      // If still remaining, break a carton
-      if (remaining > 0 && currentCartons > dispatchCartons) {
-        dispatchCartons += 1; // Break one more carton
-        // Take what we need from the broken carton
-        dispatchSingles += remaining;
-        // What's left in the broken carton becomes new singles
-        // This is handled by the store action
+      // Strategy 3: Break a carton if needed
+      if (remainingToDispatch > 0 && currentCartons > dispatchCartons) {
+        // We need to break one more carton
+        dispatchCartons += 1
+        dispatchSingles += remainingToDispatch
+        remainingToDispatch = 0
+      }
+      
+      // Final validation
+      const calculatedTotal = (dispatchCartons * perCarton) + dispatchSingles
+      if (calculatedTotal !== dispatchQuantity) {
+        console.warn('Quantity mismatch:', {
+          calculated: calculatedTotal,
+          requested: dispatchQuantity,
+          dispatchCartons,
+          dispatchSingles,
+          perCarton
+        })
       }
       
       return {
         cartons: dispatchCartons,
         singles: dispatchSingles,
-        perCarton: perCarton
-      };
+        perCarton: perCarton,
+        total: dispatchQuantity
+      }
     }
 
     // Search function
@@ -819,7 +886,7 @@ export default {
               
               if (storeResults && storeResults.length > 0) {
                 results = storeResults.filter(item => 
-                  (item.remaining_quantity || item.quantity || 0) > 0
+                  getTotalAvailableQuantity(item) > 0
                 ).slice(0, MAX_RESULTS)
                 searchSource = actionName
                 break
@@ -955,7 +1022,7 @@ export default {
       // Get items from selected warehouse
       const warehouseItems = allItems.filter(item => 
         item.warehouse_id === form.sourceWarehouse && 
-        (item.remaining_quantity || item.quantity || 0) > 0
+        getTotalAvailableQuantity(item) > 0
       ).slice(0, 20)
       
       searchResults.value = warehouseItems
@@ -1018,7 +1085,7 @@ export default {
 
     // Quantity helper functions
     const increaseQuantity = () => {
-      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
+      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
       if (form.quantity < maxQuantity) {
         form.quantity++
       }
@@ -1031,7 +1098,7 @@ export default {
     }
 
     const setMaxQuantity = () => {
-      const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
+      const maxQuantity = getTotalAvailableQuantity(selectedItem.value)
       form.quantity = maxQuantity
     }
 
@@ -1060,6 +1127,16 @@ export default {
         errors.push('يرجى إدخال كمية صحيحة')
       }
       
+      // Check if item has available quantity
+      const availableQuantity = getTotalAvailableQuantity(selectedItem.value)
+      if (availableQuantity <= 0) {
+        errors.push('هذا الصنف ليس لديه مخزون متاح للصرف')
+      }
+      
+      if (form.quantity > availableQuantity) {
+        errors.push(`الكمية المطلوبة (${form.quantity}) تتجاوز المخزون المتاح (${availableQuantity})`)
+      }
+      
       if (errors.length > 0) {
         error.value = errors.join('، ')
         return
@@ -1069,10 +1146,22 @@ export default {
       const currentItem = selectedItem.value
       const totalToDispatch = form.quantity
       
-      // Calculate detailed breakdown using the smart calculation function
+      // Calculate detailed breakdown using the fixed calculation function
       const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
       
       const { cartons: dispatchCartons, singles: dispatchSingles, perCarton: perCarton } = detailedDispatch
+
+      // Final validation before dispatch
+      if (dispatchCartons === 0 && dispatchSingles === 0) {
+        error.value = 'لا يمكن صرف كمية صفرية. يرجى التحقق من المخزون المتاح.'
+        return
+      }
+
+      const calculatedTotal = (dispatchCartons * perCarton) + dispatchSingles
+      if (calculatedTotal !== totalToDispatch) {
+        error.value = `حساب الكمية غير صحيح. المحسوب: ${calculatedTotal}، المطلوب: ${totalToDispatch}`
+        return
+      }
 
       loading.value = true
 
@@ -1082,6 +1171,7 @@ export default {
           item_id: currentItem.id,
           from_warehouse_id: form.sourceWarehouse,
           destination: getDestinationName(form.destinationBranch),
+          destination_id: form.destinationBranch,
           
           // Send detailed breakdown
           cartons_count: dispatchCartons,
@@ -1094,14 +1184,14 @@ export default {
           // Current state for store validation
           current_cartons: currentItem.cartons_count || 0,
           current_singles: currentItem.single_bottles_count || 0,
-          current_total: ((currentItem.cartons_count || 0) * perCarton) + (currentItem.single_bottles_count || 0),
+          current_total: getTotalAvailableQuantity(currentItem),
           
           notes: form.notes || 'صرف إلى فرع',
           priority: form.priority,
           item_name: currentItem.name || currentItem.item_name,
           item_code: currentItem.code || currentItem.item_code,
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          destination_id: form.destinationBranch
+          color: currentItem.color || ''
         }
         
         // Log dispatch details for debugging
@@ -1111,7 +1201,8 @@ export default {
           cartons: dispatchCartons,
           singles: dispatchSingles,
           per_carton: perCarton,
-          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
+          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`,
+          available: getTotalAvailableQuantity(currentItem)
         })
 
         // Use the store dispatch action
@@ -1261,7 +1352,9 @@ export default {
       },
       getDestinationName,
       getStockClass,
+      getTotalAvailableQuantity,
       isWarehouseAccessible,
+      calculateDetailedDispatch,
       handleSearch,
       handleSubmit,
       
@@ -1272,8 +1365,12 @@ export default {
           return true
         }
         // Check if quantity exceeds available
-        const available = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+        const available = getTotalAvailableQuantity(selectedItem.value)
         if (form.quantity > available) {
+          return true
+        }
+        // Check if item has any available quantity
+        if (available <= 0) {
           return true
         }
         return false
@@ -1290,6 +1387,7 @@ export default {
   }
 }
 </script>
+
 <style scoped>
 .rtl {
   direction: rtl;
