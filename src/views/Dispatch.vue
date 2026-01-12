@@ -1591,6 +1591,23 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  onSnapshot,
+  doc,
+  updateDoc,
+  increment,
+  writeBatch,
+  deleteDoc,
+  Timestamp,
+  getDocs,
+  addDoc
+} from 'firebase/firestore';
+import { db } from '@/firebase/config';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
 
 export default {
@@ -1675,9 +1692,13 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // ✅ UPDATED: Use store dispatch history
-    const dispatchHistory = computed(() => store.state.dispatchHistory || []);
-    const dispatchHistoryLoading = computed(() => store.state.dispatchHistoryLoading || false);
+    // ✅ CORRECTED: Get dispatch transactions by filtering store transactions
+    const dispatchTransactions = computed(() => {
+      return allTransactions.value.filter(t => t.type === 'DISPATCH');
+    });
+    
+    // ✅ CORRECTED: Use transactions loading state
+    const dispatchHistoryLoading = computed(() => store.state.transactionsLoading || false);
     
     // Store getters
     const canExport = computed(() => userRole.value === 'superadmin' || userRole.value === 'company_manager');
@@ -1733,10 +1754,8 @@ export default {
     // ============================================
     // SECTION 5: UPDATED DISPATCH COMPUTED PROPERTIES
     // ============================================
-    // ✅ UPDATED: Use store dispatchHistory instead of filtering transactions
-    const dispatchTransactions = computed(() => {
-      return dispatchHistory.value;
-    });
+    // ✅ CORRECTED: Use filtered dispatch transactions
+    const dispatchHistory = computed(() => dispatchTransactions.value);
     
     // Stats
     const totalDispatches = computed(() => dispatchTransactions.value.length);
@@ -1797,9 +1816,9 @@ export default {
       return availableItems.value.slice(0, 8);
     });
     
-    // ✅ UPDATED: Filter dispatch history - Use store dispatchHistory
+    // ✅ UPDATED: Filter dispatch history from transactions
     const filteredDispatchHistory = computed(() => {
-      let filtered = [...dispatchHistory.value];
+      let filtered = [...dispatchTransactions.value];
       
       if (historySearch.value.trim()) {
         const term = historySearch.value.toLowerCase().trim();
@@ -2164,7 +2183,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 8: SPARK SEARCH FUNCTIONS
+    // SECTION 8: SPARK SEARCH FUNCTIONS (UNCHANGED)
     // ============================================
     const debouncedSearchItems = () => {
       if (searchDebounceTimeout.value) {
@@ -2458,8 +2477,8 @@ export default {
             message: result.message || `تم صرف ${result.detailedUpdate?.remaining_quantity || 0} وحدة بنجاح`
           });
           
-          // ✅ NEW: Refresh dispatch history from store
-          await loadDispatchHistory();
+          // ✅ NEW: Refresh transactions from store (includes dispatch history)
+          await store.dispatch('fetchTransactions');
           
           return result;
         } else {
@@ -2733,34 +2752,11 @@ export default {
       }
     };
     
-    // ============================================
-    // SECTION 10: NEW DISPATCH HISTORY LOADING FUNCTION
-    // ============================================
-    const loadDispatchHistory = async () => {
-      try {
-        console.log('🔄 Loading dispatch history from store...');
-        
-        // Use store action to load dispatch history
-        await store.dispatch('loadDispatchHistory', {
-          search: historySearch.value.trim(),
-          warehouse: historyWarehouseFilter.value,
-          dateFrom: dateFilter.value === 'custom' ? customDateFrom.value : '',
-          dateTo: dateFilter.value === 'custom' ? customDateTo.value : ''
-        });
-        
-        console.log(`✅ Dispatch history loaded: ${dispatchHistory.value.length} records`);
-        
-      } catch (error) {
-        console.error('❌ Error loading dispatch history:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل سجل الصرف'
-        });
-      }
-    };
+    // ✅ CORRECTED: Remove non-existent loadDispatchHistory function
+    // The computed property filteredDispatchHistory handles filtering automatically
     
     // ============================================
-    // SECTION 11: INVOICE SYSTEM ACTIONS (ALL REMAIN THE SAME)
+    // SECTION 10: INVOICE SYSTEM ACTIONS (ALL REMAIN THE SAME)
     // ============================================
     const toggleInvoiceSystem = () => {
       showInvoiceSystem.value = !showInvoiceSystem.value;
@@ -3583,8 +3579,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         cancelInvoiceForm();
         await loadInvoices();
         
-        // ✅ NEW: Refresh dispatch history from store when invoice creates dispatches
-        await loadDispatchHistory();
+        // ✅ CORRECTED: Refresh transactions from store (includes dispatch history)
+        await store.dispatch('fetchTransactions');
         
       } catch (error) {
         console.error('Error saving invoice:', error);
@@ -3683,7 +3679,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 12: DATA LOADING FUNCTIONS
+    // SECTION 11: DATA LOADING FUNCTIONS
     // ============================================
     const loadInvoices = async () => {
       try {
@@ -3736,8 +3732,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                 duration: 5000
               });
               
-              // ✅ NEW: Refresh dispatch history when new dispatch arrives
-              loadDispatchHistory();
+              // ✅ CORRECTED: Refresh transactions from store
+              store.dispatch('fetchTransactions');
             }
           }
         });
@@ -3760,14 +3756,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         warehouses: store.state.warehouses?.length || 0,
         transactions: store.state.transactions?.length || 0,
         inventory: store.state.inventory?.length || 0,
-        dispatchHistory: store.state.dispatchHistory?.length || 0
+        dispatchTransactions: dispatchTransactions.value?.length || 0
       });
       
       console.log('3. Available Warehouses:', availableWarehousesForDispatch.value);
       console.log('4. Selected Warehouse:', selectedWarehouse.value);
       
       console.log('5. Dispatch History:', {
-        storeHistory: dispatchHistory.value?.length || 0,
+        dispatchTransactions: dispatchTransactions.value?.length || 0,
         filteredHistory: filteredDispatchHistory.value?.length || 0
       });
       
@@ -3801,8 +3797,10 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           await store.dispatch('loadWarehouses');
         }
         
-        // ✅ NEW: Load dispatch history from store
-        await loadDispatchHistory();
+        // ✅ CORRECTED: Load transactions (includes dispatch history)
+        if (store.state.transactions.length === 0) {
+          await store.dispatch('fetchTransactions');
+        }
         
         if (store.state.inventory.length === 0) {
           await store.dispatch('fetchInventory');
@@ -3812,7 +3810,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
         }
         
-        console.log('Dispatch history loaded:', dispatchHistory.value.length);
+        console.log('Dispatch history loaded from transactions:', dispatchTransactions.value.length);
         console.log('Filtered history:', filteredDispatchHistory.value.length);
         
         diagnoseDispatchIssues();
@@ -3831,7 +3829,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
     };
     
     // ============================================
-    // SECTION 13: LIFECYCLE HOOKS AND WATCHERS
+    // SECTION 12: LIFECYCLE HOOKS AND WATCHERS
     // ============================================
     onMounted(() => {
       console.log('Dispatch page with invoices mounted');
@@ -3850,13 +3848,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
-    // ✅ NEW: Watch for dispatch history filters and reload data
-    watch([historySearch, historyWarehouseFilter, dateFilter, customDateFrom, customDateTo], () => {
-      if (dateFilter.value === 'custom' && (!customDateFrom.value || !customDateTo.value)) {
-        return;
-      }
-      loadDispatchHistory();
-    });
+    // ✅ CORRECTED: Remove watcher for non-existent loadDispatchHistory function
+    // The computed property filteredDispatchHistory handles filtering automatically when dependencies change
     
     // Watch for warehouse changes to reload items
     watch(selectedWarehouseForInvoice, () => {
@@ -3944,7 +3937,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       lastSearchSource,
       searchAllWarehouses,
       
-      // ✅ NEW: Dispatch history loading state
+      // ✅ CORRECTED: Use transactions loading state
       dispatchHistoryLoading,
       
       // Computed properties
@@ -3997,7 +3990,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       viewDispatchDetails,
       printDispatch,
       exportDispatches,
-      loadDispatchHistory, // ✅ EXPOSED: Make available in template if needed
+      // ✅ REMOVED: loadDispatchHistory - not needed
       
       // Invoice system actions with SPARK search
       toggleInvoiceSystem,
