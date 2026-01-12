@@ -1072,288 +1072,284 @@ export default {
       const maxQuantity = selectedItem.value?.remaining_quantity || selectedItem.value?.quantity || 0
       form.quantity = maxQuantity
     }
+// ============================================
+// FIXED: handleSubmit function - COMPLETE MATCH WITH STORE REQUIREMENTS
+// ============================================
+const handleSubmit = async () => {
+  // Reset messages
+  error.value = ''
+  successMessage.value = ''
+  
+  // Validation - أكثر صرامة
+  const errors = []
+  
+  if (!form.sourceWarehouse) {
+    errors.push('يرجى اختيار المخزن المصدر')
+  }
+  
+  if (!form.destinationBranch) {
+    errors.push('يرجى اختيار الوجهة')
+  }
+  
+  if (!selectedItem.value) {
+    errors.push('يرجى اختيار صنف للصرف')
+  }
+  
+  if (!form.quantity || form.quantity <= 0) {
+    errors.push('يرجى إدخال كمية صحيحة')
+  }
+  
+  if (errors.length > 0) {
+    error.value = errors.join('، ')
+    return
+  }
 
-    // ============================================
-    // FIXED: handleSubmit function with proper item_id handling
-    // ============================================
-    const handleSubmit = async () => {
-      // Reset messages
-      error.value = ''
-      successMessage.value = ''
-      
-      // Validation
-      const errors = []
-      
-      if (!form.sourceWarehouse) {
-        errors.push('يرجى اختيار المخزن المصدر')
-      }
-      
-      if (!form.destinationBranch) {
-        errors.push('يرجى اختيار الوجهة')
-      }
-      
-      if (!selectedItem.value) {
-        errors.push('يرجى اختيار صنف للصرف')
-      }
-      
-      if (!form.quantity || form.quantity <= 0) {
-        errors.push('يرجى إدخال كمية صحيحة')
-      }
-      
-      if (errors.length > 0) {
-        error.value = errors.join('، ')
-        return
-      }
+  // Use your EXISTING item data
+  const currentItem = selectedItem.value
+  const totalToDispatch = form.quantity
+  
+  // Validate available quantity
+  const availableQuantity = currentItem.remaining_quantity || currentItem.quantity || 0
+  if (totalToDispatch > availableQuantity) {
+    error.value = `الكمية المطلوبة (${totalToDispatch}) تتجاوز الكمية المتاحة (${availableQuantity})`
+    return
+  }
+  
+  // 🔴 CRITICAL: Get ALL required data BEFORE making the call
+  const currentItemId = currentItem.id
+  const currentItemName = currentItem.name || currentItem.item_name || 'بدون اسم'
+  const currentItemCode = currentItem.code || currentItem.item_code || 'بدون كود'
+  const currentPerCarton = currentItem.per_carton_count || 12
+  
+  // Validate currentItemId
+  if (!currentItemId) {
+    error.value = 'معرف الصنف غير صالح. يرجى اختيار صنف مرة أخرى.'
+    return
+  }
+  
+  console.log('🔴 DEBUG: Starting dispatch for item:', {
+    itemId: currentItemId,
+    itemName: currentItemName,
+    quantity: totalToDispatch,
+    available: availableQuantity
+  })
 
-      // Use your EXISTING item data
-      const currentItem = selectedItem.value
-      const totalToDispatch = form.quantity
-      
-      // Validate available quantity
-      const availableQuantity = currentItem.remaining_quantity || currentItem.quantity || 0
-      if (totalToDispatch > availableQuantity) {
-        error.value = `الكمية المطلوبة (${totalToDispatch}) تتجاوز الكمية المتاحة (${availableQuantity})`
-        return
-      }
-      
-      // 🔴 CRITICAL: Save item_id and essential data before making the call
-      const currentItemId = currentItem.id
-      const currentItemName = currentItem.name || currentItem.item_name
-      const currentItemCode = currentItem.code || currentItem.item_code
-      const currentPerCarton = currentItem.per_carton_count || 12
-      
-      // Calculate detailed breakdown using the smart calculation function
-      const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
-      
-      const { cartons: dispatchCartons, singles: dispatchSingles, perCarton: perCarton } = detailedDispatch
+  // Calculate detailed breakdown
+  const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
+  const { cartons: dispatchCartons, singles: dispatchSingles, perCarton: perCarton } = detailedDispatch
 
-      loading.value = true
+  loading.value = true
 
-      try {
-        // Prepare dispatch data with COMPLETE item information
-        const dispatchData = {
-          // 🔴 Essential item identification
-          item_id: currentItemId,
-          item_name: currentItemName,
-          item_code: currentItemCode,
-          color: currentItem.color || '',
-          
-          // 🔴 Warehouse information
-          from_warehouse_id: form.sourceWarehouse,
-          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          destination: getDestinationName(form.destinationBranch),
-          destination_id: form.destinationBranch,
-          
-          // 🔴 Detailed quantity breakdown
-          cartons_count: dispatchCartons,
-          per_carton_count: perCarton,
-          single_bottles_count: dispatchSingles,
-          
-          // 🔴 Total for compatibility
-          quantity: totalToDispatch,
-          
-          // 🔴 Current state for store validation
-          current_cartons: currentItem.cartons_count || 0,
-          current_singles: currentItem.single_bottles_count || 0,
-          current_total: ((currentItem.cartons_count || 0) * perCarton) + (currentItem.single_bottles_count || 0),
-          
-          // 🔴 Additional information
-          notes: form.notes || 'صرف إلى فرع',
-          priority: form.priority,
-          supplier: currentItem.supplier || '',
-          item_location: currentItem.item_location || currentItem.location || ''
-        }
-        
-        // Log dispatch details for debugging
-        console.log('📦 Dispatching item:', {
-          item_id: currentItemId,
-          item_name: currentItemName,
-          item_code: currentItemCode,
-          from_warehouse: form.sourceWarehouse,
-          destination: form.destinationBranch,
-          total: totalToDispatch,
-          detailed: {
-            cartons: dispatchCartons,
-            singles: dispatchSingles,
-            per_carton: perCarton,
-            calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
-          }
-        })
-
-        // Use the store dispatch action
-        const result = await store.dispatch('dispatchItem', dispatchData)
-
-        if (result?.success) {
-          successMessage.value = 'تم صرف الصنف بنجاح'
-          
-          // Show detailed confirmation
-          if (dispatchCartons > 0 && dispatchSingles > 0) {
-            successMessage.value += ` (${dispatchCartons} كرتون × ${perCarton} + ${dispatchSingles} فردي)`
-          } else if (dispatchCartons > 0) {
-            successMessage.value += ` (${dispatchCartons} كرتون × ${perCarton})`
-          } else if (dispatchSingles > 0) {
-            successMessage.value += ` (${dispatchSingles} فردي)`
-          }
-          
-          // Calculate new quantity
-          const newQuantity = availableQuantity - totalToDispatch
-          
-          // 🔴 FIX 1: Update cache BEFORE creating result
-          updateCacheAfterDispatch(form.sourceWarehouse, currentItemId, newQuantity, perCarton)
-          
-          // 🔴 FIX 2: Create a guaranteed complete response with ALL required fields
-          const completeResult = {
-            success: true,
-            
-            // 🔴 Critical identification fields (guaranteed from modal)
-            item_id: currentItemId,
-            id: currentItemId, // For compatibility with code expecting "id"
-            item_name: currentItemName,
-            item_code: currentItemCode,
-            
-            // 🔴 Transaction information
-            transactionId: result.transactionId || `tx_${Date.now()}`,
-            newQuantity: result.newQuantity || newQuantity,
-            
-            // 🔴 Dispatch details
-            quantity: totalToDispatch,
-            from_warehouse_id: form.sourceWarehouse,
-            destination: form.destinationBranch,
-            
-            // 🔴 Detailed breakdown
-            dispatchDetails: {
-              cartons: dispatchCartons,
-              singles: dispatchSingles,
-              perCarton: perCarton,
-              total: totalToDispatch,
-              notes: form.notes || '',
-              priority: form.priority
-            },
-            
-            // 🔴 Store response (if available)
-            ...(result.detailedUpdate && { detailedUpdate: result.detailedUpdate }),
-            ...(result.message && { message: result.message })
-          }
-          
-          console.log('✅ Complete dispatch result for emit:', {
-            ...completeResult,
-            hasItemId: !!completeResult.item_id,
-            hasId: !!completeResult.id
-          })
-          
-          // 🔴 FIX 3: Update local state BEFORE closing
-          try {
-            // Update search results to reflect new quantity
-            const updatedSearchResults = [...searchResults.value]
-            const itemIndex = updatedSearchResults.findIndex(item => item.id === currentItemId)
-            if (itemIndex !== -1) {
-              updatedSearchResults[itemIndex] = {
-                ...updatedSearchResults[itemIndex],
-                remaining_quantity: newQuantity,
-                // Update detailed quantities
-                cartons_count: (currentItem.cartons_count || 0) - dispatchCartons,
-                single_bottles_count: (currentItem.single_bottles_count || 0) - dispatchSingles
-              }
-              searchResults.value = updatedSearchResults
-            }
-            
-            // Update selected item if it's still selected
-            if (selectedItem.value?.id === currentItemId) {
-              selectedItem.value = {
-                ...selectedItem.value,
-                remaining_quantity: newQuantity,
-                cartons_count: (currentItem.cartons_count || 0) - dispatchCartons,
-                single_bottles_count: (currentItem.single_bottles_count || 0) - dispatchSingles
-              }
-            }
-          } catch (stateError) {
-            console.warn('⚠️ Could not update local state:', stateError)
-            // Continue anyway - store update is more important
-          }
-          
-          // Reset form and close
-          resetForm()
-          
-          // 🔴 FIX 4: Emit with proper data structure
-          setTimeout(() => {
-            console.log('🚀 Emitting success with:', {
-              item_id: completeResult.item_id,
-              id: completeResult.id,
-              hasItemId: !!completeResult.item_id,
-              transactionId: completeResult.transactionId
-            })
-            
-            // Emit both events with complete data
-            emit('success', completeResult)
-            emit('close')
-          }, 1500)
-        } else {
-          // 🔴 FIX 5: Include item information in error
-          const errorMessage = result?.message || result?.error || 'فشل في عملية الصرف'
-          throw new Error(`${errorMessage} | الصنف: ${currentItemName} (${currentItemCode})`)
-        }
-        
-      } catch (err) {
-        console.error('❌ Dispatch error:', {
-          error: err.message,
-          item_id: currentItemId,
-          item_name: currentItemName,
-          timestamp: new Date().toISOString()
-        })
-        
-        // Show user-friendly error
-        if (err.message.includes('تتجاوز')) {
-          error.value = err.message
-        } else if (err.message.includes('ليس لديك صلاحية')) {
-          error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
-        } else {
-          error.value = `حدث خطأ أثناء الصرف: ${err.message.split('|')[0] || err.message}`
-        }
-        
-        // Try to refresh item data in case of stale data
-        if (form.sourceWarehouse && searchTerm.value) {
-          setTimeout(() => {
-            debouncedSearch()
-          }, 1000)
-        }
-      } finally {
-        loading.value = false
-      }
+  try {
+    // 🔴 CRITICAL: Prepare dispatch data EXACTLY as store expects
+    const dispatchData = {
+      // 🔴 REQUIRED BY STORE: Essential identification
+      item_id: currentItemId,
+      from_warehouse_id: form.sourceWarehouse,
+      destination: getDestinationName(form.destinationBranch),
+      destination_id: form.destinationBranch,
+      
+      // 🔴 REQUIRED BY STORE: Detailed quantities
+      cartons_count: dispatchCartons,
+      per_carton_count: perCarton,
+      single_bottles_count: dispatchSingles,
+      quantity: totalToDispatch,
+      
+      // 🔴 REQUIRED BY STORE: Item information
+      item_name: currentItemName,
+      item_code: currentItemCode,
+      color: currentItem.color || '',
+      
+      // 🔴 REQUIRED BY STORE: Warehouse information
+      from_warehouse_name: getWarehouseName(form.sourceWarehouse),
+      
+      // 🔴 OPTIONAL: Additional info
+      notes: form.notes || 'صرف إلى فرع',
+      priority: form.priority,
+      supplier: currentItem.supplier || '',
+      item_location: currentItem.item_location || currentItem.location || '',
+      
+      // 🔴 Current state for store validation
+      current_cartons: currentItem.cartons_count || 0,
+      current_singles: currentItem.single_bottles_count || 0,
+      current_total: availableQuantity
     }
+    
+    // Log EXACT data being sent to store
+    console.log('📤 EXACT dispatch data to store:', {
+      item_id: dispatchData.item_id,
+      hasItemId: !!dispatchData.item_id,
+      from_warehouse_id: dispatchData.from_warehouse_id,
+      destination_id: dispatchData.destination_id,
+      cartons_count: dispatchData.cartons_count,
+      single_bottles_count: dispatchData.single_bottles_count,
+      per_carton_count: dispatchData.per_carton_count,
+      quantity: dispatchData.quantity
+    })
 
-    const resetForm = () => {
-      // حفظ item_id الحالي مؤقتاً قبل الإعادة
-      const currentItemId = selectedItem.value?.id
+    // Call store dispatch
+    console.log('🔄 Calling store dispatch with item_id:', currentItemId)
+    const result = await store.dispatch('dispatchItem', dispatchData)
+
+    console.log('📥 Store dispatch result:', {
+      success: result?.success,
+      hasItemId: !!(result?.item_id || result?.id),
+      item_id: result?.item_id,
+      id: result?.id,
+      transactionId: result?.transactionId
+    })
+
+    if (result?.success) {
+      // Calculate new quantity
+      const newQuantity = availableQuantity - totalToDispatch
       
-      Object.assign(form, {
-        sourceWarehouse: '',
-        destinationBranch: '',
-        quantity: 1,
-        notes: '',
-        priority: 'normal'
+      // 🔴 CRITICAL: Update cache
+      updateCacheAfterDispatch(form.sourceWarehouse, currentItemId, newQuantity, perCarton)
+      
+      // 🔴 CRITICAL: Extract item_id from store result OR use our guaranteed value
+      const storeItemId = result.item_id || result.id || currentItemId
+      
+      // 🔴 CRITICAL: Create response with GUARANTEED item_id
+      const completeResult = {
+        // 🔴 FROM STORE (with fallbacks)
+        success: true,
+        message: result.message || 'تم الصرف بنجاح',
+        transactionId: result.transactionId,
+        newQuantity: result.newQuantity || newQuantity,
+        
+        // 🔴 GUARANTEED item identification
+        item_id: storeItemId,
+        id: storeItemId,
+        item_name: currentItemName,
+        item_code: currentItemCode,
+        
+        // 🔴 Dispatch info
+        quantity: totalToDispatch,
+        from_warehouse_id: form.sourceWarehouse,
+        destination: form.destinationBranch,
+        
+        // 🔴 Store's detailedUpdate if available
+        ...(result.detailedUpdate && { detailedUpdate: result.detailedUpdate })
+      }
+      
+      console.log('✅ COMPLETE result for emit:', {
+        item_id: completeResult.item_id,
+        id: completeResult.id,
+        hasBothIds: !!completeResult.item_id && !!completeResult.id,
+        transactionId: completeResult.transactionId
       })
-      
-      selectedItem.value = null
-      error.value = ''
-      successMessage.value = ''
-      
-      // لا تحذف searchTerm إذا كان هناك search نشط
-      // searchTerm.value = ''
-      
-      searchResults.value = []
-      isSearching.value = false
-      lastSearchStats.value = null
-      
-      // إعادة تحميل البيانات إذا كان هناك مخزن محدد مسبقاً
-      if (form.sourceWarehouse) {
-        loadInitialWarehouseItems()
+
+      // Update local UI state
+      try {
+        // Update search results
+        const updatedSearchResults = [...searchResults.value]
+        const itemIndex = updatedSearchResults.findIndex(item => item.id === currentItemId)
+        if (itemIndex !== -1) {
+          updatedSearchResults[itemIndex] = {
+            ...updatedSearchResults[itemIndex],
+            remaining_quantity: newQuantity,
+            cartons_count: Math.max(0, (currentItem.cartons_count || 0) - dispatchCartons),
+            single_bottles_count: Math.max(0, (currentItem.single_bottles_count || 0) - dispatchSingles)
+          }
+          searchResults.value = updatedSearchResults
+        }
+        
+        // Update selected item
+        if (selectedItem.value?.id === currentItemId) {
+          selectedItem.value = {
+            ...selectedItem.value,
+            remaining_quantity: newQuantity,
+            cartons_count: Math.max(0, (currentItem.cartons_count || 0) - dispatchCartons),
+            single_bottles_count: Math.max(0, (currentItem.single_bottles_count || 0) - dispatchSingles)
+          }
+        }
+      } catch (stateError) {
+        console.warn('⚠️ UI state update skipped:', stateError)
       }
       
-      // تسجيل لتتبع
-      if (currentItemId) {
-        console.log(`🔄 Form reset after processing item: ${currentItemId}`)
+      successMessage.value = `تم صرف ${totalToDispatch} وحدة بنجاح`
+      if (dispatchCartons > 0 || dispatchSingles > 0) {
+        successMessage.value += ` (${dispatchCartons} ك × ${perCarton} + ${dispatchSingles} ف)`
       }
+      
+      // Reset and close
+      resetForm()
+      
+      setTimeout(() => {
+        console.log('🚀 FINAL: Emitting success with item_id:', completeResult.item_id)
+        emit('success', completeResult)
+        emit('close')
+      }, 1500)
+      
+    } else {
+      // Handle store errors
+      const errorMessage = result?.message || result?.error || 'فشل في عملية الصرف'
+      throw new Error(`${errorMessage} - الصنف: ${currentItemName} (${currentItemId})`)
     }
+    
+  } catch (err) {
+    console.error('❌ Dispatch error details:', {
+      message: err.message,
+      itemId: currentItemId,
+      itemName: currentItemName,
+      stack: err.stack
+    })
+    
+    // User-friendly error messages
+    if (err.message.includes('تتجاوز')) {
+      error.value = err.message
+    } else if (err.message.includes('ليس لديك صلاحية')) {
+      error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
+    } else if (err.message.includes('الصنف ليس في المخزن')) {
+      error.value = 'الصنف لم يعد موجوداً في المخزن المحدد'
+    } else {
+      error.value = `خطأ: ${err.message.split('-')[0] || err.message}`
+    }
+    
+    // Refresh data
+    if (form.sourceWarehouse) {
+      setTimeout(() => {
+        loadInitialWarehouseItems()
+      }, 500)
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const resetForm = () => {
+  // حفظ item_id الحالي مؤقتاً قبل الإعادة
+  const currentItemId = selectedItem.value?.id
+  
+  Object.assign(form, {
+    sourceWarehouse: '',
+    destinationBranch: '',
+    quantity: 1,
+    notes: '',
+    priority: 'normal'
+  })
+  
+  selectedItem.value = null
+  error.value = ''
+  successMessage.value = ''
+  
+  // لا تحذف searchTerm إذا كان هناك search نشط
+  // searchTerm.value = ''
+  
+  searchResults.value = []
+  isSearching.value = false
+  lastSearchStats.value = null
+  
+  // إعادة تحميل البيانات إذا كان هناك مخزن محدد مسبقاً
+  if (form.sourceWarehouse) {
+    loadInitialWarehouseItems()
+  }
+  
+  // تسجيل لتتبع
+  if (currentItemId) {
+    console.log(`🔄 Form reset after processing item: ${currentItemId}`)
+  }
+}
 
     // Watch for inventory changes to update cache
     watch(() => store.state.inventory, (newInventory) => {
