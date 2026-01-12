@@ -1592,8 +1592,6 @@ import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 import DispatchModal from '@/components/inventory/DispatchModal.vue';
-import { collection, query, where, orderBy, limit, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, increment } from 'firebase/firestore';
-import { db } from '@/firebase/config';
 
 export default {
   name: 'DispatchPageWithInvoices',
@@ -1677,7 +1675,7 @@ export default {
     const allTransactions = computed(() => store.state.transactions || []);
     const allWarehouses = computed(() => store.state.warehouses || []);
     
-    // ✅ NEW: Dispatch history from store
+    // ✅ UPDATED: Use store dispatch history
     const dispatchHistory = computed(() => store.state.dispatchHistory || []);
     const dispatchHistoryLoading = computed(() => store.state.dispatchHistoryLoading || false);
     
@@ -1733,7 +1731,7 @@ export default {
     });
     
     // ============================================
-    // SECTION 5: ORIGINAL DISPATCH COMPUTED PROPERTIES
+    // SECTION 5: UPDATED DISPATCH COMPUTED PROPERTIES
     // ============================================
     // ✅ UPDATED: Use store dispatchHistory instead of filtering transactions
     const dispatchTransactions = computed(() => {
@@ -1755,6 +1753,13 @@ export default {
           return false;
         }
       }).length;
+    });
+    
+    // ✅ UPDATED: Calculate total dispatched quantity using the same store logic
+    const totalDispatchedQuantity = computed(() => {
+      return dispatchTransactions.value.reduce((total, dispatch) => {
+        return total + calculateDispatchQuantity(dispatch);
+      }, 0);
     });
     
     const totalDispatchValue = computed(() => {
@@ -2070,8 +2075,8 @@ export default {
       return labels[source] || source;
     };
     
-    // ✅ UPDATED: Calculate dispatch value with better quantity detection
-    const calculateDispatchValue = (dispatch) => {
+    // ✅ UPDATED: Calculate dispatch quantity using the same store logic
+    const calculateDispatchQuantity = (dispatch) => {
       // Try multiple possible quantity fields in order of priority
       let quantity = 0;
       
@@ -2080,13 +2085,18 @@ export default {
       } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
         quantity = Math.abs(dispatch.total_delta);
       } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
-        // Calculate from cartons
+        // Calculate from cartons using same store calculation method
         quantity = Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
                    Math.abs(dispatch.single_bottles_count || 0);
       } else if (dispatch.detailedUpdate?.remaining_quantity !== undefined) {
         quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
       }
       
+      return quantity;
+    };
+    
+    const calculateDispatchValue = (dispatch) => {
+      const quantity = calculateDispatchQuantity(dispatch);
       // Use a reasonable default price per item
       const pricePerItem = 50; // أو استخدم سعر الصنف الفعلي إذا كان متوفرًا
       return quantity * pricePerItem;
@@ -2094,36 +2104,16 @@ export default {
     
     // ✅ UPDATED: Get dispatch quantity class with better quantity detection
     const getDispatchQuantityClass = (dispatch) => {
-      let quantity = 0;
-      
-      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
-        quantity = Math.abs(dispatch.quantity);
-      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
-        quantity = Math.abs(dispatch.total_delta);
-      } else if (typeof dispatch === 'number') {
-        quantity = Math.abs(dispatch);
-      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
-        quantity = Math.abs(dispatch.detailedUpdate.remaining_quantity);
-      }
+      const quantity = calculateDispatchQuantity(dispatch);
       
       if (quantity < 10) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
       if (quantity < 50) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
       return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300';
     };
     
-    // ✅ UPDATED: Helper to get quantity for display
+    // ✅ UPDATED: Helper to get quantity for display - use the same calculation
     const getDispatchQuantity = (dispatch) => {
-      if (dispatch.quantity !== undefined && dispatch.quantity !== null) {
-        return Math.abs(dispatch.quantity);
-      } else if (dispatch.total_delta !== undefined && dispatch.total_delta !== null) {
-        return Math.abs(dispatch.total_delta);
-      } else if (dispatch?.detailedUpdate?.remaining_quantity !== undefined) {
-        return Math.abs(dispatch.detailedUpdate.remaining_quantity);
-      } else if (dispatch.cartons_count !== undefined && dispatch.per_carton_count !== undefined) {
-        return Math.abs((dispatch.cartons_count || 0) * (dispatch.per_carton_count || 12)) + 
-               Math.abs(dispatch.single_bottles_count || 0);
-      }
-      return 0;
+      return calculateDispatchQuantity(dispatch);
     };
     
     const getQuantityClass = (quantity) => {
@@ -2358,7 +2348,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE - FIXED VERSION
+    // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE
     // ============================================
     const selectItemForDispatch = (item) => {
       if (!canPerformDispatch.value) {
@@ -2381,7 +2371,6 @@ export default {
       selectedItemForDispatch.value = null;
     };
     
-    // ✅ UPDATED FIXED VERSION: handleDispatchSuccess with better error handling
     const handleDispatchSuccess = async (dispatchData) => {
       try {
         console.log('🚀 Starting dispatch from page with data:', dispatchData);
@@ -2546,7 +2535,7 @@ export default {
     
     // ✅ UPDATED: View dispatch details with better quantity display
     const viewDispatchDetails = (dispatch) => {
-      const quantity = getDispatchQuantity(dispatch);
+      const quantity = calculateDispatchQuantity(dispatch);
       const details = `
 تفاصيل الصرف:
 
@@ -2567,7 +2556,7 @@ export default {
     // ✅ UPDATED: Print dispatch with better quantity display
     const printDispatch = (dispatch) => {
       const printWindow = window.open('', '_blank');
-      const quantity = getDispatchQuantity(dispatch);
+      const quantity = calculateDispatchQuantity(dispatch);
       const printContent = `
         <html dir="rtl">
         <head>
@@ -2688,7 +2677,7 @@ export default {
           'الوقت': formatTime(dispatch.timestamp),
           'اسم الصنف': dispatch.item_name || '',
           'كود الصنف': dispatch.item_code || '',
-          'الكمية': getDispatchQuantity(dispatch),
+          'الكمية': calculateDispatchQuantity(dispatch),
           'من مخزن': getWarehouseLabel(dispatch.from_warehouse),
           'إلى': getDestinationLabel(dispatch.destination || dispatch.to_warehouse),
           'القيمة': calculateDispatchValue(dispatch),
@@ -3743,7 +3732,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
             if (isNew && !showDispatchModal.value) {
               store.dispatch('showNotification', {
                 type: 'info',
-                message: `صرف جديد: ${latestTransaction.item_name} - ${Math.abs(latestTransaction.total_delta)} وحدة`,
+                message: `صرف جديد: ${latestTransaction.item_name} - ${calculateDispatchQuantity(latestTransaction)} وحدة`,
                 duration: 5000
               });
               
@@ -3924,6 +3913,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       displayedAvailableItems,
       totalDispatches,
       monthlyDispatches,
+      totalDispatchedQuantity, // ✅ NEW: Added total dispatched quantity
       totalDispatchValue,
       filteredDispatchHistory,
       paginatedHistory,
@@ -3984,6 +3974,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getDestinationLabel,
       getDateFilterLabel,
       getSearchSourceLabel,
+      calculateDispatchQuantity, // ✅ UPDATED: Exposed the new calculation function
       calculateDispatchValue,
       getDispatchQuantityClass,
       getDispatchQuantity,
@@ -4006,6 +3997,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       viewDispatchDetails,
       printDispatch,
       exportDispatches,
+      loadDispatchHistory, // ✅ EXPOSED: Make available in template if needed
       
       // Invoice system actions with SPARK search
       toggleInvoiceSystem,
