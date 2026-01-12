@@ -2314,7 +2314,7 @@ export default {
     };
     
     // ============================================
-    // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE
+    // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE - FIXED VERSION
     // ============================================
     const selectItemForDispatch = (item) => {
       if (!canPerformDispatch.value) {
@@ -2340,59 +2340,64 @@ export default {
     const handleDispatchSuccess = async (dispatchData) => {
       try {
         console.log('🚀 Starting dispatch from page with data:', dispatchData);
-        
-        // ✅ FIXED: Better validation that checks the actual data structure
-        // Log the complete dispatchData for debugging
         console.log('📋 Complete dispatch data received:', JSON.stringify(dispatchData, null, 2));
         
-        // Check for all required fields with better debugging
+        // ✅ UPDATED: Use EXACT same fields and validation as store dispatchItem action
+        // Validate required fields exactly like store
         const missingFields = [];
         
-        // Item ID is required
-        if (!dispatchData.item_id && !dispatchData.id) {
-          missingFields.push('item_id or id');
+        // Check for item_id (exact field name used in store)
+        if (!dispatchData.item_id) {
+          missingFields.push('معرف الصنف (item_id)');
         }
         
-        // From warehouse is required
-        if (!dispatchData.from_warehouse_id && !dispatchData.sourceWarehouse) {
-          missingFields.push('from_warehouse_id or sourceWarehouse');
+        // Check for from_warehouse_id (exact field name used in store)
+        if (!dispatchData.from_warehouse_id) {
+          missingFields.push('المخزن المصدر (from_warehouse_id)');
         }
         
-        // Destination is required (can be ID or name)
-        if (!dispatchData.destination && !dispatchData.destination_id && !dispatchData.destinationBranch) {
-          missingFields.push('destination, destination_id, or destinationBranch');
+        // Check for destination (exact field name used in store)
+        if (!dispatchData.destination) {
+          missingFields.push('الوجهة (destination)');
         }
         
         if (missingFields.length > 0) {
           console.error('❌ Missing required fields:', missingFields);
-          throw new Error(`بيانات الصرف غير مكتملة. الحقول المفقودة: ${missingFields.join(', ')}`);
+          throw new Error(`بيانات الصرف غير مكتملة: ${missingFields.join('، ')}`);
         }
 
-        // ✅ FIXED: Extract data from different possible property names
-        const itemId = dispatchData.item_id || dispatchData.id;
-        const fromWarehouseId = dispatchData.from_warehouse_id || dispatchData.sourceWarehouse;
-        const destination = dispatchData.destination || getDestinationLabel(dispatchData.destination_id) || dispatchData.destinationBranch;
-        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch;
+        // ✅ Get additional required data
+        const itemName = dispatchData.item_name || selectedItemForDispatch.value?.name || 'صنف غير محدد';
+        const itemCode = dispatchData.item_code || selectedItemForDispatch.value?.code || '';
+        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(dispatchData.from_warehouse_id);
+        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch || 'external';
         
-        // ✅ FIXED: Get warehouse name properly
-        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(fromWarehouseId);
-        
-        // Call the store dispatch action with proper data
-        const result = await store.dispatch('dispatchItem', {
-          item_id: itemId,
-          from_warehouse_id: fromWarehouseId,
-          from_warehouse_name: fromWarehouseName,
-          destination: destination,
-          destination_id: destinationId,
+        // Prepare dispatch payload EXACTLY as store expects
+        const dispatchPayload = {
+          // REQUIRED FIELDS (must match store validation)
+          item_id: dispatchData.item_id,
+          from_warehouse_id: dispatchData.from_warehouse_id,
+          destination: dispatchData.destination,
+          
+          // Detailed quantities (match store field names)
           cartons_count: dispatchData.cartons_count || 0,
           single_bottles_count: dispatchData.single_bottles_count || 0,
           per_carton_count: dispatchData.per_carton_count || 12,
           quantity: dispatchData.quantity || 0,
-          notes: dispatchData.notes || 'صرف من خلال الفواتير',
-          priority: dispatchData.priority || 'normal',
-          item_name: dispatchData.item_name,
-          item_code: dispatchData.item_code
-        });
+          
+          // Additional data (match store field names)
+          item_name: itemName,
+          item_code: itemCode,
+          from_warehouse_name: fromWarehouseName,
+          destination_id: destinationId,
+          notes: dispatchData.notes || 'صرف من خلال نظام الصرف',
+          priority: dispatchData.priority || 'normal'
+        };
+
+        console.log('📤 Sending to store dispatchItem with payload:', dispatchPayload);
+        
+        // Call store dispatch action with properly formatted payload
+        const result = await store.dispatch('dispatchItem', dispatchPayload);
 
         if (result.success) {
           showDispatchModal.value = false;
@@ -2401,19 +2406,21 @@ export default {
           
           store.dispatch('showNotification', {
             type: 'success',
-            message: 'تمت عملية الصرف بنجاح'
+            title: 'تم الصرف بنجاح',
+            message: result.message || 'تمت عملية الصرف بنجاح'
           });
           
           // ✅ NEW: Refresh dispatch history from store
           await loadDispatchHistory();
         } else {
-          throw new Error(result.error || 'فشل في عملية الصرف');
+          throw new Error(result.message || 'فشل في عملية الصرف');
         }
         
       } catch (error) {
         console.error('❌ Error in dispatch:', error);
         store.dispatch('showNotification', {
           type: 'error',
+          title: 'فشل الصرف',
           message: error.message || 'حدث خطأ في عملية الصرف'
         });
       }
