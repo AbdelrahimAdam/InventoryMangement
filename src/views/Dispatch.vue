@@ -158,7 +158,7 @@
         </div>
 
         <!-- Invoice Creation/Editing Form - MOBILE OPTIMIZED -->
-        <div v-if="showInvoiceForm" class="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto">
+        <div v-if="showInvoiceForm" class="invoice-form-container bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto">
           <!-- Form Header - Mobile Optimized -->
           <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
@@ -178,18 +178,18 @@
 
           <!-- Main Form Content - Mobile Optimized -->
           <div class="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 overflow-y-auto max-h-[calc(100vh-180px)]">
-            <!-- Step 1: Invoice Type and Customer Information - Responsive Grid -->
+            <!-- Step 1: Invoice Type and Customer Information - Optimized Width -->
             <div>
               <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
                 <span class="h-5 w-5 sm:h-6 sm:w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">1</span>
                 <span class="truncate">معلومات الفاتورة والعميل</span>
               </h4>
               
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div class="invoice-form-grid">
                 <!-- Invoice Type -->
-                <div class="sm:col-span-2">
+                <div class="lg:col-span-2 form-field-full">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">نوع الفاتورة *</label>
-                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                  <select v-model="invoiceForm.type" @change="onInvoiceTypeChange" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white max-w-md mx-auto lg:mx-0">
                     <option value="B2B">فاتورة ضريبية (B2B) - نشاط تجاري</option>
                     <option value="B2C">فاتورة ضريبية (B2C) - مستهلك نهائي</option>
                     <option value="simplified">فاتورة مبسطة</option>
@@ -197,7 +197,7 @@
                 </div>
 
                 <!-- Payment Method -->
-                <div>
+                <div class="form-field-container">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">طريقة الدفع *</label>
                   <select v-model="invoiceForm.paymentMethod" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="cash">نقدي</option>
@@ -208,45 +208,45 @@
                 </div>
 
                 <!-- Customer Name -->
-                <div>
+                <div class="form-field-container">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">اسم العميل *</label>
                   <input v-model="invoiceForm.customer.name" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="اسم العميل الكامل" required>
                 </div>
 
                 <!-- Customer Phone -->
-                <div>
+                <div class="form-field-container">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">رقم الهاتف *</label>
                   <input v-model="invoiceForm.customer.phone" type="tel" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="01XXXXXXXXX" required>
                 </div>
 
                 <!-- Tax ID (for B2B only) -->
-                <div v-if="invoiceForm.type === 'B2B'" class="sm:col-span-2">
+                <div v-if="invoiceForm.type === 'B2B'" class="lg:col-span-2 form-field-full">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">الرقم الضريبي *</label>
-                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
+                  <input v-model="invoiceForm.customer.taxId" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white max-w-md" placeholder="الرقم الضريبي (14 رقم)" pattern="[0-9]{14}" required>
                 </div>
 
                 <!-- Customer Address -->
-                <div class="sm:col-span-2">
+                <div class="lg:col-span-2 form-field-full">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">العنوان</label>
                   <input v-model="invoiceForm.customer.address" type="text" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="عنوان العميل">
                 </div>
 
                 <!-- Notes -->
-                <div class="sm:col-span-2">
+                <div class="lg:col-span-2 form-field-full">
                   <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">ملاحظات</label>
                   <textarea v-model="invoiceForm.notes" rows="2" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
               </div>
             </div>
 
-            <!-- Step 2: Warehouse Selection -->
+            <!-- Step 2: Warehouse Selection - Optimized -->
             <div>
               <h4 class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
                 <span class="h-5 w-5 sm:h-6 sm:w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-1 sm:ml-2">2</span>
                 اختر المخزن
               </h4>
               
-              <div class="relative">
+              <div class="warehouse-select-container">
                 <select 
                   v-model="selectedWarehouseForInvoice" 
                   @change="loadWarehouseItems" 
@@ -300,7 +300,7 @@
                   v-model="itemSearch" 
                   @input="debouncedSearchItems"
                   type="text" 
-                  class="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  class="search-input"
                   placeholder="ابحث عن صنف بالاسم، الكود، اللون، المورد، المخزن..."
                   :disabled="!selectedWarehouseForInvoice"
                 >
@@ -315,12 +315,12 @@
               </div>
 
               <!-- Search Stats and Source -->
-              <div v-if="itemSearch.trim() && filteredSearchResults.length > 0" class="mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center flex-wrap gap-2">
+              <div v-if="itemSearch.trim() && filteredSearchResults.length > 0" class="search-stats-container">
                 <span>🔍 بحث: "{{ itemSearch }}"</span>
                 <span>•</span>
                 <span>تم العثور على {{ filteredSearchResults.length }} صنف</span>
                 <span v-if="lastSearchSource" class="flex items-center gap-1">
-                  • <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs">
+                  • <span class="search-source-badge">
                     {{ getSearchSourceLabel(lastSearchSource) }}
                   </span>
                 </span>
@@ -330,12 +330,12 @@
               </div>
 
               <!-- Available Items Grid - Enhanced with SPARK Search -->
-              <div v-if="filteredSearchResults.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <div v-if="filteredSearchResults.length > 0" class="search-results-grid">
                 <div 
                   v-for="item in filteredSearchResults" 
                   :key="item.id"
                   @click="addItemToInvoice(item)"
-                  class="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98"
+                  class="search-result-card"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
@@ -378,7 +378,7 @@
               </div>
 
               <!-- Search Results Empty State -->
-              <div v-else-if="itemSearch.trim() && !searchingItems" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+              <div v-else-if="itemSearch.trim() && !searchingItems" class="search-empty-state">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M9 7h6"/>
                 </svg>
@@ -398,7 +398,7 @@
               </div>
 
               <!-- Please Select Warehouse -->
-              <div v-else-if="!selectedWarehouseForInvoice" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 text-center">
+              <div v-else-if="!selectedWarehouseForInvoice" class="search-empty-state">
                 <svg class="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
@@ -425,14 +425,14 @@
               </div>
 
               <!-- Search Tips -->
-              <div v-if="!itemSearch.trim() && selectedWarehouseForInvoice" class="mt-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                <p class="font-medium mb-1 flex items-center gap-1">💡 نصائح البحث:</p>
-                <ul class="space-y-1 text-right">
-                  <li>• ابحث بالاسم، الكود، اللون، المورد، أو المخزن</li>
-                  <li>• البحث يدعم اللغة العربية والإنجليزية</li>
-                  <li>• أدخل 2 أحرف على الأقل للبدء</li>
-                  <li>• البحث الذكي يتطابق مع أي جزء من الاسم</li>
-                  <li v-if="searchAllWarehouses" class="text-blue-600 dark:text-blue-400">
+              <div v-if="!itemSearch.trim() && selectedWarehouseForInvoice" class="search-tips-container">
+                <p class="search-tips-title">💡 نصائح البحث:</p>
+                <ul class="search-tips-list">
+                  <li class="search-tip-item">• ابحث بالاسم، الكود، اللون، المورد، أو المخزن</li>
+                  <li class="search-tip-item">• البحث يدعم اللغة العربية والإنجليزية</li>
+                  <li class="search-tip-item">• أدخل 2 أحرف على الأقل للبدء</li>
+                  <li class="search-tip-item">• البحث الذكي يتطابق مع أي جزء من الاسم</li>
+                  <li v-if="searchAllWarehouses" class="search-tip-item search-tip-highlight">
                     • البحث حالياً يشمل جميع المخازن
                   </li>
                 </ul>
@@ -448,7 +448,7 @@
               </h4>
 
               <!-- Selected Items Table - Mobile Optimized -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <div class="selected-items-container border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 <!-- Table Header - Hidden on Mobile, Card View Instead -->
                 <div class="hidden sm:grid sm:grid-cols-12 bg-gray-50 dark:bg-gray-900 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                   <div class="col-span-4 p-3">الصنف</div>
@@ -465,7 +465,7 @@
                     <div
                       v-for="(item, index) in invoiceForm.items"
                       :key="item.id"
-                      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
+                      class="selected-item-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
                     >
                       <!-- Item Header -->
                       <div class="flex justify-between items-start mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
@@ -559,7 +559,7 @@
                     <div
                       v-for="(item, index) in invoiceForm.items"
                       :key="item.id"
-                      class="grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
+                      class="dispatch-table-row grid grid-cols-12 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                     >
                       <!-- Item Name and Details -->
                       <div class="col-span-4 p-3">
@@ -654,7 +654,7 @@
                 ملخص الفاتورة
               </h4>
 
-              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg sm:rounded-xl border border-blue-200 dark:border-blue-700 p-3 sm:p-4 lg:p-5">
+              <div class="invoice-summary-card">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   <!-- Invoice Details -->
                   <div>
@@ -1015,7 +1015,7 @@
           </div>
 
           <!-- Pagination - Mobile Optimized -->
-          <div v-if="filteredInvoices.length > 0" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700">
+          <div v-if="filteredInvoices.length > 0" class="pagination-container">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
               <div class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center sm:text-right">
                 عرض <span class="font-medium">{{ startInvoiceIndex + 1 }}</span> إلى <span class="font-medium">{{ endInvoiceIndex }}</span> من <span class="font-medium">{{ filteredInvoices.length }}</span> فاتورة
@@ -1153,7 +1153,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+            <div class="available-items-grid">
               <div 
                 v-for="item in displayedAvailableItems" 
                 :key="item.id"
@@ -1206,7 +1206,7 @@
         </div>
 
         <!-- Dispatch History - Mobile Optimized -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
+        <div class="dispatch-table-container bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8">
           <div class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
               <div>
@@ -1214,7 +1214,7 @@
                 <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">جميع عمليات الصرف المسجلة في النظام</p>
               </div>
 
-              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div class="filters-container">
                 <!-- Search History -->
                 <div class="relative flex-1 sm:flex-initial min-w-0">
                   <input
@@ -1361,76 +1361,86 @@
             <!-- Desktop Table -->
             <div class="hidden lg:block">
               <!-- Fixed Table Headers -->
-              <div class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  <div class="col-span-2 text-right">التاريخ والوقت</div>
-                  <div class="col-span-2 text-right">الصنف</div>
-                  <div class="col-span-2 text-right">من مخزن</div>
-                  <div class="col-span-1 text-right">إلى</div>
-                  <div class="col-span-1 text-right">الكمية</div>
-                  <div class="col-span-1 text-right">القيمة</div>
-                  <div class="col-span-1 text-right">بواسطة</div>
-                  <div class="col-span-2 text-right">الإجراءات</div>
+              <div class="dispatch-table-header">
+                <div class="grid grid-cols-12 gap-2 px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[800px]">
+                  <div class="col-span-2 text-right px-2">التاريخ والوقت</div>
+                  <div class="col-span-2 text-right px-2">الصنف</div>
+                  <div class="col-span-1 text-right px-2">الكمية</div>
+                  <div class="col-span-2 text-right px-2">من مخزن</div>
+                  <div class="col-span-2 text-right px-2">إلى</div>
+                  <div class="col-span-1 text-right px-2">القيمة</div>
+                  <div class="col-span-1 text-right px-2">بواسطة</div>
+                  <div class="col-span-1 text-right px-2">الإجراءات</div>
                 </div>
               </div>
 
               <!-- Scrollable Table Body -->
-              <div class="overflow-y-auto" style="max-height: calc(100vh - 400px);">
-                <div class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <div class="overflow-x-auto" style="max-height: calc(100vh - 400px); min-height: 200px;">
+                <div class="min-w-full">
+                  <div 
+                    v-if="filteredDispatchHistory.length === 0 && !loading"
+                    class="py-8 text-center text-gray-500 dark:text-gray-400"
+                  >
+                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    <p class="mt-2 text-sm">لا توجد عمليات صرف</p>
+                  </div>
+                  
                   <div 
                     v-for="dispatch in paginatedHistory" 
                     :key="dispatch.id" 
-                    class="grid grid-cols-12 gap-4 px-4 lg:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700"
+                    class="dispatch-table-row grid grid-cols-12 gap-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150 border-b border-gray-100 dark:border-gray-700 min-w-[800px]"
                   >
                     <!-- Date & Time -->
-                    <div class="col-span-2">
+                    <div class="col-span-2 px-2">
                       <div class="text-sm text-gray-900 dark:text-white">{{ formatDate(dispatch.timestamp) }}</div>
                       <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(dispatch.timestamp) }}</div>
                     </div>
 
                     <!-- Item -->
-                    <div class="col-span-2">
-                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name }}</div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code }}</div>
-                    </div>
-
-                    <!-- From Warehouse -->
-                    <div class="col-span-2 text-sm text-gray-900 dark:text-white truncate">
-                      {{ getWarehouseLabel(dispatch.from_warehouse) }}
-                    </div>
-
-                    <!-- Destination -->
-                    <div class="col-span-1 text-sm text-gray-900 dark:text-white truncate">
-                      {{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) }}
+                    <div class="col-span-2 px-2">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ dispatch.item_name || 'غير محدد' }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ dispatch.item_code || 'N/A' }}</div>
                     </div>
 
                     <!-- Quantity -->
-                    <div class="col-span-1">
+                    <div class="col-span-1 px-2">
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap" 
                             :class="getDispatchQuantityClass(dispatch.total_delta)">
-                        {{ formatNumber(Math.abs(dispatch.total_delta)) }}
+                        {{ formatNumber(Math.abs(dispatch.total_delta || 0)) }}
                       </span>
                     </div>
 
+                    <!-- From Warehouse -->
+                    <div class="col-span-2 px-2 text-sm text-gray-900 dark:text-white truncate">
+                      {{ getWarehouseLabel(dispatch.from_warehouse) || 'غير محدد' }}
+                    </div>
+
+                    <!-- Destination -->
+                    <div class="col-span-2 px-2 text-sm text-gray-900 dark:text-white truncate">
+                      {{ getDestinationLabel(dispatch.destination || dispatch.to_warehouse) || 'خارج النظام' }}
+                    </div>
+
                     <!-- Value -->
-                    <div class="col-span-1 text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div class="col-span-1 px-2 text-sm font-medium text-gray-900 dark:text-white truncate">
                       {{ formatCurrency(calculateDispatchValue(dispatch)) }}
                     </div>
 
                     <!-- User -->
-                    <div class="col-span-1 text-sm text-gray-500 dark:text-gray-400 truncate">
+                    <div class="col-span-1 px-2 text-sm text-gray-500 dark:text-gray-400 truncate">
                       {{ dispatch.user_name || dispatch.created_by || 'مستخدم النظام' }}
                     </div>
 
                     <!-- Actions -->
-                    <div class="col-span-2">
+                    <div class="col-span-1 px-2">
                       <div class="flex items-center space-x-1 space-x-reverse">
                         <button 
                           @click="viewDispatchDetails(dispatch)"
                           class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
                           title="عرض التفاصيل"
                         >
-                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                           </svg>
@@ -1440,7 +1450,7 @@
                           class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
                           title="طباعة"
                         >
-                          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                           </svg>
                         </button>
@@ -1525,7 +1535,7 @@
             </div>
 
             <!-- Pagination -->
-            <div v-if="totalHistoryPages > 1" class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div v-if="totalHistoryPages > 1" class="pagination-container">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-right">
                   عرض {{ startIndex + 1 }} - {{ Math.min(endIndex, filteredDispatchHistory.length) }} من {{ filteredDispatchHistory.length }}
@@ -1574,6 +1584,7 @@
     </div>
   </div>
 </template>
+
 <script>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
@@ -2360,6 +2371,12 @@ export default {
     
     const applyHistoryFilters = () => {
       currentHistoryPage.value = 1;
+      console.log('Applying filters:', {
+        search: historySearch.value,
+        warehouse: historyWarehouseFilter.value,
+        dateFilter: dateFilter.value,
+        transactions: dispatchTransactions.value.length
+      });
     };
     
     const clearHistoryFilters = () => {
@@ -3582,6 +3599,40 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     };
     
+    const diagnoseDispatchIssues = () => {
+      console.log('=== Dispatch System Diagnostics ===');
+      console.log('1. User Info:', {
+        role: userRole.value,
+        canViewDispatches: canViewDispatches.value,
+        canPerformDispatch: canPerformDispatch.value
+      });
+      
+      console.log('2. Store State:', {
+        warehouses: store.state.warehouses?.length || 0,
+        transactions: store.state.transactions?.length || 0,
+        inventory: store.state.inventory?.length || 0
+      });
+      
+      console.log('3. Available Warehouses:', availableWarehousesForDispatch.value);
+      console.log('4. Selected Warehouse:', selectedWarehouse.value);
+      
+      console.log('5. Dispatch Transactions:', {
+        allTransactions: allTransactions.value?.length || 0,
+        dispatchTransactions: dispatchTransactions.value?.length || 0,
+        filteredHistory: filteredDispatchHistory.value?.length || 0
+      });
+      
+      console.log('6. Search Term:', searchTerm.value);
+      console.log('7. Available Items:', availableItems.value?.length || 0);
+      
+      // إظهار بعض بيانات الـ Dispatch كمثال
+      if (dispatchTransactions.value.length > 0) {
+        console.log('Sample Dispatch Data:', dispatchTransactions.value.slice(0, 3));
+      }
+      
+      console.log('=== End Diagnostics ===');
+    };
+    
     const loadInitialData = async () => {
       loading.value = true;
       try {
@@ -3598,18 +3649,33 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
+        // تحميل البيانات الأساسية
         if (!store.state.warehousesLoaded || store.state.warehouses.length === 0) {
           await store.dispatch('loadWarehouses');
         }
         
+        // تحميل Transactions (DISPATCH type)
         if (store.state.transactions.length === 0) {
           await store.dispatch('fetchTransactions');
+          console.log('Loaded transactions:', store.state.transactions.length);
+        }
+        
+        // تحميل المخزون
+        if (store.state.inventory.length === 0) {
+          await store.dispatch('fetchInventory');
         }
         
         // Auto-select first warehouse if only one is available
         if (availableWarehousesForDispatch.value.length === 1) {
           selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
         }
+        
+        // إظهار بيانات التاريخ
+        console.log('Dispatch transactions:', dispatchTransactions.value.length);
+        console.log('Filtered history:', filteredDispatchHistory.value.length);
+        
+        // تشغيل التشخيص
+        diagnoseDispatchIssues();
         
         setupRealtimeUpdates();
         
@@ -3809,7 +3875,196 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
   }
 };
 </script>
+
 <style scoped>
+/* تحسين عرض نموذج الفاتورة */
+.invoice-form-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.invoice-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* تحسين عرض الحقول */
+.form-field-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.form-field-full {
+  width: 100%;
+  max-width: 600px;
+}
+
+/* تحسين عرض المخازن */
+.warehouse-select-container {
+  max-width: 400px;
+  width: 100%;
+}
+
+/* تحسين عرض جدول Dispatch History */
+.dispatch-table-container {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.dispatch-table-header {
+  background-color: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.dispatch-table-row {
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.dispatch-table-row:hover {
+  background-color: #f9fafb;
+}
+
+/* تحسين عرض البحث في Dispatch */
+.dispatch-search-container {
+  max-width: 600px;
+  width: 100%;
+}
+
+/* تحسين عرض البطاقات في Mobile */
+@media (max-width: 768px) {
+  .invoice-form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .form-field-container,
+  .form-field-full {
+    max-width: 100%;
+  }
+  
+  .warehouse-select-container {
+    max-width: 100%;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .dispatch-table-container {
+  border-color: #374151;
+}
+
+.dark .dispatch-table-header {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.dark .dispatch-table-row {
+  border-color: #374151;
+}
+
+.dark .dispatch-table-row:hover {
+  background-color: #1f2937;
+}
+
+/* تحسين عرض العناصر المختارة في الفاتورة */
+.selected-items-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.selected-item-card {
+  transition: all 0.2s;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.selected-item-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .selected-item-card {
+  border-color: #374151;
+}
+
+.dark .selected-item-card:hover {
+  border-color: #60a5fa;
+}
+
+/* تحسين عرض إحصائيات البحث */
+.search-stats-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f9fafb;
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.dark .search-stats-container {
+  background-color: #1f2937;
+}
+
+/* تحسين عرض نتائج البحث */
+.search-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+  .search-results-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* تحسين عرض العناصر المتاحة في Dispatch */
+.available-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* تحسين عرض الفلاتر */
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dark .filters-container {
+  background-color: #1f2937;
+}
+
+/* تحسين عرض Pagination */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  background-color: white;
+}
+
+.dark .pagination-container {
+  border-color: #374151;
+  background-color: #111827;
+}
+
 /* Mobile-optimized styles for invoice section with SPARK Search */
 @media (max-width: 640px) {
   .mobile\:text-xs {
