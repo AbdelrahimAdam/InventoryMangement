@@ -523,7 +523,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
@@ -607,6 +606,45 @@ export default {
 
     // Cache for search results
     const searchCache = ref(new Map())
+
+    // ============================================
+    // Helper function to update search cache after dispatch
+    // ============================================
+    const updateCacheAfterDispatch = (warehouseId, itemId, newQuantity, perCarton = 12) => {
+      console.log('🔄 Updating cache after dispatch:', { warehouseId, itemId, newQuantity })
+      
+      // Update all cache entries for this warehouse
+      Array.from(searchCache.value.entries()).forEach(([key, cachedData]) => {
+        if (key.includes(warehouseId) && cachedData.results) {
+          const updatedResults = cachedData.results.map(item => {
+            if (item.id === itemId) {
+              const updatedItem = {
+                ...item,
+                remaining_quantity: newQuantity
+              }
+              
+              // Update cartons/singles if we have per_carton_count
+              if (item.per_carton_count || perCarton) {
+                const perCartonValue = item.per_carton_count || perCarton
+                updatedItem.cartons_count = Math.floor(newQuantity / perCartonValue)
+                updatedItem.single_bottles_count = newQuantity % perCartonValue
+              }
+              
+              return updatedItem
+            }
+            return item
+          })
+          
+          searchCache.value.set(key, {
+            ...cachedData,
+            results: updatedResults,
+            updatedAt: Date.now()
+          })
+          
+          console.log(`✅ Updated cache key: ${key}`)
+        }
+      })
+    }
 
     // Computed properties
     const userProfile = computed(() => store.state.userProfile || {})
@@ -1035,7 +1073,9 @@ export default {
       form.quantity = maxQuantity
     }
 
-    // Updated handleSubmit with detailed dispatch calculation
+    // ============================================
+    // FIXED: handleSubmit function with proper item_id handling
+    // ============================================
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -1069,6 +1109,19 @@ export default {
       const currentItem = selectedItem.value
       const totalToDispatch = form.quantity
       
+      // Validate available quantity
+      const availableQuantity = currentItem.remaining_quantity || currentItem.quantity || 0
+      if (totalToDispatch > availableQuantity) {
+        error.value = `الكمية المطلوبة (${totalToDispatch}) تتجاوز الكمية المتاحة (${availableQuantity})`
+        return
+      }
+      
+      // 🔴 CRITICAL: Save item_id and essential data before making the call
+      const currentItemId = currentItem.id
+      const currentItemName = currentItem.name || currentItem.item_name
+      const currentItemCode = currentItem.code || currentItem.item_code
+      const currentPerCarton = currentItem.per_carton_count || 12
+      
       // Calculate detailed breakdown using the smart calculation function
       const detailedDispatch = calculateDetailedDispatch(currentItem, totalToDispatch)
       
@@ -1077,41 +1130,54 @@ export default {
       loading.value = true
 
       try {
-        // Prepare dispatch data
+        // Prepare dispatch data with COMPLETE item information
         const dispatchData = {
-          item_id: currentItem.id,
-          from_warehouse_id: form.sourceWarehouse,
-          destination: getDestinationName(form.destinationBranch),
+          // 🔴 Essential item identification
+          item_id: currentItemId,
+          item_name: currentItemName,
+          item_code: currentItemCode,
+          color: currentItem.color || '',
           
-          // Send detailed breakdown
+          // 🔴 Warehouse information
+          from_warehouse_id: form.sourceWarehouse,
+          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
+          destination: getDestinationName(form.destinationBranch),
+          destination_id: form.destinationBranch,
+          
+          // 🔴 Detailed quantity breakdown
           cartons_count: dispatchCartons,
           per_carton_count: perCarton,
           single_bottles_count: dispatchSingles,
           
-          // Also send total for compatibility
+          // 🔴 Total for compatibility
           quantity: totalToDispatch,
           
-          // Current state for store validation
+          // 🔴 Current state for store validation
           current_cartons: currentItem.cartons_count || 0,
           current_singles: currentItem.single_bottles_count || 0,
           current_total: ((currentItem.cartons_count || 0) * perCarton) + (currentItem.single_bottles_count || 0),
           
+          // 🔴 Additional information
           notes: form.notes || 'صرف إلى فرع',
           priority: form.priority,
-          item_name: currentItem.name || currentItem.item_name,
-          item_code: currentItem.code || currentItem.item_code,
-          from_warehouse_name: getWarehouseName(form.sourceWarehouse),
-          destination_id: form.destinationBranch
+          supplier: currentItem.supplier || '',
+          item_location: currentItem.item_location || currentItem.location || ''
         }
         
         // Log dispatch details for debugging
         console.log('📦 Dispatching item:', {
-          item: currentItem.name || currentItem.item_name,
+          item_id: currentItemId,
+          item_name: currentItemName,
+          item_code: currentItemCode,
+          from_warehouse: form.sourceWarehouse,
+          destination: form.destinationBranch,
           total: totalToDispatch,
-          cartons: dispatchCartons,
-          singles: dispatchSingles,
-          per_carton: perCarton,
-          calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
+          detailed: {
+            cartons: dispatchCartons,
+            singles: dispatchSingles,
+            per_carton: perCarton,
+            calculation: `(${dispatchCartons} × ${perCarton}) + ${dispatchSingles} = ${(dispatchCartons * perCarton) + dispatchSingles}`
+          }
         })
 
         // Use the store dispatch action
@@ -1129,25 +1195,136 @@ export default {
             successMessage.value += ` (${dispatchSingles} فردي)`
           }
           
+          // Calculate new quantity
+          const newQuantity = availableQuantity - totalToDispatch
+          
+          // 🔴 FIX 1: Update cache BEFORE creating result
+          updateCacheAfterDispatch(form.sourceWarehouse, currentItemId, newQuantity, perCarton)
+          
+          // 🔴 FIX 2: Create a guaranteed complete response with ALL required fields
+          const completeResult = {
+            success: true,
+            
+            // 🔴 Critical identification fields (guaranteed from modal)
+            item_id: currentItemId,
+            id: currentItemId, // For compatibility with code expecting "id"
+            item_name: currentItemName,
+            item_code: currentItemCode,
+            
+            // 🔴 Transaction information
+            transactionId: result.transactionId || `tx_${Date.now()}`,
+            newQuantity: result.newQuantity || newQuantity,
+            
+            // 🔴 Dispatch details
+            quantity: totalToDispatch,
+            from_warehouse_id: form.sourceWarehouse,
+            destination: form.destinationBranch,
+            
+            // 🔴 Detailed breakdown
+            dispatchDetails: {
+              cartons: dispatchCartons,
+              singles: dispatchSingles,
+              perCarton: perCarton,
+              total: totalToDispatch,
+              notes: form.notes || '',
+              priority: form.priority
+            },
+            
+            // 🔴 Store response (if available)
+            ...(result.detailedUpdate && { detailedUpdate: result.detailedUpdate }),
+            ...(result.message && { message: result.message })
+          }
+          
+          console.log('✅ Complete dispatch result for emit:', {
+            ...completeResult,
+            hasItemId: !!completeResult.item_id,
+            hasId: !!completeResult.id
+          })
+          
+          // 🔴 FIX 3: Update local state BEFORE closing
+          try {
+            // Update search results to reflect new quantity
+            const updatedSearchResults = [...searchResults.value]
+            const itemIndex = updatedSearchResults.findIndex(item => item.id === currentItemId)
+            if (itemIndex !== -1) {
+              updatedSearchResults[itemIndex] = {
+                ...updatedSearchResults[itemIndex],
+                remaining_quantity: newQuantity,
+                // Update detailed quantities
+                cartons_count: (currentItem.cartons_count || 0) - dispatchCartons,
+                single_bottles_count: (currentItem.single_bottles_count || 0) - dispatchSingles
+              }
+              searchResults.value = updatedSearchResults
+            }
+            
+            // Update selected item if it's still selected
+            if (selectedItem.value?.id === currentItemId) {
+              selectedItem.value = {
+                ...selectedItem.value,
+                remaining_quantity: newQuantity,
+                cartons_count: (currentItem.cartons_count || 0) - dispatchCartons,
+                single_bottles_count: (currentItem.single_bottles_count || 0) - dispatchSingles
+              }
+            }
+          } catch (stateError) {
+            console.warn('⚠️ Could not update local state:', stateError)
+            // Continue anyway - store update is more important
+          }
+          
           // Reset form and close
           resetForm()
+          
+          // 🔴 FIX 4: Emit with proper data structure
           setTimeout(() => {
-            emit('success', result)
+            console.log('🚀 Emitting success with:', {
+              item_id: completeResult.item_id,
+              id: completeResult.id,
+              hasItemId: !!completeResult.item_id,
+              transactionId: completeResult.transactionId
+            })
+            
+            // Emit both events with complete data
+            emit('success', completeResult)
             emit('close')
           }, 1500)
         } else {
-          throw new Error(result?.error || 'فشل في عملية الصرف')
+          // 🔴 FIX 5: Include item information in error
+          const errorMessage = result?.message || result?.error || 'فشل في عملية الصرف'
+          throw new Error(`${errorMessage} | الصنف: ${currentItemName} (${currentItemCode})`)
         }
         
       } catch (err) {
-        console.error('❌ Dispatch error:', err)
-        error.value = err.message || 'فشل في عملية الصرف'
+        console.error('❌ Dispatch error:', {
+          error: err.message,
+          item_id: currentItemId,
+          item_name: currentItemName,
+          timestamp: new Date().toISOString()
+        })
+        
+        // Show user-friendly error
+        if (err.message.includes('تتجاوز')) {
+          error.value = err.message
+        } else if (err.message.includes('ليس لديك صلاحية')) {
+          error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
+        } else {
+          error.value = `حدث خطأ أثناء الصرف: ${err.message.split('|')[0] || err.message}`
+        }
+        
+        // Try to refresh item data in case of stale data
+        if (form.sourceWarehouse && searchTerm.value) {
+          setTimeout(() => {
+            debouncedSearch()
+          }, 1000)
+        }
       } finally {
         loading.value = false
       }
     }
 
     const resetForm = () => {
+      // حفظ item_id الحالي مؤقتاً قبل الإعادة
+      const currentItemId = selectedItem.value?.id
+      
       Object.assign(form, {
         sourceWarehouse: '',
         destinationBranch: '',
@@ -1155,13 +1332,27 @@ export default {
         notes: '',
         priority: 'normal'
       })
+      
       selectedItem.value = null
       error.value = ''
       successMessage.value = ''
-      searchTerm.value = ''
+      
+      // لا تحذف searchTerm إذا كان هناك search نشط
+      // searchTerm.value = ''
+      
       searchResults.value = []
       isSearching.value = false
       lastSearchStats.value = null
+      
+      // إعادة تحميل البيانات إذا كان هناك مخزن محدد مسبقاً
+      if (form.sourceWarehouse) {
+        loadInitialWarehouseItems()
+      }
+      
+      // تسجيل لتتبع
+      if (currentItemId) {
+        console.log(`🔄 Form reset after processing item: ${currentItemId}`)
+      }
     }
 
     // Watch for inventory changes to update cache
