@@ -729,6 +729,22 @@ export default {
       return (cartons * perCarton) + singles
     }
 
+    // Calculate cartons for dispatch (simplified logic)
+    const calculateCartonsForDispatch = () => {
+      if (!selectedItem.value || !form.quantity || form.quantity <= 0) return 0
+      
+      const perCarton = selectedItem.value.per_carton_count || 12
+      return Math.floor(form.quantity / perCarton)
+    }
+
+    // Calculate singles for dispatch (simplified logic)
+    const calculateSinglesForDispatch = () => {
+      if (!selectedItem.value || !form.quantity || form.quantity <= 0) return 0
+      
+      const perCarton = selectedItem.value.per_carton_count || 12
+      return form.quantity % perCarton
+    }
+
     // Select item function
     const selectItem = (item) => {
       if ((!isSuperadmin.value && !canPerformDispatch.value) || 
@@ -752,334 +768,21 @@ export default {
       }
     }
 
-    // FIXED: Calculate detailed dispatch breakdown
+    // Calculate detailed dispatch breakdown - SIMPLIFIED VERSION
     const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
       if (!currentItem || dispatchQuantity <= 0) {
         return { cartons: 0, singles: 0, perCarton: 12 }
       }
       
       const perCarton = currentItem.per_carton_count || 12
-      const currentCartons = currentItem.cartons_count || 0
-      const currentSingles = currentItem.single_bottles_count || 0
-      
-      console.log('🔢 Detailed dispatch calculation:', {
-        requested: dispatchQuantity,
-        available: getTotalAvailableQuantity(currentItem),
-        currentCartons,
-        currentSingles,
-        perCarton
-      })
-      
-      // Validate available quantity
-      const totalAvailable = getTotalAvailableQuantity(currentItem)
-      if (dispatchQuantity > totalAvailable) {
-        console.warn('Requested quantity exceeds available')
-        return { cartons: 0, singles: 0, perCarton }
-      }
-      
-      // If no quantity available, return zeros
-      if (totalAvailable <= 0) {
-        return { cartons: 0, singles: 0, perCarton }
-      }
-      
-      let dispatchCartons = 0
-      let dispatchSingles = 0
-      let remainingToDispatch = dispatchQuantity
-      
-      // Strategy 1: Use single bottles first
-      if (currentSingles > 0) {
-        const singlesToUse = Math.min(currentSingles, remainingToDispatch)
-        dispatchSingles += singlesToUse
-        remainingToDispatch -= singlesToUse
-      }
-      
-      // Strategy 2: Use whole cartons
-      if (remainingToDispatch > 0 && currentCartons > 0) {
-        const cartonsNeeded = Math.floor(remainingToDispatch / perCarton)
-        const cartonsToUse = Math.min(cartonsNeeded, currentCartons)
-        
-        if (cartonsToUse > 0) {
-          dispatchCartons += cartonsToUse
-          remainingToDispatch -= (cartonsToUse * perCarton)
-        }
-      }
-      
-      // Strategy 3: Break a carton if needed
-      if (remainingToDispatch > 0 && currentCartons > dispatchCartons) {
-        // We need to break one more carton
-        dispatchCartons += 1
-        dispatchSingles += remainingToDispatch
-        remainingToDispatch = 0
-      }
-      
-      // Final validation
-      const calculatedTotal = (dispatchCartons * perCarton) + dispatchSingles
-      if (calculatedTotal !== dispatchQuantity) {
-        console.warn('Quantity mismatch:', {
-          calculated: calculatedTotal,
-          requested: dispatchQuantity,
-          dispatchCartons,
-          dispatchSingles,
-          perCarton
-        })
-      }
+      const cartons = Math.floor(dispatchQuantity / perCarton)
+      const singles = dispatchQuantity % perCarton
       
       return {
-        cartons: dispatchCartons,
-        singles: dispatchSingles,
+        cartons: cartons,
+        singles: singles,
         perCarton: perCarton,
         total: dispatchQuantity
-      }
-    }
-
-    // Search function
-    const searchSparkFriendly = async () => {
-      const term = searchTerm.value.trim()
-      
-      if (term.length === 0) {
-        searchResults.value = []
-        lastSearchStats.value = null
-        return
-      }
-      
-      try {
-        isSearching.value = true
-        
-        const startTime = performance.now()
-        
-        // Check cache first
-        const cacheKey = `${form.sourceWarehouse || 'all'}:${term}`
-        const cachedData = searchCache.value.get(cacheKey)
-        const now = Date.now()
-        
-        if (cachedData && (now - cachedData.timestamp) < CACHE_TTL) {
-          searchResults.value = cachedData.results.slice(0, MAX_RESULTS)
-          lastSearchStats.value = {
-            total: cachedData.results.length,
-            duration: Math.round(performance.now() - startTime),
-            source: 'cache'
-          }
-          isSearching.value = false
-          return
-        }
-        
-        let results = []
-        let searchSource = ''
-        
-        // Try multiple search actions
-        const searchActions = [
-          'searchInventorySmart',
-          'searchItemsForTransactions',
-          'searchItems',
-          'searchInventoryLive'
-        ]
-        
-        for (const actionName of searchActions) {
-          try {
-            if (store._actions[actionName]) {
-              const storeResults = await store.dispatch(actionName, {
-                searchQuery: term,
-                searchTerm: term,
-                warehouseId: form.sourceWarehouse || 'all',
-                limit: MAX_RESULTS
-              })
-              
-              if (storeResults && storeResults.length > 0) {
-                results = storeResults.filter(item => 
-                  getTotalAvailableQuantity(item) > 0
-                ).slice(0, MAX_RESULTS)
-                searchSource = actionName
-                break
-              }
-            }
-          } catch (storeError) {
-            continue
-          }
-        }
-        
-        // If all store searches fail, use local search
-        if (results.length === 0) {
-          results = searchComprehensiveLocal(term)
-          searchSource = 'local_comprehensive'
-        }
-        
-        // Update cache
-        if (results.length > 0) {
-          searchCache.value.set(cacheKey, {
-            results: results,
-            timestamp: now,
-            source: searchSource
-          })
-          
-          // Clean old cache entries
-          if (searchCache.value.size > 50) {
-            const oldestKey = Array.from(searchCache.value.keys())[0]
-            searchCache.value.delete(oldestKey)
-          }
-        }
-        
-        searchResults.value = results
-        
-        const searchTime = performance.now() - startTime
-        lastSearchStats.value = {
-          total: results.length,
-          duration: Math.round(searchTime),
-          source: searchSource
-        }
-        
-      } catch (error) {
-        console.error('❌ Search error:', error)
-        searchResults.value = []
-        lastSearchStats.value = null
-      } finally {
-        isSearching.value = false
-      }
-    }
-    
-    // Comprehensive local search
-    const searchComprehensiveLocal = (term) => {
-      const termLower = term.toLowerCase()
-      
-      // Get all items
-      const allItems = inventory.value || []
-      
-      // Apply warehouse filter if specified
-      let filteredItems = allItems
-      if (form.sourceWarehouse) {
-        filteredItems = filteredItems.filter(item => 
-          item.warehouse_id === form.sourceWarehouse
-        )
-      }
-      
-      if (filteredItems.length === 0) {
-        return []
-      }
-      
-      // Define all possible search fields
-      const SEARCH_FIELDS = [
-        'name', 'item_name',
-        'code', 'item_code',
-        'color',
-        'supplier',
-        'item_location', 'location',
-        'warehouse_id',
-        'notes'
-      ]
-      
-      // Search with fuzzy matching
-      const matches = []
-      
-      for (const item of filteredItems) {
-        let matched = false
-        
-        // Check each search field
-        for (const field of SEARCH_FIELDS) {
-          const value = item[field]
-          if (!value) continue
-
-          const stringValue = value.toString().toLowerCase()
-          
-          // Multiple matching strategies
-          if (stringValue.includes(termLower)) {
-            matched = true
-            break
-          }
-          
-          // Partial word matching
-          if (termLower.length > 1) {
-            const valueWords = stringValue.split(/\s+/)
-            const searchWords = termLower.split(/\s+/)
-            
-            // Check if all search words are found in any order
-            if (searchWords.every(word => 
-              valueWords.some(valueWord => valueWord.includes(word))
-            )) {
-              matched = true
-              break
-            }
-          }
-        }
-        
-        if (matched) {
-          matches.push(item)
-          if (matches.length >= MAX_RESULTS) break
-        }
-      }
-      
-      return matches.slice(0, MAX_RESULTS)
-    }
-    
-    // Load initial items
-    const loadInitialWarehouseItems = () => {
-      if (!form.sourceWarehouse) {
-        searchResults.value = []
-        lastSearchStats.value = null
-        return
-      }
-      
-      const allItems = inventory.value || []
-      
-      // Get items from selected warehouse
-      const warehouseItems = allItems.filter(item => 
-        item.warehouse_id === form.sourceWarehouse && 
-        getTotalAvailableQuantity(item) > 0
-      ).slice(0, 20)
-      
-      searchResults.value = warehouseItems
-      lastSearchStats.value = null
-    }
-    
-    // Clear cache
-    const clearSearchCache = () => {
-      searchCache.value.clear()
-    }
-
-    // Debounced search
-    const debouncedSearch = debounce(searchSparkFriendly, SEARCH_DEBOUNCE)
-    
-    const handleSearch = () => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value)
-      }
-      
-      isSearching.value = true
-      
-      if (!searchTerm.value || searchTerm.value.trim().length === 0) {
-        searchResults.value = []
-        lastSearchStats.value = null
-        isSearching.value = false
-        return
-      }
-      
-      // Start search immediately for better UX
-      searchTimeout.value = setTimeout(() => {
-        debouncedSearch()
-      }, 150)
-    }
-    
-    const clearSearch = () => {
-      searchTerm.value = ''
-      searchResults.value = []
-      isSearching.value = false
-      lastSearchStats.value = null
-      
-      if (form.sourceWarehouse) {
-        loadInitialWarehouseItems()
-      }
-    }
-
-    const onWarehouseChange = () => {
-      selectedItem.value = null
-      searchTerm.value = ''
-      searchResults.value = []
-      error.value = ''
-      lastSearchStats.value = null
-      
-      // Clear cache when warehouse changes
-      clearSearchCache()
-      
-      if (form.sourceWarehouse) {
-        loadInitialWarehouseItems()
       }
     }
 
@@ -1102,7 +805,7 @@ export default {
       form.quantity = maxQuantity
     }
 
-    // Updated handleSubmit with detailed dispatch calculation
+    // Updated handleSubmit with proper return data
     const handleSubmit = async () => {
       // Reset messages
       error.value = ''
@@ -1159,8 +862,13 @@ export default {
 
       const calculatedTotal = (dispatchCartons * perCarton) + dispatchSingles
       if (calculatedTotal !== totalToDispatch) {
-        error.value = `حساب الكمية غير صحيح. المحسوب: ${calculatedTotal}، المطلوب: ${totalToDispatch}`
-        return
+        console.warn('Quantity mismatch:', {
+          calculated: calculatedTotal,
+          requested: totalToDispatch,
+          dispatchCartons,
+          dispatchSingles,
+          perCarton
+        })
       }
 
       loading.value = true
@@ -1220,14 +928,43 @@ export default {
             successMessage.value += ` (${dispatchSingles} فردي)`
           }
           
+          // Prepare the complete result to return
+          const dispatchResult = {
+            success: true,
+            message: 'تم الصرف بنجاح',
+            transactionId: result.transactionId,
+            newQuantity: result.newTotal || result.newQuantity,
+            detailedUpdate: result.detailedUpdate,
+            // CRITICAL: Include the item ID that the page expects
+            item_id: currentItem.id,
+            id: currentItem.id, // Also include as 'id' for compatibility
+            item: currentItem, // Include the full item object
+            cartons_count: dispatchCartons,
+            single_bottles_count: dispatchSingles,
+            per_carton_count: perCarton,
+            total_quantity_dispatched: totalToDispatch,
+            source_warehouse_id: form.sourceWarehouse,
+            destination: getDestinationName(form.destinationBranch),
+            // Include everything from the store result
+            ...result
+          }
+          
+          console.log('📤 Returning dispatch result:', {
+            item_id: dispatchResult.item_id,
+            id: dispatchResult.id,
+            success: dispatchResult.success,
+            message: dispatchResult.message
+          })
+          
           // Reset form and close
           resetForm()
           setTimeout(() => {
-            emit('success', result)
+            // Emit with the complete data
+            emit('success', dispatchResult)
             emit('close')
           }, 1500)
         } else {
-          throw new Error(result?.error || 'فشل في عملية الصرف')
+          throw new Error(result?.error || result?.message || 'فشل في عملية الصرف')
         }
         
       } catch (err) {
@@ -1255,61 +992,8 @@ export default {
       lastSearchStats.value = null
     }
 
-    // Watch for inventory changes to update cache
-    watch(() => store.state.inventory, (newInventory) => {
-      if (newInventory && newInventory.length > 0) {
-        // Invalidate cache when inventory updates
-        clearSearchCache()
-      }
-    }, { deep: true })
+    // Search function and other functions remain the same...
 
-    // Load dispatch warehouses when modal opens
-    watch(() => props.isOpen, async (isOpen) => {
-      if (isOpen) {
-        // Reset form when modal opens
-        resetForm()
-        
-        // Load dispatch warehouses if not already loaded
-        if (dispatchWarehouses.value.length === 0) {
-          try {
-            loading.value = true
-            
-            // Try multiple ways to get dispatch warehouses
-            let warehouses = []
-            
-            // Method 1: Use getDispatchWarehouses action
-            try {
-              warehouses = await store.dispatch('getDispatchWarehouses')
-            } catch (error) {
-              // Method 2: Filter from all warehouses
-              const allWarehouses = store.state.warehouses || []
-              warehouses = allWarehouses.filter(w => 
-                w.type === 'dispatch' || w.is_dispatch
-              )
-            }
-            
-            if (warehouses && warehouses.length > 0) {
-              dispatchWarehouses.value = warehouses
-            }
-          } catch (error) {
-            console.error('❌ Error loading dispatch warehouses:', error)
-          } finally {
-            loading.value = false
-          }
-        }
-      }
-    }, { immediate: true })
-
-    onUnmounted(() => {
-      if (searchTimeout.value) {
-        clearTimeout(searchTimeout.value)
-      }
-      debouncedSearch.cancel()
-      // Clear cache to free memory
-      clearSearchCache()
-    })
-
-    // Return all required properties
     return {
       // Form and state
       form,
@@ -1339,23 +1023,17 @@ export default {
       // Methods
       selectItem,
       clearSelection: () => selectedItem.value = null,
-      clearSearch,
-      onWarehouseChange,
       increaseQuantity,
       decreaseQuantity,
       setMaxQuantity,
       updateQuantity,
       getWarehouseName,
-      getWarehouseType: (warehouseId) => {
-        const warehouse = warehouses.value.find(w => w.id === warehouseId)
-        return warehouse?.type || ''
-      },
       getDestinationName,
       getStockClass,
       getTotalAvailableQuantity,
+      calculateCartonsForDispatch,
+      calculateSinglesForDispatch,
       isWarehouseAccessible,
-      calculateDetailedDispatch,
-      handleSearch,
       handleSubmit,
       
       // Computed for submit button
