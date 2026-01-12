@@ -2349,15 +2349,51 @@ export default {
       selectedItemForDispatch.value = null;
     };
     
-    const handleDispatchSuccess = () => {
-      showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
-      currentHistoryPage.value = 1;
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تمت عملية الصرف بنجاح'
-      });
+    const handleDispatchSuccess = async (dispatchData) => {
+      try {
+        console.log('🚀 Starting dispatch from page with data:', dispatchData);
+        
+        // Validate required fields for store dispatch
+        if (!dispatchData.item_id || !dispatchData.from_warehouse_id || !dispatchData.destination) {
+          throw new Error('بيانات الصرف غير مكتملة');
+        }
+
+        // Call the store dispatch action with proper data
+        await store.dispatch('dispatchItem', {
+          item_id: dispatchData.item_id,
+          from_warehouse_id: dispatchData.from_warehouse_id,
+          from_warehouse_name: getWarehouseLabel(dispatchData.from_warehouse_id),
+          destination: dispatchData.destination,
+          destination_id: dispatchData.destination_id,
+          cartons_count: dispatchData.cartons_count || 0,
+          single_bottles_count: dispatchData.single_bottles_count || 0,
+          per_carton_count: dispatchData.per_carton_count || 12,
+          quantity: dispatchData.quantity || 0,
+          notes: dispatchData.notes || 'صرف من خلال الفواتير',
+          priority: dispatchData.priority || 'normal',
+          item_name: dispatchData.item_name,
+          item_code: dispatchData.item_code
+        });
+
+        showDispatchModal.value = false;
+        selectedItemForDispatch.value = null;
+        currentHistoryPage.value = 1;
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تمت عملية الصرف بنجاح'
+        });
+        
+        // Refresh transactions to show the new dispatch
+        await store.dispatch('fetchTransactions');
+        
+      } catch (error) {
+        console.error('❌ Error in dispatch:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: error.message || 'حدث خطأ في عملية الصرف'
+        });
+      }
     };
     
     const handleSearch = () => {
@@ -3420,23 +3456,37 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           });
         }
         
-        // Update inventory quantities
-        const batch = writeBatch(db);
-        
+        // Dispatch items through store action for proper transaction handling
+        // This will create dispatch records in the transactions collection
         for (const item of invoiceForm.value.items) {
-          if (item.id) {
-            const itemRef = doc(db, 'items', item.id);
-            batch.update(itemRef, {
-              remaining_quantity: increment(-(item.quantity || 0))
+          try {
+            await store.dispatch('dispatchItem', {
+              item_id: item.id,
+              from_warehouse_id: selectedWarehouseForInvoice.value,
+              from_warehouse_name: getWarehouseLabel(selectedWarehouseForInvoice.value),
+              destination: `فاتورة #${invoiceData.invoiceNumber}`,
+              destination_id: invoiceId,
+              quantity: item.quantity,
+              item_name: item.name,
+              item_code: item.code,
+              notes: `صرف عبر فاتورة #${invoiceData.invoiceNumber} - عميل: ${invoiceForm.value.customer.name}`,
+              priority: 'normal'
+            });
+          } catch (dispatchError) {
+            console.error(`Error dispatching item ${item.name}:`, dispatchError);
+            store.dispatch('showNotification', {
+              type: 'error',
+              message: `خطأ في صرف الصنف ${item.name}: ${dispatchError.message}`
             });
           }
         }
         
-        await batch.commit();
-        
         // Reset form and reload invoices
         cancelInvoiceForm();
         await loadInvoices();
+        
+        // Refresh transactions to show new dispatches
+        await store.dispatch('fetchTransactions');
         
       } catch (error) {
         console.error('Error saving invoice:', error);
