@@ -2429,8 +2429,8 @@ async searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
         commit('SET_OPERATION_LOADING', false);
       }
     },
-  // ============================================
-// UPDATED ADD INVENTORY ITEM ACTION (WITH NAME+CODE+COLOR MATCHING)
+// ============================================
+// UPDATED: ADD INVENTORY ITEM ACTION (WITH NAME+CODE+COLOR MATCHING)
 // ============================================
 async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons = true }) {
   commit('SET_OPERATION_LOADING', true);
@@ -2533,6 +2533,8 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
     // ============================================
     // 🔴 STEP 2: BUSINESS LOGIC CALCULATIONS
     // ============================================
+    
+    let result;
     
     if (existingItem && existingItemId) {
       console.log('🔄 UPDATING existing item with ID:', existingItemId);
@@ -2723,16 +2725,10 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         updated_by: 'HIDDEN'
       });
       
-      // Update local Vuex state with COMPLETE item
+      // 🔴 FIX: Update local Vuex state with COMPLETE item WITHOUT reloading all inventory
       commit('UPDATE_INVENTORY_ITEM', updatedItem);
       
-      dispatch('showNotification', {
-        type: 'success',
-        message: `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${cartonsQuantityAdded} وحدة`
-      });
-      
-      // 🔴 CRITICAL FIX: Return COMPLETE item data
-      return {
+      result = {
         success: true,
         type: 'updated',
         item: updatedItem,  // Return the complete item
@@ -2834,19 +2830,11 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         updated_by: 'HIDDEN'
       });
       
-      // Add to local state with COMPLETE item
-      commit('ADD_RECENT_TRANSACTION', transactionData);
+      // 🔴 FIX: Add to local state with COMPLETE item WITHOUT reloading all inventory
       commit('UPDATE_INVENTORY_ITEM', newItem);
+      commit('ADD_RECENT_TRANSACTION', transactionData);
       
-      dispatch('showNotification', {
-        type: 'success',
-        message: additionalCartonsFromSingles > 0 ? 
-          `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي` :
-          `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
-      });
-      
-      // 🔴 CRITICAL FIX: Return COMPLETE item data
-      return { 
+      result = { 
         success: true,
         type: 'created',
         id: docRef.id, 
@@ -2857,6 +2845,18 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
           `تم إضافة صنف جديد ${cleanedData.name}`
       };
     }
+
+    // 🔴 FIX: Show notification WITHOUT calling refreshInventorySilently
+    dispatch('showNotification', {
+      type: 'success',
+      message: result.type === 'updated' 
+        ? `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${result.cartonsAdded || 0} وحدة`
+        : additionalCartonsFromSingles > 0 
+          ? `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي`
+          : `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
+    });
+
+    return result;
 
   } catch (error) {
     console.error('❌ Error adding inventory item:', error);
