@@ -979,171 +979,159 @@ export default {
       }
     };
 
-    const handleSubmit = async () => {
-      if (!validateForm()) return;
+  const handleSubmit = async () => {
+  if (!validateForm()) return;
 
-      loading.value = true;
-      errorMessage.value = '';
-      successMessage.value = '';
+  loading.value = true;
+  errorMessage.value = '';
+  successMessage.value = '';
 
-      try {
-        console.log('🚀 SUBMIT STARTED =================================');
-        console.log('📋 Form data:', formData.value);
-        console.log('🔍 Existing item status:', {
-          exists: !!existingItem.value,
-          id: existingItem.value?.id,
-          name: existingItem.value?.name,
-          code: existingItem.value?.code
-        });
+  try {
+    console.log('🚀 SUBMIT STARTED =================================');
+    console.log('📋 Form data:', formData.value);
+    console.log('🔍 Existing item status:', {
+      exists: !!existingItem.value,
+      id: existingItem.value?.id,
+      name: existingItem.value?.name,
+      code: existingItem.value?.code
+    });
 
-        // UPLOAD PHOTO LOGIC WITH PROPER URL HANDLING
-        let photoUrl = null;
-        
-        // Case 1: New photo selected
-        if (selectedFile.value && previewPhoto.value.startsWith('data:image/')) {
-          photoUrl = await uploadPhotoToStorage();
-          console.log('📸 New photo uploaded, URL:', photoUrl ? 'Yes (base64)' : 'No');
-        } 
-        // Case 2: Existing photo from existing item (keep it)
-        else if (existingItem.value?.photo_url) {
-          photoUrl = existingItem.value.photo_url;
-          console.log('🖼️ Using existing item photo:', photoUrl.substring(0, 50) + '...');
-        }
-        // Case 3: Preview photo from clipboard or existing preview
-        else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
-          photoUrl = previewPhoto.value;
-          console.log('📋 Using preview photo (base64)');
-        }
+    // UPLOAD PHOTO LOGIC WITH PROPER URL HANDLING
+    let photoUrl = null;
+    
+    // Case 1: New photo selected
+    if (selectedFile.value && previewPhoto.value.startsWith('data:image/')) {
+      photoUrl = await uploadPhotoToStorage();
+      console.log('📸 New photo uploaded, URL:', photoUrl ? 'Yes (base64)' : 'No');
+    } 
+    // Case 2: Existing photo from existing item (keep it)
+    else if (existingItem.value?.photo_url) {
+      photoUrl = existingItem.value.photo_url;
+      console.log('🖼️ Using existing item photo:', photoUrl.substring(0, 50) + '...');
+    }
+    // Case 3: Preview photo from clipboard or existing preview
+    else if (previewPhoto.value && !previewPhoto.value.startsWith('http')) {
+      photoUrl = previewPhoto.value;
+      console.log('📋 Using preview photo (base64)');
+    }
 
-        // Prepare item data with proper photo URL handling
-        const itemData = {
-          name: formData.value.name.trim(),
-          code: formData.value.code.trim(),
-          color: formData.value.color.trim(),
-          warehouse_id: formData.value.warehouse_id,
-          cartons_count: Number(formData.value.cartons_count) || 0,
-          per_carton_count: Number(formData.value.per_carton_count) || 12,
-          single_bottles_count: Number(formData.value.single_bottles_count) || 0,
-          // Optional fields (convert empty strings to null)
-          supplier: formData.value.supplier?.trim() || null,
-          item_location: formData.value.item_location?.trim() || null,
-          notes: formData.value.notes?.trim() || null,
-          // PHOTO URL: Use uploaded photo, existing photo, or null
-          photo_url: photoUrl || null,
-          // REQUIRED BY VUEX STORE AND FIRESTORE RULES:
-          created_by: currentUserId.value,
-          updated_by: currentUserId.value
-        };
-
-        // CRITICAL: If updating existing item, add the item ID
-        if (existingItem.value && existingItem.value.id) {
-          itemData.existingItemId = existingItem.value.id;
-          itemData.isUpdatingExisting = true;
-          
-          console.log('🔄 WILL UPDATE existing item:', {
-            id: existingItem.value.id,
-            existingItemId: itemData.existingItemId,
-            isUpdatingExisting: itemData.isUpdatingExisting,
-            photoUrlExists: !!photoUrl,
-            photoUrlType: photoUrl ? (photoUrl.startsWith('data:') ? 'base64' : 'url') : 'none'
-          });
-        } else {
-          console.log('➕ WILL CREATE new item (no existing item found)');
-        }
-
-        console.log('📦 Prepared itemData for store:', {
-          ...itemData,
-          created_by: 'HIDDEN',
-          updated_by: 'HIDDEN',
-          photo_url: itemData.photo_url ? (itemData.photo_url.substring(0, 50) + '...') : 'null'
-        });
-
-        // Call store action
-        console.log('📤 Dispatching to store...');
-        const result = await store.dispatch('addInventoryItem', {
-          itemData,
-          isAddingCartons: isAddingCartonsComputed.value
-        });
-
-        console.log('✅ Store action result:', result);
-
-        if (!result) {
-          throw new Error('No result returned from store action');
-        }
-
-        // Show success message
-        if (result.type === 'updated') {
-          successMessage.value = '✅ تم تحديث الكميات بنجاح!';
-          if (photoUrl && !existingItem.value?.photo_url) {
-            successMessage.value += ' تم إضافة صورة جديدة.';
-          } else if (photoUrl && existingItem.value?.photo_url) {
-            successMessage.value += ' تم تحديث الصورة.';
-          }
-        } else if (result.type === 'created') {
-          successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
-          if (photoUrl) {
-            successMessage.value += ' تم إضافة صورة للصنف.';
-          }
-        } else if (result.success) {
-          successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
-        } else {
-          successMessage.value = '✅ تمت العملية بنجاح!';
-        }
-
-        // Update local store
-        if (result.item && result.item.id) {
-          store.commit('UPDATE_INVENTORY_ITEM', result.item);
-          console.log('🔄 Item updated in local store');
-        }
-
-        // Silent background refresh
-        setTimeout(async () => {
-          try {
-            await store.dispatch('refreshInventorySilently');
-            console.log('✅ Inventory silently refreshed');
-          } catch (refreshError) {
-            console.warn('⚠️ Silent refresh failed:', refreshError.message);
-          }
-        }, 500);
-        
-        // Clear form after success
-        setTimeout(() => {
-          store.dispatch('clearOperationError');
-          clearFormAfterSuccess();
-        }, 1500);
-        
-      } catch (error) {
-        console.error('❌ ERROR in handleSubmit:', error);
-        
-        // Debug: Log the full error
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          stack: error.stack
-        });
-
-        // Display appropriate error message
-        if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('permission-denied')) {
-          errorMessage.value = 'ليس لديك صلاحية للقيام بهذه العملية';
-        } else if (error.message?.includes('يجب تسجيل الدخول')) {
-          errorMessage.value = 'يجب تسجيل الدخول أولاً';
-        } else if (error.message?.includes('صلاحية')) {
-          errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
-        } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
-          errorMessage.value = error.message;
-        } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
-          errorMessage.value = 'خطأ في الاتصال بالشبكة';
-        } else if (storeOperationError.value) {
-          errorMessage.value = storeOperationError.value;
-        } else {
-          errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
-        }
-      } finally {
-        loading.value = false;
-        console.log('🏁 SUBMIT COMPLETED ===============================');
-      }
+    // Prepare item data with proper photo URL handling
+    const itemData = {
+      name: formData.value.name.trim(),
+      code: formData.value.code.trim(),
+      color: formData.value.color.trim(),
+      warehouse_id: formData.value.warehouse_id,
+      cartons_count: Number(formData.value.cartons_count) || 0,
+      per_carton_count: Number(formData.value.per_carton_count) || 12,
+      single_bottles_count: Number(formData.value.single_bottles_count) || 0,
+      // Optional fields (convert empty strings to null)
+      supplier: formData.value.supplier?.trim() || null,
+      item_location: formData.value.item_location?.trim() || null,
+      notes: formData.value.notes?.trim() || null,
+      // PHOTO URL: Use uploaded photo, existing photo, or null
+      photo_url: photoUrl || null,
+      // REQUIRED BY VUEX STORE AND FIRESTORE RULES:
+      created_by: currentUserId.value,
+      updated_by: currentUserId.value
     };
 
+    // CRITICAL: If updating existing item, add the item ID
+    if (existingItem.value && existingItem.value.id) {
+      itemData.existingItemId = existingItem.value.id;
+      itemData.isUpdatingExisting = true;
+      
+      console.log('🔄 WILL UPDATE existing item:', {
+        id: existingItem.value.id,
+        existingItemId: itemData.existingItemId,
+        isUpdatingExisting: itemData.isUpdatingExisting,
+        photoUrlExists: !!photoUrl,
+        photoUrlType: photoUrl ? (photoUrl.startsWith('data:') ? 'base64' : 'url') : 'none'
+      });
+    } else {
+      console.log('➕ WILL CREATE new item (no existing item found)');
+    }
+
+    console.log('📦 Prepared itemData for store:', {
+      ...itemData,
+      created_by: 'HIDDEN',
+      updated_by: 'HIDDEN',
+      photo_url: itemData.photo_url ? (itemData.photo_url.substring(0, 50) + '...') : 'null'
+    });
+
+    // Call store action
+    console.log('📤 Dispatching to store...');
+    const result = await store.dispatch('addInventoryItem', {
+      itemData,
+      isAddingCartons: isAddingCartonsComputed.value
+    });
+
+    console.log('✅ Store action result:', result);
+
+    if (!result) {
+      throw new Error('No result returned from store action');
+    }
+
+    // Show success message
+    if (result.type === 'updated') {
+      successMessage.value = '✅ تم تحديث الكميات بنجاح!';
+      if (photoUrl && !existingItem.value?.photo_url) {
+        successMessage.value += ' تم إضافة صورة جديدة.';
+      } else if (photoUrl && existingItem.value?.photo_url) {
+        successMessage.value += ' تم تحديث الصورة.';
+      }
+    } else if (result.type === 'created') {
+      successMessage.value = '✅ تم إضافة الصنف الجديد بنجاح!';
+      if (photoUrl) {
+        successMessage.value += ' تم إضافة صورة للصنف.';
+      }
+    } else if (result.success) {
+      successMessage.value = '✅ تم حفظ التغييرات بنجاح!';
+    } else {
+      successMessage.value = '✅ تمت العملية بنجاح!';
+    }
+
+    // Update local store (already handled by the store action)
+    console.log('✅ Item added/updated in store');
+
+    // 🔴 REMOVED THE SILENT REFRESH CALL - NO NEED TO RELOAD ALL INVENTORY
+    
+    // Clear form after success
+    setTimeout(() => {
+      store.dispatch('clearOperationError');
+      clearFormAfterSuccess();
+    }, 1500);
+    
+  } catch (error) {
+    console.error('❌ ERROR in handleSubmit:', error);
+    
+    // Debug: Log the full error
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+
+    // Display appropriate error message
+    if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('permission-denied')) {
+      errorMessage.value = 'ليس لديك صلاحية للقيام بهذه العملية';
+    } else if (error.message?.includes('يجب تسجيل الدخول')) {
+      errorMessage.value = 'يجب تسجيل الدخول أولاً';
+    } else if (error.message?.includes('صلاحية')) {
+      errorMessage.value = 'ليس لديك صلاحية لإضافة أصناف';
+    } else if (error.message?.includes('مطلوب') || error.message?.includes('الحقل')) {
+      errorMessage.value = error.message;
+    } else if (error.message?.includes('الشبكة') || error.message?.includes('الاتصال')) {
+      errorMessage.value = 'خطأ في الاتصال بالشبكة';
+    } else if (storeOperationError.value) {
+      errorMessage.value = storeOperationError.value;
+    } else {
+      errorMessage.value = `❌ حدث خطأ أثناء حفظ الصنف: ${error.message || 'خطأ غير معروف'}`;
+    }
+  } finally {
+    loading.value = false;
+    console.log('🏁 SUBMIT COMPLETED ===============================');
+  }
+};
     // Debounce helper
     function debounce(func, wait) {
       let timeout;
