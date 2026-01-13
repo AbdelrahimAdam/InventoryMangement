@@ -2535,6 +2535,8 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
     // ============================================
     
     let result;
+    let totalQuantity = 0; // 🔴 DECLARE THIS AT THE TOP
+    let additionalCartonsFromSingles = 0; // 🔴 DECLARE THIS AT THE TOP
     
     if (existingItem && existingItemId) {
       console.log('🔄 UPDATING existing item with ID:', existingItemId);
@@ -2574,7 +2576,6 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
       
       // 🔴 BUSINESS RULE 4: Convert single bottles to cartons if they complete a full carton
-      let additionalCartonsFromSingles = 0;
       if (finalSingleBottlesCount >= finalPerCartonCount) {
         additionalCartonsFromSingles = Math.floor(finalSingleBottlesCount / finalPerCartonCount);
         finalSingleBottlesCount = finalSingleBottlesCount % finalPerCartonCount;
@@ -2593,14 +2594,14 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       const cartonsQuantityAdded = Math.max(0, newCartonsQuantity - oldCartonsQuantity);
       
       // Calculate new totals
-      const newTotalQuantity = (finalCartonsCount * finalPerCartonCount) + finalSingleBottlesCount;
+      totalQuantity = (finalCartonsCount * finalPerCartonCount) + finalSingleBottlesCount;
       const newTotalAdded = currentTotalAdded + cartonsQuantityAdded; // Only add carton increases
       
       console.log('📊 BUSINESS LOGIC RESULTS:', {
         finalCartons: finalCartonsCount,
         finalPerCarton: finalPerCartonCount,
         finalSingle: finalSingleBottlesCount,
-        newRemaining: newTotalQuantity,
+        newRemaining: totalQuantity,
         cartonsQuantityAdded,
         newTotalAdded: newTotalAdded
       });
@@ -2610,7 +2611,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         cartons_count: finalCartonsCount,
         per_carton_count: finalPerCartonCount,
         single_bottles_count: finalSingleBottlesCount,
-        remaining_quantity: newTotalQuantity,
+        remaining_quantity: totalQuantity,
         updated_at: serverTimestamp(),
         updated_by: state.user.uid
       };
@@ -2662,7 +2663,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
           per_carton_updated: finalPerCartonCount,
           single_delta: newSingleBottlesCount - currentSingleBottlesCount,
           total_delta: cartonsQuantityAdded,
-          new_remaining: newTotalQuantity,
+          new_remaining: totalQuantity,
           user_id: state.user.uid,
           timestamp: serverTimestamp(),
           notes: itemData.notes || `إضافة كميات: ${newCartonsCount} كراتين`,
@@ -2679,7 +2680,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         warehouse_id: warehouseId,
         change_type: 'UPDATE',
         old_quantity: currentRemaining,
-        new_quantity: newTotalQuantity,
+        new_quantity: totalQuantity,
         quantity_delta: cartonsQuantityAdded,
         user_id: state.user.uid,
         timestamp: serverTimestamp(),
@@ -2713,7 +2714,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         cartons_count: finalCartonsCount,
         per_carton_count: finalPerCartonCount,
         single_bottles_count: finalSingleBottlesCount,
-        remaining_quantity: newTotalQuantity,
+        remaining_quantity: totalQuantity,
         total_added: newTotalAdded,
         // Timestamps
         updated_at: updateData.updated_at
@@ -2733,7 +2734,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
         type: 'updated',
         item: updatedItem,  // Return the complete item
         cartonsAdded: cartonsQuantityAdded,
-        newRemaining: newTotalQuantity,
+        newRemaining: totalQuantity,
         convertedCartons: additionalCartonsFromSingles,
         message: `تم تحديث الصنف "${cleanedData.name}" بنجاح`
       };
@@ -2752,7 +2753,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       // Convert single bottles to cartons if complete
       let finalCartonsCount = cartonsCount;
       let finalSingleBottlesCount = singleBottlesCount;
-      let additionalCartonsFromSingles = 0;
+      additionalCartonsFromSingles = 0; // 🔴 ASSIGN VALUE HERE
       
       if (singleBottlesCount >= perCartonCount) {
         additionalCartonsFromSingles = Math.floor(singleBottlesCount / perCartonCount);
@@ -2763,7 +2764,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
       
       // Calculate total quantity
-      const totalQuantity = (finalCartonsCount * perCartonCount) + finalSingleBottlesCount;
+      totalQuantity = (finalCartonsCount * perCartonCount) + finalSingleBottlesCount;
       
       if (totalQuantity <= 0) {
         throw new Error('يجب إدخال كمية صحيحة للإضافة (أكبر من صفر)');
@@ -2847,6 +2848,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
     }
 
     // 🔴 FIX: Show notification WITHOUT calling refreshInventorySilently
+    // Now we can safely use additionalCartonsFromSingles and totalQuantity
     dispatch('showNotification', {
       type: 'success',
       message: result.type === 'updated' 
