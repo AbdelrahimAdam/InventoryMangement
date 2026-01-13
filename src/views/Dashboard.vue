@@ -1107,27 +1107,34 @@ export default {
       }
     });
 
-    // Get total items count
+    // Get total items count - OPTIMIZED VERSION
     const totalItemsCount = computed(() => {
-      const stats = store.getters.dashboardRealStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
-      return stats.totalItems || 0;
+      try {
+        // Use the store's warehouseStats getter which is much faster
+        const stats = store.getters.warehouseStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
+        return stats.totalItems || 0;
+      } catch {
+        // Fallback to calculated
+        return filteredInventory.value.length;
+      }
     });
     
-    // Today's transactions
+    // Today's transactions - OPTIMIZED
     const todayTransactions = computed(() => {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      return recentStoreTransactions.value.filter(transaction => {
-        try {
+      try {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        return recentStoreTransactions.value.filter(transaction => {
           if (!transaction.timestamp) return false;
-          const transDate = transaction.timestamp?.toDate ? 
-            transaction.timestamp.toDate() : new Date(transaction.timestamp);
+          
+          // Use the store's cached transactions instead of processing each time
+          const transDate = transaction.timestamp;
           return transDate >= today;
-        } catch {
-          return false;
-        }
-      });
+        }).slice(0, 20); // Limit to 20 for performance
+      } catch {
+        return [];
+      }
     });
 
     // Pre-calculate these to avoid recomputation
@@ -1147,8 +1154,7 @@ export default {
       if (todayTransactions.value.length === 0) return 'لا توجد حركات';
       const last = todayTransactions.value[0];
       try {
-        const date = last.timestamp?.toDate ? 
-          last.timestamp.toDate() : new Date(last.timestamp);
+        const date = last.timestamp;
         return formatRelativeTime(date);
       } catch {
         return 'غير معروف';
@@ -1161,31 +1167,56 @@ export default {
       return formatRelativeTime(transactions[0]?.timestamp);
     });
 
-    // Filter inventory based on selected warehouse
+    // Filter inventory based on selected warehouse - OPTIMIZED
     const filteredInventory = computed(() => {
-      if (selectedWarehouse.value === 'all') {
-        return inventoryItems.value;
+      try {
+        if (selectedWarehouse.value === 'all') {
+          return inventoryItems.value;
+        }
+        // Use store getter for filtered inventory when available
+        if (store.getters.getInventoryByWarehouse) {
+          return store.getters.getInventoryByWarehouse(selectedWarehouse.value) || [];
+        }
+        // Fallback
+        return inventoryItems.value.filter(item => item.warehouse_id === selectedWarehouse.value);
+      } catch {
+        return [];
       }
-      return inventoryItems.value.filter(item => item.warehouse_id === selectedWarehouse.value);
     });
 
-    // Recent inventory (last 8 items)
+    // Recent inventory (last 8 items) - OPTIMIZED
     const filteredRecentInventory = computed(() => {
-      const items = filteredInventory.value;
-      if (!Array.isArray(items) || items.length === 0) return [];
-      
-      return [...items]
-        .filter(item => item && typeof item === 'object')
-        .sort((a, b) => {
-          try {
-            const dateA = new Date(a.created_at || a.updated_at || 0);
-            const dateB = new Date(b.created_at || b.updated_at || 0);
-            return dateB - dateA;
-          } catch {
-            return 0;
+      try {
+        // Try to use store's recent inventory getter first
+        if (store.getters.recentInventoryItems) {
+          const recentItems = store.getters.recentInventoryItems;
+          if (selectedWarehouse.value === 'all') {
+            return recentItems.slice(0, 8);
           }
-        })
-        .slice(0, 8);
+          return recentItems
+            .filter(item => item.warehouse_id === selectedWarehouse.value)
+            .slice(0, 8);
+        }
+        
+        // Fallback
+        const items = filteredInventory.value;
+        if (!Array.isArray(items) || items.length === 0) return [];
+        
+        return [...items]
+          .filter(item => item && typeof item === 'object')
+          .sort((a, b) => {
+            try {
+              const dateA = new Date(a.created_at || a.updated_at || 0);
+              const dateB = new Date(b.created_at || b.updated_at || 0);
+              return dateB - dateA;
+            } catch {
+              return 0;
+            }
+          })
+          .slice(0, 8);
+      } catch {
+        return [];
+      }
     });
 
     const recentItemsCount = computed(() => filteredRecentInventory.value.length);
@@ -1199,14 +1230,20 @@ export default {
 
     // Filter transactions based on selected warehouse
     const filteredRecentTransactions = computed(() => {
-      if (selectedWarehouse.value === 'all') {
-        return recentStoreTransactions.value;
+      try {
+        if (selectedWarehouse.value === 'all') {
+          return recentStoreTransactions.value.slice(0, 20); // Limit for performance
+        }
+        
+        return recentStoreTransactions.value
+          .filter(transaction => 
+            transaction.from_warehouse === selectedWarehouse.value || 
+            transaction.to_warehouse === selectedWarehouse.value
+          )
+          .slice(0, 20); // Limit for performance
+      } catch {
+        return [];
       }
-      
-      return recentStoreTransactions.value.filter(transaction => 
-        transaction.from_warehouse === selectedWarehouse.value || 
-        transaction.to_warehouse === selectedWarehouse.value
-      );
     });
 
     // ========== OPTIMIZED CALCULATIONS ==========
@@ -1214,6 +1251,12 @@ export default {
     const calculatedTotals = computed(() => {
       const inventory = filteredInventory.value;
       
+      // Use early return for empty inventory
+      if (inventory.length === 0) {
+        return { totalCartons: 0, totalSingles: 0, outOfStockItems: 0 };
+      }
+      
+      // Use for loop for better performance
       let totalCartons = 0;
       let totalSingles = 0;
       let outOfStockItems = 0;
@@ -1262,7 +1305,7 @@ export default {
     const formatDetailedTime = (timestamp) => {
       if (!timestamp) return '';
       try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
         return date.toLocaleTimeString('ar-EG', {
           hour: '2-digit',
           minute: '2-digit',
@@ -1276,7 +1319,7 @@ export default {
     const formatRelativeTime = (timestamp) => {
       if (!timestamp) return '';
       try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -1355,7 +1398,7 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    // Calculate warehouse stats with caching
+    // Calculate warehouse stats with caching - OPTIMIZED
     const getWarehouseStats = (warehouseId) => {
       if (!warehouseId) {
         return {
@@ -1367,7 +1410,16 @@ export default {
         };
       }
 
-      // Check cache first
+      // Try to use store getter first
+      if (store.getters.warehouseStats) {
+        const stats = store.getters.warehouseStats(warehouseId);
+        return {
+          ...stats,
+          healthPercentage: calculateHealthPercentage(stats)
+        };
+      }
+
+      // Fallback to local calculation with caching
       const cacheKey = `${warehouseId}_${lastUpdated.value.getTime()}`;
       if (warehouseStatsCache.value[cacheKey]) {
         return warehouseStatsCache.value[cacheKey];
@@ -1395,6 +1447,12 @@ export default {
       return stats;
     };
 
+    const calculateHealthPercentage = (stats) => {
+      const total = stats.totalItems;
+      const healthy = total - stats.lowStockItems - stats.outOfStockItems;
+      return total > 0 ? Math.round((healthy / total) * 100) : 0;
+    };
+
     const getWarehousePercentage = (statType, warehouseId) => {
       const warehouseStat = getWarehouseStats(warehouseId);
       const allStat = allWarehouseStats.value[statType] || 0;
@@ -1416,9 +1474,9 @@ export default {
       // Load item transactions
       try {
         // Filter transactions for this specific item
-        itemTransactions.value = recentStoreTransactions.value.filter(trans => 
-          trans.item_id === item.id || trans.item_code === item.code
-        ).slice(0, 10);
+        itemTransactions.value = recentStoreTransactions.value
+          .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
+          .slice(0, 10);
       } catch {
         itemTransactions.value = [];
       } finally {
@@ -1470,47 +1528,57 @@ export default {
       try {
         console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
         
-        // Use store getter for real stats
-        const realStats = store.getters.dashboardRealStats(warehouseId);
+        // Use store getter for real stats (optimized)
+        const realStats = store.getters.warehouseStats(warehouseId);
         
-        dashboardStats.value = {
-          totalItems: realStats.totalItems,
-          totalQuantity: realStats.totalQuantity,
-          lowStockItems: realStats.lowStockItems,
-          outOfStockItems: 0,
-          lastUpdated: realStats.lastUpdated || new Date()
-        };
-        
-        // Calculate out of stock items
-        const filteredItems = warehouseId === 'all' 
-          ? inventoryItems.value 
-          : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
-        
-        let outOfStockCount = 0;
-        for (let i = 0; i < filteredItems.length; i++) {
-          if ((filteredItems[i].remaining_quantity || 0) === 0) {
-            outOfStockCount++;
+        if (realStats) {
+          dashboardStats.value = {
+            totalItems: realStats.totalItems || 0,
+            totalQuantity: realStats.totalQuantity || 0,
+            lowStockItems: realStats.lowStockItems || 0,
+            outOfStockItems: realStats.outOfStockItems || 0,
+            lastUpdated: new Date()
+          };
+        } else {
+          // Calculate from filtered inventory
+          const filteredItems = warehouseId === 'all' 
+            ? inventoryItems.value 
+            : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
+          
+          let totalQuantity = 0;
+          let lowStockItems = 0;
+          let outOfStockItems = 0;
+          
+          for (let i = 0; i < filteredItems.length; i++) {
+            const item = filteredItems[i];
+            const remaining = item.remaining_quantity || 0;
+            
+            totalQuantity += remaining;
+            
+            if (remaining === 0) {
+              outOfStockItems++;
+            } else if (remaining < 10) {
+              lowStockItems++;
+            }
           }
+          
+          dashboardStats.value = {
+            totalItems: filteredItems.length,
+            totalQuantity: totalQuantity,
+            lowStockItems: lowStockItems,
+            outOfStockItems: outOfStockItems,
+            lastUpdated: new Date()
+          };
         }
-        dashboardStats.value.outOfStockItems = outOfStockCount;
         
         // Load "all" stats for comparison
-        const allStats = store.getters.dashboardRealStats('all');
+        const allStats = store.getters.warehouseStats('all') || {};
         allWarehouseStats.value = {
-          totalItems: allStats.totalItems,
-          totalQuantity: allStats.totalQuantity,
-          lowStockItems: allStats.lowStockItems,
-          outOfStockItems: 0
+          totalItems: allStats.totalItems || 0,
+          totalQuantity: allStats.totalQuantity || 0,
+          lowStockItems: allStats.lowStockItems || 0,
+          outOfStockItems: allStats.outOfStockItems || 0
         };
-        
-        // Calculate all out of stock items
-        let allOutOfStockCount = 0;
-        for (let i = 0; i < inventoryItems.value.length; i++) {
-          if ((inventoryItems.value[i].remaining_quantity || 0) === 0) {
-            allOutOfStockCount++;
-          }
-        }
-        allWarehouseStats.value.outOfStockItems = allOutOfStockCount;
         
         // Clear warehouse stats cache
         warehouseStatsCache.value = {};
@@ -1519,22 +1587,22 @@ export default {
         
         lastUpdated.value = new Date();
         
-      } catch {
-        // Fallback to calculated stats
-        const inventory = filteredInventory.value;
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        // Fallback to simple calculation
+        const filteredItems = warehouseId === 'all' 
+          ? inventoryItems.value 
+          : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
         
         let totalQuantity = 0;
         let lowStockItems = 0;
         let outOfStockItems = 0;
         
-        for (let i = 0; i < inventory.length; i++) {
-          const item = inventory[i];
-          const cartons = item.cartons_count || 0;
-          const perCarton = item.per_carton_count || 12;
-          const singles = item.single_bottles_count || 0;
+        for (let i = 0; i < filteredItems.length; i++) {
+          const item = filteredItems[i];
           const remaining = item.remaining_quantity || 0;
           
-          totalQuantity += (cartons * perCarton) + singles;
+          totalQuantity += remaining;
           
           if (remaining === 0) {
             outOfStockItems++;
@@ -1544,7 +1612,7 @@ export default {
         }
         
         dashboardStats.value = {
-          totalItems: inventory.length,
+          totalItems: filteredItems.length,
           totalQuantity: totalQuantity,
           lowStockItems: lowStockItems,
           outOfStockItems: outOfStockItems,
@@ -1553,20 +1621,17 @@ export default {
         
         // For "all" comparison
         if (warehouseId !== 'all') {
-          const allInventory = inventoryItems.value;
+          const allItems = inventoryItems.value;
           
           let allTotalQuantity = 0;
           let allLowStockItems = 0;
           let allOutOfStockItems = 0;
           
-          for (let i = 0; i < allInventory.length; i++) {
-            const item = allInventory[i];
-            const cartons = item.cartons_count || 0;
-            const perCarton = item.per_carton_count || 12;
-            const singles = item.single_bottles_count || 0;
+          for (let i = 0; i < allItems.length; i++) {
+            const item = allItems[i];
             const remaining = item.remaining_quantity || 0;
             
-            allTotalQuantity += (cartons * perCarton) + singles;
+            allTotalQuantity += remaining;
             
             if (remaining === 0) {
               allOutOfStockItems++;
@@ -1576,7 +1641,7 @@ export default {
           }
           
           allWarehouseStats.value = {
-            totalItems: allInventory.length,
+            totalItems: allItems.length,
             totalQuantity: allTotalQuantity,
             lowStockItems: allLowStockItems,
             outOfStockItems: allOutOfStockItems
@@ -1599,13 +1664,13 @@ export default {
         // Use the store's loadMoreInventory action
         const newItems = await store.dispatch('loadMoreInventory');
         
-        console.log(`✅ Loaded: ${newItems.length} items`);
+        console.log(`✅ Loaded: ${newItems?.length || 0} items`);
         
         // Refresh dashboard stats after loading more items
         await loadDashboardStats(selectedWarehouse.value);
         
-      } catch {
-        console.error('❌ Error loading more items');
+      } catch (error) {
+        console.error('❌ Error loading more items:', error);
       } finally {
         loadMoreLoading.value = false;
       }
@@ -1618,7 +1683,7 @@ export default {
         warehouseStatsCache.value = {};
         
         // Refresh all data in parallel
-        const [inventoryPromise, transactionsPromise] = await Promise.allSettled([
+        await Promise.allSettled([
           store.dispatch('loadAllInventory', { forceRefresh: true }),
           store.dispatch('getRecentTransactions')
         ]);
@@ -1628,8 +1693,8 @@ export default {
         
         console.log('🔄 Dashboard refreshed successfully');
         
-      } catch {
-        console.error('Error refreshing dashboard');
+      } catch (error) {
+        console.error('Error refreshing dashboard:', error);
       } finally {
         loading.value = false;
       }
@@ -1646,8 +1711,8 @@ export default {
         console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
         console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
         
-      } catch {
-        console.error('Error changing warehouse');
+      } catch (error) {
+        console.error('Error changing warehouse:', error);
       } finally {
         loading.value = false;
       }
@@ -1674,7 +1739,7 @@ export default {
         }
         
         // Load initial data in parallel for faster loading
-        const [warehousesData, inventoryData, transactionsData] = await Promise.allSettled([
+        await Promise.allSettled([
           !accessibleWarehouses.value || accessibleWarehouses.value.length === 0 
             ? store.dispatch('loadWarehousesEnhanced')
             : Promise.resolve(),
@@ -1726,8 +1791,8 @@ export default {
       try {
         // Load dashboard data
         await loadDashboardData();
-      } catch {
-        console.error('❌ Error in dashboard mounted');
+      } catch (error) {
+        console.error('❌ Error in dashboard mounted:', error);
         initialLoading.value = false;
         loading.value = false;
       }
@@ -1750,7 +1815,7 @@ export default {
       }
     });
 
-    // Debounced inventory watch to prevent too many updates
+    // Optimized inventory watch
     let inventoryWatchTimeout;
     watch(inventoryItems, async () => {
       if (!loading.value && !statsLoading.value) {
@@ -1758,9 +1823,9 @@ export default {
         inventoryWatchTimeout = setTimeout(async () => {
           console.log('🔄 Inventory changed, updating stats...');
           await loadDashboardStats(selectedWarehouse.value);
-        }, 500); // Debounce by 500ms
+        }, 300); // Debounce by 300ms
       }
-    }, { deep: true });
+    }, { deep: false }); // Shallow watch for performance
 
     watch(totalLoadedItems, (newCount) => {
       console.log(`📦 Total loaded items updated: ${newCount}`);
