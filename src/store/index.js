@@ -2537,6 +2537,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
     let result;
     let totalQuantity = 0; // 🔴 DECLARE THIS AT THE TOP
     let additionalCartonsFromSingles = 0; // 🔴 DECLARE THIS AT THE TOP
+    let isCreatingNewItem = false;
     
     if (existingItem && existingItemId) {
       console.log('🔄 UPDATING existing item with ID:', existingItemId);
@@ -2744,6 +2745,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       // 🔴 CREATE NEW ITEM (no existing match found)
       // ============================================
       console.log('➕ CREATING new item (no matching name+code+color found)');
+      isCreatingNewItem = true;
       
       // Calculate quantities for new item
       const cartonsCount = Number(itemData.cartons_count) || 0;
@@ -2753,7 +2755,7 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       // Convert single bottles to cartons if complete
       let finalCartonsCount = cartonsCount;
       let finalSingleBottlesCount = singleBottlesCount;
-      additionalCartonsFromSingles = 0; // 🔴 ASSIGN VALUE HERE
+      additionalCartonsFromSingles = 0; // 🔴 RE-ASSIGN VALUE HERE
       
       if (singleBottlesCount >= perCartonCount) {
         additionalCartonsFromSingles = Math.floor(singleBottlesCount / perCartonCount);
@@ -2849,13 +2851,21 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
 
     // 🔴 FIX: Show notification WITHOUT calling refreshInventorySilently
     // Now we can safely use additionalCartonsFromSingles and totalQuantity
+    let successMessage = '';
+    
+    if (result.type === 'updated') {
+      successMessage = `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${result.cartonsAdded || 0} وحدة`;
+    } else if (isCreatingNewItem) {
+      if (additionalCartonsFromSingles > 0) {
+        successMessage = `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي`;
+      } else {
+        successMessage = `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`;
+      }
+    }
+    
     dispatch('showNotification', {
       type: 'success',
-      message: result.type === 'updated' 
-        ? `✅ تم تحديث كميات الصنف "${cleanedData.name}" بنجاح. تمت إضافة ${result.cartonsAdded || 0} وحدة`
-        : additionalCartonsFromSingles > 0 
-          ? `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي`
-          : `✅ تم إضافة الصنف "${cleanedData.name}" بنجاح. الكمية المضافة: ${totalQuantity} وحدة`
+      message: successMessage
     });
 
     return result;
