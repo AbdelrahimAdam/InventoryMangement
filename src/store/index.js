@@ -89,96 +89,538 @@ const FIELD_MAPPINGS = {
 };
 
 // ============================================
-// UTILITY FUNCTIONS (DEFINED BEFORE ACTIONS)
+// FIREBASE INITIALIZATION UTILITY
 // ============================================
-
-// Function to ensure all item fields are complete
-function ensureCompleteItemFields(item) {
-  return {
-    // Basic info
-    id: item.id || '',
-    name: item.name || '',
-    code: item.code || '',
-    color: item.color || '',
-    warehouse_id: item.warehouse_id || '',
-    
-    // 🔴 CRITICAL: Detailed quantity fields
-    cartons_count: item.cartons_count || 0,
-    per_carton_count: item.per_carton_count || 12,
-    single_bottles_count: item.single_bottles_count || 0,
-    remaining_quantity: item.remaining_quantity || 0,
-    total_added: item.total_added || 0,
-    
-    // Additional fields
-    supplier: item.supplier || '',
-    item_location: item.item_location || '',
-    notes: item.notes || '',
-    barcode: item.barcode || '',
-    sku: item.sku || '',
-    category: item.category || '',
-    photo_url: item.photo_url || null,
-    
-    // User and timestamps
-    created_by: item.created_by || '',
-    updated_by: item.updated_by || '',
-    created_at: item.created_at || null,
-    updated_at: item.updated_at || null
-  };
-}
-
-// Ensure Firebase is ready
+/**
+ * Ensures Firebase is fully initialized before performing operations
+ * @returns {Promise<Object>} Firebase services
+ */
 async function ensureFirebaseReady() {
-  return new Promise(resolve => {
-    const checkInterval = setInterval(() => {
-      if (window.firebaseReady && db) {
-        clearInterval(checkInterval);
-        resolve();
+  try {
+    console.log('⏳ Ensuring Firebase is ready...');
+
+    // Check if Firebase is already initialized
+    if (isFirebaseInitialized()) {
+      console.log('✅ Firebase is already initialized');
+      return { auth, db };
+    }
+
+    // If not initialized, initialize it
+    console.log('🔥 Initializing Firebase...');
+    const services = await initializeFirebase();
+    console.log('✅ Firebase initialized successfully');
+    return services;
+
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    throw new Error('Firebase is not available. Please try again.');
+  }
+}
+
+/**
+ * Get Firestore database with safety check
+ * @returns {Promise<Object>} Firestore database instance
+ */
+async function getFirestoreDb() {
+  await ensureFirebaseReady();
+  if (!db) {
+    throw new Error('Firestore database not available');
+  }
+  return db;
+}
+
+/**
+ * Get Firebase auth with safety check
+ * @returns {Promise<Object>} Firebase auth instance
+ */
+async function getFirebaseAuth() {
+  await ensureFirebaseReady();
+  if (!auth) {
+    throw new Error('Firebase authentication not available');
+  }
+  return auth;
+}
+
+// ============================================
+// SPARK PLAN ENHANCED CONFIGURATION
+// ============================================
+const SPARK_CONFIG = {
+  // Performance
+  MAX_RESULTS: 25,
+  LOCAL_SEARCH_LIMIT: 200,
+  INITIAL_DISPLAY_LIMIT: 15,
+
+  // Caching
+  CACHE_TTL: 300000, // 5 minutes
+  MAX_CACHE_ENTRIES: 100,
+  CACHE_CLEANUP_INTERVAL: 30000, // 30 seconds
+
+  // Timing
+  SEARCH_DEBOUNCE: 400,
+  ARTIFICIAL_DELAY: 50,
+  PARALLEL_TIMEOUT: 5000,
+
+  // Fields
+  FIELD_LIMITS: ['name', 'code', 'color', 'supplier'],
+  RELEVANCE_WEIGHTS: {
+    CODE_EXACT: 1000,
+    CODE_STARTS: 500,
+    NAME_EXACT: 400,
+    NAME_STARTS: 300,
+    NAME_CONTAINS: 200,
+    OTHER_FIELDS: 100,
+    QUANTITY_BONUS: 50,
+    RECENCY_BONUS: 50
+  }
+};
+
+// SPARK ENHANCED SEARCH CACHE
+class SearchCache {
+  constructor() {
+    this.cache = new Map();
+    this.accessLog = new Map();
+    this.size = 0;
+    this.maxSize = SPARK_CONFIG.MAX_CACHE_ENTRIES;
+    this.cleanupTimer = null;
+  }
+
+  get(key) {
+    const entry = this.cache.get(key);
+    if (entry) {
+      // Update access time
+      this.accessLog.set(key, Date.now());
+      return entry.results;
+    }
+    return null;
+  }
+
+  set(key, results) {
+    // Cleanup if needed
+    if (this.size >= this.maxSize) {
+      this.cleanup();
+    }
+
+    const entry = {
+      results,
+      timestamp: Date.now(),
+      size: JSON.stringify(results).length
+    };
+
+    this.cache.set(key, entry);
+    this.accessLog.set(key, Date.now());
+    this.size++;
+
+    // Schedule cleanup
+    this.scheduleCleanup();
+  }
+
+  cleanup() {
+    const now = Date.now();
+    const toDelete = [];
+
+    // Remove expired entries
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > SPARK_CONFIG.CACHE_TTL) {
+        toDelete.push(key);
       }
-    }, 100);
-    
-    setTimeout(() => {
-      clearInterval(checkInterval);
-      console.warn('Firebase ready check timeout');
-      resolve();
-    }, 3000);
+    }
+
+    // If still over limit, remove least recently used
+    if (this.size - toDelete.length > this.maxSize) {
+      const lruEntries = Array.from(this.accessLog.entries())
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, this.maxSize / 2);
+
+      lruEntries.forEach(([key]) => {
+        if (!toDelete.includes(key)) {
+          toDelete.push(key);
+        }
+      });
+    }
+
+    // Delete entries
+    toDelete.forEach(key => {
+      this.cache.delete(key);
+      this.accessLog.delete(key);
+      this.size--;
+    });
+
+    if (toDelete.length > 0) {
+      console.log(`🧹 SPARK Cache cleaned: removed ${toDelete.length} entries`);
+    }
+  }
+
+  scheduleCleanup() {
+    if (this.cleanupTimer) clearTimeout(this.cleanupTimer);
+    this.cleanupTimer = setTimeout(() => this.cleanup(), SPARK_CONFIG.CACHE_CLEANUP_INTERVAL);
+  }
+
+  clear() {
+    const oldSize = this.size;
+    this.cache.clear();
+    this.accessLog.clear();
+    this.size = 0;
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    console.log(`🧹 SPARK Cache cleared: ${oldSize} entries removed`);
+    return oldSize;
+  }
+}
+
+// Initialize SPARK cache
+const searchCache = new SearchCache();
+
+// Helper: Get cache key
+const getCacheKey = (searchTerm, warehouseId, limit = SPARK_CONFIG.MAX_RESULTS) => {
+  return `${warehouseId || 'all'}:${searchTerm.toLowerCase().trim()}:${limit}:${Date.now() % 10000}`;
+};
+
+// ============================================
+// ENHANCED ARABIC TEXT NORMALIZATION FUNCTION
+// ============================================
+function normalizeArabicText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  // Convert to string and trim
+  text = String(text).trim();
+
+  // Normalize Unicode to combine characters
+  text = text.normalize('NFC');
+
+  // Remove all diacritics and special characters
+  const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
+  text = text.replace(diacriticsRegex, '');
+
+  // Comprehensive Arabic character normalization
+  const arabicNormalizationMap = {
+    // Alif variations
+    'إ': 'ا', 'أ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ٲ': 'ا', 'ٳ': 'ا',
+    // Ya variations
+    'ى': 'ي', 'ئ': 'ي', 'ۍ': 'ي', 'ێ': 'ي', 'ې': 'ي', 'ۑ': 'ي',
+    // Ta marbuta
+    'ة': 'ه',
+    // Waw variations
+    'ؤ': 'و', 'ۄ': 'و', 'ۅ': 'و', 'ۆ': 'و', 'ۇ': 'و', 'ۈ': 'و', 'ۉ': 'و', 'ۊ': 'و', 'ۋ': 'و',
+    // Kaf variations
+    'ك': 'ك', 'ڪ': 'ك', 'ګ': 'ك', 'ڬ': 'ك', 'ڭ': 'ك', 'ڮ': 'ك',
+    // Hamza variations
+    'ء': '', 'ٔ': '', 'ٕ': '', 'ٖ': '', 'ٗ': '',
+    // Tatweel (kashida)
+    'ـ': '',
+    // Persian characters
+    'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
+    // Other Arabic variations
+    'ڀ': 'ب', 'ٻ': 'ب', 'ڃ': 'ج', 'ڄ': 'ج', 'څ': 'ج', 'چ': 'ج', 'ڇ': 'ج',
+    'ډ': 'د', 'ڊ': 'د', 'ڋ': 'د', 'ڌ': 'د', 'ڍ': 'د', 'ڎ': 'د', 'ڏ': 'د', 'ڐ': 'د',
+    'ڑ': 'ر', 'ڒ': 'ر', 'ړ': 'ر', 'ڔ': 'ر', 'ڕ': 'ر', 'ږ': 'ر', 'ڗ': 'ر', 'ژ': 'ر',
+    'ڙ': 'ر', 'ښ': 'س', 'ڛ': 'س', 'ڜ': 'س', 'ڝ': 'ص', 'ڞ': 'ص',
+    'ڟ': 'ط', 'ڠ': 'ع', 'ڡ': 'ف', 'ڢ': 'ف', 'ڣ': 'ف', 'ڤ': 'ف', 'ڥ': 'ف', 'ڦ': 'ف',
+    'ڧ': 'ق', 'ڨ': 'ق', 'ک': 'ك', 'ڪ': 'ك', 'ګ': 'ك', 'ڬ': 'ك', 'ڭ': 'ك', 'ڮ': 'ك',
+    'ڰ': 'ل', 'ڱ': 'ل', 'ڲ': 'ل', 'ڳ': 'ل', 'ڴ': 'ل',
+    'ڵ': 'ل', 'ڶ': 'ل', 'ڷ': 'ل', 'ڸ': 'ل', 'ڹ': 'ن', 'ں': 'ن', 'ڻ': 'ن', 'ڼ': 'ن',
+    'ڽ': 'ن', 'ھ': 'ه', 'ۀ': 'ه', 'ہ': 'ه', 'ۂ': 'ه', 'ۃ': 'ه', 'ۄ': 'و', 'ۅ': 'و',
+    'ۆ': 'و', 'ۇ': 'و', 'ۈ': 'و', 'ۉ': 'و', 'ۊ': 'و', 'ۋ': 'و', 'ی': 'ي', 'ۍ': 'ي',
+    'ێ': 'ي', 'ې': 'ي', 'ۑ': 'ي'
+  };
+
+  // Apply character replacements
+  Object.keys(arabicNormalizationMap).forEach(key => {
+    const regex = new RegExp(key, 'g');
+    text = text.replace(regex, arabicNormalizationMap[key]);
   });
+
+  // Remove any remaining non-Arabic characters (keep spaces and numbers)
+  text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
+
+  // Remove extra spaces and normalize
+  text = text.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  return text;
 }
 
-// Get cache key
-function getCacheKey(searchTerm, warehouseId, limit) {
-  return `search:${searchTerm}:${warehouseId}:${limit}`;
+// ============================================
+// ENHANCED ARABIC MATCHING WITH SCORING
+// ============================================
+function matchArabicTextWithScore(item, searchTerm, fields) {
+  if (!searchTerm || !item) return { matched: false, score: 0 };
+
+  const preparedSearchTerm = normalizeArabicText(searchTerm);
+  let bestScore = 0;
+  let matched = false;
+
+  // Define all possible searchable fields
+  const allSearchFields = [
+    'name', 'code', 'color', 'supplier', 'item_location',
+    'warehouse_id', 'notes', 'barcode', 'sku', 'category'
+  ];
+
+  // Use provided fields or all search fields
+  const searchFields = fields && fields.length > 0 ? fields : allSearchFields;
+
+  for (const field of searchFields) {
+    const fieldValue = item[field];
+    if (!fieldValue) continue;
+
+    const preparedFieldValue = normalizeArabicText(fieldValue.toString());
+    let fieldScore = 0;
+
+    // 1. EXACT MATCH (highest score: 100)
+    if (preparedFieldValue === preparedSearchTerm) {
+      fieldScore = 100;
+      matched = true;
+    }
+
+    // 2. STARTS WITH (score: 80-95 based on field importance)
+    else if (preparedFieldValue.startsWith(preparedSearchTerm)) {
+      fieldScore = 85;
+      // Bonus for important fields
+      if (field === 'code') fieldScore = 95;
+      if (field === 'name') fieldScore = 90;
+      matched = true;
+    }
+
+    // 3. CONTAINS (score: 60-85)
+    else if (preparedFieldValue.includes(preparedSearchTerm)) {
+      fieldScore = 70;
+      // Bonus for important fields
+      if (field === 'name') fieldScore = 85;
+      if (field === 'code') fieldScore = 80;
+      if (field === 'supplier') fieldScore = 75;
+      matched = true;
+    }
+
+    // 4. WORD-BY-WORD MATCHING (for multi-word searches)
+    else if (preparedSearchTerm.includes(' ')) {
+      const searchWords = preparedSearchTerm.split(/\s+/);
+      const fieldWords = preparedFieldValue.split(/\s+/);
+
+      let matchedWords = 0;
+      for (const searchWord of searchWords) {
+        for (const fieldWord of fieldWords) {
+          if (fieldWord.includes(searchWord)) {
+            matchedWords++;
+            break;
+          }
+        }
+      }
+
+      // Score based on percentage of words matched
+      if (matchedWords > 0) {
+        const matchRatio = matchedWords / searchWords.length;
+        fieldScore = Math.floor(40 + (matchRatio * 40)); // 40-80 range
+        if (field === 'name') fieldScore += 10;
+        matched = true;
+      }
+    }
+
+    // 5. PARTIAL WORD MATCHING (fuzzy)
+    else if (preparedSearchTerm.length >= 2) {
+      // Check if search term appears within words
+      const fieldWords = preparedFieldValue.split(/\s+/);
+      for (const fieldWord of fieldWords) {
+        if (fieldWord.includes(preparedSearchTerm)) {
+          fieldScore = 50;
+          if (field === 'name') fieldScore = 60;
+          matched = true;
+          break;
+        }
+      }
+
+      // Character-by-character similarity for short terms
+      if (!matched && preparedSearchTerm.length >= 3) {
+        const similarity = calculateArabicSimilarity(preparedFieldValue, preparedSearchTerm);
+        if (similarity > 0.7) {
+          fieldScore = Math.floor(similarity * 60); // 42-60 range
+          if (field === 'name') fieldScore += 10;
+          matched = true;
+        }
+      }
+    }
+
+    // Update best score if this field scored higher
+    if (fieldScore > bestScore) {
+      bestScore = fieldScore;
+    }
+  }
+
+  // Apply bonuses
+  if (matched) {
+    // Bonus for quantity availability
+    const quantity = item.remaining_quantity || 0;
+    if (quantity > 0) {
+      bestScore += Math.min(quantity / 10, 5); // Up to 5 points for quantity
+    }
+
+    // Bonus for recent updates
+    if (item.updated_at) {
+      const updateDate = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
+      const daysAgo = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysAgo < 7) {
+        bestScore += 5; // Recent items get bonus
+      }
+    }
+
+    // Bonus for exact code match
+    if (item.code && normalizeArabicText(item.code) === preparedSearchTerm) {
+      bestScore += 15;
+    }
+  }
+
+  return { matched, score: bestScore };
 }
 
-// Remove duplicates and sort
+// ============================================
+// IMPROVED ARABIC SIMILARITY CALCULATION
+// ============================================
+function calculateArabicSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+
+  const prep1 = normalizeArabicText(str1);
+  const prep2 = normalizeArabicText(str2);
+
+  // Quick checks
+  if (prep1 === prep2) return 1.0;
+  if (prep1.includes(prep2) || prep2.includes(prep1)) return 0.9;
+
+  // Calculate Levenshtein-like similarity for Arabic
+  const len1 = prep1.length;
+  const len2 = prep2.length;
+  const maxLen = Math.max(len1, len2);
+
+  if (maxLen === 0) return 1.0;
+
+  // Count matching characters in order
+  let matches = 0;
+  let i = 0, j = 0;
+
+  while (i < len1 && j < len2) {
+    if (prep1[i] === prep2[j]) {
+      matches++;
+      i++;
+      j++;
+    } else if (len1 > len2) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+
+  // Calculate similarity ratio
+  return matches / maxLen;
+}
+
+// ============================================
+// ENHANCED RELEVANCE SCORE CALCULATION
+// ============================================
+function calculateRelevanceScore(item, searchTerm) {
+  let score = 0;
+  const normalizedSearchTerm = normalizeArabicText(searchTerm);
+  const weights = SPARK_CONFIG.RELEVANCE_WEIGHTS;
+
+  // Code exact match (highest priority)
+  if (item.code && normalizeArabicText(item.code) === normalizedSearchTerm) {
+    score += weights.CODE_EXACT;
+  }
+
+  // Code starts with search term
+  if (item.code && normalizeArabicText(item.code).startsWith(normalizedSearchTerm)) {
+    score += weights.CODE_STARTS;
+  }
+
+  // Name exact match
+  if (item.name && normalizeArabicText(item.name) === normalizedSearchTerm) {
+    score += weights.NAME_EXACT;
+  }
+
+  // Name starts with search term
+  if (item.name && normalizeArabicText(item.name).startsWith(normalizedSearchTerm)) {
+    score += weights.NAME_STARTS;
+  }
+
+  // Name contains search term
+  if (item.name && normalizeArabicText(item.name).includes(normalizedSearchTerm)) {
+    score += weights.NAME_CONTAINS;
+  }
+
+  // Other fields contain search term
+  const otherFields = [
+    'color', 'supplier', 'item_location', 'warehouse_id', 
+    'notes', 'category', 'barcode', 'sku'
+  ];
+
+  otherFields.forEach(field => {
+    if (item[field] && normalizeArabicText(item[field]).includes(normalizedSearchTerm)) {
+      score += weights.OTHER_FIELDS;
+    }
+  });
+
+  // Bonus for items with higher quantity (better availability)
+  const quantity = item.remaining_quantity || 0;
+  if (quantity > 0) {
+    score += Math.min(quantity, weights.QUANTITY_BONUS);
+  }
+
+  // Bonus for recently updated items
+  if (item.updated_at) {
+    const updateDate = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
+    const daysSinceUpdate = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceUpdate < 7) {
+      score += weights.RECENCY_BONUS;
+    }
+  }
+
+  // Additional weight for search term length
+  if (searchTerm.length >= 4) {
+    score += 25; // Increased bonus for longer searches
+  }
+
+  // Bonus for exact matches in any field
+  const allFields = ['name', 'code', 'color', 'supplier', 'item_location'];
+  const hasExactMatch = allFields.some(field => 
+    item[field] && normalizeArabicText(item[field]) === normalizedSearchTerm
+  );
+
+  if (hasExactMatch) {
+    score += 30;
+  }
+
+  return score;
+}
+
+// ============================================
+// ENHANCED RESULT MERGING AND DEDUPLICATION
+// ============================================
 function removeDuplicatesAndSortByRelevance(items, searchTerm, limit) {
-  const seenIds = new Set();
+  const seen = new Set();
   const uniqueItems = [];
-  
+
   for (const item of items) {
-    if (item && item.id && !seenIds.has(item.id)) {
-      seenIds.add(item.id);
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
       uniqueItems.push(item);
     }
   }
-  
+
+  // Sort by relevance score (descending)
   uniqueItems.sort((a, b) => {
-    const aMatches = (a.name || '').includes(searchTerm) || (a.code || '').includes(searchTerm);
-    const bMatches = (b.name || '').includes(searchTerm) || (b.code || '').includes(searchTerm);
-    
-    if (aMatches && !bMatches) return -1;
-    if (!aMatches && bMatches) return 1;
-    
-    return 0;
+    const scoreA = calculateRelevanceScore(a, searchTerm);
+    const scoreB = calculateRelevanceScore(b, searchTerm);
+    return scoreB - scoreA;
   });
-  
+
   return uniqueItems.slice(0, limit);
 }
 
-// Merge search results
+// ============================================
+// SMART RESULT MERGING FUNCTION
+// ============================================
 function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
   const allResults = new Map();
-  const maxAge = Date.now() - (60 * 60 * 1000);
+  const maxAge = Date.now() - (60 * 60 * 1000); // 1 hour
 
+  // Add Firebase results first (more current)
   firebaseResults.forEach(item => {
     if (item.updated_at) {
       const updated = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
@@ -195,9 +637,11 @@ function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
     allResults.set(item.id, item);
   });
 
+  // Add/update with local results
   localResults.forEach(item => {
     const existing = allResults.get(item.id);
     if (existing) {
+      // Update if local is more recent or has more data
       if (item.remaining_quantity !== undefined && existing.remaining_quantity === undefined) {
         existing.remaining_quantity = item.remaining_quantity;
       }
@@ -209,6 +653,7 @@ function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
     }
   });
 
+  // Calculate final relevance
   const finalResults = Array.from(allResults.values())
     .map(item => ({
       ...item,
@@ -217,6 +662,7 @@ function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
     .sort((a, b) => b._finalScore - a._finalScore)
     .slice(0, limit)
     .map(item => {
+      // Remove internal scoring fields
       const { _relevance, _freshness, _source, _hasLocal, _finalScore, ...cleanItem } = item;
       return cleanItem;
     });
@@ -224,127 +670,815 @@ function mergeSearchResults(localResults, firebaseResults, searchTerm, limit) {
   return finalResults;
 }
 
-// Arabic text normalization
-function normalizeArabicText(text) {
-  if (!text) return '';
-  return text
-    .toString()
-    .normalize('NFKD')
-    .replace(/[\u064B-\u065F]/g, '')
-    .replace(/[إأآا]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
-    .replace(/[ى]/g, 'ي')
-    .replace(/[ؤ]/g, 'و')
-    .replace(/[ئ]/g, 'ي')
-    .trim()
-    .toLowerCase();
-}
-
-// Simple fuzzy search for local items
+// ============================================
+// ENHANCED FUZZY LOCAL SEARCH
+// ============================================
 function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
-  const normalizedSearch = normalizeArabicText(searchTerm);
-  
-  return items.filter(item => {
+  const normalizedTerm = normalizeArabicText(searchTerm);
+  const terms = normalizedTerm.split(' ');
+
+  const scoredItems = [];
+
+  for (const item of items) {
+    // Check warehouse filter
     if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
-      return false;
+      continue;
     }
-    
-    const normalizedName = normalizeArabicText(item.name || '');
-    const normalizedCode = normalizeArabicText(item.code || '');
-    
-    return normalizedName.includes(normalizedSearch) || 
-           normalizedCode.includes(normalizedSearch);
-  }).slice(0, limit);
+
+    // Get match score using enhanced matching
+    const { matched, score } = matchArabicTextWithScore(item, searchTerm, [
+      'name', 'code', 'color', 'supplier', 'item_location'
+    ]);
+
+    if (matched && score > 30) { // Minimum score threshold
+      scoredItems.push({ item, score });
+    }
+  }
+
+  // Sort by score and limit
+  scoredItems.sort((a, b) => b.score - a.score);
+  return scoredItems.slice(0, limit).map(scored => scored.item);
 }
 
-// Enhanced relevance score calculation
-function calculateRelevanceScore(item, searchTerm) {
-  let score = 0;
-  const normalizedSearchTerm = normalizeArabicText(searchTerm);
-  const weights = SPARK_CONFIG.RELEVANCE_WEIGHTS;
+// ============================================
+// ENHANCED LOCAL SEARCH ACTION
+// ============================================
+async function searchLocalSpark({ state }, {
+  query,
+  warehouseId,
+  limit = SPARK_CONFIG.MAX_RESULTS
+}) {
+  if (!query || query.trim().length < 1) return [];
 
-  if (item.code && normalizeArabicText(item.code) === normalizedSearchTerm) {
-    score += weights.CODE_EXACT;
+  const searchTerm = query.trim();
+
+  // Get inventory with limits
+  let items = [...state.inventory];
+
+  // Early exit if too many items
+  if (items.length > SPARK_CONFIG.LOCAL_SEARCH_LIMIT) {
+    items = items.slice(0, SPARK_CONFIG.LOCAL_SEARCH_LIMIT);
+    console.log(`⚠️ Limiting local search to ${SPARK_CONFIG.LOCAL_SEARCH_LIMIT} items`);
   }
 
-  if (item.code && normalizeArabicText(item.code).startsWith(normalizedSearchTerm)) {
-    score += weights.CODE_STARTS;
+  // Apply warehouse filter if specified
+  if (warehouseId && warehouseId !== 'all') {
+    items = items.filter(i => i.warehouse_id === warehouseId);
   }
 
-  if (item.name && normalizeArabicText(item.name) === normalizedSearchTerm) {
-    score += weights.NAME_EXACT;
-  }
+  // Early exit if no items
+  if (items.length === 0) return [];
 
-  if (item.name && normalizeArabicText(item.name).startsWith(normalizedSearchTerm)) {
-    score += weights.NAME_STARTS;
-  }
+  console.log(`🔎 SPARK Local search for: "${searchTerm}" in ${items.length} items`);
 
-  if (item.name && normalizeArabicText(item.name).includes(normalizedSearchTerm)) {
-    score += weights.NAME_CONTAINS;
-  }
+  // Use enhanced fuzzy search with scoring
+  const matches = fuzzyLocalSearch(items, searchTerm, warehouseId, limit * 2);
 
-  const otherFields = [
-    'color', 'supplier', 'item_location', 'warehouse_id', 
-    'notes', 'category', 'barcode', 'sku'
-  ];
+  console.log(`📍 SPARK Local search found ${matches.length} matches`);
 
-  otherFields.forEach(field => {
-    if (item[field] && normalizeArabicText(item[field]).includes(normalizedSearchTerm)) {
-      score += weights.OTHER_FIELDS;
-    }
-  });
-
-  const quantity = item.remaining_quantity || 0;
-  if (quantity > 0) {
-    score += Math.min(quantity, weights.QUANTITY_BONUS);
-  }
-
-  if (item.updated_at) {
-    const updateDate = item.updated_at.toDate ? item.updated_at.toDate() : new Date(item.updated_at);
-    const daysSinceUpdate = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceUpdate < 7) {
-      score += weights.RECENCY_BONUS;
-    }
-  }
-
-  if (searchTerm.length >= 4) {
-    score += 25;
-  }
-
-  const allFields = ['name', 'code', 'color', 'supplier', 'item_location'];
-  const hasExactMatch = allFields.some(field => 
-    item[field] && normalizeArabicText(item[field]) === normalizedSearchTerm
-  );
-
-  if (hasExactMatch) {
-    score += 30;
-  }
-
-  return score;
+  // Sort by relevance
+  return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
 }
 
-// Cache implementation
-const searchCache = {
-  _cache: new Map(),
-  _maxSize: 100,
-  
-  get(key) {
-    return this._cache.get(key);
-  },
-  
-  set(key, value) {
-    if (this._cache.size >= this._maxSize) {
-      const firstKey = this._cache.keys().next().value;
-      this._cache.delete(firstKey);
-    }
-    this._cache.set(key, value);
-  },
-  
-  clear() {
-    this._cache.clear();
-  }
-};
+// ============================================
+// ENHANCED FIREBASE SEARCH ACTION WITH INITIALIZATION WAIT
+// ============================================
+async function searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
+  try {
+    console.log(`🌐 SPARK Firebase search for: "${query}"`);
 
+    // ✅ CRITICAL: Wait for Firebase to be fully initialized
+    console.log('⏳ Ensuring Firebase is ready for Firebase search...');
+    await ensureFirebaseReady();
+    console.log('✅ Firebase ready for Firebase search');
+
+    // Validate Firebase
+    if (!db) {
+      console.error('❌ Firebase not available after wait');
+      return [];
+    }
+
+    const searchTerm = normalizeArabicText(query);
+
+    // Check permissions
+    const role = state.userProfile?.role || '';
+    const profileWarehouses = state.userProfile?.allowed_warehouses || [];
+
+    let canAccessAll = false;
+    let allowedWarehouseIds = [];
+
+    if (role === 'superadmin' || role === 'company_manager') {
+      canAccessAll = true;
+    } else if (role === 'warehouse_manager' && Array.isArray(profileWarehouses)) {
+      if (profileWarehouses.includes('all')) {
+        canAccessAll = true;
+      } else {
+        allowedWarehouseIds = profileWarehouses.filter(id => 
+          typeof id === 'string' && id.trim() !== '' && id !== 'all'
+        ).slice(0, 10);
+      }
+    }
+
+    // Dynamic import
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      collection,
+      query: firestoreQuery,
+      where,
+      orderBy,
+      limit: firestoreLimit,
+      getDocs
+    } = firebaseFirestore;
+
+    const itemsRef = collection(db, 'items');
+    let itemsQuery;
+    let searchResults = [];
+
+    // Build optimized query
+    if (canAccessAll) {
+      // Superadmin or company manager
+      if (warehouseId && warehouseId !== 'all') {
+        itemsQuery = firestoreQuery(
+          itemsRef,
+          where('warehouse_id', '==', warehouseId),
+          orderBy('updated_at', 'desc'),
+          firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+        );
+      } else {
+        itemsQuery = firestoreQuery(
+          itemsRef,
+          orderBy('updated_at', 'desc'),
+          firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+        );
+      }
+    } else if (allowedWarehouseIds.length > 0) {
+      // Warehouse manager
+      if (warehouseId && warehouseId !== 'all') {
+        if (allowedWarehouseIds.includes(warehouseId)) {
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', '==', warehouseId),
+            orderBy('updated_at', 'desc'),
+            firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+          );
+        } else {
+          console.warn('Warehouse not in allowed list');
+          return [];
+        }
+      } else {
+        // Multiple warehouses - limit to prevent "in" query issues
+        const validIds = allowedWarehouseIds.slice(0, 5);
+
+        if (validIds.length === 1) {
+          itemsQuery = firestoreQuery(
+            itemsRef,
+            where('warehouse_id', '==', validIds[0]),
+            orderBy('updated_at', 'desc'),
+            firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+          );
+        } else {
+          try {
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', 'in', validIds),
+              orderBy('updated_at', 'desc'),
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 40))
+            );
+          } catch (inError) {
+            console.warn('"in" query failed, using single warehouse:', inError);
+            itemsQuery = firestoreQuery(
+              itemsRef,
+              where('warehouse_id', '==', validIds[0]),
+              orderBy('updated_at', 'desc'),
+              firestoreLimit(Math.min(limit || SPARK_CONFIG.MAX_RESULTS, 50))
+            );
+          }
+        }
+      }
+    } else {
+      console.log('⚠️ User has no accessible warehouses');
+      return [];
+    }
+
+    // Execute with timeout protection
+    let snapshot;
+    try {
+      snapshot = await getDocs(itemsQuery);
+      console.log(`📊 SPARK Firebase query returned ${snapshot.size} documents`);
+    } catch (queryError) {
+      console.error('❌ SPARK Firestore query failed:', queryError);
+      return [];
+    }
+
+    if (!snapshot || snapshot.empty) {
+      console.log('📭 No items found in Firebase');
+      return [];
+    }
+
+    // Process items
+    const allItems = [];
+    snapshot.forEach(doc => {
+      try {
+        const data = doc.data();
+
+        const item = {
+          id: doc.id,
+          name: data.name || '',
+          code: data.code || '',
+          color: data.color || '',
+          supplier: data.supplier || '',
+          warehouse_id: data.warehouse_id || '',
+          remaining_quantity: data.remaining_quantity || 0,
+          updated_at: data.updated_at,
+          // Include additional fields for better search
+          item_location: data.item_location || '',
+          notes: data.notes || '',
+          barcode: data.barcode || '',
+          sku: data.sku || '',
+          category: data.category || ''
+        };
+
+        allItems.push(item);
+      } catch (docError) {
+        console.warn('⚠️ Error processing document:', docError);
+      }
+    });
+
+    console.log(`✅ SPARK Processed ${allItems.length} items from Firebase`);
+
+    // Filter and score items
+    searchResults = [];
+    for (const item of allItems) {
+      if (searchResults.length >= SPARK_CONFIG.MAX_RESULTS * 3) break;
+
+      // Warehouse filter
+      if (warehouseId && warehouseId !== 'all' && item.warehouse_id !== warehouseId) {
+        continue;
+      }
+
+      // Search filter with scoring
+      const { matched, score } = matchArabicTextWithScore(item, query, [
+        'name', 'code', 'color', 'supplier', 'item_location',
+        'notes', 'barcode', 'sku', 'category'
+      ]);
+
+      if (matched && score > 30) { // Minimum threshold
+        searchResults.push({ item, score });
+      }
+    }
+
+    console.log(`🔍 SPARK Found ${searchResults.length} matching items`);
+
+    // Sort by score and limit
+    searchResults.sort((a, b) => b.score - a.score);
+    const finalResults = searchResults
+      .slice(0, Math.min(limit || SPARK_CONFIG.MAX_RESULTS, SPARK_CONFIG.MAX_RESULTS))
+      .map(scored => scored.item);
+
+    console.log(`🎯 SPARK Returning ${finalResults.length} relevant items`);
+    return finalResults;
+
+  } catch (error) {
+    console.error('❌ SPARK Firebase search error:', error);
+    return [];
+  }
+}
+
+// Helper function to get auth error message
+function getAuthErrorMessage(errorCode) {
+  switch (errorCode) {
+    case 'auth/invalid-email':
+      return 'البريد الإلكتروني غير صالح';
+    case 'auth/user-disabled':
+      return 'الحساب معطل';
+    case 'auth/user-not-found':
+      return 'المستخدم غير موجود';
+    case 'auth/wrong-password':
+      return 'كلمة المرور غير صحيحة';
+    case 'auth/email-already-in-use':
+      return 'البريد الإلكتروني مستخدم بالفعل';
+    case 'auth/weak-password':
+      return 'كلمة المرور ضعيفة';
+    case 'auth/operation-not-allowed':
+      return 'العملية غير مسموح بها';
+    case 'auth/too-many-requests':
+      return 'تم محاولة الدخول مرات عديدة. الرجاء المحاولة لاحقاً';
+    case 'auth/network-request-failed':
+      return 'خطأ في الاتصال بالشبكة';
+    default:
+      return 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى';
+  }
+}
+
+// Helper function to get invoice type label
+function getInvoiceTypeLabel(type) {
+  const labels = {
+    'B2B': 'فاتورة ضريبية (B2B)',
+    'B2C': 'فاتورة ضريبية (B2C)',
+    'simplified': 'فاتورة مبسطة'
+  };
+  return labels[type] || type;
+}
+
+// Helper function to get invoice status label
+function getInvoiceStatusLabel(status) {
+  const labels = {
+    'draft': 'مسودة',
+    'issued': 'صادرة',
+    'paid': 'مدفوعة',
+    'cancelled': 'ملغية'
+  };
+  return labels[status] || status;
+}
+
+// Helper function to get payment method label
+function getPaymentMethodLabel(method) {
+  const labels = {
+    'cash': 'نقدي',
+    'credit': 'آجل',
+    'bank_transfer': 'تحويل بنكي',
+    'check': 'شيك'
+  };
+  return labels[method] || method;
+}
+
+export default createStore({
+  state: () => ({
+    user: null,
+    userProfile: null,
+    loading: false,
+    authError: null,
+    warehouses: [],
+    warehousesLoaded: false,
+    inventory: [],
+    inventoryLoaded: false,
+    inventoryLoading: false,
+    inventoryError: null,
+    pagination: {
+      lastDoc: null,
+      hasMore: true,
+      currentPage: 0,
+      totalLoaded: 0,
+      isFetching: false
+    },
+    filters: {
+      warehouse: '',
+      search: '',
+      searchField: 'name'
+    },
+    transactions: [],
+    recentTransactions: [],
+    transactionsLoading: false,
+    itemHistory: [],
+    notifications: [],
+    notificationTimeouts: {},
+    realtimeMode: true,
+    realtimeListeners: [],
+    operationLoading: false,
+    operationError: null,
+    requiresCompositeIndex: false,
+    allUsers: [],
+    usersLoading: false,
+    fieldMappings: FIELD_MAPPINGS,
+    inventoryLastFetched: null,
+    isFetchingInventory: false,
+    isRefreshingSilently: false,
+    recentTransactionsLoading: false,
+    activeItemListeners: new Set(),
+
+    // Search State
+    search: {
+      query: '',
+      results: [],
+      loading: false,
+      error: null,
+      source: 'none',
+      timestamp: null,
+      suggestions: []
+    },
+    warehouseFilter: '',
+
+    // Invoice System State
+    invoices: [],
+    invoicesLoaded: false,
+    invoicesLoading: false,
+    invoicesError: null,
+    invoiceFilters: {
+      search: '',
+      status: '',
+      type: '',
+      dateFrom: '',
+      dateTo: ''
+    },
+    invoicePagination: {
+      lastDoc: null,
+      hasMore: true,
+      currentPage: 0,
+      totalLoaded: 0,
+      isFetching: false
+    },
+    invoiceStats: {
+      totalInvoices: 0,
+      totalSales: 0,
+      totalTax: 0,
+      uniqueCustomers: 0,
+      lastUpdated: null
+    },
+
+    // SPARK Performance Monitoring
+    searchPerformance: {
+      searches: 0,
+      avgResponseTime: 0,
+      cacheHitRate: 0,
+      successRate: 1,
+      lastSearchDuration: 0
+    }
+  }),
+
+  mutations: {
+    SET_USER(state, user) {
+      state.user = user;
+    },
+    SET_USER_PROFILE(state, profile) {
+      state.userProfile = profile;
+    },
+    SET_LOADING(state, loading) {
+      state.loading = loading;
+    },
+    SET_AUTH_ERROR(state, error) {
+      state.authError = error;
+    },
+    SET_INVENTORY(state, inventory) {
+      state.inventory = inventory;
+    },
+    APPEND_INVENTORY(state, items) {
+      const existingIds = new Set(state.inventory.map(item => item.id));
+      const newItems = items.filter(item => !existingIds.has(item.id));
+      state.inventory.push(...newItems);
+      state.pagination.totalLoaded = state.inventory.length;
+    },
+    UPDATE_INVENTORY_ITEM(state, updatedItem) {
+      const index = state.inventory.findIndex(item => item.id === updatedItem.id);
+      if (index !== -1) {
+        state.inventory.splice(index, 1, updatedItem);
+      } else {
+        state.inventory.unshift(updatedItem);
+        state.pagination.totalLoaded++;
+      }
+    },
+    REMOVE_INVENTORY_ITEM(state, itemId) {
+      state.inventory = state.inventory.filter(item => item.id !== itemId);
+      state.pagination.totalLoaded = state.inventory.length;
+    },
+    SET_INVENTORY_LOADING(state, loading) {
+      state.inventoryLoading = loading;
+    },
+    SET_INVENTORY_LOADED(state, loaded) {
+      state.inventoryLoaded = loaded;
+    },
+    SET_INVENTORY_ERROR(state, error) {
+      state.inventoryError = error;
+    },
+    SET_PAGINATION(state, pagination) {
+      state.pagination = { ...state.pagination, ...pagination };
+    },
+    RESET_PAGINATION(state) {
+      state.pagination = {
+        lastDoc: null,
+        hasMore: true,
+        currentPage: 0,
+        totalLoaded: 0,
+        isFetching: false
+      };
+    },
+    SET_FILTERS(state, filters) {
+      state.filters = { ...state.filters, ...filters };
+    },
+    CLEAR_FILTERS(state) {
+      state.filters = {
+        warehouse: '',
+        search: '',
+        searchField: 'name'
+      };
+    },
+    SET_WAREHOUSES(state, warehouses) {
+      state.warehouses = warehouses;
+      state.warehousesLoaded = true;
+    },
+    SET_TRANSACTIONS(state, transactions) {
+      state.transactions = transactions;
+    },
+    SET_RECENT_TRANSACTIONS(state, transactions) {
+      state.recentTransactions = transactions;
+    },
+    SET_TRANSACTIONS_LOADING(state, loading) {
+      state.transactionsLoading = loading;
+    },
+    ADD_TRANSACTION(state, transaction) {
+      if (transaction) {
+        state.transactions.unshift(transaction);
+        state.recentTransactions.unshift(transaction);
+        if (state.recentTransactions.length > 50) {
+          state.recentTransactions = state.recentTransactions.slice(0, 50);
+        }
+      }
+    },
+    ADD_RECENT_TRANSACTION(state, transaction) {
+      if (transaction) {
+        state.recentTransactions.unshift(transaction);
+        if (state.recentTransactions.length > 50) {
+          state.recentTransactions = state.recentTransactions.slice(0, 50);
+        }
+      }
+    },
+    SET_ITEM_HISTORY(state, history) {
+      state.itemHistory = history;
+    },
+    ADD_NOTIFICATION(state, { notification, timeoutId }) {
+      notification.id = Date.now().toString();
+      notification.timestamp = new Date();
+      notification.timeoutId = timeoutId;
+      state.notifications.unshift(notification);
+
+      if (timeoutId) {
+        state.notificationTimeouts[notification.id] = timeoutId;
+      }
+
+      if (state.notifications.length > NOTIFICATION_CONFIG.MAX_NOTIFICATIONS) {
+        const removed = state.notifications.pop();
+        if (removed.timeoutId) {
+          clearTimeout(removed.timeoutId);
+          delete state.notificationTimeouts[removed.id];
+        }
+      }
+    },
+    REMOVE_NOTIFICATION(state, notificationId) {
+      if (state.notificationTimeouts[notificationId]) {
+        clearTimeout(state.notificationTimeouts[notificationId]);
+        delete state.notificationTimeouts[notificationId];
+      }
+      state.notifications = state.notifications.filter(n => n.id !== notificationId);
+    },
+    CLEAR_NOTIFICATIONS(state) {
+      Object.values(state.notificationTimeouts).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      state.notificationTimeouts = {};
+      state.notifications = [];
+    },
+    SET_REALTIME_MODE(state, mode) {
+      state.realtimeMode = mode;
+    },
+    ADD_REALTIME_LISTENER(state, listener) {
+      if (typeof listener === 'function') {
+        state.realtimeListeners.push(listener);
+      }
+    },
+    CLEAR_REALTIME_LISTENERS(state) {
+      state.realtimeListeners.forEach(unsubscribe => {
+        try {
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
+        } catch (error) {
+          console.warn('Error unsubscribing listener:', error);
+        }
+      });
+      state.realtimeListeners = [];
+      state.activeItemListeners.clear();
+    },
+    SET_OPERATION_LOADING(state, loading) {
+      state.operationLoading = loading;
+    },
+    SET_OPERATION_ERROR(state, error) {
+      state.operationError = error;
+    },
+    CLEAR_OPERATION_ERROR(state) {
+      state.operationError = null;
+    },
+    SET_REQUIRES_COMPOSITE_INDEX(state, value) {
+      state.requiresCompositeIndex = value;
+    },
+    SET_ALL_USERS(state, users) {
+      state.allUsers = users;
+    },
+    SET_USERS_LOADING(state, loading) {
+      state.usersLoading = loading;
+    },
+    SET_INVENTORY_LAST_FETCHED(state, timestamp) {
+      state.inventoryLastFetched = timestamp;
+    },
+    SET_IS_FETCHING_INVENTORY(state, fetching) {
+      state.isFetchingInventory = fetching;
+    },
+    SET_IS_REFRESHING_SILENTLY(state, refreshing) {
+      state.isRefreshingSilently = refreshing;
+    },
+    SET_RECENT_TRANSACTIONS_LOADING(state, loading) {
+      state.recentTransactionsLoading = loading;
+    },
+    ADD_ITEM_LISTENER(state, itemId) {
+      state.activeItemListeners.add(itemId);
+    },
+    REMOVE_ITEM_LISTENER(state, itemId) {
+      state.activeItemListeners.delete(itemId);
+    },
+    CLEAR_ITEM_LISTENERS(state) {
+      state.activeItemListeners.clear();
+    },
+
+    // Search Mutations
+    SET_SEARCH_QUERY(state, query) {
+      state.search.query = query;
+    },
+    SET_SEARCH_RESULTS(state, { results, source, query }) {
+      state.search.results = results;
+      state.search.source = source;
+      state.search.timestamp = new Date();
+      state.search.loading = false;
+    },
+    SET_SEARCH_LOADING(state, loading) {
+      state.search.loading = loading;
+    },
+    SET_SEARCH_ERROR(state, error) {
+      state.search.error = error;
+    },
+    CLEAR_SEARCH(state) {
+      state.search.results = [];
+      state.search.query = '';
+      state.search.loading = false;
+      state.search.error = null;
+      state.search.source = 'none';
+      state.search.suggestions = [];
+    },
+    SET_WAREHOUSE_FILTER(state, warehouseId) {
+      state.warehouseFilter = warehouseId;
+      state.filters.warehouse = warehouseId;
+    },
+    SET_SEARCH_SUGGESTIONS(state, suggestions) {
+      state.search.suggestions = suggestions;
+    },
+
+    // Performance Monitoring Mutations
+    UPDATE_SEARCH_PERFORMANCE(state, { duration, cacheHit = false }) {
+      state.searchPerformance.searches++;
+      state.searchPerformance.lastSearchDuration = duration;
+      state.searchPerformance.avgResponseTime = 
+        (state.searchPerformance.avgResponseTime * (state.searchPerformance.searches - 1) + duration) / 
+        state.searchPerformance.searches;
+
+      const totalHits = state.searchPerformance.cacheHitRate * (state.searchPerformance.searches - 1);
+      state.searchPerformance.cacheHitRate = (totalHits + (cacheHit ? 1 : 0)) / state.searchPerformance.searches;
+    },
+
+    // Invoice System Mutations
+    SET_INVOICES(state, invoices) {
+      state.invoices = invoices;
+    },
+    ADD_INVOICE(state, invoice) {
+      state.invoices.unshift(invoice);
+    },
+    UPDATE_INVOICE(state, updatedInvoice) {
+      const index = state.invoices.findIndex(inv => inv.id === updatedInvoice.id);
+      if (index !== -1) {
+        state.invoices.splice(index, 1, updatedInvoice);
+      } else {
+        state.invoices.unshift(updatedInvoice);
+      }
+    },
+    REMOVE_INVOICE(state, invoiceId) {
+      state.invoices = state.invoices.filter(inv => inv.id !== invoiceId);
+    },
+    SET_INVOICES_LOADING(state, loading) {
+      state.invoicesLoading = loading;
+    },
+    SET_INVOICES_LOADED(state, loaded) {
+      state.invoicesLoaded = loaded;
+    },
+    SET_INVOICES_ERROR(state, error) {
+      state.invoicesError = error;
+    },
+    SET_INVOICE_FILTERS(state, filters) {
+      state.invoiceFilters = { ...state.invoiceFilters, ...filters };
+    },
+    CLEAR_INVOICE_FILTERS(state) {
+      state.invoiceFilters = {
+        search: '',
+        status: '',
+        type: '',
+        dateFrom: '',
+        dateTo: ''
+      };
+    },
+    SET_INVOICE_PAGINATION(state, pagination) {
+      state.invoicePagination = { ...state.invoicePagination, ...pagination };
+    },
+    RESET_INVOICE_PAGINATION(state) {
+      state.invoicePagination = {
+        lastDoc: null,
+        hasMore: true,
+        currentPage: 0,
+        totalLoaded: 0,
+        isFetching: false
+      };
+    },
+    SET_INVOICE_STATS(state, stats) {
+      state.invoiceStats = { ...state.invoiceStats, ...stats };
+    },
+    CALCULATE_INVOICE_STATS(state) {
+      const validInvoices = state.invoices.filter(inv => inv.status !== 'cancelled');
+
+      const totalInvoices = validInvoices.length;
+      const totalSales = validInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const totalTax = validInvoices
+        .filter(inv => inv.type === 'B2B' || inv.type === 'B2C')
+        .reduce((sum, inv) => sum + (inv.taxAmount || 0), 0);
+
+      const customers = new Set();
+      validInvoices.forEach(inv => {
+        if (inv.customer?.phone) {
+          customers.add(inv.customer.phone);
+        }
+      });
+
+      state.invoiceStats = {
+        totalInvoices,
+        totalSales,
+        totalTax,
+        uniqueCustomers: customers.size,
+        lastUpdated: new Date()
+      };
+    },
+
+    RESET_STATE(state) {
+      Object.values(state.notificationTimeouts).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+
+      state.inventory = [];
+      state.inventoryLoaded = false;
+      state.transactions = [];
+      state.recentTransactions = [];
+      state.itemHistory = [];
+      state.warehouses = [];
+      state.warehousesLoaded = false;
+      state.notifications = [];
+      state.notificationTimeouts = {};
+      state.allUsers = [];
+      state.filters = {
+        warehouse: '',
+        search: '',
+        searchField: 'name'
+      };
+      state.search = {
+        query: '',
+        results: [],
+        loading: false,
+        error: null,
+        source: 'none',
+        timestamp: null,
+        suggestions: []
+      };
+      state.warehouseFilter = '';
+      state.invoices = [];
+      state.invoicesLoaded = false;
+      state.invoiceFilters = {
+        search: '',
+        status: '',
+        type: '',
+        dateFrom: '',
+        dateTo: ''
+      };
+      state.invoiceStats = {
+        totalInvoices: 0,
+        totalSales: 0,
+        totalTax: 0,
+        uniqueCustomers: 0,
+        lastUpdated: null
+      };
+      state.searchPerformance = {
+        searches: 0,
+        avgResponseTime: 0,
+        cacheHitRate: 0,
+        successRate: 1,
+        lastSearchDuration: 0
+      };
+
+      state.realtimeListeners.forEach(unsubscribe => {
+        try {
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
+        } catch (error) {
+          console.warn('Error unsubscribing listener:', error);
+        }
+      });
+      state.realtimeListeners = [];
+      state.activeItemListeners.clear();
+    }
+  },
+
+  actions: {
 // ============================================
 // SPARK ENHANCED SMART ARABIC SEARCH
 // ============================================
@@ -1090,6 +2224,7 @@ async searchFirebaseSpark({ state }, { query, warehouseId, limit }) {
         return false;
       }
     },
+
     // ============================================
     // NEW: UPDATE ITEM QUANTITIES ACTION
     // ============================================
