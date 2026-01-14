@@ -4306,205 +4306,263 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     },
 
-    async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+   // ============================================
+// UPDATED: UPDATE ITEM ACTION (NO FULL INVENTORY RELOAD)
+// ============================================
+async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
 
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
+  console.log('🔄 Updating item via store:', { itemId, itemData });
+
+  try {
+    // 🔴 VALIDATION 1: Authentication
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+    
+    if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
+      throw new Error('ليس لديك صلاحية لتعديل الأصناف');
+    }
+
+    // 🔴 VALIDATION 2: Required fields
+    if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.warehouse_id || !itemData.color?.trim()) {
+      throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+    }
+
+    // 🔴 VALIDATION 3: Warehouse access
+    const warehouseId = itemData.warehouse_id;
+    if (state.userProfile.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+        if (!allowedWarehouses.includes(warehouseId)) {
+          throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
         }
-        if (!['superadmin', 'warehouse_manager'].includes(state.userProfile.role)) {
-          throw new Error('ليس لديك صلاحية لتعديل الأصناف');
-        }
-
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
-
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
-
-        const existingItem = itemDoc.data();
-
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          const warehouseId = itemData.warehouse_id || existingItem.warehouse_id;
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(warehouseId)) {
-              throw new Error('ليس لديك صلاحية لتعديل أصناف في هذا المخزن');
-            }
-          }
-        }
-
-        const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
-        const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
-        const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
-        const newTotalQuantity = InventoryService.calculateTotalQuantity(
-          newCartonsCount,
-          newPerCartonCount,
-          newSingleBottlesCount
-        );
-
-        const oldTotalQuantity = existingItem.remaining_quantity || 0;
-        const quantityDiff = newTotalQuantity - oldTotalQuantity;
-
-        const updateData = {
-          name: itemData.name?.trim() || existingItem.name,
-          code: itemData.code?.trim() || existingItem.code,
-          color: itemData.color?.trim() || existingItem.color || '',
-          warehouse_id: itemData.warehouse_id || existingItem.warehouse_id,
-          cartons_count: newCartonsCount,
-          per_carton_count: newPerCartonCount,
-          single_bottles_count: newSingleBottlesCount,
-          remaining_quantity: newTotalQuantity,
-          total_added: existingItem.total_added + Math.max(0, quantityDiff),
-          supplier: itemData.supplier?.trim() || existingItem.supplier || '',
-          item_location: itemData.item_location?.trim() || existingItem.item_location || '',
-          notes: itemData.notes?.trim() || existingItem.notes || '',
-          updated_at: serverTimestamp(),
-          updated_by: state.user.uid
-        };
-
-        await updateDoc(itemRef, updateData);
-
-        if (quantityDiff !== 0 || existingItem.warehouse_id !== updateData.warehouse_id) {
-          const transactionData = {
-            type: 'UPDATE',
-            item_id: itemId,
-            item_name: updateData.name,
-            item_code: updateData.code,
-            from_warehouse: existingItem.warehouse_id !== updateData.warehouse_id ? existingItem.warehouse_id : null,
-            to_warehouse: updateData.warehouse_id,
-            cartons_delta: newCartonsCount - (existingItem.cartons_count || 0),
-            per_carton_updated: newPerCartonCount,
-            single_delta: newSingleBottlesCount - (existingItem.single_bottles_count || 0),
-            total_delta: quantityDiff,
-            new_remaining: newTotalQuantity,
-            user_id: state.user.uid,
-            timestamp: serverTimestamp(),
-            notes: `تعديل الصنف: ${updateData.notes || ''}`.trim(),
-            created_by: state.userProfile?.name || state.user?.email || 'نظام'
-          };
-
-          await addDoc(collection(db, 'transactions'), transactionData);
-          commit('ADD_RECENT_TRANSACTION', transactionData);
-        }
-
-        const updatedItem = InventoryService.convertForDisplay({
-          id: itemId,
-          ...updateData
-        });
-
-        commit('UPDATE_INVENTORY_ITEM', updatedItem);
-
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث الصنف "${updateData.name}" بنجاح`
-        });
-
-        return { success: true, item: updatedItem };
-
-      } catch (error) {
-        console.error('❌ Error updating item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في تحديث الصنف'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
       }
-    },
+    }
 
-    async deleteItem({ commit, state, dispatch }, itemId) {
-      commit('SET_OPERATION_LOADING', true);
-      commit('CLEAR_OPERATION_ERROR');
+    // 🔴 CRITICAL: Wait for Firebase initialization
+    console.log('⏳ Ensuring Firebase is ready for update...');
+    await ensureFirebaseReady();
+    console.log('✅ Firebase ready for update');
 
-      try {
-        if (!state.userProfile) {
-          throw new Error('يجب تسجيل الدخول أولاً');
-        }
+    if (!db) {
+      throw new Error('Firestore database not available');
+    }
 
-        if (state.userProfile.role === 'superadmin') {
-        } else if (state.userProfile.role === 'warehouse_manager') {
-          const canDelete = state.userProfile.permissions?.includes('full_access') || 
-                           state.userProfile.permissions?.includes('delete_items');
-          if (!canDelete) {
-            throw new Error('ليس لديك صلاحية لحذف الأصناف');
-          }
-        } else {
-          throw new Error('ليس لديك صلاحية لحذف الأصناف');
-        }
+    // ========== GET EXISTING ITEM ==========
+    const itemRef = doc(db, 'items', itemId);
+    const itemDoc = await getDoc(itemRef);
 
-        const itemRef = doc(db, 'items', itemId);
-        const itemDoc = await getDoc(itemRef);
+    if (!itemDoc.exists()) {
+      throw new Error('الصنف غير موجود');
+    }
 
-        if (!itemDoc.exists()) {
-          throw new Error('الصنف غير موجود');
-        }
+    const existingItem = itemDoc.data();
+    console.log('📋 Existing item data:', {
+      id: itemId,
+      name: existingItem.name,
+      code: existingItem.code,
+      cartons: existingItem.cartons_count,
+      singles: existingItem.single_bottles_count,
+      per_carton: existingItem.per_carton_count,
+      total: existingItem.remaining_quantity
+    });
 
-        const itemData = itemDoc.data();
+    // ========== CALCULATE NEW QUANTITIES ==========
+    const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
+    const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
+    const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
+    
+    // 🔴 BUSINESS RULE: Convert single bottles to cartons if complete
+    let finalCartonsCount = newCartonsCount;
+    let finalSingleBottlesCount = newSingleBottlesCount;
+    let additionalCartonsFromSingles = 0;
+    
+    if (finalSingleBottlesCount >= newPerCartonCount) {
+      additionalCartonsFromSingles = Math.floor(finalSingleBottlesCount / newPerCartonCount);
+      finalSingleBottlesCount = finalSingleBottlesCount % newPerCartonCount;
+      finalCartonsCount += additionalCartonsFromSingles;
+      
+      console.log(`🔄 Converting single bottles to cartons: added ${additionalCartonsFromSingles} cartons, remaining singles: ${finalSingleBottlesCount}`);
+    }
+    
+    // Calculate total quantity
+    const newTotalQuantity = (finalCartonsCount * newPerCartonCount) + finalSingleBottlesCount;
+    
+    // Calculate old total quantity
+    const oldCartons = Number(existingItem.cartons_count) || 0;
+    const oldPerCarton = Number(existingItem.per_carton_count) || 12;
+    const oldSingles = Number(existingItem.single_bottles_count) || 0;
+    const oldTotalQuantity = (oldCartons * oldPerCarton) + oldSingles;
+    
+    // Calculate quantity change
+    const quantityDiff = newTotalQuantity - oldTotalQuantity;
 
-        if (state.userProfile.role === 'warehouse_manager') {
-          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
-          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
-            if (!allowedWarehouses.includes(itemData.warehouse_id)) {
-              throw new Error('ليس لديك صلاحية لحذف أصناف من هذا المخزن');
-            }
-          }
-        }
+    console.log('📊 Quantity calculations:', {
+      old: { cartons: oldCartons, singles: oldSingles, per_carton: oldPerCarton, total: oldTotalQuantity },
+      new: { cartons: finalCartonsCount, singles: finalSingleBottlesCount, per_carton: newPerCartonCount, total: newTotalQuantity },
+      diff: quantityDiff,
+      convertedCartons: additionalCartonsFromSingles
+    });
 
-        const transactionData = {
-          type: 'DELETE',
-          item_id: itemId,
-          item_name: itemData.name,
-          item_code: itemData.code,
-          from_warehouse: itemData.warehouse_id,
-          to_warehouse: null,
-          cartons_delta: -(itemData.cartons_count || 0),
-          per_carton_updated: itemData.per_carton_count || 12,
-          single_delta: -(itemData.single_bottles_count || 0),
-          total_delta: -(itemData.remaining_quantity || 0),
-          new_remaining: 0,
-          user_id: state.user.uid,
-          timestamp: serverTimestamp(),
-          notes: 'حذف الصنف نهائياً',
-          created_by: state.userProfile?.name || state.user?.email || 'نظام'
-        };
+    // ========== PREPARE UPDATE DATA ==========
+    const updateData = {
+      // 🔴 REQUIRED FIELDS
+      name: itemData.name.trim(),
+      code: itemData.code.trim(),
+      color: itemData.color.trim(),
+      warehouse_id: warehouseId,
+      
+      // 🔴 QUANTITY FIELDS
+      cartons_count: finalCartonsCount,
+      per_carton_count: newPerCartonCount,
+      single_bottles_count: finalSingleBottlesCount,
+      remaining_quantity: newTotalQuantity,
+      
+      // 🔴 Only update total_added if quantity increased
+      ...(quantityDiff > 0 && {
+        total_added: (existingItem.total_added || 0) + quantityDiff
+      }),
+      
+      // 🔴 OPTIONAL FIELDS
+      supplier: itemData.supplier?.trim() || existingItem.supplier || '',
+      item_location: itemData.item_location?.trim() || existingItem.item_location || '',
+      notes: itemData.notes?.trim() || existingItem.notes || '',
+      photo_url: itemData.photo_url || existingItem.photo_url || '',
+      
+      // 🔴 TIMESTAMPS
+      updated_at: serverTimestamp(),
+      updated_by: state.user.uid
+    };
 
-        await addDoc(collection(db, 'transactions'), transactionData);
+    console.log('💾 Update data for item:', updateData);
 
-        await deleteDoc(itemRef);
+    // ========== UPDATE IN FIRESTORE ==========
+    await updateDoc(itemRef, updateData);
 
-        commit('REMOVE_INVENTORY_ITEM', itemId);
-        commit('ADD_RECENT_TRANSACTION', transactionData);
+    // ========== CREATE TRANSACTION IF QUANTITY CHANGED ==========
+    if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouseId) {
+      const transactionData = {
+        type: 'UPDATE',
+        item_id: itemId,
+        item_name: updateData.name,
+        item_code: updateData.code,
+        from_warehouse: existingItem.warehouse_id !== warehouseId ? existingItem.warehouse_id : null,
+        to_warehouse: warehouseId,
+        cartons_delta: finalCartonsCount - oldCartons,
+        per_carton_updated: newPerCartonCount,
+        single_delta: finalSingleBottlesCount - oldSingles,
+        total_delta: quantityDiff,
+        new_remaining: newTotalQuantity,
+        user_id: state.user.uid,
+        timestamp: serverTimestamp(),
+        notes: itemData.notes?.trim() || `تعديل الصنف${additionalCartonsFromSingles > 0 ? ` (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : ''}`,
+        created_by: state.userProfile?.name || state.user?.email || 'نظام'
+      };
 
-        dispatch('showNotification', {
-          type: 'success',
-          message: `تم حذف الصنف "${itemData.name}" بنجاح`
-        });
+      await addDoc(collection(db, 'transactions'), transactionData);
+      commit('ADD_RECENT_TRANSACTION', transactionData);
+    }
 
-        return { success: true, message: 'تم حذف الصنف بنجاح' };
-
-      } catch (error) {
-        console.error('❌ Error deleting item:', error);
-        commit('SET_OPERATION_ERROR', error.message);
-
-        dispatch('showNotification', {
-          type: 'error',
-          message: error.message || 'حدث خطأ في حذف الصنف'
-        });
-
-        return { success: false, error: error.message };
-      } finally {
-        commit('SET_OPERATION_LOADING', false);
+    // ========== CREATE ITEM HISTORY RECORD ==========
+    const itemHistoryData = {
+      item_id: itemId,
+      warehouse_id: warehouseId,
+      change_type: 'UPDATE',
+      old_quantity: oldTotalQuantity,
+      new_quantity: newTotalQuantity,
+      quantity_delta: quantityDiff,
+      user_id: state.user.uid,
+      timestamp: serverTimestamp(),
+      details: {
+        name: updateData.name,
+        code: updateData.code,
+        color: updateData.color,
+        old_cartons: oldCartons,
+        new_cartons: finalCartonsCount,
+        old_per_carton: oldPerCarton,
+        new_per_carton: newPerCartonCount,
+        old_single: oldSingles,
+        new_single: finalSingleBottlesCount,
+        single_bottles_converted_to_cartons: additionalCartonsFromSingles,
+        notes: itemData.notes
       }
-    },
+    };
 
+    await addDoc(collection(db, 'item_history'), itemHistoryData);
+
+    // ========== UPDATE LOCAL STATE WITHOUT RELOADING INVENTORY ==========
+    const updatedItem = {
+      id: itemId,
+      // Keep existing fields that might not be in updateData
+      created_at: existingItem.created_at,
+      created_by: existingItem.created_by,
+      // Add updated fields
+      ...updateData,
+      // Ensure total_added is included
+      total_added: updateData.total_added !== undefined ? updateData.total_added : existingItem.total_added
+    };
+
+    console.log('📤 Updated item for Vuex state:', {
+      ...updatedItem,
+      created_by: 'HIDDEN',
+      updated_by: 'HIDDEN'
+    });
+
+    // 🔴 CRITICAL FIX: Update single item in Vuex state WITHOUT reloading all inventory
+    commit('UPDATE_INVENTORY_ITEM', updatedItem);
+
+    // 🔴 FIXED: Show success notification WITHOUT calling refreshInventorySilently
+    let successMessage = `✅ تم تحديث الصنف "${updateData.name}" بنجاح`;
+    
+    if (additionalCartonsFromSingles > 0) {
+      successMessage += ` (تم تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)`;
+    }
+    
+    if (quantityDiff > 0) {
+      successMessage += ` - تمت إضافة ${quantityDiff} وحدة`;
+    } else if (quantityDiff < 0) {
+      successMessage += ` - تم خصم ${Math.abs(quantityDiff)} وحدة`;
+    }
+
+    dispatch('showNotification', {
+      type: 'success',
+      message: successMessage
+    });
+
+    console.log('✅ Item updated successfully:', {
+      id: itemId,
+      name: updateData.name,
+      cartons: finalCartonsCount,
+      singles: finalSingleBottlesCount,
+      total: newTotalQuantity,
+      converted: additionalCartonsFromSingles
+    });
+
+    return { 
+      success: true, 
+      item: updatedItem,
+      message: 'تم تحديث الصنف بنجاح'
+    };
+
+  } catch (error) {
+    console.error('❌ Error updating item:', error);
+    commit('SET_OPERATION_ERROR', error.message);
+
+    dispatch('showNotification', {
+      type: 'error',
+      message: error.message || 'حدث خطأ في تحديث الصنف'
+    });
+
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
 // ============================================
 // TRANSFER ITEM ACTION (WITH COMPLETE TRANSACTION RECORDING)
 // ============================================
