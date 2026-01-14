@@ -1071,6 +1071,7 @@ export default {
       
       originalItem.value = { ...item };
       
+      // 🔴 CRITICAL: Always include warehouse_id in formData
       Object.assign(formData, {
         name: item.name || '',
         code: item.code || '',
@@ -1087,18 +1088,24 @@ export default {
 
       if (item.warehouse_id) {
         selectedWarehouseId.value = item.warehouse_id;
+        console.log('📋 Loaded item warehouse_id:', item.warehouse_id);
       }
       
       // Switch to form tab on mobile when item is selected
       if (showMobileTabs.value) {
         activeMobileTab.value = 'form';
       }
+      
+      // Debug log
+      console.log('🔍 loadItemData - formData.warehouse_id:', formData.warehouse_id);
     };
 
     const onWarehouseChange = () => {
       if (selectedWarehouseId.value) {
+        // 🔴 CRITICAL: Update both formData.warehouse_id AND formData.warehouse_id
         formData.warehouse_id = selectedWarehouseId.value;
         clearFieldError('warehouse_id');
+        console.log('✅ Warehouse selected:', selectedWarehouseId.value, 'set in formData:', formData.warehouse_id);
       }
       searchTerm.value = '';
       showAllItems.value = false;
@@ -1189,9 +1196,11 @@ export default {
         isValid = false;
       }
 
+      // 🔴 CRITICAL: Validate warehouse_id from formData, not selectedWarehouseId
       if (!formData.warehouse_id) {
         fieldValidation.warehouse_id = 'يجب اختيار المخزن';
         isValid = false;
+        console.error('❌ Warehouse validation failed: formData.warehouse_id =', formData.warehouse_id);
       }
 
       if (totalQuantity.value < 0) {
@@ -1250,7 +1259,6 @@ export default {
           });
 
           if (result && result.success) {
-            // 🔴 FIXED: Don't pass item object, just basic data
             emit('success', {
               type: 'created',
               message: `تم إضافة الصنف "${formData.name}" بنجاح`,
@@ -1262,54 +1270,51 @@ export default {
             error.value = result?.message || 'حدث خطأ أثناء إضافة الصنف';
           }
         } else {
-          // 🔴 FIXED: Create CLEAN update data without unnecessary fields
+          // 🔴 CRITICAL FIX: ALWAYS include ALL required fields in update data
+          // Store validation requires name, code, color, and warehouse_id to be present
           const updateData = {
             itemId: selectedItem.value.id,
-            itemData: {}
+            itemData: {
+              // 🔴 REQUIRED FIELDS - MUST be present even if unchanged
+              name: formData.name.trim(),
+              code: formData.code.trim(),
+              color: formData.color.trim(),
+              warehouse_id: formData.warehouse_id,
+              
+              // 🔴 QUANTITY FIELDS - Store needs these for calculations
+              cartons_count: Number(formData.cartons_count) || 0,
+              per_carton_count: Number(formData.per_carton_count) || 12,
+              single_bottles_count: Number(formData.single_bottles_count) || 0,
+              
+              // 🔴 OPTIONAL FIELDS - Include all even if unchanged or empty
+              supplier: formData.supplier?.trim() || '',
+              item_location: formData.item_location?.trim() || '',
+              photo_url: formData.photo_url || '',
+              notes: formData.notes?.trim() || ''
+            }
           };
-          
-          // 🔴 ONLY include changed fields
-          if (formData.name !== originalItem.value.name) {
-            updateData.itemData.name = formData.name;
-          }
-          if (formData.code !== originalItem.value.code) {
-            updateData.itemData.code = formData.code;
-          }
-          if (formData.color !== originalItem.value.color) {
-            updateData.itemData.color = formData.color;
-          }
-          if (formData.warehouse_id !== originalItem.value.warehouse_id) {
-            updateData.itemData.warehouse_id = formData.warehouse_id;
-          }
-          
-          // 🔴 Always include quantity fields (store handles business logic)
-          updateData.itemData.cartons_count = Number(formData.cartons_count) || 0;
-          updateData.itemData.per_carton_count = Number(formData.per_carton_count) || 12;
-          updateData.itemData.single_bottles_count = Number(formData.single_bottles_count) || 0;
-          
-          // 🔴 Optional fields - only include if changed
-          if (formData.supplier !== originalItem.value.supplier) {
-            updateData.itemData.supplier = formData.supplier || '';
-          }
-          if (formData.item_location !== originalItem.value.item_location) {
-            updateData.itemData.item_location = formData.item_location || '';
-          }
-          if (formData.photo_url !== originalItem.value.photo_url) {
-            updateData.itemData.photo_url = formData.photo_url || '';
-          }
-          if (formData.notes !== originalItem.value.notes) {
-            updateData.itemData.notes = formData.notes || '';
-          }
 
-          console.log('📝 Updating item with data:', updateData);
+          // Debug log to verify all required fields are present
+          console.log('🔍 Debug - Update data validation:', {
+            hasName: !!updateData.itemData.name,
+            hasCode: !!updateData.itemData.code,
+            hasColor: !!updateData.itemData.color,
+            hasWarehouseId: !!updateData.itemData.warehouse_id,
+            warehouseId: updateData.itemData.warehouse_id,
+            nameLength: updateData.itemData.name.length,
+            codeLength: updateData.itemData.code.length,
+            colorLength: updateData.itemData.color.length,
+            formDataWarehouseId: formData.warehouse_id
+          });
+
+          console.log('📝 Updating item with FULL data:', updateData);
 
           const result = await store.dispatch('updateItem', updateData);
 
           if (result && result.success) {
-            // 🔴 FIXED: Don't pass item object, just basic data
             emit('success', {
               type: 'updated',
-              message: `تم تحديث الصنف "${formData.name}" بنجاح`,
+              message: result.message || `تم تحديث الصنف "${formData.name}" بنجاح`,
               changedFields: changedFields.value,
               itemId: selectedItem.value.id,
               itemName: formData.name
@@ -1317,6 +1322,8 @@ export default {
             closeModal();
           } else {
             error.value = result?.message || 'حدث خطأ أثناء تحديث الصنف';
+            // Debug log for store error
+            console.error('❌ Store update error:', result?.error);
           }
         }
       } catch (err) {
@@ -1342,12 +1349,25 @@ export default {
     // Watch for prop changes
     watch(() => props.item, (newItem) => {
       if (newItem && props.isOpen) {
+        console.log('🔍 Modal received item:', {
+          id: newItem.id,
+          name: newItem.name,
+          warehouse_id: newItem.warehouse_id,
+          hasWarehouseId: !!newItem.warehouse_id,
+          fullItem: newItem
+        });
         loadItemData(newItem);
       }
     }, { immediate: true });
 
     watch(() => props.isOpen, (newVal) => {
       if (newVal && props.item) {
+        console.log('🔍 Modal opened with item:', {
+          id: props.item.id,
+          name: props.item.name,
+          warehouse_id: props.item.warehouse_id,
+          hasWarehouseId: !!props.item.warehouse_id
+        });
         loadItemData(props.item);
       } else if (!newVal) {
         resetForm();
