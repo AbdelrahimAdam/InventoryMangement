@@ -1249,47 +1249,74 @@ export default {
             isAddingCartons: true 
           });
 
-          if (result && result.id) {
+          if (result && result.success) {
+            // 🔴 FIXED: Don't pass item object, just basic data
             emit('success', {
               type: 'created',
               message: `تم إضافة الصنف "${formData.name}" بنجاح`,
-              itemId: result.id
+              itemId: result.id,
+              itemName: formData.name
             });
             closeModal();
+          } else {
+            error.value = result?.message || 'حدث خطأ أثناء إضافة الصنف';
           }
         } else {
-          // Update existing item using store action
+          // 🔴 FIXED: Create CLEAN update data without unnecessary fields
           const updateData = {
             itemId: selectedItem.value.id,
-            itemData: {
-              name: formData.name,
-              code: formData.code,
-              color: formData.color,
-              warehouse_id: formData.warehouse_id,
-              cartons_count: Number(formData.cartons_count) || 0,
-              per_carton_count: Number(formData.per_carton_count) || 12,
-              single_bottles_count: Number(formData.single_bottles_count) || 0,
-              supplier: formData.supplier || '',
-              item_location: formData.item_location || '',
-              photo_url: formData.photo_url || '',
-              notes: formData.notes || ''
-            }
+            itemData: {}
           };
+          
+          // 🔴 ONLY include changed fields
+          if (formData.name !== originalItem.value.name) {
+            updateData.itemData.name = formData.name;
+          }
+          if (formData.code !== originalItem.value.code) {
+            updateData.itemData.code = formData.code;
+          }
+          if (formData.color !== originalItem.value.color) {
+            updateData.itemData.color = formData.color;
+          }
+          if (formData.warehouse_id !== originalItem.value.warehouse_id) {
+            updateData.itemData.warehouse_id = formData.warehouse_id;
+          }
+          
+          // 🔴 Always include quantity fields (store handles business logic)
+          updateData.itemData.cartons_count = Number(formData.cartons_count) || 0;
+          updateData.itemData.per_carton_count = Number(formData.per_carton_count) || 12;
+          updateData.itemData.single_bottles_count = Number(formData.single_bottles_count) || 0;
+          
+          // 🔴 Optional fields - only include if changed
+          if (formData.supplier !== originalItem.value.supplier) {
+            updateData.itemData.supplier = formData.supplier || '';
+          }
+          if (formData.item_location !== originalItem.value.item_location) {
+            updateData.itemData.item_location = formData.item_location || '';
+          }
+          if (formData.photo_url !== originalItem.value.photo_url) {
+            updateData.itemData.photo_url = formData.photo_url || '';
+          }
+          if (formData.notes !== originalItem.value.notes) {
+            updateData.itemData.notes = formData.notes || '';
+          }
 
           console.log('📝 Updating item with data:', updateData);
 
           const result = await store.dispatch('updateItem', updateData);
 
           if (result && result.success) {
+            // 🔴 FIXED: Don't pass item object, just basic data
             emit('success', {
               type: 'updated',
               message: `تم تحديث الصنف "${formData.name}" بنجاح`,
               changedFields: changedFields.value,
-              itemId: selectedItem.value.id
+              itemId: selectedItem.value.id,
+              itemName: formData.name
             });
             closeModal();
           } else {
-            error.value = 'حدث خطأ أثناء تحديث الصنف';
+            error.value = result?.message || 'حدث خطأ أثناء تحديث الصنف';
           }
         }
       } catch (err) {
