@@ -97,8 +97,7 @@
               <div>
                 <div class="text-sm text-gray-500 dark:text-gray-400">النسبة من الكمية الكلية</div>
                 <div class="font-bold text-gray-900 dark:text-white">
-                  {{ dashboardStats.totalQuantity > 0 && allWarehouseStats.totalQuantity > 0 ? 
-                    ((dashboardStats.totalQuantity / allWarehouseStats.totalQuantity) * 100).toFixed(1) : '0' }}%
+                  {{ warehousePercentage }}%
                 </div>
               </div>
             </div>
@@ -118,7 +117,7 @@
         </div>
       </div>
 
-      <!-- Main Stats Grid -->
+      <!-- Main Stats Grid - OPTIMIZED WITH VUEX GETTERS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Total Items Card -->
         <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
@@ -134,8 +133,7 @@
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                   </svg>
-                  {{ dashboardStats.totalItems > 0 && allWarehouseStats.totalItems > 0 ? 
-                    ((dashboardStats.totalItems / allWarehouseStats.totalItems) * 100).toFixed(1) : '0' }}% من المجموع
+                  {{ warehousePercentage }}% من المجموع
                 </span>
               </div>
             </div>
@@ -149,7 +147,7 @@
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">متوسط الكمية لكل صنف</span>
               <span class="font-medium text-gray-900 dark:text-white">
-                {{ dashboardStats.totalItems > 0 ? Math.round(dashboardStats.totalQuantity / dashboardStats.totalItems) : 0 }}
+                {{ avgQuantityPerItem }}
               </span>
             </div>
           </div>
@@ -187,7 +185,7 @@
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">قيمة تقديرية</span>
               <span class="font-medium text-green-600 dark:text-green-400">
-                {{ formatEnglishNumber(dashboardStats.totalQuantity * 25) }} جنيه
+                {{ formatEnglishNumber(estimatedValue) }} جنيه
               </span>
             </div>
           </div>
@@ -211,7 +209,7 @@
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    {{ formatEnglishNumber(outOfStockItems) }} منتهية
+                    {{ formatEnglishNumber(dashboardStats.outOfStockItems) }} منتهية
                   </span>
                 </div>
               </div>
@@ -247,7 +245,7 @@
             <div>
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">نشاط اليوم</p>
               <p class="text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(todayTransactions.length) }}
+                {{ formatEnglishNumber(todayTransactionsCount) }}
               </p>
               <div class="mt-2 grid grid-cols-3 gap-2">
                 <div class="text-center">
@@ -368,7 +366,7 @@
 
       <!-- Recent Items & Transactions Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Recent Items -->
+        <!-- Recent Items - LIMITED TO 8 ITEMS -->
         <div class="lg:col-span-2">
           <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
             <div class="flex items-center justify-between mb-6">
@@ -383,14 +381,14 @@
               </div>
             </div>
 
-            <div v-if="inventoryLoading" class="text-center py-8">
+            <div v-if="recentItemsLoading" class="text-center py-8">
               <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الأصناف...</p>
             </div>
 
-            <div v-else-if="filteredRecentInventory.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-else-if="recentItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div 
-                v-for="item in filteredRecentInventory" 
+                v-for="item in recentItems" 
                 :key="item.id"
                 class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer fade-in"
                 @click="openItemModal(item)"
@@ -451,27 +449,11 @@
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
 
-            <!-- Load More Button -->
-            <div v-if="hasMoreItems && !inventoryLoading" class="mt-6 text-center">
-              <button
-                @click="loadMoreItems"
-                :disabled="loadMoreLoading"
-                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <svg v-if="loadMoreLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span v-else>⬇️ تحميل المزيد</span>
-              </button>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                تم تحميل {{ totalLoadedItems }} من أصل {{ totalItemsCount }} صنف
-              </p>
-            </div>
+            <!-- No Load More Button - Limited to 8 items for performance -->
           </div>
         </div>
 
-        <!-- Recent Transactions (Sidebar) -->
+        <!-- Recent Transactions (Sidebar) - LIMITED TO 10 TRANSACTIONS -->
         <div class="lg:col-span-1">
           <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
             <div class="flex items-center justify-between mb-6">
@@ -496,9 +478,9 @@
               <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الحركات...</p>
             </div>
 
-            <div v-else-if="filteredRecentTransactions.length > 0" class="space-y-3">
+            <div v-else-if="recentTransactions.length > 0" class="space-y-3">
               <div 
-                v-for="transaction in filteredRecentTransactions.slice(0, 10)" 
+                v-for="transaction in recentTransactions.slice(0, 10)" 
                 :key="transaction.id"
                 class="group p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer fade-in"
                 @click="openTransactionModal(transaction)"
@@ -559,7 +541,7 @@
             </div>
             
             <!-- View All Transactions Button -->
-            <div v-if="filteredRecentTransactions.length > 0" class="mt-4">
+            <div v-if="recentTransactions.length > 0" class="mt-4">
               <router-link 
                 to="/transactions"
                 class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-center gap-2"
@@ -574,8 +556,8 @@
         </div>
       </div>
 
-      <!-- WAREHOUSE STATISTICS SECTION -->
-      <div v-if="selectedWarehouse === 'all'" class="mb-8">
+      <!-- WAREHOUSE STATISTICS SECTION - OPTIMIZED -->
+      <div v-if="selectedWarehouse === 'all' && accessibleWarehouses.length > 1" class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
           
@@ -623,35 +605,35 @@
                           {{ warehouse.name_ar || warehouse.name }}
                         </div>
                         <div class="text-xs text-gray-500 dark:text-gray-400">
-                          {{ getWarehouseStats(warehouse.id).totalItems }} صنف
+                          {{ warehouseStatsCache[warehouse.id]?.totalItems || 0 }} صنف
                         </div>
                       </div>
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
                     <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).totalItems) }}
+                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalItems || 0) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ getWarehousePercentage('totalItems', warehouse.id) }}%
+                      {{ warehousePercentageOfTotal(warehouse.id, 'totalItems') }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
                     <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).totalQuantity) }}
+                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalQuantity || 0) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ getWarehousePercentage('totalQuantity', warehouse.id) }}%
+                      {{ warehousePercentageOfTotal(warehouse.id, 'totalQuantity') }}%
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="getWarehouseStats(warehouse.id).lowStockItems > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).lowStockItems) }}
+                    <div class="text-sm font-medium" :class="(warehouseStatsCache[warehouse.id]?.lowStockItems || 0) > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.lowStockItems || 0) }}
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="getWarehouseStats(warehouse.id).outOfStockItems > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(getWarehouseStats(warehouse.id).outOfStockItems) }}
+                    <div class="text-sm font-medium" :class="(warehouseStatsCache[warehouse.id]?.outOfStockItems || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
+                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.outOfStockItems || 0) }}
                     </div>
                   </td>
                   <td class="px-4 py-4 whitespace-nowrap">
@@ -659,14 +641,14 @@
                       <div class="flex-1">
                         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div 
-                            :class="getHealthColorClass(getWarehouseStats(warehouse.id).healthPercentage)"
+                            :class="getHealthColorClass(warehouseHealthPercentage(warehouse.id))"
                             class="h-full rounded-full"
-                            :style="{ width: getWarehouseStats(warehouse.id).healthPercentage + '%' }"
+                            :style="{ width: warehouseHealthPercentage(warehouse.id) + '%' }"
                           ></div>
                         </div>
                       </div>
-                      <span class="text-sm font-medium" :class="getHealthTextClass(getWarehouseStats(warehouse.id).healthPercentage)">
-                        {{ getWarehouseStats(warehouse.id).healthPercentage }}%
+                      <span class="text-sm font-medium" :class="getHealthTextClass(warehouseHealthPercentage(warehouse.id))">
+                        {{ warehouseHealthPercentage(warehouse.id) }}%
                       </span>
                     </div>
                   </td>
@@ -998,7 +980,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 
@@ -1013,7 +995,9 @@ export default {
     const initialLoading = ref(true);
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
-    const loadMoreLoading = ref(false);
+    const recentItemsLoading = ref(false);
+    const recentTransactionsLoading = ref(false);
+    const modalLoading = ref(false);
     
     // UI state
     const selectedWarehouse = ref('all');
@@ -1024,27 +1008,17 @@ export default {
     // Modal state
     const showItemModal = ref(false);
     const selectedItem = ref(null);
-    const modalLoading = ref(false);
     const itemTransactions = ref([]);
     
-    // Stats
-    const dashboardStats = ref({
+    // Local cache for warehouse stats to prevent re-calculation
+    const warehouseStatsCache = ref({});
+    const allWarehouseStatsCache = ref({
       totalItems: 0,
       totalQuantity: 0,
       lowStockItems: 0,
       outOfStockItems: 0,
       lastUpdated: null
     });
-    
-    const allWarehouseStats = ref({
-      totalItems: 0,
-      totalQuantity: 0,
-      lowStockItems: 0,
-      outOfStockItems: 0
-    });
-
-    // Warehouse-specific stats cache
-    const warehouseStatsCache = ref({});
 
     // ========== COMPUTED PROPERTIES ==========
     
@@ -1059,32 +1033,36 @@ export default {
         return [];
       }
     });
-    
-    const inventoryItems = computed(() => {
-      try {
-        const inventory = store.getters.inventoryItems || [];
-        return Array.isArray(inventory) ? inventory : [];
-      } catch {
-        return [];
-      }
+
+    // Limited inventory items for dashboard (only recent ones)
+    const recentInventoryItems = computed(() => {
+      const inventory = store.getters.inventoryItems || [];
+      // Sort by creation date and take only 20 items for dashboard
+      return [...inventory]
+        .sort((a, b) => {
+          const dateA = new Date(a.created_at || a.updated_at || 0);
+          const dateB = new Date(b.created_at || b.updated_at || 0);
+          return dateB - dateA;
+        })
+        .slice(0, 20);
     });
-    
-    const recentStoreTransactions = computed(() => {
+
+    const recentTransactions = computed(() => {
       try {
         const items = store.getters.recentTransactions || [];
-        return Array.isArray(items) ? items : [];
+        // Filter by warehouse if selected
+        if (selectedWarehouse.value !== 'all') {
+          return items.filter(transaction => 
+            transaction.from_warehouse === selectedWarehouse.value || 
+            transaction.to_warehouse === selectedWarehouse.value
+          );
+        }
+        return items;
       } catch {
         return [];
       }
     });
-    
-    // Pagination getters
-    const hasMoreItems = computed(() => store.getters.hasMore || false);
-    const totalLoadedItems = computed(() => store.getters.totalLoaded || 0);
-    const isFetchingMore = computed(() => store.getters.isFetchingMore || false);
-    const inventoryLoading = computed(() => store.getters.inventoryLoading || false);
-    const recentTransactionsLoading = computed(() => store.getters.recentTransactionsLoading || false);
-    
+
     const canModifyItems = computed(() => {
       try {
         const role = userRole.value;
@@ -1107,120 +1085,71 @@ export default {
       }
     });
 
-    // Get total items count - OPTIMIZED VERSION
-    const totalItemsCount = computed(() => {
-      try {
-        // Use the store's warehouseStats getter which is much faster
-        const stats = store.getters.warehouseStats(selectedWarehouse.value === 'all' ? 'all' : selectedWarehouse.value);
-        return stats.totalItems || 0;
-      } catch {
-        // Fallback to calculated
-        return filteredInventory.value.length;
-      }
-    });
+    // ========== OPTIMIZED DASHBOARD STATS USING VUEX GETTERS ==========
     
-    // Today's transactions - OPTIMIZED
-    const todayTransactions = computed(() => {
-      try {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        return recentStoreTransactions.value.filter(transaction => {
-          if (!transaction.timestamp) return false;
-          
-          // Use the store's cached transactions instead of processing each time
-          const transDate = transaction.timestamp;
-          return transDate >= today;
-        }).slice(0, 20); // Limit to 20 for performance
-      } catch {
-        return [];
+    const dashboardStats = computed(() => {
+      // Use Vuex getter for dashboard stats (optimized)
+      const stats = store.getters.warehouseStats ? 
+        store.getters.warehouseStats(selectedWarehouse.value) : 
+        { totalItems: 0, totalQuantity: 0, lowStockItems: 0, outOfStockItems: 0 };
+      
+      return {
+        totalItems: stats.totalItems || 0,
+        totalQuantity: stats.totalQuantity || 0,
+        lowStockItems: stats.lowStockItems || 0,
+        outOfStockItems: stats.outOfStockItems || 0,
+        estimatedValue: (stats.totalQuantity || 0) * 25 // Simple estimation
+      };
+    });
+
+    const allWarehouseStats = computed(() => {
+      // Cache all warehouse stats to avoid recalculating
+      if (allWarehouseStatsCache.value.lastUpdated && 
+          Date.now() - allWarehouseStatsCache.value.lastUpdated < 30000) { // 30 second cache
+        return allWarehouseStatsCache.value;
       }
+
+      const inventory = store.getters.inventoryItems || [];
+      
+      const stats = {
+        totalItems: inventory.length,
+        totalQuantity: inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+        lowStockItems: inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length,
+        outOfStockItems: inventory.filter(item => (item.remaining_quantity || 0) === 0).length,
+        lastUpdated: new Date()
+      };
+
+      allWarehouseStatsCache.value = stats;
+      return stats;
     });
 
-    // Pre-calculate these to avoid recomputation
-    const todayAddCount = computed(() => 
-      todayTransactions.value.filter(t => t.type === 'ADD').length
-    );
+    // Warehouse percentage for selected warehouse
+    const warehousePercentage = computed(() => {
+      if (selectedWarehouse.value === 'all' || dashboardStats.value.totalQuantity === 0) return '0';
+      
+      const selectedStats = dashboardStats.value;
+      const allStats = allWarehouseStats.value;
+      
+      if (allStats.totalQuantity === 0) return '0';
+      
+      return ((selectedStats.totalQuantity / allStats.totalQuantity) * 100).toFixed(1);
+    });
 
-    const todayTransferCount = computed(() => 
-      todayTransactions.value.filter(t => t.type === 'TRANSFER').length
-    );
-
-    const todayDispatchCount = computed(() => 
-      todayTransactions.value.filter(t => t.type === 'DISPATCH').length
-    );
-
-    const lastTransactionTime = computed(() => {
-      if (todayTransactions.value.length === 0) return 'لا توجد حركات';
-      const last = todayTransactions.value[0];
-      try {
-        const date = last.timestamp;
-        return formatRelativeTime(date);
-      } catch {
-        return 'غير معروف';
+    // Recent items filtered by warehouse
+    const recentItems = computed(() => {
+      const items = recentInventoryItems.value;
+      
+      if (selectedWarehouse.value === 'all') {
+        return items.slice(0, 8); // Limit to 8 items for performance
       }
+      
+      return items
+        .filter(item => item.warehouse_id === selectedWarehouse.value)
+        .slice(0, 8);
     });
 
-    const lastActivityTime = computed(() => {
-      const transactions = filteredRecentTransactions.value;
-      if (transactions.length === 0) return 'لا يوجد نشاط';
-      return formatRelativeTime(transactions[0]?.timestamp);
-    });
-
-    // Filter inventory based on selected warehouse - OPTIMIZED
-    const filteredInventory = computed(() => {
-      try {
-        if (selectedWarehouse.value === 'all') {
-          return inventoryItems.value;
-        }
-        // Use store getter for filtered inventory when available
-        if (store.getters.getInventoryByWarehouse) {
-          return store.getters.getInventoryByWarehouse(selectedWarehouse.value) || [];
-        }
-        // Fallback
-        return inventoryItems.value.filter(item => item.warehouse_id === selectedWarehouse.value);
-      } catch {
-        return [];
-      }
-    });
-
-    // Recent inventory (last 8 items) - OPTIMIZED
-    const filteredRecentInventory = computed(() => {
-      try {
-        // Try to use store's recent inventory getter first
-        if (store.getters.recentInventoryItems) {
-          const recentItems = store.getters.recentInventoryItems;
-          if (selectedWarehouse.value === 'all') {
-            return recentItems.slice(0, 8);
-          }
-          return recentItems
-            .filter(item => item.warehouse_id === selectedWarehouse.value)
-            .slice(0, 8);
-        }
-        
-        // Fallback
-        const items = filteredInventory.value;
-        if (!Array.isArray(items) || items.length === 0) return [];
-        
-        return [...items]
-          .filter(item => item && typeof item === 'object')
-          .sort((a, b) => {
-            try {
-              const dateA = new Date(a.created_at || a.updated_at || 0);
-              const dateB = new Date(b.created_at || b.updated_at || 0);
-              return dateB - dateA;
-            } catch {
-              return 0;
-            }
-          })
-          .slice(0, 8);
-      } catch {
-        return [];
-      }
-    });
-
-    const recentItemsCount = computed(() => filteredRecentInventory.value.length);
-
+    const recentItemsCount = computed(() => recentItems.value.length);
+    
     const recentItemsStatusClass = computed(() => {
       const count = recentItemsCount.value;
       if (count === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
@@ -1228,63 +1157,135 @@ export default {
       return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
-    // Filter transactions based on selected warehouse
-    const filteredRecentTransactions = computed(() => {
-      try {
-        if (selectedWarehouse.value === 'all') {
-          return recentStoreTransactions.value.slice(0, 20); // Limit for performance
-        }
+    // Today's transactions
+    const todayTransactionsCount = computed(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      return recentTransactions.value.filter(transaction => {
+        if (!transaction.timestamp) return false;
         
-        return recentStoreTransactions.value
-          .filter(transaction => 
-            transaction.from_warehouse === selectedWarehouse.value || 
-            transaction.to_warehouse === selectedWarehouse.value
-          )
-          .slice(0, 20); // Limit for performance
-      } catch {
-        return [];
-      }
+        try {
+          const transDate = transaction.timestamp instanceof Date ? 
+            transaction.timestamp : new Date(transaction.timestamp);
+          return transDate >= today;
+        } catch {
+          return false;
+        }
+      }).length;
     });
 
-    // ========== OPTIMIZED CALCULATIONS ==========
-    
-    const calculatedTotals = computed(() => {
-      const inventory = filteredInventory.value;
+    // Pre-calculate transaction counts for today
+    const todayAddCount = computed(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      // Use early return for empty inventory
-      if (inventory.length === 0) {
-        return { totalCartons: 0, totalSingles: 0, outOfStockItems: 0 };
-      }
+      return recentTransactions.value.filter(transaction => {
+        if (!transaction.timestamp || transaction.type !== 'ADD') return false;
+        
+        try {
+          const transDate = transaction.timestamp instanceof Date ? 
+            transaction.timestamp : new Date(transaction.timestamp);
+          return transDate >= today;
+        } catch {
+          return false;
+        }
+      }).length;
+    });
+
+    const todayTransferCount = computed(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      // Use for loop for better performance
-      let totalCartons = 0;
-      let totalSingles = 0;
-      let outOfStockItems = 0;
+      return recentTransactions.value.filter(transaction => {
+        if (!transaction.timestamp || transaction.type !== 'TRANSFER') return false;
+        
+        try {
+          const transDate = transaction.timestamp instanceof Date ? 
+            transaction.timestamp : new Date(transaction.timestamp);
+          return transDate >= today;
+        } catch {
+          return false;
+        }
+      }).length;
+    });
+
+    const todayDispatchCount = computed(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      for (let i = 0; i < inventory.length; i++) {
-        const item = inventory[i];
+      return recentTransactions.value.filter(transaction => {
+        if (!transaction.timestamp || transaction.type !== 'DISPATCH') return false;
+        
+        try {
+          const transDate = transaction.timestamp instanceof Date ? 
+            transaction.timestamp : new Date(transaction.timestamp);
+          return transDate >= today;
+        } catch {
+          return false;
+        }
+      }).length;
+    });
+
+    const lastTransactionTime = computed(() => {
+      if (recentTransactions.value.length === 0) return 'لا توجد حركات';
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayTransactions = recentTransactions.value.filter(transaction => {
+        if (!transaction.timestamp) return false;
+        
+        try {
+          const transDate = transaction.timestamp instanceof Date ? 
+            transaction.timestamp : new Date(transaction.timestamp);
+          return transDate >= today;
+        } catch {
+          return false;
+        }
+      });
+      
+      if (todayTransactions.length === 0) return 'لا توجد حركات اليوم';
+      
+      const last = todayTransactions[0];
+      return formatRelativeTime(last.timestamp);
+    });
+
+    const lastActivityTime = computed(() => {
+      if (recentTransactions.value.length === 0) return 'لا يوجد نشاط';
+      return formatRelativeTime(recentTransactions.value[0]?.timestamp);
+    });
+
+    // Calculate cartons and singles from limited data
+    const totalCartons = computed(() => {
+      const items = recentInventoryItems.value;
+      return items.reduce((sum, item) => {
         const cartons = item.cartons_count || 0;
         const perCarton = item.per_carton_count || 12;
-        const singles = item.single_bottles_count || 0;
-        
-        totalCartons += cartons * perCarton;
-        totalSingles += singles;
-        
-        if ((item.remaining_quantity || 0) === 0) {
-          outOfStockItems++;
-        }
-      }
-      
-      return { totalCartons, totalSingles, outOfStockItems };
+        return sum + (cartons * perCarton);
+      }, 0);
     });
 
-    const totalCartons = computed(() => calculatedTotals.value.totalCartons);
-    const totalSingles = computed(() => calculatedTotals.value.totalSingles);
-    const outOfStockItems = computed(() => calculatedTotals.value.outOfStockItems);
+    const totalSingles = computed(() => {
+      const items = recentInventoryItems.value;
+      return items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
+    });
+
+    const estimatedValue = computed(() => {
+      return dashboardStats.value.totalQuantity * 25; // Simple estimation
+    });
+
+    const avgQuantityPerItem = computed(() => {
+      const totalItems = dashboardStats.value.totalItems;
+      const totalQuantity = dashboardStats.value.totalQuantity;
+      
+      if (totalItems === 0) return 0;
+      return Math.round(totalQuantity / totalItems);
+    });
 
     const stockHealthPercentage = computed(() => {
       const total = dashboardStats.value.totalItems;
-      const healthy = total - dashboardStats.value.lowStockItems - outOfStockItems.value;
+      const healthy = total - dashboardStats.value.lowStockItems - dashboardStats.value.outOfStockItems;
       return total > 0 ? Math.round((healthy / total) * 100) : 0;
     });
 
@@ -1398,67 +1399,50 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    // Calculate warehouse stats with caching - OPTIMIZED
-    const getWarehouseStats = (warehouseId) => {
-      if (!warehouseId) {
+    // Warehouse stats calculation with caching
+    const calculateWarehouseStats = async (warehouseId) => {
+      if (warehouseStatsCache.value[warehouseId] && 
+          Date.now() - warehouseStatsCache.value[warehouseId].lastUpdated < 30000) {
+        return warehouseStatsCache.value[warehouseId];
+      }
+
+      try {
+        // Use optimized Vuex action to get warehouse stats
+        const stats = await store.dispatch('refreshDashboardCounts', warehouseId);
+        
+        warehouseStatsCache.value[warehouseId] = {
+          ...stats,
+          lastUpdated: new Date()
+        };
+        
+        return stats;
+      } catch (error) {
+        console.error('Error calculating warehouse stats:', error);
         return {
           totalItems: 0,
           totalQuantity: 0,
           lowStockItems: 0,
           outOfStockItems: 0,
-          healthPercentage: 0
+          lastUpdated: new Date()
         };
       }
-
-      // Try to use store getter first
-      if (store.getters.warehouseStats) {
-        const stats = store.getters.warehouseStats(warehouseId);
-        return {
-          ...stats,
-          healthPercentage: calculateHealthPercentage(stats)
-        };
-      }
-
-      // Fallback to local calculation with caching
-      const cacheKey = `${warehouseId}_${lastUpdated.value.getTime()}`;
-      if (warehouseStatsCache.value[cacheKey]) {
-        return warehouseStatsCache.value[cacheKey];
-      }
-
-      const warehouseItems = inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
-      const totalItems = warehouseItems.length;
-      const totalQuantity = warehouseItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
-      const lowStockItems = warehouseItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
-      const outOfStockItems = warehouseItems.filter(item => (item.remaining_quantity || 0) === 0).length;
-      const healthyItems = totalItems - lowStockItems - outOfStockItems;
-      const healthPercentage = totalItems > 0 ? Math.round((healthyItems / totalItems) * 100) : 0;
-
-      const stats = {
-        totalItems,
-        totalQuantity,
-        lowStockItems,
-        outOfStockItems,
-        healthPercentage
-      };
-
-      // Cache the result
-      warehouseStatsCache.value[cacheKey] = stats;
-      
-      return stats;
     };
 
-    const calculateHealthPercentage = (stats) => {
+    const warehouseHealthPercentage = (warehouseId) => {
+      const stats = warehouseStatsCache.value[warehouseId];
+      if (!stats) return 0;
+      
       const total = stats.totalItems;
       const healthy = total - stats.lowStockItems - stats.outOfStockItems;
       return total > 0 ? Math.round((healthy / total) * 100) : 0;
     };
 
-    const getWarehousePercentage = (statType, warehouseId) => {
-      const warehouseStat = getWarehouseStats(warehouseId);
-      const allStat = allWarehouseStats.value[statType] || 0;
+    const warehousePercentageOfTotal = (warehouseId, statType) => {
+      const stats = warehouseStatsCache.value[warehouseId];
+      const allStats = allWarehouseStats.value;
       
-      if (allStat === 0) return '0';
-      return ((warehouseStat[statType] / allStat) * 100).toFixed(1);
+      if (!stats || allStats[statType] === 0) return '0';
+      return ((stats[statType] / allStats[statType]) * 100).toFixed(1);
     };
 
     // ========== MODAL FUNCTIONS ==========
@@ -1471,10 +1455,9 @@ export default {
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
       
-      // Load item transactions
+      // Load item transactions from recent transactions (no additional Firebase read)
       try {
-        // Filter transactions for this specific item
-        itemTransactions.value = recentStoreTransactions.value
+        itemTransactions.value = recentTransactions.value
           .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
           .slice(0, 10);
       } catch {
@@ -1521,208 +1504,11 @@ export default {
       });
     };
 
-    // ========== OPTIMIZED STATS LOADING ==========
-    
-    const loadDashboardStats = async (warehouseId = 'all') => {
-      statsLoading.value = true;
-      try {
-        console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
-        
-        // Use store getter for real stats (optimized)
-        const realStats = store.getters.warehouseStats(warehouseId);
-        
-        if (realStats) {
-          dashboardStats.value = {
-            totalItems: realStats.totalItems || 0,
-            totalQuantity: realStats.totalQuantity || 0,
-            lowStockItems: realStats.lowStockItems || 0,
-            outOfStockItems: realStats.outOfStockItems || 0,
-            lastUpdated: new Date()
-          };
-        } else {
-          // Calculate from filtered inventory
-          const filteredItems = warehouseId === 'all' 
-            ? inventoryItems.value 
-            : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
-          
-          let totalQuantity = 0;
-          let lowStockItems = 0;
-          let outOfStockItems = 0;
-          
-          for (let i = 0; i < filteredItems.length; i++) {
-            const item = filteredItems[i];
-            const remaining = item.remaining_quantity || 0;
-            
-            totalQuantity += remaining;
-            
-            if (remaining === 0) {
-              outOfStockItems++;
-            } else if (remaining < 10) {
-              lowStockItems++;
-            }
-          }
-          
-          dashboardStats.value = {
-            totalItems: filteredItems.length,
-            totalQuantity: totalQuantity,
-            lowStockItems: lowStockItems,
-            outOfStockItems: outOfStockItems,
-            lastUpdated: new Date()
-          };
-        }
-        
-        // Load "all" stats for comparison
-        const allStats = store.getters.warehouseStats('all') || {};
-        allWarehouseStats.value = {
-          totalItems: allStats.totalItems || 0,
-          totalQuantity: allStats.totalQuantity || 0,
-          lowStockItems: allStats.lowStockItems || 0,
-          outOfStockItems: allStats.outOfStockItems || 0
-        };
-        
-        // Clear warehouse stats cache
-        warehouseStatsCache.value = {};
-        
-        console.log('✅ Dashboard stats loaded:', dashboardStats.value);
-        
-        lastUpdated.value = new Date();
-        
-      } catch (error) {
-        console.error('Error loading dashboard stats:', error);
-        // Fallback to simple calculation
-        const filteredItems = warehouseId === 'all' 
-          ? inventoryItems.value 
-          : inventoryItems.value.filter(item => item.warehouse_id === warehouseId);
-        
-        let totalQuantity = 0;
-        let lowStockItems = 0;
-        let outOfStockItems = 0;
-        
-        for (let i = 0; i < filteredItems.length; i++) {
-          const item = filteredItems[i];
-          const remaining = item.remaining_quantity || 0;
-          
-          totalQuantity += remaining;
-          
-          if (remaining === 0) {
-            outOfStockItems++;
-          } else if (remaining < 10) {
-            lowStockItems++;
-          }
-        }
-        
-        dashboardStats.value = {
-          totalItems: filteredItems.length,
-          totalQuantity: totalQuantity,
-          lowStockItems: lowStockItems,
-          outOfStockItems: outOfStockItems,
-          lastUpdated: new Date()
-        };
-        
-        // For "all" comparison
-        if (warehouseId !== 'all') {
-          const allItems = inventoryItems.value;
-          
-          let allTotalQuantity = 0;
-          let allLowStockItems = 0;
-          let allOutOfStockItems = 0;
-          
-          for (let i = 0; i < allItems.length; i++) {
-            const item = allItems[i];
-            const remaining = item.remaining_quantity || 0;
-            
-            allTotalQuantity += remaining;
-            
-            if (remaining === 0) {
-              allOutOfStockItems++;
-            } else if (remaining < 10) {
-              allLowStockItems++;
-            }
-          }
-          
-          allWarehouseStats.value = {
-            totalItems: allItems.length,
-            totalQuantity: allTotalQuantity,
-            lowStockItems: allLowStockItems,
-            outOfStockItems: allOutOfStockItems
-          };
-        }
-      } finally {
-        statsLoading.value = false;
-      }
-    };
-
-    // ========== ACTIONS ==========
-    
-    const loadMoreItems = async () => {
-      if (loadMoreLoading.value || isFetchingMore.value) return;
-      
-      loadMoreLoading.value = true;
-      try {
-        console.log('📥 Loading more items...');
-        
-        // Use the store's loadMoreInventory action
-        const newItems = await store.dispatch('loadMoreInventory');
-        
-        console.log(`✅ Loaded: ${newItems?.length || 0} items`);
-        
-        // Refresh dashboard stats after loading more items
-        await loadDashboardStats(selectedWarehouse.value);
-        
-      } catch (error) {
-        console.error('❌ Error loading more items:', error);
-      } finally {
-        loadMoreLoading.value = false;
-      }
-    };
-
-    const refreshDashboard = async () => {
-      loading.value = true;
-      try {
-        // Clear cache
-        warehouseStatsCache.value = {};
-        
-        // Refresh all data in parallel
-        await Promise.allSettled([
-          store.dispatch('loadAllInventory', { forceRefresh: true }),
-          store.dispatch('getRecentTransactions')
-        ]);
-        
-        // Refresh dashboard stats
-        await loadDashboardStats(selectedWarehouse.value);
-        
-        console.log('🔄 Dashboard refreshed successfully');
-        
-      } catch (error) {
-        console.error('Error refreshing dashboard:', error);
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const handleWarehouseChange = async () => {
-      loading.value = true;
-      try {
-        console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
-        
-        // Load dashboard stats
-        await loadDashboardStats(selectedWarehouse.value);
-        
-        console.log(`📦 Filtered inventory count: ${filteredInventory.value.length}`);
-        console.log(`📊 Filtered transactions count: ${filteredRecentTransactions.value.length}`);
-        
-      } catch (error) {
-        console.error('Error changing warehouse:', error);
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    // ========== INITIAL DATA LOADING ==========
+    // ========== OPTIMIZED DASHBOARD LOADING ==========
     
     const loadDashboardData = async () => {
       initialLoading.value = true;
-      console.log('🚀 Loading dashboard data...');
+      console.log('🚀 Loading optimized dashboard data...');
       
       try {
         // Check if user is authenticated
@@ -1738,20 +1524,30 @@ export default {
           await store.dispatch('loadUserProfile');
         }
         
-        // Load initial data in parallel for faster loading
-        await Promise.allSettled([
-          !accessibleWarehouses.value || accessibleWarehouses.value.length === 0 
-            ? store.dispatch('loadWarehousesEnhanced')
-            : Promise.resolve(),
-          store.dispatch('loadAllInventory', { forceRefresh: true }),
-          store.dispatch('getRecentTransactions')
-        ]);
+        // OPTIMIZED: Load limited data for dashboard only
+        console.log('📊 Loading limited dashboard data...');
         
-        // Load dashboard stats
+        // 1. Load warehouses (small dataset)
+        if (!accessibleWarehouses.value || accessibleWarehouses.value.length === 0) {
+          await store.dispatch('loadWarehousesEnhanced');
+        }
+        
+        // 2. Load only recent inventory (20 items) instead of ALL inventory
+        console.log('📦 Loading recent inventory (20 items)...');
+        await store.dispatch('loadAllInventory', { 
+          forceRefresh: false,
+          limit: 20 // Only load 20 items for dashboard
+        });
+        
+        // 3. Load only recent transactions (30 items)
+        console.log('📋 Loading recent transactions (30 items)...');
+        await store.dispatch('getRecentTransactions');
+        
+        // 4. Load dashboard stats (optimized with caching)
         console.log('📈 Loading dashboard stats...');
         await loadDashboardStats(selectedWarehouse.value);
         
-        console.log('✅ Dashboard data loaded successfully!');
+        console.log('✅ Optimized dashboard data loaded successfully!');
         
       } catch (error) {
         console.error('❌ Error loading dashboard data:', error);
@@ -1764,6 +1560,95 @@ export default {
         }
       } finally {
         initialLoading.value = false;
+        loading.value = false;
+      }
+    };
+
+    const loadDashboardStats = async (warehouseId = 'all') => {
+      statsLoading.value = true;
+      try {
+        console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
+        
+        // Use optimized Vuex action to get stats
+        const stats = await store.dispatch('refreshDashboardCounts', warehouseId);
+        
+        // Update last updated time
+        lastUpdated.value = new Date();
+        
+        console.log('✅ Dashboard stats loaded:', stats);
+        
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+      } finally {
+        statsLoading.value = false;
+      }
+    };
+
+    const loadWarehouseStats = async () => {
+      if (selectedWarehouse.value === 'all' && accessibleWarehouses.value.length > 1) {
+        warehouseStatsLoading.value = true;
+        try {
+          console.log('📊 Loading all warehouse stats...');
+          
+          // Load stats for each warehouse with caching
+          for (const warehouse of accessibleWarehouses.value) {
+            await calculateWarehouseStats(warehouse.id);
+          }
+          
+          console.log('✅ All warehouse stats loaded');
+        } catch (error) {
+          console.error('Error loading warehouse stats:', error);
+        } finally {
+          warehouseStatsLoading.value = false;
+        }
+      }
+    };
+
+    // ========== ACTIONS ==========
+    
+    const refreshDashboard = async () => {
+      loading.value = true;
+      try {
+        console.log('🔄 Refreshing dashboard...');
+        
+        // Clear cache
+        warehouseStatsCache.value = {};
+        allWarehouseStatsCache.value = {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          lastUpdated: null
+        };
+        
+        // Refresh dashboard data
+        await loadDashboardData();
+        
+        console.log('✅ Dashboard refreshed successfully');
+        
+      } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const handleWarehouseChange = async () => {
+      loading.value = true;
+      try {
+        console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
+        
+        // Load dashboard stats for selected warehouse
+        await loadDashboardStats(selectedWarehouse.value);
+        
+        // If viewing all warehouses, load stats for each
+        if (selectedWarehouse.value === 'all') {
+          await loadWarehouseStats();
+        }
+        
+      } catch (error) {
+        console.error('Error changing warehouse:', error);
+      } finally {
         loading.value = false;
       }
     };
@@ -1812,32 +1697,24 @@ export default {
       if (!loading.value) {
         console.log('🏢 Warehouse filter changed to:', newValue);
         await loadDashboardStats(newValue);
+        
+        if (newValue === 'all') {
+          await loadWarehouseStats();
+        }
       }
     });
 
-    // Optimized inventory watch
-    let inventoryWatchTimeout;
-    watch(inventoryItems, async () => {
-      if (!loading.value && !statsLoading.value) {
-        clearTimeout(inventoryWatchTimeout);
-        inventoryWatchTimeout = setTimeout(async () => {
-          console.log('🔄 Inventory changed, updating stats...');
-          await loadDashboardStats(selectedWarehouse.value);
-        }, 300); // Debounce by 300ms
-      }
-    }, { deep: false }); // Shallow watch for performance
-
-    watch(totalLoadedItems, (newCount) => {
-      console.log(`📦 Total loaded items updated: ${newCount}`);
-    });
-
+    // ========== RETURN ==========
+    
     return {
       // State
       loading,
       initialLoading,
       statsLoading,
       warehouseStatsLoading,
-      loadMoreLoading,
+      recentItemsLoading,
+      recentTransactionsLoading,
+      modalLoading,
       selectedWarehouse,
       currentTime,
       currentDate,
@@ -1846,12 +1723,12 @@ export default {
       // Modal state
       showItemModal,
       selectedItem,
-      modalLoading,
       itemTransactions,
       
       // Stats
       dashboardStats,
       allWarehouseStats,
+      warehouseStatsCache,
       
       // Computed
       userRole,
@@ -1859,27 +1736,23 @@ export default {
       userProfile,
       accessibleWarehouses,
       canModifyItems,
-      filteredRecentInventory,
-      filteredRecentTransactions,
-      todayTransactions,
+      recentItems,
+      recentItemsCount,
+      recentItemsStatusClass,
+      recentTransactions,
+      todayTransactionsCount,
       todayAddCount,
       todayTransferCount,
       todayDispatchCount,
       lastTransactionTime,
       lastActivityTime,
-      recentItemsCount,
-      recentItemsStatusClass,
       totalCartons,
       totalSingles,
-      outOfStockItems,
+      estimatedValue,
+      avgQuantityPerItem,
+      warehousePercentage,
       stockHealthPercentage,
       stockHealthColor,
-      hasMoreItems,
-      totalLoadedItems,
-      totalItemsCount,
-      isFetchingMore,
-      inventoryLoading,
-      recentTransactionsLoading,
       
       // Helper methods
       formatEnglishNumber,
@@ -1894,8 +1767,8 @@ export default {
       calculateTotalQuantity,
       handleImageError,
       handleModalImageError,
-      getWarehouseStats,
-      getWarehousePercentage,
+      warehouseHealthPercentage,
+      warehousePercentageOfTotal,
       
       // Modal functions
       openItemModal,
@@ -1905,8 +1778,7 @@ export default {
       
       // Actions
       refreshDashboard,
-      handleWarehouseChange,
-      loadMoreItems
+      handleWarehouseChange
     };
   }
 };
