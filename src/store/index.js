@@ -4307,7 +4307,7 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
     },
 
 // ============================================
-// UPDATED: UPDATE ITEM ACTION (WITH SERIALIZATION FIX)
+// UPDATED: UPDATE ITEM ACTION (WITH VALIDATION FIX)
 // ============================================
 async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
   commit('SET_OPERATION_LOADING', true);
@@ -4325,9 +4325,45 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       throw new Error('ليس لديك صلاحية لتعديل الأصناف');
     }
 
-    // 🔴 VALIDATION 2: Required fields
-    if (!itemData.name?.trim() || !itemData.code?.trim() || !itemData.warehouse_id || !itemData.color?.trim()) {
-      throw new Error('جميع الحقول المطلوبة يجب أن تكون مملوءة (الاسم، الكود، اللون، المخزن)');
+    // 🔴 VALIDATION 2: Required fields - FIXED: Check for empty strings properly
+    console.log('🔍 Validation debug:', {
+      name: itemData.name,
+      nameTrimmed: itemData.name?.trim(),
+      hasName: !!itemData.name?.trim(),
+      code: itemData.code,
+      codeTrimmed: itemData.code?.trim(),
+      hasCode: !!itemData.code?.trim(),
+      color: itemData.color,
+      colorTrimmed: itemData.color?.trim(),
+      hasColor: !!itemData.color?.trim(),
+      warehouse_id: itemData.warehouse_id,
+      warehouse_idType: typeof itemData.warehouse_id,
+      hasWarehouseId: !!itemData.warehouse_id,
+      isWarehouseIdEmptyString: itemData.warehouse_id === ''
+    });
+
+    // Check each field separately for better error messages
+    const missingFields = [];
+    
+    if (!itemData.name?.trim()) {
+      missingFields.push('الاسم');
+    }
+    
+    if (!itemData.code?.trim()) {
+      missingFields.push('الكود');
+    }
+    
+    if (!itemData.color?.trim()) {
+      missingFields.push('اللون');
+    }
+    
+    // 🔴 FIXED: Check if warehouse_id exists and is not empty string
+    if (!itemData.warehouse_id || itemData.warehouse_id.trim() === '') {
+      missingFields.push('المخزن');
+    }
+    
+    if (missingFields.length > 0) {
+      throw new Error(`الحقول التالية مطلوبة: ${missingFields.join('، ')}`);
     }
 
     // 🔴 VALIDATION 3: Warehouse access
@@ -4398,6 +4434,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
         id: itemId,
         name: existingItem.name,
         code: existingItem.code,
+        warehouse_id: existingItem.warehouse_id,
         cartons: existingItem.cartons_count,
         singles: existingItem.single_bottles_count,
         per_carton: existingItem.per_carton_count,
@@ -4451,7 +4488,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       name: itemData.name.trim(),
       code: itemData.code.trim(),
       color: itemData.color.trim(),
-      warehouse_id: warehouseId,
+      warehouse_id: warehouseId.trim(), // Ensure trimmed
       
       // 🔴 QUANTITY FIELDS
       cartons_count: finalCartonsCount,
@@ -4464,7 +4501,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
         total_added: (Number(existingItem.total_added) || 0) + quantityDiff
       }),
       
-      // 🔴 OPTIONAL FIELDS
+      // 🔴 OPTIONAL FIELDS - preserve existing values if not provided
       supplier: itemData.supplier?.trim() || existingItem.supplier || '',
       item_location: itemData.item_location?.trim() || existingItem.item_location || '',
       notes: itemData.notes?.trim() || existingItem.notes || '',
