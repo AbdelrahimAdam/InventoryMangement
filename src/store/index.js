@@ -4505,7 +4505,10 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     },
 
-  async transferItem({ commit, state, dispatch }, transferData) {
+// ============================================
+// TRANSFER ITEM ACTION (WITH COMPLETE TRANSACTION RECORDING)
+// ============================================
+async transferItem({ commit, state, dispatch }, transferData) {
   commit('SET_OPERATION_LOADING', true);
   commit('CLEAR_OPERATION_ERROR');
 
@@ -4795,8 +4798,14 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       // ========== STEP 5: CREATE TRANSACTION RECORD ==========
       const transactionRef = doc(collection(db, 'transactions'));
       
+      // 🔴 CRITICAL FIX: Add quantity fields for display in transactions page
       const transactionRecord = {
         type: TRANSACTION_TYPES.TRANSFER,
+        
+        // 🔴 QUANTITY FIELDS ADDED HERE
+        quantity: transferTotalQuantity, // For display in transactions table
+        total_delta: transferTotalQuantity, // For display in transactions table
+        new_remaining: newSourceTotal, // For display in transactions table
         
         // Source item info
         source_item_id: transferData.item_id,
@@ -4968,14 +4977,28 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       commit('UPDATE_INVENTORY_ITEM', updatedSourceItem);
     }
     
-    // 2. Add transaction to recent transactions
-    const transactionRecord = {
+    // 2. 🔴 CRITICAL FIX: Create complete transaction object with quantity for Vuex state
+    const transactionForState = {
       id: result.transactionId,
       ...result.transactionData,
-      timestamp: new Date()
+      timestamp: new Date(),
+      created_at: new Date(),
+      
+      // 🔴 Ensure quantity fields are included for display
+      quantity: result.transferTotalQuantity,
+      total_delta: result.transferTotalQuantity,
+      new_remaining: result.sourceUpdate.remaining_quantity,
+      
+      // Additional fields for display
+      display_quantity: `${result.transferTotalQuantity} وحدة`,
+      display_type: 'نقل بين مخازن'
     };
     
-    commit('ADD_RECENT_TRANSACTION', transactionRecord);
+    // Add transaction to main transactions list AND recent transactions
+    commit('ADD_TRANSACTION', transactionForState);
+    
+    // Also add to recent transactions
+    commit('ADD_RECENT_TRANSACTION', transactionForState);
 
     // 3. Show success notification
     const message = result.isNewItem 
@@ -4996,7 +5019,9 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       destinationItem: result.destItemId,
       isNewItem: result.isNewItem,
       quantityTransferred: result.transferTotalQuantity,
-      transactionId: result.transactionId
+      transactionId: result.transactionId,
+      transactionAddedToState: true,
+      quantityInTransaction: result.transferTotalQuantity
     });
 
     return {
