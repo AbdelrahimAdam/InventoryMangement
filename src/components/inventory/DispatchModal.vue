@@ -94,7 +94,7 @@
           </div>
         </div>
 
-        <!-- Step 1: Warehouse Selection (Only show if no pre-selected item) -->
+        <!-- Step 1: Source Warehouse Selection (Only show if no pre-selected item) -->
         <div v-if="!preSelectedItem">
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
             <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
@@ -104,7 +104,7 @@
             v-model="form.sourceWarehouse"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            @change="onWarehouseChange"
+            @change="onSourceWarehouseChange"
             :disabled="loading || (!isSuperadmin && !canViewDispatch)"
           >
             <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن المصدر</option>
@@ -119,47 +119,182 @@
           </select>
         </div>
 
-        <!-- Step 2: Destination Selection -->
+        <!-- Step 2: Destination Warehouse Selection - NEW SECTION ADDED -->
         <div>
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-              <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
-              اختر الوجهة
+              <span class="h-6 w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">
+                {{ preSelectedItem ? '1' : '2' }}
+              </span>
+              اختر المخزن الوجهة
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ dispatchDestinations.length }} موقع صرف
+              {{ accessibleDestinationWarehouses.length }} مخزن وجهة متاح
             </div>
           </div>
           
-          <div v-if="dispatchDestinations.length > 0" class="grid grid-cols-2 gap-2">
+          <!-- Destination Warehouse Search -->
+          <div class="relative mb-4">
+            <input
+              v-model="destinationSearchTerm"
+              @input="handleDestinationSearch"
+              type="text"
+              placeholder="ابحث عن مخزن وجهة..."
+              class="w-full pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+            >
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 1114 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+          </div>
+          
+          <!-- Destination Warehouses Grid -->
+          <div v-if="filteredDestinationWarehouses.length > 0" class="grid grid-cols-2 gap-2">
             <button
-              v-for="destination in dispatchDestinations"
-              :key="destination.id"
-              @click="form.destinationBranch = destination.id"
+              v-for="warehouse in filteredDestinationWarehouses"
+              :key="warehouse.id"
+              @click="selectDestinationWarehouse(warehouse.id)"
               :disabled="loading || (!isSuperadmin && !canViewDispatch)"
               :class="[
-                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
-                form.destinationBranch === destination.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-start',
+                form.destinationWarehouse === warehouse.id
+                  ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
               ]"
             >
-              <span class="ml-2">{{ destination.icon }}</span>
-              {{ destination.name_ar }}
+              <span class="ml-2">{{ warehouse.icon || '🏢' }}</span>
+              <span class="truncate">{{ warehouse.name_ar }}</span>
             </button>
           </div>
           
-          <!-- Selected Destination Info -->
-          <div v-if="form.destinationBranch" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            <span class="font-medium">الوجهة المحددة:</span> {{ getDestinationName(form.destinationBranch) }}
+          <div v-else class="text-center py-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <p class="text-sm text-gray-500 dark:text-gray-400">لا توجد مخازن وجهة متاحة</p>
+          </div>
+          
+          <!-- Selected Destination Warehouse Info -->
+          <div v-if="form.destinationWarehouse" class="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div class="flex items-center">
+              <svg class="h-5 w-5 text-green-500 dark:text-green-300 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-green-800 dark:text-green-300">المخزن الوجهة المحدد</p>
+                <p class="text-xs text-green-600 dark:text-green-400 mt-1">
+                  {{ getWarehouseName(form.destinationWarehouse) }}
+                </p>
+              </div>
+              <button
+                v-if="!loading"
+                @click="form.destinationWarehouse = ''"
+                class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+              >
+                تغيير
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Step 3: Item Selection (Only show if no pre-selected item) -->
+        <!-- Step 3: Destination Type Selection (Branch or Other) -->
+        <div v-if="form.destinationWarehouse">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+            <span class="h-6 w-6 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center text-xs ml-2">
+              {{ preSelectedItem ? '2' : '3' }}
+            </span>
+            اختر نوع الوجهة النهائية
+          </h4>
+          
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <button
+              @click="form.destinationType = 'branch'"
+              :class="[
+                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
+                form.destinationType === 'branch'
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+              ]"
+            >
+              <span class="ml-2">🏪</span>
+              <span>فرع</span>
+            </button>
+            <button
+              @click="form.destinationType = 'other'"
+              :class="[
+                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
+                form.destinationType === 'other'
+                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+              ]"
+            >
+              <span class="ml-2">📍</span>
+              <span>أخرى</span>
+            </button>
+          </div>
+          
+          <!-- Branch Selection (if destination type is branch) -->
+          <div v-if="form.destinationType === 'branch'" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اختر الفرع</label>
+              <select
+                v-model="form.destinationBranch"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+              >
+                <option value="" class="text-gray-500 dark:text-gray-400">اختر الفرع</option>
+                <option 
+                  v-for="branch in branches" 
+                  :key="branch.id" 
+                  :value="branch.id"
+                  class="text-gray-900 dark:text-white"
+                >
+                  {{ branch.name_ar }}
+                </option>
+              </select>
+            </div>
+            
+            <!-- Branch Address Display -->
+            <div v-if="form.destinationBranch" class="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+              <p class="text-sm font-medium text-purple-800 dark:text-purple-300">
+                {{ getBranchName(form.destinationBranch) }}
+              </p>
+              <p v-if="getBranchAddress(form.destinationBranch)" class="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                {{ getBranchAddress(form.destinationBranch) }}
+              </p>
+            </div>
+          </div>
+          
+          <!-- Other Destination Input (if destination type is other) -->
+          <div v-else-if="form.destinationType === 'other'" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">وصف الوجهة</label>
+              <input
+                v-model="form.otherDestination"
+                type="text"
+                placeholder="مثال: عميل، مورد، صيانة، إلخ..."
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم المستلم (اختياري)</label>
+              <input
+                v-model="form.recipientName"
+                type="text"
+                placeholder="اسم الشخص أو الجهة المستلمة"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Item Selection (Only show if no pre-selected item) -->
         <div v-if="!preSelectedItem && form.sourceWarehouse">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-              <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">3</span>
+              <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">4</span>
               اختر الصنف المراد صرفه
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -220,16 +355,46 @@
           </div>
         </div>
 
-        <!-- Step 4: Quantity and Details (Show when item is selected) -->
-        <div v-if="(selectedItem || preSelectedItem) && (isSuperadmin || canPerformDispatch)">
+        <!-- Step 5: Quantity and Details (Show when item is selected) -->
+        <div v-if="(selectedItem || preSelectedItem) && form.destinationWarehouse && (isSuperadmin || canPerformDispatch)">
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-            <span class="h-6 w-6 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center text-xs ml-2">
-              {{ preSelectedItem ? '2' : '4' }}
+            <span class="h-6 w-6 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-full flex items-center justify-center text-xs ml-2">
+              {{ preSelectedItem ? '3' : '5' }}
             </span>
             أدخل تفاصيل الصرف
           </h4>
 
           <div class="space-y-4">
+            <!-- Summary Card -->
+            <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">من مخزن</div>
+                  <div class="font-medium text-gray-900 dark:text-white truncate">
+                    {{ getWarehouseName(form.sourceWarehouse || currentItem.warehouse_id) }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">إلى مخزن</div>
+                  <div class="font-medium text-gray-900 dark:text-white truncate">
+                    {{ getWarehouseName(form.destinationWarehouse) }}
+                  </div>
+                </div>
+                <div v-if="form.destinationType === 'branch'">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">الفرع</div>
+                  <div class="font-medium text-gray-900 dark:text-white truncate">
+                    {{ getBranchName(form.destinationBranch) }}
+                  </div>
+                </div>
+                <div v-else-if="form.destinationType === 'other'">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">الوجهة</div>
+                  <div class="font-medium text-gray-900 dark:text-white truncate">
+                    {{ form.otherDestination }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Quantity Input -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -444,10 +609,14 @@ export default {
       }
     ]
 
-    // Form data
+    // Form data - UPDATED with destination warehouse
     const form = reactive({
       sourceWarehouse: '',
+      destinationWarehouse: '', // NEW: Destination warehouse
+      destinationType: 'branch', // 'branch' or 'other'
       destinationBranch: '',
+      otherDestination: '',
+      recipientName: '',
       quantity: 1,
       notes: '',
       priority: 'normal'
@@ -459,10 +628,11 @@ export default {
     const successMessage = ref('')
     const selectedItem = ref(null)
     const searchTerm = ref('')
+    const destinationSearchTerm = ref('') // NEW: Search term for destination warehouses
     const isSearching = ref(false)
     const searchResults = ref([])
-    const dispatchWarehouses = ref([])
     const searchTimeout = ref(null)
+    const destinationSearchTimeout = ref(null) // NEW: Timeout for destination search
 
     // Store the pre-selected item from props
     const preSelectedItem = ref(props.item)
@@ -481,24 +651,6 @@ export default {
     // Current item (either pre-selected or selected)
     const currentItem = computed(() => preSelectedItem.value || selectedItem.value)
 
-    // Compute dispatch destinations
-    const dispatchDestinations = computed(() => {
-      if (dispatchWarehouses.value.length > 0) {
-        return dispatchWarehouses.value.map(warehouse => ({
-          ...warehouse,
-          icon: '🏢'
-        }))
-      }
-      
-      const allWarehouses = warehouses.value || []
-      return allWarehouses
-        .filter(w => w.type === 'dispatch' || w.is_dispatch)
-        .map(warehouse => ({
-          ...warehouse,
-          icon: '🏢'
-        }))
-    })
-
     // Compute accessible source warehouses
     const accessibleSourceWarehouses = computed(() => {
       if (isSuperadmin.value) {
@@ -513,16 +665,50 @@ export default {
       )
     })
 
+    // Compute accessible destination warehouses - NEW
+    const accessibleDestinationWarehouses = computed(() => {
+      if (isSuperadmin.value) {
+        return warehouses.value
+      }
+      
+      const userWarehouseIds = userProfile.value?.accessible_warehouses || []
+      return warehouses.value.filter(warehouse => 
+        userWarehouseIds.includes(warehouse.id) && 
+        // Exclude source warehouse from destination options
+        warehouse.id !== form.sourceWarehouse
+      )
+    })
+
+    // Filtered destination warehouses based on search - NEW
+    const filteredDestinationWarehouses = computed(() => {
+      if (!destinationSearchTerm.value.trim()) {
+        return accessibleDestinationWarehouses.value
+      }
+      
+      const term = destinationSearchTerm.value.toLowerCase().trim()
+      return accessibleDestinationWarehouses.value.filter(warehouse => 
+        warehouse.name_ar?.toLowerCase().includes(term) ||
+        warehouse.name_en?.toLowerCase().includes(term) ||
+        warehouse.location?.toLowerCase().includes(term)
+      )
+    })
+
     // Helper function to get warehouse name
     const getWarehouseName = (warehouseId) => {
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
       return warehouse ? warehouse.name_ar : 'مخزن غير معروف'
     }
 
-    // Helper function to get destination name
-    const getDestinationName = (destinationId) => {
-      const destination = dispatchDestinations.value.find(d => d.id === destinationId)
-      return destination ? destination.name_ar : 'وجهة غير معروفة'
+    // Helper function to get branch name
+    const getBranchName = (branchId) => {
+      const branch = branches.value.find(b => b.id === branchId)
+      return branch ? branch.name_ar : 'فرع غير معروف'
+    }
+
+    // Helper function to get branch address
+    const getBranchAddress = (branchId) => {
+      const branch = branches.value.find(b => b.id === branchId)
+      return branch ? branch.address : ''
     }
 
     // Check if user can view dispatch
@@ -542,6 +728,14 @@ export default {
     // Get stock class for styling - UPDATED: Green for existing quantity
     const getStockClass = (quantity) => {
       return 'text-green-600 dark:text-green-400'
+    }
+
+    // Select destination warehouse - NEW
+    const selectDestinationWarehouse = (warehouseId) => {
+      if (!isSuperadmin.value && !canViewDispatch.value) {
+        return
+      }
+      form.destinationWarehouse = warehouseId
     }
 
     // Select item function
@@ -592,18 +786,29 @@ export default {
       form.quantity = maxQuantity
     }
 
-    // Search function
+    // Search function for items
     const handleSearch = () => {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
       
       searchTimeout.value = setTimeout(() => {
-        performSearch()
+        performItemSearch()
       }, 300)
     }
 
-    const performSearch = () => {
+    // Search function for destination warehouses - NEW
+    const handleDestinationSearch = () => {
+      if (destinationSearchTimeout.value) {
+        clearTimeout(destinationSearchTimeout.value)
+      }
+      
+      destinationSearchTimeout.value = setTimeout(() => {
+        // Search is handled by filteredDestinationWarehouses computed property
+      }, 300)
+    }
+
+    const performItemSearch = () => {
       const term = searchTerm.value.trim().toLowerCase()
       
       if (!term || !form.sourceWarehouse) {
@@ -630,7 +835,7 @@ export default {
       }).slice(0, 20)
     }
 
-    const onWarehouseChange = () => {
+    const onSourceWarehouseChange = () => {
       selectedItem.value = null
       searchTerm.value = ''
       searchResults.value = []
@@ -652,9 +857,14 @@ export default {
       selectedItem.value = null
       preSelectedItem.value = null
       form.sourceWarehouse = ''
+      form.destinationWarehouse = ''
+      form.destinationType = 'branch'
       form.destinationBranch = ''
+      form.otherDestination = ''
+      form.recipientName = ''
       form.quantity = 1
       searchTerm.value = ''
+      destinationSearchTerm.value = ''
       searchResults.value = []
       error.value = ''
       successMessage.value = ''
@@ -671,8 +881,18 @@ export default {
         return
       }
 
-      if (!form.destinationBranch) {
-        error.value = 'يرجى اختيار الوجهة'
+      if (!form.destinationWarehouse) {
+        error.value = 'يرجى اختيار مخزن الوجهة'
+        return
+      }
+
+      if (form.destinationType === 'branch' && !form.destinationBranch) {
+        error.value = 'يرجى اختيار الفرع'
+        return
+      }
+
+      if (form.destinationType === 'other' && !form.otherDestination?.trim()) {
+        error.value = 'يرجى إدخال وصف الوجهة'
         return
       }
 
@@ -687,6 +907,13 @@ export default {
         return
       }
       
+      // Check source and destination are different
+      const sourceWarehouse = form.sourceWarehouse || currentItem.value.warehouse_id
+      if (sourceWarehouse === form.destinationWarehouse) {
+        error.value = 'لا يمكن الصرف من وإلى نفس المخزن'
+        return
+      }
+      
       const currentItemObj = currentItem.value
       const totalToDispatch = form.quantity
       
@@ -694,11 +921,21 @@ export default {
       const itemId = currentItemObj.id
       const itemName = currentItemObj.name || currentItemObj.item_name || 'بدون اسم'
       const itemCode = currentItemObj.code || currentItemObj.item_code || 'بدون كود'
-      const fromWarehouseId = form.sourceWarehouse || currentItemObj.warehouse_id
       
       if (!itemId) {
         error.value = 'معرف الصنف غير صالح'
         return
+      }
+
+      // Determine destination name
+      let destinationName = ''
+      if (form.destinationType === 'branch') {
+        destinationName = `فرع: ${getBranchName(form.destinationBranch)}`
+      } else {
+        destinationName = form.otherDestination
+        if (form.recipientName) {
+          destinationName = `${destinationName} (${form.recipientName})`
+        }
       }
 
       loading.value = true
@@ -707,9 +944,10 @@ export default {
         // Prepare dispatch data
         const dispatchData = {
           item_id: itemId,
-          from_warehouse_id: fromWarehouseId,
-          destination: 'dispat_item',
-          destination_id: form.destinationBranch,
+          from_warehouse_id: sourceWarehouse,
+          to_warehouse_id: form.destinationWarehouse, // NEW: Add destination warehouse
+          destination: form.destinationType,
+          destination_id: form.destinationType === 'branch' ? form.destinationBranch : null,
           
           quantity: totalToDispatch,
           cartons_count: 0,
@@ -720,11 +958,17 @@ export default {
           item_code: itemCode,
           color: currentItemObj.color || '',
           
-          from_warehouse_name: getWarehouseName(fromWarehouseId),
+          from_warehouse_name: getWarehouseName(sourceWarehouse),
+          to_warehouse_name: getWarehouseName(form.destinationWarehouse), // NEW
+          destination_name: destinationName, // NEW
           
-          notes: form.notes || `صرف إلى ${getDestinationName(form.destinationBranch)}`,
+          notes: form.notes || `صرف من ${getWarehouseName(sourceWarehouse)} إلى ${getWarehouseName(form.destinationWarehouse)} - ${destinationName}`,
           priority: form.priority,
-          supplier: currentItemObj.supplier || ''
+          supplier: currentItemObj.supplier || '',
+          
+          // Additional metadata
+          recipient_name: form.recipientName || null, // NEW
+          other_destination: form.otherDestination || null // NEW
         }
 
         console.log('📤 Sending dispatch:', dispatchData)
@@ -751,9 +995,11 @@ export default {
             item_code: itemCode,
             
             quantity: totalToDispatch,
-            from_warehouse_id: fromWarehouseId,
-            destination: form.destinationBranch,
-            destination_name: getDestinationName(form.destinationBranch),
+            from_warehouse_id: sourceWarehouse,
+            to_warehouse_id: form.destinationWarehouse,
+            destination_type: form.destinationType,
+            destination: form.destinationType === 'branch' ? form.destinationBranch : form.otherDestination,
+            destination_name: destinationName,
             
             ...(result.detailedUpdate && { detailedUpdate: result.detailedUpdate })
           }
@@ -781,6 +1027,8 @@ export default {
           error.value = 'ليس لديك صلاحية للصرف من هذا المخزن'
         } else if (err.message.includes('الصنف ليس في المخزن')) {
           error.value = 'الصنف لم يعد موجوداً في المخزن المحدد'
+        } else if (err.message.includes('نفس المخزن')) {
+          error.value = 'لا يمكن الصرف من وإلى نفس المخزن'
         } else {
           error.value = `خطأ: ${err.message}`
         }
@@ -793,7 +1041,11 @@ export default {
     const resetForm = () => {
       Object.assign(form, {
         sourceWarehouse: '',
+        destinationWarehouse: '',
+        destinationType: 'branch',
         destinationBranch: '',
+        otherDestination: '',
+        recipientName: '',
         quantity: 1,
         notes: '',
         priority: 'normal'
@@ -805,31 +1057,8 @@ export default {
       successMessage.value = ''
       
       searchTerm.value = ''
+      destinationSearchTerm.value = ''
       searchResults.value = []
-    }
-
-    // Load dispatch warehouses when modal opens
-    const loadDispatchWarehouses = async () => {
-      if (dispatchWarehouses.value.length === 0) {
-        try {
-          let warehouses = []
-          
-          try {
-            warehouses = await store.dispatch('getDispatchWarehouses')
-          } catch (error) {
-            const allWarehouses = store.state.warehouses || []
-            warehouses = allWarehouses.filter(w => 
-              w.type === 'dispatch' || w.is_dispatch
-            )
-          }
-          
-          if (warehouses && warehouses.length > 0) {
-            dispatchWarehouses.value = warehouses
-          }
-        } catch (error) {
-          console.error('❌ Error loading dispatch warehouses:', error)
-        }
-      }
     }
 
     // Watch for modal opening
@@ -843,8 +1072,6 @@ export default {
           form.sourceWarehouse = preSelectedItem.value.warehouse_id
           form.quantity = 1
         }
-        
-        loadDispatchWarehouses()
       }
     })
 
@@ -861,18 +1088,37 @@ export default {
       if (searchTimeout.value) {
         clearTimeout(searchTimeout.value)
       }
+      if (destinationSearchTimeout.value) {
+        clearTimeout(destinationSearchTimeout.value)
+      }
     })
 
     // Submit button disabled state
     const isSubmitDisabled = computed(() => {
       if (loading.value) return true
-      if (!currentItem.value || !form.destinationBranch || form.quantity <= 0) {
+      if (!currentItem.value || !form.destinationWarehouse || form.quantity <= 0) {
         return true
       }
+      
+      // Destination type specific validation
+      if (form.destinationType === 'branch' && !form.destinationBranch) {
+        return true
+      }
+      if (form.destinationType === 'other' && !form.otherDestination?.trim()) {
+        return true
+      }
+      
       const available = currentItem.value.remaining_quantity || currentItem.value.quantity || 0
       if (form.quantity > available) {
         return true
       }
+      
+      // Check source and destination are different
+      const sourceWarehouse = form.sourceWarehouse || currentItem.value.warehouse_id
+      if (sourceWarehouse === form.destinationWarehouse) {
+        return true
+      }
+      
       if (!isSuperadmin.value && !canPerformDispatch.value) {
         return true
       }
@@ -897,34 +1143,39 @@ export default {
       preSelectedItem,
       currentItem,
       searchTerm,
+      destinationSearchTerm,
       isSearching,
       searchResults,
       
       // Data
-      dispatchWarehouses,
       priorityOptions,
       
       // Computed properties
       userProfile,
       warehouses,
+      branches,
       isSuperadmin,
-      dispatchDestinations,
       accessibleSourceWarehouses,
+      accessibleDestinationWarehouses,
+      filteredDestinationWarehouses,
       canViewDispatch,
       canPerformDispatch,
       
       // Methods
       selectItem,
+      selectDestinationWarehouse,
       clearSelection,
-      onWarehouseChange,
+      onSourceWarehouseChange,
       increaseQuantity,
       decreaseQuantity,
       setMaxQuantity,
       updateQuantity,
       getWarehouseName,
-      getDestinationName,
+      getBranchName,
+      getBranchAddress,
       getStockClass,
       handleSearch,
+      handleDestinationSearch,
       handleSubmit,
       
       // Computed for submit button
