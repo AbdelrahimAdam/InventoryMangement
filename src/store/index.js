@@ -1808,9 +1808,9 @@ async searchLocalSpark({ state }, {
 
   console.log(`📍 SPARK Local search found ${matches.length} matches`);
 
-  // Ensure complete fields for all matches
+  // FIXED: Ensure complete fields for all matches
   const completeMatches = matches.map(item => {
-    return createCompleteItem(item);
+    return ensureCompleteItemFields(item);
   });
 
   // Sort by relevance
@@ -1965,36 +1965,10 @@ async searchFirebaseSparkEnhanced({ state }, { query, warehouseId, limit }) {
         const data = doc.data();
         
         // CREATE COMPLETE ITEM WITH ALL FIELDS
-        const item = {
-          id: doc.id,
-          // Basic info
-          name: data.name || '',
-          code: data.code || '',
-          color: data.color || '',
-          warehouse_id: data.warehouse_id || '',
-          
-          // 🔴 CRITICAL: Detailed quantity fields
-          cartons_count: data.cartons_count || 0,
-          per_carton_count: data.per_carton_count || 12,
-          single_bottles_count: data.single_bottles_count || 0,
-          remaining_quantity: data.remaining_quantity || 0,
-          total_added: data.total_added || 0,
-          
-          // Additional fields
-          supplier: data.supplier || '',
-          item_location: data.item_location || '',
-          notes: data.notes || '',
-          barcode: data.barcode || '',
-          sku: data.sku || '',
-          category: data.category || '',
-          photo_url: data.photo_url || null,
-          
-          // User and timestamps
-          created_by: data.created_by || '',
-          updated_by: data.updated_by || '',
-          created_at: data.created_at || null,
-          updated_at: data.updated_at || null
-        };
+        const item = ensureCompleteItemFields({
+          ...data,
+          id: doc.id
+        });
 
         allItems.push(item);
       } catch (docError) {
