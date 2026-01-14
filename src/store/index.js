@@ -4306,8 +4306,8 @@ async setupRealtimeUpdatesForInventory({ commit, state, dispatch }) {
       }
     },
 
-   // ============================================
-// UPDATED: UPDATE ITEM ACTION (NO FULL INVENTORY RELOAD)
+// ============================================
+// UPDATED: UPDATE ITEM ACTION (WITH SERIALIZATION FIX)
 // ============================================
 async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
   commit('SET_OPERATION_LOADING', true);
@@ -4343,36 +4343,75 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
 
     // 🔴 CRITICAL: Wait for Firebase initialization
     console.log('⏳ Ensuring Firebase is ready for update...');
-    await ensureFirebaseReady();
-    console.log('✅ Firebase ready for update');
+    try {
+      await ensureFirebaseReady();
+      console.log('✅ Firebase ready for update');
+    } catch (firebaseError) {
+      console.error('❌ Firebase initialization failed:', firebaseError);
+      throw new Error('Firebase غير متوفر. يرجى المحاولة مرة أخرى.');
+    }
 
     if (!db) {
       throw new Error('Firestore database not available');
     }
 
+    // Import Firestore functions inside the action
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      doc,
+      getDoc,
+      updateDoc,
+      addDoc,
+      collection,
+      serverTimestamp,
+      Timestamp
+    } = firebaseFirestore;
+
     // ========== GET EXISTING ITEM ==========
     const itemRef = doc(db, 'items', itemId);
-    const itemDoc = await getDoc(itemRef);
+    let itemDoc;
+    let existingItem;
+    
+    try {
+      itemDoc = await getDoc(itemRef);
+      
+      if (!itemDoc.exists()) {
+        throw new Error('الصنف غير موجود');
+      }
 
-    if (!itemDoc.exists()) {
-      throw new Error('الصنف غير موجود');
+      existingItem = itemDoc.data();
+      
+      // 🔴 CRITICAL FIX: Convert Firestore Timestamps to plain objects
+      existingItem = JSON.parse(JSON.stringify(existingItem, (key, value) => {
+        if (value && typeof value === 'object' && value.toDate) {
+          // Convert Firestore Timestamp to ISO string
+          return value.toDate().toISOString();
+        }
+        if (value && typeof value === 'object' && value._seconds !== undefined && value._nanoseconds !== undefined) {
+          // Handle raw Firestore Timestamp object
+          return new Date(value._seconds * 1000).toISOString();
+        }
+        return value;
+      }));
+      
+      console.log('📋 Existing item data:', {
+        id: itemId,
+        name: existingItem.name,
+        code: existingItem.code,
+        cartons: existingItem.cartons_count,
+        singles: existingItem.single_bottles_count,
+        per_carton: existingItem.per_carton_count,
+        total: existingItem.remaining_quantity
+      });
+    } catch (docError) {
+      console.error('❌ Error getting item document:', docError);
+      throw new Error('فشل في تحميل بيانات الصنف');
     }
 
-    const existingItem = itemDoc.data();
-    console.log('📋 Existing item data:', {
-      id: itemId,
-      name: existingItem.name,
-      code: existingItem.code,
-      cartons: existingItem.cartons_count,
-      singles: existingItem.single_bottles_count,
-      per_carton: existingItem.per_carton_count,
-      total: existingItem.remaining_quantity
-    });
-
     // ========== CALCULATE NEW QUANTITIES ==========
-    const newCartonsCount = Number(itemData.cartons_count) || existingItem.cartons_count || 0;
-    const newPerCartonCount = Number(itemData.per_carton_count) || existingItem.per_carton_count || 12;
-    const newSingleBottlesCount = Number(itemData.single_bottles_count) || existingItem.single_bottles_count || 0;
+    const newCartonsCount = Number(itemData.cartons_count) || Number(existingItem.cartons_count) || 0;
+    const newPerCartonCount = Number(itemData.per_carton_count) || Number(existingItem.per_carton_count) || 12;
+    const newSingleBottlesCount = Number(itemData.single_bottles_count) || Number(existingItem.single_bottles_count) || 0;
     
     // 🔴 BUSINESS RULE: Convert single bottles to cartons if complete
     let finalCartonsCount = newCartonsCount;
@@ -4422,7 +4461,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       
       // 🔴 Only update total_added if quantity increased
       ...(quantityDiff > 0 && {
-        total_added: (existingItem.total_added || 0) + quantityDiff
+        total_added: (Number(existingItem.total_added) || 0) + quantityDiff
       }),
       
       // 🔴 OPTIONAL FIELDS
@@ -4431,7 +4470,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       notes: itemData.notes?.trim() || existingItem.notes || '',
       photo_url: itemData.photo_url || existingItem.photo_url || '',
       
-      // 🔴 TIMESTAMPS
+      // 🔴 TIMESTAMPS - Use Firestore serverTimestamp
       updated_at: serverTimestamp(),
       updated_by: state.user.uid
     };
@@ -4439,58 +4478,85 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
     console.log('💾 Update data for item:', updateData);
 
     // ========== UPDATE IN FIRESTORE ==========
-    await updateDoc(itemRef, updateData);
+    try {
+      await updateDoc(itemRef, updateData);
+      console.log('✅ Item updated in Firestore successfully');
+    } catch (updateError) {
+      console.error('❌ Error updating item in Firestore:', updateError);
+      throw new Error('فشل في تحديث الصنف في قاعدة البيانات');
+    }
 
     // ========== CREATE TRANSACTION IF QUANTITY CHANGED ==========
     if (quantityDiff !== 0 || existingItem.warehouse_id !== warehouseId) {
-      const transactionData = {
-        type: 'UPDATE',
-        item_id: itemId,
-        item_name: updateData.name,
-        item_code: updateData.code,
-        from_warehouse: existingItem.warehouse_id !== warehouseId ? existingItem.warehouse_id : null,
-        to_warehouse: warehouseId,
-        cartons_delta: finalCartonsCount - oldCartons,
-        per_carton_updated: newPerCartonCount,
-        single_delta: finalSingleBottlesCount - oldSingles,
-        total_delta: quantityDiff,
-        new_remaining: newTotalQuantity,
-        user_id: state.user.uid,
-        timestamp: serverTimestamp(),
-        notes: itemData.notes?.trim() || `تعديل الصنف${additionalCartonsFromSingles > 0 ? ` (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : ''}`,
-        created_by: state.userProfile?.name || state.user?.email || 'نظام'
-      };
+      try {
+        const transactionData = {
+          type: 'UPDATE',
+          item_id: itemId,
+          item_name: updateData.name,
+          item_code: updateData.code,
+          from_warehouse: existingItem.warehouse_id !== warehouseId ? existingItem.warehouse_id : null,
+          to_warehouse: warehouseId,
+          cartons_delta: finalCartonsCount - oldCartons,
+          per_carton_updated: newPerCartonCount,
+          single_delta: finalSingleBottlesCount - oldSingles,
+          total_delta: quantityDiff,
+          new_remaining: newTotalQuantity,
+          user_id: state.user.uid,
+          timestamp: serverTimestamp(),
+          notes: itemData.notes?.trim() || `تعديل الصنف${additionalCartonsFromSingles > 0 ? ` (تحويل ${additionalCartonsFromSingles} كرتون من القزاز الفردي)` : ''}`,
+          created_by: state.userProfile?.name || state.user?.email || 'نظام'
+        };
 
-      await addDoc(collection(db, 'transactions'), transactionData);
-      commit('ADD_RECENT_TRANSACTION', transactionData);
+        await addDoc(collection(db, 'transactions'), transactionData);
+        
+        // 🔴 FIX: Create a plain JavaScript object for Vuex
+        const transactionForVuex = {
+          ...transactionData,
+          id: `temp_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        
+        commit('ADD_RECENT_TRANSACTION', transactionForVuex);
+        console.log('✅ Transaction recorded successfully');
+      } catch (transactionError) {
+        console.warn('⚠️ Could not create transaction record:', transactionError);
+        // Don't fail the whole operation if transaction recording fails
+      }
     }
 
     // ========== CREATE ITEM HISTORY RECORD ==========
-    const itemHistoryData = {
-      item_id: itemId,
-      warehouse_id: warehouseId,
-      change_type: 'UPDATE',
-      old_quantity: oldTotalQuantity,
-      new_quantity: newTotalQuantity,
-      quantity_delta: quantityDiff,
-      user_id: state.user.uid,
-      timestamp: serverTimestamp(),
-      details: {
-        name: updateData.name,
-        code: updateData.code,
-        color: updateData.color,
-        old_cartons: oldCartons,
-        new_cartons: finalCartonsCount,
-        old_per_carton: oldPerCarton,
-        new_per_carton: newPerCartonCount,
-        old_single: oldSingles,
-        new_single: finalSingleBottlesCount,
-        single_bottles_converted_to_cartons: additionalCartonsFromSingles,
-        notes: itemData.notes
-      }
-    };
+    try {
+      const itemHistoryData = {
+        item_id: itemId,
+        warehouse_id: warehouseId,
+        change_type: 'UPDATE',
+        old_quantity: oldTotalQuantity,
+        new_quantity: newTotalQuantity,
+        quantity_delta: quantityDiff,
+        user_id: state.user.uid,
+        timestamp: serverTimestamp(),
+        details: {
+          name: updateData.name,
+          code: updateData.code,
+          color: updateData.color,
+          old_cartons: oldCartons,
+          new_cartons: finalCartonsCount,
+          old_per_carton: oldPerCarton,
+          new_per_carton: newPerCartonCount,
+          old_single: oldSingles,
+          new_single: finalSingleBottlesCount,
+          single_bottles_converted_to_cartons: additionalCartonsFromSingles,
+          notes: itemData.notes
+        }
+      };
 
-    await addDoc(collection(db, 'item_history'), itemHistoryData);
+      await addDoc(collection(db, 'item_history'), itemHistoryData);
+      console.log('✅ Item history recorded successfully');
+    } catch (historyError) {
+      console.warn('⚠️ Could not create item history:', historyError);
+      // Don't fail the whole operation if history recording fails
+    }
 
     // ========== UPDATE LOCAL STATE WITHOUT RELOADING INVENTORY ==========
     const updatedItem = {
@@ -4501,17 +4567,22 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       // Add updated fields
       ...updateData,
       // Ensure total_added is included
-      total_added: updateData.total_added !== undefined ? updateData.total_added : existingItem.total_added
+      total_added: updateData.total_added !== undefined ? updateData.total_added : Number(existingItem.total_added) || 0,
+      // Convert serverTimestamp to plain date
+      updated_at: new Date().toISOString()
     };
 
-    console.log('📤 Updated item for Vuex state:', {
-      ...updatedItem,
+    // 🔴 CRITICAL FIX: Remove any non-serializable properties
+    const cleanUpdatedItem = JSON.parse(JSON.stringify(updatedItem));
+
+    console.log('📤 Clean updated item for Vuex state:', {
+      ...cleanUpdatedItem,
       created_by: 'HIDDEN',
       updated_by: 'HIDDEN'
     });
 
     // 🔴 CRITICAL FIX: Update single item in Vuex state WITHOUT reloading all inventory
-    commit('UPDATE_INVENTORY_ITEM', updatedItem);
+    commit('UPDATE_INVENTORY_ITEM', cleanUpdatedItem);
 
     // 🔴 FIXED: Show success notification WITHOUT calling refreshInventorySilently
     let successMessage = `✅ تم تحديث الصنف "${updateData.name}" بنجاح`;
@@ -4531,7 +4602,7 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
       message: successMessage
     });
 
-    console.log('✅ Item updated successfully:', {
+    console.log('✅ Item update process completed successfully:', {
       id: itemId,
       name: updateData.name,
       cartons: finalCartonsCount,
@@ -4542,12 +4613,14 @@ async updateItem({ commit, state, dispatch }, { itemId, itemData }) {
 
     return { 
       success: true, 
-      item: updatedItem,
+      item: cleanUpdatedItem,
       message: 'تم تحديث الصنف بنجاح'
     };
 
   } catch (error) {
     console.error('❌ Error updating item:', error);
+    console.error('Error stack:', error.stack);
+    
     commit('SET_OPERATION_ERROR', error.message);
 
     dispatch('showNotification', {
