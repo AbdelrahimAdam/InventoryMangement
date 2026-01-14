@@ -1176,6 +1176,12 @@ export default {
     // UI Performance
     const lastUpdate = ref(Date.now());
     const isDataFresh = ref(false);
+
+    // ============================================
+    // CRITICAL: Optimize store refresh tracking
+    // ============================================
+    const lastStoreRefresh = ref(null);
+    const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between full refreshes
     
     // ============================================
     // STORE COMPUTED PROPERTIES
@@ -1235,9 +1241,42 @@ export default {
     const hasMore = computed(() => store.getters.hasMore);
     const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
     const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
-    
+
     // ============================================
-    // COMPUTED STATISTICS
+    // CRITICAL: Optimized refresh function
+    // ============================================
+    const shouldRefreshFromStore = () => {
+      if (!lastStoreRefresh.value) return true;
+      
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastStoreRefresh.value;
+      
+      // Only refresh if it's been more than 30 seconds
+      return timeSinceLastRefresh > MIN_REFRESH_INTERVAL;
+    };
+
+    // ============================================
+    // CRITICAL: Update single item in local state without store refresh
+    // ============================================
+    const updateSingleItemInLocalState = (updatedItem) => {
+      if (!updatedItem?.id) return;
+      
+      console.log('🔄 Updating single item in local state:', {
+        id: updatedItem.id,
+        name: updatedItem.name,
+        remaining_quantity: updatedItem.remaining_quantity
+      });
+      
+      // Update the Vuex state directly
+      store.commit('UPDATE_INVENTORY_ITEM', updatedItem);
+      
+      // Update last refresh time
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
+    };
+
+    // ============================================
+    // COMPUTED STATISTICS (Keep existing)
     // ============================================
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
@@ -1283,9 +1322,9 @@ export default {
     
     const showActions = computed(() => userRole.value !== 'viewer');
     const readonly = computed(() => userRole.value === 'viewer');
-    
+
     // ============================================
-    // VIRTUAL SCROLLING COMPUTED PROPERTIES
+    // VIRTUAL SCROLLING COMPUTED PROPERTIES (Keep existing)
     // ============================================
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
@@ -1298,9 +1337,9 @@ export default {
       const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
       return displayedItems.value.slice(start, end);
     });
-    
+
     // ============================================
-    // ENHANCED STORE SEARCH SYSTEM
+    // ENHANCED STORE SEARCH SYSTEM (Keep existing)
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
@@ -1355,9 +1394,9 @@ export default {
         await store.dispatch('clearSearch');
       }
     }, 500);
-    
+
     // ============================================
-    // FILTER HANDLERS
+    // FILTER HANDLERS (Keep existing)
     // ============================================
     const handleWarehouseChange = async () => {
       resetScrollPositions();
@@ -1406,9 +1445,9 @@ export default {
         mobileScrollContainer.value.scrollTop = 0;
       }
     };
-    
+
     // ============================================
-    // DATA LOADING METHODS
+    // DATA LOADING METHODS (Keep existing with optimization)
     // ============================================
     const loadInitialData = async () => {
       try {
@@ -1436,6 +1475,7 @@ export default {
         
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
+        lastStoreRefresh.value = Date.now(); // Track last full refresh
         
         await nextTick();
         resetScrollPositions();
@@ -1506,6 +1546,7 @@ export default {
         
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
+        lastStoreRefresh.value = Date.now();
         
         if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
           await handleLiveSearch();
@@ -1526,77 +1567,9 @@ export default {
         refreshing.value = false;
       }
     };
-    
+
     // ============================================
-    // CRITICAL: ENHANCED EXISTING ITEM CHECKER
-    // ============================================
-    const checkForExistingItem = async (itemData) => {
-      try {
-        const { name, code, color, warehouse_id } = itemData;
-        
-        if (!name || !code || !color || !warehouse_id) {
-          return null;
-        }
-        
-        console.log('🔍 Enhanced existing item check for:', {
-          name: name.trim(),
-          code: code.trim(),
-          color: color.trim(),
-          warehouse_id
-        });
-        
-        // Method 1: Check local inventory first
-        const cleanName = name.trim().toLowerCase();
-        const cleanCode = code.trim().toLowerCase();
-        const cleanColor = color.trim().toLowerCase();
-        
-        for (const item of allInventory.value) {
-          const itemName = item.name?.trim().toLowerCase() || '';
-          const itemCode = item.code?.trim().toLowerCase() || '';
-          const itemColor = item.color?.trim().toLowerCase() || '';
-          
-          if (itemName === cleanName && 
-              itemCode === cleanCode && 
-              itemColor === cleanColor && 
-              item.warehouse_id === warehouse_id) {
-            console.log('✅ Found in local inventory:', item);
-            return item;
-          }
-        }
-        
-        // Method 2: Use store search as backup
-        const searchResults = await store.dispatch('searchInventorySpark', {
-          searchQuery: code.trim(),
-          warehouseId: warehouse_id,
-          limit: 100,
-          strategy: 'exact'
-        });
-        
-        for (const item of searchResults) {
-          const itemName = item.name?.trim().toLowerCase() || '';
-          const itemCode = item.code?.trim().toLowerCase() || '';
-          const itemColor = item.color?.trim().toLowerCase() || '';
-          
-          if (itemName === cleanName && 
-              itemCode === cleanCode && 
-              itemColor === cleanColor && 
-              item.warehouse_id === warehouse_id) {
-            console.log('✅ Found via store search:', item);
-            return item;
-          }
-        }
-        
-        console.log('❌ No existing item found');
-        return null;
-        
-      } catch (error) {
-        console.error('Error checking existing item:', error);
-        return null;
-      }
-    };
-    
-    // ============================================
-    // ITEM ACTION HANDLERS WITH STORE INTEGRATION
+    // ITEM ACTION HANDLERS WITH STORE INTEGRATION (Keep existing)
     // ============================================
     const canEditItem = (item) => {
       if (userRole.value === 'superadmin') return true;
@@ -1727,136 +1700,232 @@ export default {
         deleteLoading.value = false;
       }
     };
-    
+
     // ============================================
-    // CRITICAL: UPDATED MODAL SUCCESS HANDLERS WITH STORE INTEGRATION
+    // CRITICAL: CORRECTED MODAL SUCCESS HANDLERS
     // ============================================
     const handleItemSaved = async (result) => {
       showAddModal.value = false;
       
-      console.log('✅ handleItemSaved called with result:', {
+      console.log('📦 Inventory: handleItemSaved called with result:', {
         type: result?.type,
-        id: result?.id,
-        cartonsAdded: result?.cartonsAdded,
-        convertedCartons: result?.convertedCartons,
-        newRemaining: result?.newRemaining
+        success: result?.success,
+        itemId: result?.itemId || result?.id,
+        itemName: result?.itemName,
+        message: result?.message,
+        hasItemData: !!result?.item,
+        fullResult: result
       });
       
-      // Show notification from result if available
-      if (result?.message) {
+      if (!result) {
+        console.error('❌ No result provided to handleItemSaved');
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ: لم يتم استلام نتيجة من عملية الإضافة'
+        });
+        return;
+      }
+      
+      // Show notification
+      if (result.message) {
         store.dispatch('showNotification', {
           type: 'success',
           message: result.message
         });
-      } else if (result?.type === 'updated') {
+      } else if (result.type === 'updated') {
         store.dispatch('showNotification', {
           type: 'success',
-          message: `✅ تم تحديث الصنف "${result.item?.name}" بنجاح`
+          message: `✅ تم تحديث الصنف "${result.itemName || 'غير معروف'}" بنجاح`
         });
-      } else if (result?.type === 'created') {
+      } else if (result.type === 'created') {
         store.dispatch('showNotification', {
           type: 'success',
-          message: `✅ تم إضافة الصنف الجديد "${result.item?.name}" بنجاح`
+          message: `✅ تم إضافة الصنف الجديد "${result.itemName || 'غير معروف'}" بنجاح`
         });
+      }
+      
+      // Handle different result types
+      if (result.type === 'updated') {
+        // For updates: EditItemModal already updated Vuex state
+        console.log('🔄 Item update processed by store, updating UI only');
+        
+        // If we have the item data, update local state
+        if (result.item && result.item.id) {
+          console.log('✅ Updating local state with item data');
+          updateSingleItemInLocalState(result.item);
+        }
+        
+      } else if (result.type === 'created') {
+        // For new items: AddItemModal called store.dispatch('addInventoryItem')
+        console.log('🆕 New item created, handling...');
+        
+        // OPTION 1: If the result contains the full item, add it directly
+        if (result.item && result.item.id) {
+          console.log('✅ Adding new item directly to local state:', {
+            id: result.item.id,
+            name: result.item.name,
+            warehouse_id: result.item.warehouse_id
+          });
+          
+          // Try to add to local Vuex state
+          try {
+            store.commit('ADD_INVENTORY_ITEM', result.item);
+            console.log('✅ Added to Vuex state via ADD_INVENTORY_ITEM mutation');
+          } catch (error) {
+            console.warn('⚠️ Could not add to Vuex state:', error);
+            // Fallback: Refresh from store
+            if (shouldRefreshFromStore()) {
+              console.log('🔄 Falling back to store refresh');
+              await store.dispatch('refreshInventorySilently');
+              lastStoreRefresh.value = Date.now();
+            }
+          }
+        } 
+        // OPTION 2: No item data, refresh from store with limits
+        else if (shouldRefreshFromStore()) {
+          console.log('🔄 Refreshing from store (new item, interval passed)');
+          await store.dispatch('refreshInventorySilently');
+          lastStoreRefresh.value = Date.now();
+        } else {
+          console.log('⏸️ Using cache for now, will refresh on next interval');
+          // Item will appear on next refresh
+        }
       }
       
       // Refresh search if active
       if (searchTerm.value.trim()) {
+        console.log('🔍 Refreshing search after item operation...');
         await handleLiveSearch();
       }
       
-      // Force refresh inventory data
-      await store.dispatch('refreshInventorySilently');
+      // Update UI timestamps
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
       
-      // Force UI update
-      await store.dispatch('loadAllInventory', { forceRefresh: false });
+      console.log('✅ handleItemSaved completed successfully');
     };
     
-    const handleItemUpdated = async (updatedItem) => {
+    const handleItemUpdated = async (result) => {
       try {
         showEditModal.value = false;
         selectedItemForEdit.value = null;
         
-        console.log('🔄 Updating item via store:', updatedItem);
-        
-        // Call the store's updateItem action
-        const result = await store.dispatch('updateItem', {
-          itemId: updatedItem.id,
-          itemData: {
-            name: updatedItem.name || '',
-            code: updatedItem.code || '',
-            color: updatedItem.color || '',
-            warehouse_id: updatedItem.warehouse_id || selectedWarehouse.value || '',
-            cartons_count: Number(updatedItem.cartons_count) || 0,
-            per_carton_count: Number(updatedItem.per_carton_count) || 12,
-            single_bottles_count: Number(updatedItem.single_bottles_count) || 0,
-            supplier: updatedItem.supplier || '',
-            item_location: updatedItem.item_location || '',
-            notes: updatedItem.notes || '',
-            photo_url: updatedItem.photo_url || null
-          }
+        console.log('✅ Inventory: handleItemUpdated called with result:', {
+          type: result?.type,
+          message: result?.message,
+          itemName: result?.itemName,
+          hasChangedFields: result?.changedFields?.length > 0
         });
         
-        console.log('✅ Item updated in store:', result);
+        // Show notification
+        if (result?.message) {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: result.message
+          });
+        } else {
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `✅ تم تحديث الصنف "${result?.itemName || 'غير معروف'}" بنجاح`
+          });
+        }
         
-        // Refresh search if active
+        // 🔴 CRITICAL: NO store calls needed here!
+        // The EditItemModal already called store.dispatch('updateItem')
+        // The store action already updated Vuex state via UPDATE_INVENTORY_ITEM
+        
+        // If we have item data, update local state
+        if (result?.item && result.item.id) {
+          console.log('✅ Updating local state with edited item');
+          updateSingleItemInLocalState(result.item);
+        }
+        
+        // Just update the UI timestamp
+        lastUpdate.value = Date.now();
+        isDataFresh.value = true;
+        
+        // Refresh search if active (this doesn't load all items)
         if (searchTerm.value.trim()) {
           await handleLiveSearch();
         }
-        
-        // Force silent refresh
-        await store.dispatch('refreshInventorySilently');
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: `تم تحديث الصنف "${updatedItem.name}" بنجاح!`
-        });
         
       } catch (error) {
         console.error('❌ Error in handleItemUpdated:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في تحديث الصنف'
+          message: 'خطأ في معالجة تحديث الصنف'
         });
       }
     };
     
-    const handleTransferSuccess = async () => {
+    const handleTransferSuccess = async (result) => {
       showTransferModal.value = false;
       selectedItemForTransfer.value = null;
       
+      console.log('✅ handleTransferSuccess called with result:', result);
+      
+      if (result?.message) {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: result.message
+        });
+      } else {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم النقل بين المخازن بنجاح!'
+        });
+      }
+      
+      // 🔴 CRITICAL: Only refresh if needed
+      if (shouldRefreshFromStore()) {
+        await store.dispatch('refreshInventorySilently');
+        lastStoreRefresh.value = Date.now();
+      }
+      
       if (searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
-      // Force silent refresh
-      await store.dispatch('refreshInventorySilently');
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم النقل بين المخازن بنجاح!'
-      });
+      // Update UI
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
     };
     
-    const handleDispatchSuccess = async () => {
+    const handleDispatchSuccess = async (result) => {
       showDispatchModal.value = false;
       selectedItemForDispatch.value = null;
       
+      console.log('✅ handleDispatchSuccess called with result:', result);
+      
+      if (result?.message) {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: result.message
+        });
+      } else {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم الصرف الخارجي بنجاح!'
+        });
+      }
+      
+      // 🔴 CRITICAL: Only refresh if needed
+      if (shouldRefreshFromStore()) {
+        await store.dispatch('refreshInventorySilently');
+        lastStoreRefresh.value = Date.now();
+      }
+      
       if (searchTerm.value.trim()) {
         await handleLiveSearch();
       }
       
-      // Force silent refresh
-      await store.dispatch('refreshInventorySilently');
-      
-      store.dispatch('showNotification', {
-        type: 'success',
-        message: 'تم الصرف الخارجي بنجاح!'
-      });
+      // Update UI
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
     };
-    
+
     // ============================================
-    // HELPER FUNCTIONS
+    // HELPER FUNCTIONS (Keep existing)
     // ============================================
     const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num || 0);
     
@@ -1973,16 +2042,16 @@ export default {
     };
     
     const getPlaceholderImage = () => {
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwM00vc3ZnIj4KPHBhdGggZD0iTTQgMTZMNC42ODYgMTUuMzE0QzQuODgyIDExLjUwNyA4LjA5MyA5IDEyIDlDMTUuOTA3IDkgMTkuMTE4IDExLjUwNyAxOS4zMTQgMTUuMzE0TDIwIDE2TTggMjFIMTZNNSAxNEgxOU0xMiAxN0MxMiAxNy41NTIyOCAxMS41NTIzIDE4IDExIDE4QzEwLjQ0NzcgMTggMTAgMTcuNTUyMyAxMCAxN0MxMCAxNi40NDc3IDEwLjQ0NzcgMTYgMTEgMTZDMTEuNTUyMyAxNiAxMiAxNi40NDc3IDEyIDE3WiIgc3Ryb2tlPSI2QjcyOEQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
     };
     
     const handleImageError = (event) => {
       event.target.src = getPlaceholderImage();
       event.target.onerror = null;
     };
-    
+
     // ============================================
-    // EXCEL EXPORT
+    // EXCEL EXPORT (Keep existing)
     // ============================================
     const exportToExcel = async () => {
       if (displayedItems.value.length === 0) {
@@ -2095,9 +2164,9 @@ export default {
         exportProgress.value = '';
       }
     };
-    
+
     // ============================================
-    // VIRTUAL SCROLLING METHODS
+    // VIRTUAL SCROLLING METHODS (Keep existing)
     // ============================================
     const calculateVisibleItems = () => {
       if (!scrollContainer.value) return;
@@ -2244,9 +2313,9 @@ export default {
         scrollThrottle.value = null;
       });
     };
-    
+
     // ============================================
-    // WATCHERS
+    // WATCHERS (Keep existing)
     // ============================================
     watch(inventoryLoading, (newVal) => {
       if (!newVal && inventoryLoaded.value) {
@@ -2294,12 +2363,12 @@ export default {
         selectedWarehouse.value = newWarehouseId;
       }
     });
-    
+
     // ============================================
-    // LIFECYCLE HOOKS
+    // LIFECYCLE HOOKS (Keep existing)
     // ============================================
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted with FULL STORE COMPLIANCE');
+      console.log('📱 Inventory Production mounted with OPTIMIZED STORE COMPLIANCE');
       
       const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
@@ -2333,7 +2402,7 @@ export default {
       handleLiveSearch.cancel();
       store.dispatch('clearSearch');
     });
-    
+
     // ============================================
     // RETURN ALL REACTIVE VALUES AND METHODS
     // ============================================
@@ -2449,7 +2518,8 @@ export default {
       handleDispatchSuccess,
       
       // Helper functions
-      checkForExistingItem,
+      formatNumber,
+      getWarehouseLabel,
       
       // Virtual scrolling
       onScroll,
