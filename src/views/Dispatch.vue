@@ -1178,8 +1178,8 @@
               <div 
                 v-for="item in displayedAvailableItems" 
                 :key="item.id"
+                @click="selectItemForQuickDispatch(item)"  <!-- ADDED THIS -->
                 class="p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98 h-full"
-                @click="selectItemForDispatch(item)"
               >
                 <div class="flex flex-col h-full">
                   <!-- Item Header -->
@@ -1196,9 +1196,9 @@
                     
                     <!-- Item Details -->
                     <div class="space-y-2">
-                      <!-- FIXED: Quantity display in RED -->
+                      <!-- FIXED: Quantity display in GREEN -->
                       <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded whitespace-nowrap">
+                        <span class="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded whitespace-nowrap">
                           {{ formatNumber(item.remaining_quantity || item.quantity || 0) }} متبقي
                         </span>
                         <span v-if="item.color" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
@@ -2516,7 +2516,9 @@ export default {
     // ============================================
     // SECTION 9: UPDATED DISPATCH ACTIONS WITH STORE
     // ============================================
-    const selectItemForDispatch = (item) => {
+    
+    // ✅ ADDED: Quick Dispatch Function
+    const selectItemForQuickDispatch = (item) => {
       if (!canPerformDispatch.value) {
         store.dispatch('showNotification', {
           type: 'error',
@@ -2524,7 +2526,19 @@ export default {
         });
         return;
       }
+      
+      // Set the selected item
       selectedItemForDispatch.value = item;
+      
+      // Log for debugging
+      console.log('Item selected for quick dispatch:', {
+        id: item.id,
+        name: item.name,
+        warehouse: item.warehouse_id,
+        quantity: item.remaining_quantity
+      });
+      
+      // Show the modal
       showDispatchModal.value = true;
     };
     
@@ -2535,128 +2549,37 @@ export default {
       searchTerm.value = '';
     };
     
+    // ✅ UPDATED: Handle Modal Close Function
     const handleModalClose = () => {
       showDispatchModal.value = false;
-      selectedItemForDispatch.value = null;
+      selectedItemForDispatch.value = null;  // Reset the selected item
     };
     
+    // ✅ UPDATED: Handle Dispatch Success Function
     const handleDispatchSuccess = async (dispatchData) => {
       try {
-        console.log('🚀 Starting dispatch from page with data:', dispatchData);
-        console.log('📋 Complete dispatch data received:', dispatchData);
+        console.log('🚀 Dispatch success from modal:', dispatchData);
         
-        // ✅ FIXED: Check for all possible field names
-        // Get item ID from multiple possible fields
-        const itemId = dispatchData.item_id || dispatchData.id;
-        if (!itemId) {
-          console.error('Missing item_id/id. Data:', dispatchData);
-          throw new Error('معرف الصنف (item_id أو id) مفقود');
-        }
+        // Close the modal
+        showDispatchModal.value = false;
+        selectedItemForDispatch.value = null;
         
-        // Get from warehouse ID from multiple possible fields
-        const fromWarehouseId = dispatchData.from_warehouse_id || dispatchData.sourceWarehouse;
-        if (!fromWarehouseId) {
-          console.error('Missing from_warehouse_id/sourceWarehouse. Data:', dispatchData);
-          throw new Error('المخزن المصدر (from_warehouse_id أو sourceWarehouse) مفقود');
-        }
-        
-        // Get destination from multiple possible fields
-        let destination = dispatchData.destination;
-        if (!destination) {
-          destination = getDestinationLabel(dispatchData.destination_id) || 
-                       getDestinationLabel(dispatchData.destinationBranch) ||
-                       'موقع صرف';
-        }
-        
-        const destinationId = dispatchData.destination_id || dispatchData.destinationBranch || 'external';
-        
-        // Get additional required data
-        const itemName = dispatchData.item_name || selectedItemForDispatch.value?.name || 'صنف غير محدد';
-        const itemCode = dispatchData.item_code || selectedItemForDispatch.value?.code || '';
-        const fromWarehouseName = dispatchData.from_warehouse_name || getWarehouseLabel(fromWarehouseId);
-        
-        // Validate required fields
-        const missingFields = [];
-        if (!itemId) missingFields.push('item_id أو id');
-        if (!fromWarehouseId) missingFields.push('from_warehouse_id أو sourceWarehouse');
-        if (!destination) missingFields.push('destination أو destination_id أو destinationBranch');
-        
-        if (missingFields.length > 0) {
-          console.error('❌ Missing required fields:', missingFields);
-          console.error('Received data:', dispatchData);
-          throw new Error(`بيانات الصرف غير مكتملة. الحقول المفقودة: ${missingFields.join('، ')}`);
-        }
-
-        // Prepare dispatch payload EXACTLY as store expects
-        const dispatchPayload = {
-          // REQUIRED FIELDS (must match store validation)
-          item_id: itemId,
-          from_warehouse_id: fromWarehouseId,
-          destination: destination,
-          
-          // Detailed quantities (match store field names)
-          cartons_count: dispatchData.cartons_count || 0,
-          single_bottles_count: dispatchData.single_bottles_count || 0,
-          per_carton_count: dispatchData.per_carton_count || 12,
-          quantity: dispatchData.quantity || 0,
-          
-          // Additional data (match store field names)
-          item_name: itemName,
-          item_code: itemCode,
-          from_warehouse_name: fromWarehouseName,
-          destination_id: destinationId,
-          notes: dispatchData.notes || 'صرف من خلال نظام الصرف',
-          priority: dispatchData.priority || 'normal'
-        };
-
-        console.log('📤 Sending to store dispatchItem with payload:', dispatchPayload);
-        
-        // Call store dispatch action with properly formatted payload
-        const result = await store.dispatch('dispatchItem', dispatchPayload);
-
-        if (result?.success) {
-          console.log('✅ Dispatch successful:', result);
-          
-          showDispatchModal.value = false;
-          selectedItemForDispatch.value = null;
-          currentHistoryPage.value = 1;
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            title: 'تم الصرف بنجاح',
-            message: result.message || `تم صرف ${result.detailedUpdate?.remaining_quantity || 0} وحدة بنجاح`
-          });
-          
-          // ✅ NEW: Refresh transactions from store (includes dispatch history)
-          await store.dispatch('fetchTransactions');
-          
-          return result;
-        } else {
-          const errorMsg = result?.message || result?.error || 'فشل في عملية الصرف';
-          throw new Error(errorMsg);
-        }
-        
-      } catch (error) {
-        console.error('❌ Error in dispatch:', error);
-        console.error('Error details:', error.stack);
-        
-        // Show detailed error message
-        let errorMessage = error.message || 'حدث خطأ في عملية الصرف';
-        
-        // Add more context for common errors
-        if (error.message.includes('بيانات الصرف غير مكتملة')) {
-          errorMessage += ' - يرجى التحقق من بيانات الصرف المطلوبة';
-        } else if (error.message.includes('ليس لديك صلاحية')) {
-          errorMessage += ' - يرجى التحقق من صلاحيات المستخدم';
-        }
-        
+        // Show success notification
         store.dispatch('showNotification', {
-          type: 'error',
-          title: 'فشل الصرف',
-          message: errorMessage
+          type: 'success',
+          title: 'تم الصرف بنجاح',
+          message: dispatchData.message || `تم صرف ${dispatchData.quantity} وحدة بنجاح`
         });
         
-        throw error; // Re-throw to let component handle it if needed
+        // Refresh data
+        await store.dispatch('fetchTransactions');
+        await store.dispatch('fetchInventory');
+        
+        // Reset to first page
+        currentHistoryPage.value = 1;
+        
+      } catch (error) {
+        console.error('Error in dispatch success:', error);
       }
     };
     
@@ -4136,7 +4059,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getInvoiceStatusClass,
       
       // Original dispatch actions
-      selectItemForDispatch,
+      selectItemForQuickDispatch,  // ✅ ADDED
       updateAvailableItems,
       handleModalClose,
       handleDispatchSuccess,
