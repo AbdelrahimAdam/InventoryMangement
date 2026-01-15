@@ -207,7 +207,7 @@
                 :key="warehouse.id" 
                 :value="warehouse.id"
               >
-                {{ warehouse.name_ar || warehouse.name }}
+                {{ getWarehouseArabicName(warehouse.id, warehouse) }}
               </option>
             </select>
           </div>
@@ -278,7 +278,7 @@
               @click="warehouseFilter = ''"
               class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300"
             >
-              مخزن: {{ getWarehouseName(warehouseFilter) }}
+              مخزن: {{ getWarehouseArabicName(warehouseFilter) }}
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
               </svg>
@@ -417,13 +417,13 @@
                     <svg class="w-4 h-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                     </svg>
-                    <span>{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
                   </div>
                   <div class="flex items-center text-sm">
                     <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                     </svg>
-                    <span>{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                   </div>
                 </div>
                 <div v-else-if="transaction.type === 'DISPATCH'" class="space-y-1">
@@ -431,21 +431,22 @@
                     <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                     </svg>
-                    <span>{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
                   </div>
                   <div v-if="transaction.destination" class="flex items-center text-sm text-blue-600 dark:text-blue-400">
                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <span>{{ getDestinationLabel(transaction.destination) }}</span>
+                    <!-- FIXED: Get Arabic destination name -->
+                    <span>{{ getDestinationArabicName(transaction.destination) }}</span>
                   </div>
                 </div>
                 <div v-else class="flex items-center text-sm">
                   <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                   </svg>
-                  <span>{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                  <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                 </div>
               </div>
 
@@ -553,13 +554,15 @@
                         <svg class="w-4 h-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                         </svg>
-                        <span>{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                        <!-- FIXED: Use Arabic warehouse name -->
+                        <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
                       </div>
                       <div class="flex items-center text-sm">
                         <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                         </svg>
-                        <span>{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                        <!-- FIXED: Use Arabic warehouse name -->
+                        <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                       </div>
                     </div>
                     <div v-else-if="transaction.type === 'DISPATCH'" class="space-y-1">
@@ -567,21 +570,24 @@
                         <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                         </svg>
-                        <span>{{ getWarehouseName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                        <!-- FIXED: Use Arabic warehouse name -->
+                        <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
                       </div>
                       <div v-if="transaction.destination" class="flex items-center text-sm text-blue-600 dark:text-blue-400">
                         <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span>{{ getDestinationLabel(transaction.destination) }}</span>
+                        <!-- FIXED: Get Arabic destination name -->
+                        <span>{{ getDestinationArabicName(transaction.destination) }}</span>
                       </div>
                     </div>
                     <div v-else class="flex items-center text-sm">
                       <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                       </svg>
-                      <span>{{ getWarehouseName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                      <!-- FIXED: Use Arabic warehouse name -->
+                      <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
                     </div>
                   </td>
 
@@ -769,6 +775,67 @@ export default {
       'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
     ];
 
+    // ============================================
+    // ENHANCED: ARABIC WAREHOUSE NAME FUNCTIONS
+    // ============================================
+    const getWarehouseArabicName = (warehouseId, warehouseData = null) => {
+      if (!warehouseId) return 'غير محدد';
+      
+      // Check if warehouseData is provided
+      if (warehouseData && warehouseData.name_ar) {
+        return warehouseData.name_ar;
+      }
+      
+      // Try to find warehouse in store
+      const warehouses = store.state.warehouses || [];
+      const foundWarehouse = warehouses.find(w => w.id === warehouseId);
+      if (foundWarehouse?.name_ar) {
+        return foundWarehouse.name_ar;
+      }
+      
+      // Custom mapping for known warehouses (same as in store)
+      const arabicNameMap = {
+        // Dispatch warehouses
+        'dubi_factory': 'مصنع دبي',
+        'external_wharehouse': 'صرف خارجي',
+        'external_warehouse': 'صرف خارجي',
+        'factory': 'مصنع البران',
+        'dispat_item': 'موقع صرف',
+        'dispatch_center': 'مركز الصرف',
+        'shipping_dock': 'رصيف الشحن',
+        
+        // Branch warehouses
+        'branch_1': 'الفرع الأول',
+        'branch_2': 'الفرع الثاني',
+        'branch_3': 'الفرع الثالث',
+        
+        // Regular warehouses
+        'warehouse_1': 'مستودع ١',
+        'warehouse_2': 'مستودع ٢',
+        'main_warehouse': 'المخزن الرئيسي',
+        'warehouse_main': 'المخزن الرئيسي',
+        
+        // Common warehouse IDs
+        'main': 'الرئيسي',
+        'primary': 'رئيسي',
+        'dispatch': 'صرف'
+      };
+      
+      return arabicNameMap[warehouseId] || warehouseId;
+    };
+
+    const getDestinationArabicName = (destinationId) => {
+      if (!destinationId) return '';
+      
+      // Special handling for dispatch destinations
+      if (destinationId === 'dispat_item' || destinationId === 'dispatch_center') {
+        return 'موقع صرف';
+      }
+      
+      // Use the same mapping as warehouses
+      return getWarehouseArabicName(destinationId);
+    };
+
     // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
@@ -814,15 +881,6 @@ export default {
         'staff': 'موظف'
       };
       return labels[role] || role || 'غير معروف';
-    };
-    
-    const getWarehouseName = (warehouseId) => {
-      if (!warehouseId) return 'غير محدد';
-      return store.getters.getWarehouseLabel(warehouseId);
-    };
-
-    const getDestinationLabel = (destinationId) => {
-      return store.getters.getDestinationLabel(destinationId) || destinationId;
     };
     
     // Helper function to get transaction quantity from various property names
@@ -979,7 +1037,7 @@ export default {
       }
     };
 
-    // Export transactions to Excel
+    // Export transactions to Excel with Arabic names
     const exportTransactions = () => {
       try {
         const wb = XLSX.utils.book_new();
@@ -996,9 +1054,9 @@ export default {
             'اسم المنتج': transaction.item_name || '',
             'كود المنتج': transaction.item_code || '',
             'الكمية': quantity,
-            'من مستودع': getWarehouseName(fromWarehouseId),
-            'إلى مستودع': getWarehouseName(toWarehouseId),
-            'الوجهة': transaction.destination ? getDestinationLabel(transaction.destination) : '',
+            'من مستودع': getWarehouseArabicName(fromWarehouseId),
+            'إلى مستودع': getWarehouseArabicName(toWarehouseId),
+            'الوجهة': transaction.destination ? getDestinationArabicName(transaction.destination) : '',
             'المستخدم': transaction.created_by || transaction.user_name || '',
             'ملاحظات': transaction.notes || ''
           };
@@ -1133,8 +1191,8 @@ export default {
       getTypeBadgeClass,
       getQuantityClass,
       getUserRoleLabel,
-      getWarehouseName,
-      getDestinationLabel,
+      getWarehouseArabicName,
+      getDestinationArabicName,
       formatTransactionDate,
       formatTransactionTime,
       formatDateRange,
