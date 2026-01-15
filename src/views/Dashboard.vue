@@ -366,17 +366,17 @@
 
       <!-- Recent Items & Transactions Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Recent Items - WITH LOAD MORE -->
+        <!-- Recent Items - LIMITED TO 8 ITEMS -->
         <div class="lg:col-span-2">
           <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث الأصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-xs px-2 py-1 rounded-full" :class="recentItemsStatusClass">
-                  {{ displayedItems.length }} من {{ recentItems.length }} صنف
+                  {{ recentItemsCount }} صنف
                 </span>
               </div>
             </div>
@@ -386,9 +386,9 @@
               <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الأصناف...</p>
             </div>
 
-            <div v-else-if="displayedItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-else-if="recentItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div 
-                v-for="item in displayedItems" 
+                v-for="item in recentItems" 
                 :key="item.id"
                 class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer fade-in"
                 @click="openItemModal(item)"
@@ -443,35 +443,13 @@
 
             <div v-else class="text-center py-8">
               <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586m0 0L18 18m-2-2l2.586-2.586M4 13h2.586m0 0L6 10.414M8.586 13 6 15.586"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
               <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
 
-            <!-- LOAD MORE BUTTON -->
-            <div v-if="hasMoreItemsToLoad" class="mt-6 text-center">
-              <button
-                @click="loadMoreItems"
-                :disabled="loadingMore || storePagination.isFetching"
-                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <svg v-if="loadingMore || storePagination.isFetching" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span v-else>📥 تحميل المزيد</span>
-              </button>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                عرض {{ displayedItems.length }} من {{ recentItems.length }} صنف
-                <span v-if="storePagination.hasMore"> • {{ storePagination.totalLoaded }} محملة</span>
-              </p>
-            </div>
-
-            <div v-if="loadingMore" class="mt-6 text-center">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">جاري تحميل المزيد...</p>
-            </div>
+            <!-- No Load More Button - Limited to 8 items for performance -->
           </div>
         </div>
 
@@ -1018,17 +996,12 @@ export default {
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
     const modalLoading = ref(false);
-    const loadingMore = ref(false);
     
     // UI state
     const selectedWarehouse = ref('all');
     const currentTime = ref('');
     const currentDate = ref('');
     const lastUpdated = ref(new Date());
-    
-    // Pagination state
-    const itemsPerPage = ref(8);
-    const displayedItemCount = ref(8);
     
     // Modal state
     const showItemModal = ref(false);
@@ -1059,71 +1032,22 @@ export default {
       }
     });
 
-    // Use Vuex inventory getter directly - FIXED: Add null check
+    // Use Vuex inventory getter directly
     const inventoryItems = computed(() => {
-      try {
-        return store.getters.inventoryItems || [];
-      } catch {
-        return [];
-      }
+      return store.getters.inventoryItems || [];
     });
 
-    // Get store pagination state
-    const storePagination = computed(() => {
-      return store.state.pagination || {
-        hasMore: false,
-        isFetching: false,
-        totalLoaded: 0
-      };
-    });
-
-    // Has more items from store
-    const hasMoreInventory = computed(() => {
-      return store.getters.hasMore || false;
-    });
-
-    // Recent inventory items for dashboard (filtered by warehouse)
+    // Limited inventory items for dashboard (only recent ones from Vuex store)
     const recentInventoryItems = computed(() => {
       const inventory = inventoryItems.value;
-      
-      // FIXED: Ensure inventory is an array before filtering
-      if (!Array.isArray(inventory)) {
-        return [];
-      }
-      
-      // Filter by warehouse if selected
-      let filteredItems = inventory;
-      if (selectedWarehouse.value !== 'all') {
-        filteredItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.value);
-      }
-      
-      // Sort by creation date
-      return [...filteredItems]
+      // Sort by creation date and take only 20 items for dashboard
+      return [...inventory]
         .sort((a, b) => {
           const dateA = new Date(a.created_at || a.updated_at || 0);
           const dateB = new Date(b.created_at || b.updated_at || 0);
           return dateB - dateA;
-        });
-    });
-
-    // Displayed items (limited by pagination)
-    const displayedItems = computed(() => {
-      return recentInventoryItems.value.slice(0, displayedItemCount.value);
-    });
-
-    // Check if we have more items to load from store
-    const hasMoreItemsToLoad = computed(() => {
-      return storePagination.value.hasMore || displayedItemCount.value < recentInventoryItems.value.length;
-    });
-
-    // Recent items count
-    const recentItemsCount = computed(() => recentInventoryItems.value.length);
-    
-    const recentItemsStatusClass = computed(() => {
-      const count = recentItemsCount.value;
-      if (count === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
-      if (count < 4) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
-      return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+        })
+        .slice(0, 20);
     });
 
     // Use Vuex transactions getter directly
@@ -1191,17 +1115,6 @@ export default {
 
       const inventory = inventoryItems.value;
       
-      // FIXED: Ensure inventory is an array
-      if (!Array.isArray(inventory)) {
-        return {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          outOfStockItems: 0,
-          lastUpdated: new Date()
-        };
-      }
-      
       const stats = {
         totalItems: inventory.length,
         totalQuantity: inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
@@ -1226,15 +1139,34 @@ export default {
       return ((selectedStats.totalQuantity / allStats.totalQuantity) * 100).toFixed(1);
     });
 
+    // Recent items filtered by warehouse
+    const recentItems = computed(() => {
+      const items = recentInventoryItems.value;
+      
+      if (selectedWarehouse.value === 'all') {
+        return items.slice(0, 8); // Limit to 8 items for performance
+      }
+      
+      return items
+        .filter(item => item.warehouse_id === selectedWarehouse.value)
+        .slice(0, 8);
+    });
+
+    const recentItemsCount = computed(() => recentItems.value.length);
+    
+    const recentItemsStatusClass = computed(() => {
+      const count = recentItemsCount.value;
+      if (count === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
+      if (count < 4) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
+      return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+    });
+
     // Today's transactions from Vuex store
     const todayTransactionsCount = computed(() => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions)) return 0;
-      
-      return transactions.filter(transaction => {
+      return recentTransactions.value.filter(transaction => {
         if (!transaction.timestamp) return false;
         
         try {
@@ -1252,10 +1184,7 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions)) return 0;
-      
-      return transactions.filter(transaction => {
+      return recentTransactions.value.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'ADD') return false;
         
         try {
@@ -1272,10 +1201,7 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions)) return 0;
-      
-      return transactions.filter(transaction => {
+      return recentTransactions.value.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'TRANSFER') return false;
         
         try {
@@ -1292,10 +1218,7 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions)) return 0;
-      
-      return transactions.filter(transaction => {
+      return recentTransactions.value.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'DISPATCH') return false;
         
         try {
@@ -1309,13 +1232,12 @@ export default {
     });
 
     const lastTransactionTime = computed(() => {
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions) || transactions.length === 0) return 'لا توجد حركات';
+      if (recentTransactions.value.length === 0) return 'لا توجد حركات';
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const todayTransactions = transactions.filter(transaction => {
+      const todayTransactions = recentTransactions.value.filter(transaction => {
         if (!transaction.timestamp) return false;
         
         try {
@@ -1334,16 +1256,13 @@ export default {
     });
 
     const lastActivityTime = computed(() => {
-      const transactions = recentTransactions.value;
-      if (!Array.isArray(transactions) || transactions.length === 0) return 'لا يوجد نشاط';
-      return formatRelativeTime(transactions[0]?.timestamp);
+      if (recentTransactions.value.length === 0) return 'لا يوجد نشاط';
+      return formatRelativeTime(recentTransactions.value[0]?.timestamp);
     });
 
     // Calculate cartons and singles from Vuex store data
     const totalCartons = computed(() => {
-      const items = displayedItems.value;
-      if (!Array.isArray(items)) return 0;
-      
+      const items = recentInventoryItems.value;
       return items.reduce((sum, item) => {
         const cartons = item.cartons_count || 0;
         const perCarton = item.per_carton_count || 12;
@@ -1352,9 +1271,7 @@ export default {
     });
 
     const totalSingles = computed(() => {
-      const items = displayedItems.value;
-      if (!Array.isArray(items)) return 0;
-      
+      const items = recentInventoryItems.value;
       return items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
     });
 
@@ -1496,19 +1413,6 @@ export default {
       try {
         // Use Vuex getter to calculate stats from store data
         const inventory = inventoryItems.value;
-        // FIXED: Ensure inventory is an array
-        if (!Array.isArray(inventory)) {
-          const stats = {
-            totalItems: 0,
-            totalQuantity: 0,
-            lowStockItems: 0,
-            outOfStockItems: 0,
-            lastUpdated: new Date()
-          };
-          warehouseStatsCache.value[warehouseId] = stats;
-          return stats;
-        }
-        
         const filteredItems = warehouseId === 'all' 
           ? inventory 
           : inventory.filter(item => item.warehouse_id === warehouseId);
@@ -1565,14 +1469,9 @@ export default {
       
       // Load item transactions from recent transactions (no additional Firebase read)
       try {
-        const transactions = recentTransactions.value;
-        if (Array.isArray(transactions)) {
-          itemTransactions.value = transactions
-            .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
-            .slice(0, 10);
-        } else {
-          itemTransactions.value = [];
-        }
+        itemTransactions.value = recentTransactions.value
+          .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
+          .slice(0, 10);
       } catch {
         itemTransactions.value = [];
       } finally {
@@ -1615,46 +1514,6 @@ export default {
         month: 'long',
         day: 'numeric'
       });
-    };
-
-    // ========== LOAD MORE FUNCTION ==========
-    
-    const loadMoreItems = async () => {
-      if (loadingMore.value || storePagination.value.isFetching) {
-        return;
-      }
-      
-      loadingMore.value = true;
-      try {
-        console.log('📥 Loading more items...');
-        
-        // Option 1: Load more from store if there are more items in Firestore
-        if (storePagination.value.hasMore) {
-          console.log('🔄 Loading more inventory from Firestore via store...');
-          const newItems = await store.dispatch('loadMoreInventory');
-          
-          if (newItems && newItems.length > 0) {
-            console.log(`✅ Loaded ${newItems.length} new items from Firestore`);
-          } else {
-            console.log('⚠️ No new items loaded from Firestore');
-          }
-        }
-        
-        // Option 2: Increase displayed items count for local pagination
-        displayedItemCount.value += itemsPerPage.value;
-        
-        console.log(`✅ Now showing ${displayedItemCount.value} items out of ${recentInventoryItems.value.length}`);
-        
-      } catch (error) {
-        console.error('❌ Error loading more items:', error);
-        // Show error notification
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل المزيد من الأصناف'
-        });
-      } finally {
-        loadingMore.value = false;
-      }
     };
 
     // ========== OPTIMIZED DASHBOARD LOADING ==========
@@ -1712,12 +1571,6 @@ export default {
           await router.push('/login');
           return;
         }
-        
-        // Show error notification
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل بيانات لوحة التحكم'
-        });
       } finally {
         initialLoading.value = false;
         loading.value = false;
@@ -1768,7 +1621,6 @@ export default {
     
     const refreshDashboard = async () => {
       loading.value = true;
-      displayedItemCount.value = itemsPerPage.value; // Reset pagination
       try {
         console.log('🔄 Refreshing dashboard from Vuex store...');
         
@@ -1793,10 +1645,6 @@ export default {
         
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحديث لوحة التحكم'
-        });
       } finally {
         loading.value = false;
       }
@@ -1804,7 +1652,6 @@ export default {
 
     const handleWarehouseChange = async () => {
       loading.value = true;
-      displayedItemCount.value = itemsPerPage.value; // Reset pagination
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
         
@@ -1866,7 +1713,6 @@ export default {
     watch(selectedWarehouse, async (newValue) => {
       if (!loading.value) {
         console.log('🏢 Warehouse filter changed to:', newValue);
-        displayedItemCount.value = itemsPerPage.value; // Reset pagination
         await loadDashboardStats(newValue);
         
         if (newValue === 'all') {
@@ -1884,16 +1730,10 @@ export default {
       statsLoading,
       warehouseStatsLoading,
       modalLoading,
-      loadingMore,
       selectedWarehouse,
       currentTime,
       currentDate,
       lastUpdated,
-      
-      // Pagination state
-      displayedItems,
-      hasMoreItemsToLoad,
-      storePagination,
       
       // Modal state
       showItemModal,
@@ -1911,6 +1751,7 @@ export default {
       userProfile,
       accessibleWarehouses,
       canModifyItems,
+      recentItems,
       recentItemsCount,
       recentItemsStatusClass,
       recentTransactions,
@@ -1952,13 +1793,11 @@ export default {
       
       // Actions
       refreshDashboard,
-      handleWarehouseChange,
-      loadMoreItems
+      handleWarehouseChange
     };
   }
 };
 </script>
-
 <style scoped>
 /* Custom animations */
 @keyframes fadeIn {
