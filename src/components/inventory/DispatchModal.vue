@@ -51,13 +51,14 @@
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
             <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">1</span>
             اختر المخزن المصدر
+            <span v-if="loadingWarehouses" class="text-xs text-gray-400 dark:text-gray-500 mr-2">(جاري التحميل...)</span>
           </h4>
           <select
             v-model="form.sourceWarehouse"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             @change="onWarehouseChange"
-            :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+            :disabled="loading || loadingWarehouses || (!isSuperadmin && !canViewDispatch)"
           >
             <option value="" class="text-gray-500 dark:text-gray-400">اختر المخزن المصدر</option>
             <option 
@@ -67,7 +68,7 @@
               :disabled="!isWarehouseAccessible(warehouse.id)"
               class="text-gray-900 dark:text-white"
             >
-              {{ warehouse.name_ar }}
+              {{ warehouse.name_ar || warehouse.name }}
               <span v-if="warehouse.is_main" class="text-yellow-600 dark:text-yellow-400 text-xs mr-1">⭐</span>
               <span v-if="!isWarehouseAccessible(warehouse.id) && !isSuperadmin" class="text-red-500 dark:text-red-400 text-xs">
                 (غير مسموح)
@@ -116,39 +117,68 @@
             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
               <span class="h-6 w-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center text-xs ml-2">2</span>
               اختر الوجهة
+              <span v-if="loadingWarehouses" class="text-xs text-gray-400 dark:text-gray-500 mr-2">
+                (جاري التحميل...)
+              </span>
             </h4>
             <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ dispatchDestinations.length }} موقع صرف
+              {{ dispatchDestinations.filter(d => !d.disabled).length }} موقع صرف
             </div>
           </div>
           
-          <div v-if="dispatchDestinations.length > 0" class="grid grid-cols-2 gap-2">
+          <!-- Loading State -->
+          <div v-if="loadingWarehouses" class="space-y-2">
+            <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-12 rounded-lg"></div>
+            <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-12 rounded-lg"></div>
+          </div>
+          
+          <!-- Destinations Grid -->
+          <div v-else-if="dispatchDestinations.length > 0" class="grid grid-cols-2 gap-2">
             <button
               v-for="destination in dispatchDestinations"
               :key="destination.id"
-              @click="form.destinationBranch = destination.id"
-              :disabled="loading || (!isSuperadmin && !canViewDispatch)"
+              @click="!destination.disabled && (form.destinationBranch = destination.id)"
+              :disabled="loading || destination.disabled || (!isSuperadmin && !canViewDispatch)"
               :class="[
-                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center',
+                'p-3 border rounded-lg text-sm transition-all duration-200 flex items-center justify-center relative',
                 form.destinationBranch === destination.id
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : destination.disabled
+                  ? 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
               ]"
             >
-              <span class="ml-2">{{ destination.icon }}</span>
-              {{ destination.name_ar }}
+              <span class="ml-2 text-lg">{{ destination.icon }}</span>
+              <div class="flex-1 text-right">
+                <div class="font-medium">{{ destination.name_ar }}</div>
+                <div v-if="destination.name && destination.name !== destination.id" 
+                     class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {{ destination.name }}
+                </div>
+              </div>
             </button>
           </div>
           
-          <!-- Empty state for destinations -->
+          <!-- Empty State -->
           <div v-else class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-center">
             <svg class="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3">لا توجد مواقع صرف</h4>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              لم يتم إضافة مواقع صرف بعد. يرجى إضافة مواقع صرف من صفحة إدارة المخازن.
+              لم يتم إضافة مواقع صرف بعد.
             </p>
+            <button 
+              @click="loadDispatchWarehouses"
+              class="mt-3 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              :disabled="loadingWarehouses"
+            >
+              <svg v-if="loadingWarehouses" class="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ loadingWarehouses ? 'جاري التحميل...' : 'إعادة تحميل' }}
+            </button>
           </div>
           
           <!-- Selected Destination Info -->
@@ -197,7 +227,7 @@
               @click="clearSearch"
               class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
@@ -232,7 +262,7 @@
                     <span v-if="item.color">{{ item.color }}</span>
                     <span v-if="item.supplier" class="text-gray-400 dark:text-gray-500">المورد: {{ item.supplier }}</span>
                     <span v-if="item.item_location || item.location" class="text-gray-400 dark:text-gray-500">مكان: {{ item.item_location || item.location }}</span>
-                    <span class="text-gray-400 dark:text-gray-500">المخزن: {{ item.warehouse_id }}</span>
+                    <span class="text-gray-400 dark:text-gray-500">المخزن: {{ getWarehouseName(item.warehouse_id) }}</span>
                   </div>
                   <!-- Detailed Quantity Info -->
                   <div v-if="item.per_carton_count && item.cartons_count !== undefined" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -493,7 +523,7 @@
           <button
             type="button"
             @click="closeModal"
-            :disabled="loading"
+            :disabled="loading || loadingWarehouses"
             class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50"
           >
             إغلاق
@@ -587,6 +617,7 @@ export default {
 
     // State
     const loading = ref(false)
+    const loadingWarehouses = ref(false)
     const error = ref('')
     const successMessage = ref('')
     const selectedItem = ref(null)
@@ -612,29 +643,165 @@ export default {
     const userProfile = computed(() => store.state.userProfile || {})
     const warehouses = computed(() => store.state.warehouses || [])
     const inventory = computed(() => store.state.inventory || [])
-    const branches = computed(() => store.state.branches || [])
     
     // Check if user is superadmin
     const isSuperadmin = computed(() => {
       return userProfile.value?.role === 'superadmin'
     })
 
-    // Compute dispatch destinations
-    const dispatchDestinations = computed(() => {
-      if (dispatchWarehouses.value.length > 0) {
-        return dispatchWarehouses.value.map(warehouse => ({
-          ...warehouse,
-          icon: '🏢'
-        }))
+    // ============================================
+    // ENHANCED: Dispatch Warehouses Loading with Store
+    // ============================================
+    const loadDispatchWarehouses = async () => {
+      try {
+        loadingWarehouses.value = true
+        console.log('🔄 Loading dispatch warehouses...')
+        
+        // OPTION 1: Use store action (RECOMMENDED)
+        if (store._actions.getDispatchWarehouses) {
+          console.log('📡 Loading from store action...')
+          const warehouses = await store.dispatch('getDispatchWarehouses')
+          
+          if (warehouses && warehouses.length > 0) {
+            // Ensure Arabic names are present
+            const mappedWarehouses = warehouses.map(warehouse => ({
+              ...warehouse,
+              name_ar: getDispatchWarehouseArabicName(warehouse.id, warehouse)
+            }))
+            
+            dispatchWarehouses.value = mappedWarehouses
+            console.log(`✅ Loaded ${mappedWarehouses.length} dispatch warehouses from store`)
+            return mappedWarehouses
+          }
+        }
+        
+        // OPTION 2: Fallback to local filtering (if store fails)
+        console.log('🔄 Falling back to local warehouse filtering...')
+        const allWarehouses = store.state.warehouses || []
+        
+        // Map dispatch warehouses with consistent Arabic names
+        const mappedWarehouses = allWarehouses
+          .filter(w => w.type === 'dispatch' || w.is_dispatch)
+          .map(warehouse => ({
+            ...warehouse,
+            // Ensure Arabic name exists
+            name_ar: getDispatchWarehouseArabicName(warehouse.id, warehouse)
+          }))
+        
+        dispatchWarehouses.value = mappedWarehouses
+        console.log(`✅ Filtered ${mappedWarehouses.length} dispatch warehouses locally`)
+        return mappedWarehouses
+        
+      } catch (error) {
+        console.error('❌ Error loading dispatch warehouses:', error)
+        
+        // OPTION 3: Last resort - hardcoded list
+        const fallbackWarehouses = getHardcodedDispatchWarehouses()
+        dispatchWarehouses.value = fallbackWarehouses
+        console.log(`✅ Using ${fallbackWarehouses.length} fallback dispatch warehouses`)
+        return fallbackWarehouses
+        
+      } finally {
+        loadingWarehouses.value = false
+      }
+    }
+
+    // Helper: Get Arabic name for dispatch warehouse
+    const getDispatchWarehouseArabicName = (warehouseId, warehouseData) => {
+      // Custom mapping for known dispatch warehouses
+      const arabicNameMap = {
+        'dubi_factory': 'مصنع دبي',
+        'external_wharehouse': 'صرف خارجي',
+        'external_warehouse': 'صرف خارجي',
+        'factory': 'مصنع البران',
+        'dispat_item': 'موقع صرف',
+        'dispatch_center': 'مركز الصرف',
+        'shipping_dock': 'رصيف الشحن',
+        'branch_1': 'الفرع الأول',
+        'branch_2': 'الفرع الثاني',
+        'branch_3': 'الفرع الثالث',
+        'warehouse_1': 'مستودع ١',
+        'warehouse_2': 'مستودع ٢'
       }
       
-      const allWarehouses = warehouses.value || []
-      return allWarehouses
-        .filter(w => w.type === 'dispatch' || w.is_dispatch)
-        .map(warehouse => ({
-          ...warehouse,
-          icon: '🏢'
-        }))
+      return arabicNameMap[warehouseId] || 
+             warehouseData?.name_ar || 
+             warehouseData?.name || 
+             warehouseId
+    }
+
+    // Helper: Hardcoded fallback
+    const getHardcodedDispatchWarehouses = () => {
+      return [
+        { 
+          id: 'dubi_factory', 
+          name_ar: 'مصنع دبي', 
+          name: 'Dubi Factory', 
+          type: 'dispatch', 
+          icon: '🏭' 
+        },
+        { 
+          id: 'external_wharehouse', 
+          name_ar: 'صرف خارجي', 
+          name: 'External Dispatch', 
+          type: 'dispatch', 
+          icon: '🚚' 
+        },
+        { 
+          id: 'factory', 
+          name_ar: 'مصنع البران', 
+          name: 'Al Buran Factory', 
+          type: 'dispatch', 
+          icon: '🏢' 
+        },
+        { 
+          id: 'dispat_item', 
+          name_ar: 'موقع صرف', 
+          name: 'Dispatch Site', 
+          type: 'dispatch', 
+          icon: '📍' 
+        }
+      ]
+    }
+
+    // Helper: Get icon based on warehouse
+    const getWarehouseIcon = (warehouseId) => {
+      const iconMap = {
+        'dubi_factory': '🏭',
+        'factory': '🏢',
+        'external_wharehouse': '🚚',
+        'external_warehouse': '🚚',
+        'dispat_item': '📍',
+        'dispatch_center': '🏢',
+        'shipping_dock': '🚢',
+        'branch_1': '🏪',
+        'branch_2': '🏪',
+        'branch_3': '🏪',
+        'warehouse_1': '🏭',
+        'warehouse_2': '🏭'
+      }
+      
+      return iconMap[warehouseId] || '🏢'
+    }
+
+    // Compute dispatch destinations
+    const dispatchDestinations = computed(() => {
+      // Show loading state
+      if (loadingWarehouses.value) {
+        return [{
+          id: 'loading',
+          name_ar: 'جاري تحميل مواقع الصرف...',
+          icon: '⏳',
+          disabled: true
+        }]
+      }
+      
+      // Return actual dispatch warehouses
+      return dispatchWarehouses.value.map(warehouse => ({
+        ...warehouse,
+        icon: getWarehouseIcon(warehouse.id),
+        disabled: false
+      }))
     })
 
     // Compute accessible source warehouses
@@ -643,7 +810,8 @@ export default {
         return warehouses.value.filter(w => w.type !== 'dispatch' && !w.is_dispatch)
       }
       
-      const userWarehouseIds = userProfile.value?.accessible_warehouses || []
+      const userWarehouseIds = userProfile.value?.accessible_warehouses || 
+                              userProfile.value?.allowed_warehouses || []
       return warehouses.value.filter(warehouse => 
         userWarehouseIds.includes(warehouse.id) && 
         warehouse.type !== 'dispatch' && 
@@ -653,8 +821,21 @@ export default {
 
     // Helper function to get warehouse name
     const getWarehouseName = (warehouseId) => {
+      if (!warehouseId) return ''
+      
+      // Check in regular warehouses
       const warehouse = warehouses.value.find(w => w.id === warehouseId)
-      return warehouse ? warehouse.name_ar : 'مخزن غير معروف'
+      if (warehouse) {
+        return warehouse.name_ar || warehouse.name || warehouseId
+      }
+      
+      // Check in dispatch warehouses
+      const dispatchWarehouse = dispatchWarehouses.value.find(w => w.id === warehouseId)
+      if (dispatchWarehouse) {
+        return dispatchWarehouse.name_ar || dispatchWarehouse.name || warehouseId
+      }
+      
+      return warehouseId
     }
 
     // Helper function to get destination name
@@ -663,10 +844,19 @@ export default {
       return destination ? destination.name_ar : 'وجهة غير معروفة'
     }
 
+    // Helper function to get warehouse type
+    const getWarehouseType = (warehouseId) => {
+      const warehouse = warehouses.value.find(w => w.id === warehouseId)
+      if (warehouse?.type === 'dispatch') return 'صرف'
+      if (warehouse?.type === 'primary') return 'رئيسي'
+      return warehouse?.type || ''
+    }
+
     // Helper function to check warehouse access
     const isWarehouseAccessible = (warehouseId) => {
       if (isSuperadmin.value) return true
-      const userWarehouseIds = userProfile.value?.accessible_warehouses || []
+      const userWarehouseIds = userProfile.value?.accessible_warehouses || 
+                              userProfile.value?.allowed_warehouses || []
       return userWarehouseIds.includes(warehouseId)
     }
 
@@ -685,6 +875,8 @@ export default {
 
     // Check if user can perform dispatch
     const canPerformDispatch = computed(() => {
+      if (!form.sourceWarehouse) return false
+      
       return isSuperadmin.value || 
              userProfile.value?.role === 'warehouse_manager' ||
              (userProfile.value?.role === 'company_manager' && 
@@ -719,40 +911,34 @@ export default {
       }
     }
 
-    // ============================================
-    // FIXED: calculateDetailedDispatch - Send both quantity AND detailed breakdown
-    // ============================================
+    // Calculate detailed dispatch breakdown
     const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
-      const perCarton = currentItem.per_carton_count || 12;
-      const currentCartons = currentItem.cartons_count || 0;
-      const currentSingles = currentItem.single_bottles_count || 0;
+      const perCarton = currentItem.per_carton_count || 12
+      const currentCartons = currentItem.cartons_count || 0
+      const currentSingles = currentItem.single_bottles_count || 0
       
-      // Calculate for both store requirements:
-      // 1. Send quantity (for store's primary validation)
-      // 2. Calculate detailed breakdown (for store's cartons/singles logic)
+      let dispatchCartons = 0
+      let dispatchSingles = 0
       
-      let dispatchCartons = 0;
-      let dispatchSingles = 0;
-      
-      // Logic from store: use singles first, then cartons
+      // Use single bottles first
       if (currentSingles > 0) {
-        dispatchSingles = Math.min(currentSingles, dispatchQuantity);
+        dispatchSingles = Math.min(currentSingles, dispatchQuantity)
       }
       
       // Calculate remaining after using singles
-      let remaining = dispatchQuantity - dispatchSingles;
+      let remaining = dispatchQuantity - dispatchSingles
       
       // Use whole cartons
       if (remaining > 0) {
-        const cartonsNeeded = Math.floor(remaining / perCarton);
-        dispatchCartons = Math.min(cartonsNeeded, currentCartons);
-        remaining -= (dispatchCartons * perCarton);
+        const cartonsNeeded = Math.floor(remaining / perCarton)
+        dispatchCartons = Math.min(cartonsNeeded, currentCartons)
+        remaining -= (dispatchCartons * perCarton)
       }
       
       // If still remaining, break a carton
       if (remaining > 0 && currentCartons > dispatchCartons) {
-        dispatchCartons += 1;
-        dispatchSingles += remaining;
+        dispatchCartons += 1
+        dispatchSingles += remaining
       }
       
       return {
@@ -760,7 +946,7 @@ export default {
         singles: dispatchSingles,
         perCarton: perCarton,
         totalQuantity: dispatchQuantity
-      };
+      }
     }
 
     // Search function
@@ -802,7 +988,8 @@ export default {
           'searchInventorySmart',
           'searchItemsForTransactions',
           'searchItems',
-          'searchInventoryLive'
+          'searchInventoryLive',
+          'searchInventorySpark'
         ]
         
         for (const actionName of searchActions) {
@@ -1033,9 +1220,7 @@ export default {
       form.quantity = maxQuantity
     }
 
-    // ============================================
-    // FIXED: handleSubmit - Send COMPLETE data to store
-    // ============================================
+    // Handle submit with store dispatch
     const handleSubmit = async () => {
       error.value = ''
       successMessage.value = ''
@@ -1074,7 +1259,7 @@ export default {
         return
       }
       
-      // 🔴 CRITICAL: Get all required data
+      // Get all required data
       const currentItemId = currentItem.id
       const currentItemName = currentItem.name || currentItem.item_name || 'بدون اسم'
       const currentItemCode = currentItem.code || currentItem.item_code || 'بدون كود'
@@ -1104,66 +1289,41 @@ export default {
       loading.value = true
 
       try {
-        // 🔴 FIXED: Prepare dispatch data EXACTLY as store expects
+        // Prepare dispatch data for store
         const dispatchData = {
-          // 🔴 REQUIRED: Essential identification
+          // Required identification
           item_id: currentItemId,
           from_warehouse_id: form.sourceWarehouse,
-          destination: 'dispat_item', // Fixed destination value
+          destination: 'dispat_item',
           destination_id: form.destinationBranch,
           
-          // 🔴 REQUIRED BY STORE: Quantity (primary field)
+          // Quantity fields
           quantity: totalToDispatch,
-          
-          // 🔴 REQUIRED BY STORE: Detailed quantities
           cartons_count: dispatchCartons,
           per_carton_count: perCarton,
           single_bottles_count: dispatchSingles,
           
-          // 🔴 REQUIRED: Item information
+          // Item information
           item_name: currentItemName,
           item_code: currentItemCode,
           color: currentItem.color || '',
           
-          // 🔴 REQUIRED: Warehouse information
+          // Warehouse information
           from_warehouse_name: getWarehouseName(form.sourceWarehouse),
           
-          // 🔴 OPTIONAL: Additional info
+          // Optional info
           notes: form.notes || `صرف إلى ${getDestinationName(form.destinationBranch)}`,
           priority: form.priority,
           supplier: currentItem.supplier || '',
-          item_location: currentItem.item_location || currentItem.location || '',
-          
-          // 🔴 Current state for reference
-          current_cartons: currentCartons,
-          current_singles: currentSingles,
-          current_total: availableQuantity,
-          current_per_carton: currentPerCarton
+          item_location: currentItem.item_location || currentItem.location || ''
         }
         
-        console.log('📤 Sending to store dispatchItem with payload:', {
-          item_id: dispatchData.item_id,
-          from_warehouse_id: dispatchData.from_warehouse_id,
-          destination: dispatchData.destination,
-          cartons_count: dispatchData.cartons_count,
-          single_bottles_count: dispatchData.single_bottles_count,
-          per_carton_count: dispatchData.per_carton_count,
-          quantity: dispatchData.quantity,
-          notes: dispatchData.notes,
-          priority: dispatchData.priority
-        })
+        console.log('📤 Sending to store dispatchItem with payload:', dispatchData)
 
         // Call store dispatch
-        console.log('🔄 Calling store dispatch with item_id:', currentItemId)
         const result = await store.dispatch('dispatchItem', dispatchData)
 
-        console.log('📥 Store dispatch result:', {
-          success: result?.success,
-          message: result?.message,
-          transactionId: result?.transactionId,
-          newQuantity: result?.newQuantity,
-          detailedUpdate: result?.detailedUpdate
-        })
+        console.log('📥 Store dispatch result:', result)
 
         if (result?.success) {
           // Calculate new quantity
@@ -1226,11 +1386,7 @@ export default {
             ...(result.detailedUpdate && { detailedUpdate: result.detailedUpdate })
           }
           
-          console.log('✅ COMPLETE result for emit:', {
-            item_id: completeResult.item_id,
-            transactionId: completeResult.transactionId,
-            newQuantity: completeResult.newQuantity
-          })
+          console.log('✅ COMPLETE result for emit:', completeResult)
 
           // Reset and close
           resetForm()
@@ -1248,11 +1404,7 @@ export default {
         }
         
       } catch (err) {
-        console.error('❌ Dispatch error details:', {
-          message: err.message,
-          itemId: currentItemId,
-          itemName: currentItemName
-        })
+        console.error('❌ Dispatch error details:', err)
         
         // User-friendly error messages
         if (err.message.includes('تتجاوز')) {
@@ -1318,30 +1470,8 @@ export default {
       if (isOpen) {
         resetForm()
         
-        if (dispatchWarehouses.value.length === 0) {
-          try {
-            loading.value = true
-            
-            let warehouses = []
-            
-            try {
-              warehouses = await store.dispatch('getDispatchWarehouses')
-            } catch (error) {
-              const allWarehouses = store.state.warehouses || []
-              warehouses = allWarehouses.filter(w => 
-                w.type === 'dispatch' || w.is_dispatch
-              )
-            }
-            
-            if (warehouses && warehouses.length > 0) {
-              dispatchWarehouses.value = warehouses
-            }
-          } catch (error) {
-            console.error('❌ Error loading dispatch warehouses:', error)
-          } finally {
-            loading.value = false
-          }
-        }
+        // Load dispatch warehouses
+        await loadDispatchWarehouses()
       }
     }, { immediate: true })
 
@@ -1353,11 +1483,25 @@ export default {
       clearSearchCache()
     })
 
+    // Computed for submit button
+    const isSubmitDisabled = computed(() => {
+      if (loading.value || loadingWarehouses.value) return true
+      if (!selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0) {
+        return true
+      }
+      const available = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
+      if (form.quantity > available) {
+        return true
+      }
+      return false
+    })
+
     // Return all required properties
     return {
       // Form and state
       form,
       loading,
+      loadingWarehouses,
       error,
       successMessage,
       selectedItem,
@@ -1390,32 +1534,19 @@ export default {
       setMaxQuantity,
       updateQuantity,
       getWarehouseName,
-      getWarehouseType: (warehouseId) => {
-        const warehouse = warehouses.value.find(w => w.id === warehouseId)
-        return warehouse?.type || ''
-      },
+      getWarehouseType,
       getDestinationName,
       getStockClass,
       isWarehouseAccessible,
       handleSearch,
       handleSubmit,
       
-      // Computed for submit button
-      isSubmitDisabled: computed(() => {
-        if (loading.value) return true
-        if (!selectedItem.value || !form.destinationBranch || !form.sourceWarehouse || form.quantity <= 0) {
-          return true
-        }
-        const available = selectedItem.value.remaining_quantity || selectedItem.value.quantity || 0
-        if (form.quantity > available) {
-          return true
-        }
-        return false
-      }),
+      // Computed
+      isSubmitDisabled,
       
       // Modal control
       closeModal: () => {
-        if (!loading.value) {
+        if (!loading.value && !loadingWarehouses.value) {
           resetForm()
           emit('close')
         }
@@ -1504,4 +1635,4 @@ input[type="number"] {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-</style>   
+</style>
