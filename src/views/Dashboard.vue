@@ -366,17 +366,17 @@
 
       <!-- Recent Items & Transactions Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Recent Items - LIMITED TO 8 ITEMS -->
+        <!-- Recent Items - WITH LOAD MORE -->
         <div class="lg:col-span-2">
           <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 h-full">
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">آخر الأصناف المضافة</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث 8 أصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">أحدث الأصناف {{ selectedWarehouse !== 'all' ? 'في المخزن المحدد' : 'في النظام' }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-xs px-2 py-1 rounded-full" :class="recentItemsStatusClass">
-                  {{ recentItemsCount }} صنف
+                  {{ displayedItems.length }} من {{ recentItems.length }} صنف
                 </span>
               </div>
             </div>
@@ -386,9 +386,9 @@
               <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل الأصناف...</p>
             </div>
 
-            <div v-else-if="recentItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-else-if="displayedItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div 
-                v-for="item in recentItems" 
+                v-for="item in displayedItems" 
                 :key="item.id"
                 class="group bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md cursor-pointer fade-in"
                 @click="openItemModal(item)"
@@ -449,7 +449,26 @@
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
 
-            <!-- No Load More Button - Limited to 8 items for performance -->
+            <!-- LOAD MORE BUTTON -->
+            <div v-if="recentItems.length > 0 && hasMoreItems && !loadingMore" class="mt-6 text-center">
+              <button
+                @click="loadMoreItems"
+                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                </svg>
+                تحميل المزيد
+              </button>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                عرض {{ displayedItems.length }} من {{ recentItems.length }} صنف
+              </p>
+            </div>
+
+            <div v-if="loadingMore" class="mt-6 text-center">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">جاري تحميل المزيد...</p>
+            </div>
           </div>
         </div>
 
@@ -996,12 +1015,17 @@ export default {
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
     const modalLoading = ref(false);
+    const loadingMore = ref(false);
     
     // UI state
     const selectedWarehouse = ref('all');
     const currentTime = ref('');
     const currentDate = ref('');
     const lastUpdated = ref(new Date());
+    
+    // Pagination state
+    const itemsPerPage = ref(8);
+    const displayedItemCount = ref(8);
     
     // Modal state
     const showItemModal = ref(false);
@@ -1037,17 +1061,47 @@ export default {
       return store.getters.inventoryItems || [];
     });
 
-    // Limited inventory items for dashboard (only recent ones from Vuex store)
+    // Has more items from store
+    const hasMoreInventory = computed(() => {
+      return store.getters.hasMore || false;
+    });
+
+    // Recent inventory items for dashboard (filtered by warehouse)
     const recentInventoryItems = computed(() => {
       const inventory = inventoryItems.value;
-      // Sort by creation date and take only 20 items for dashboard
-      return [...inventory]
+      
+      // Filter by warehouse if selected
+      let filteredItems = inventory;
+      if (selectedWarehouse.value !== 'all') {
+        filteredItems = inventory.filter(item => item.warehouse_id === selectedWarehouse.value);
+      }
+      
+      // Sort by creation date
+      return [...filteredItems]
         .sort((a, b) => {
           const dateA = new Date(a.created_at || a.updated_at || 0);
           const dateB = new Date(b.created_at || b.updated_at || 0);
           return dateB - dateA;
-        })
-        .slice(0, 20);
+        });
+    });
+
+    // Displayed items (limited by pagination)
+    const displayedItems = computed(() => {
+      return recentInventoryItems.value.slice(0, displayedItemCount.value);
+    });
+
+    const hasMoreItems = computed(() => {
+      return displayedItemCount.value < recentInventoryItems.value.length;
+    });
+
+    // Recent items count
+    const recentItemsCount = computed(() => recentInventoryItems.value.length);
+    
+    const recentItemsStatusClass = computed(() => {
+      const count = recentItemsCount.value;
+      if (count === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
+      if (count < 4) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
+      return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
     // Use Vuex transactions getter directly
@@ -1137,28 +1191,6 @@ export default {
       if (allStats.totalQuantity === 0) return '0';
       
       return ((selectedStats.totalQuantity / allStats.totalQuantity) * 100).toFixed(1);
-    });
-
-    // Recent items filtered by warehouse
-    const recentItems = computed(() => {
-      const items = recentInventoryItems.value;
-      
-      if (selectedWarehouse.value === 'all') {
-        return items.slice(0, 8); // Limit to 8 items for performance
-      }
-      
-      return items
-        .filter(item => item.warehouse_id === selectedWarehouse.value)
-        .slice(0, 8);
-    });
-
-    const recentItemsCount = computed(() => recentItems.value.length);
-    
-    const recentItemsStatusClass = computed(() => {
-      const count = recentItemsCount.value;
-      if (count === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
-      if (count < 4) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
-      return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
     // Today's transactions from Vuex store
@@ -1262,7 +1294,7 @@ export default {
 
     // Calculate cartons and singles from Vuex store data
     const totalCartons = computed(() => {
-      const items = recentInventoryItems.value;
+      const items = displayedItems.value;
       return items.reduce((sum, item) => {
         const cartons = item.cartons_count || 0;
         const perCarton = item.per_carton_count || 12;
@@ -1271,7 +1303,7 @@ export default {
     });
 
     const totalSingles = computed(() => {
-      const items = recentInventoryItems.value;
+      const items = displayedItems.value;
       return items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
     });
 
@@ -1516,6 +1548,31 @@ export default {
       });
     };
 
+    // ========== LOAD MORE FUNCTION ==========
+    
+    const loadMoreItems = async () => {
+      loadingMore.value = true;
+      try {
+        console.log('📥 Loading more items...');
+        
+        // If we need to load more from Firestore, use store action
+        if (displayedItemCount.value >= recentInventoryItems.value.length && hasMoreInventory.value) {
+          console.log('🔄 Loading more inventory from Firestore...');
+          await store.dispatch('loadMoreInventory');
+        }
+        
+        // Increase displayed items count
+        displayedItemCount.value += itemsPerPage.value;
+        
+        console.log(`✅ Now showing ${displayedItemCount.value} items`);
+        
+      } catch (error) {
+        console.error('❌ Error loading more items:', error);
+      } finally {
+        loadingMore.value = false;
+      }
+    };
+
     // ========== OPTIMIZED DASHBOARD LOADING ==========
     
     const loadDashboardData = async () => {
@@ -1621,6 +1678,7 @@ export default {
     
     const refreshDashboard = async () => {
       loading.value = true;
+      displayedItemCount.value = itemsPerPage.value; // Reset pagination
       try {
         console.log('🔄 Refreshing dashboard from Vuex store...');
         
@@ -1652,6 +1710,7 @@ export default {
 
     const handleWarehouseChange = async () => {
       loading.value = true;
+      displayedItemCount.value = itemsPerPage.value; // Reset pagination
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
         
@@ -1713,6 +1772,7 @@ export default {
     watch(selectedWarehouse, async (newValue) => {
       if (!loading.value) {
         console.log('🏢 Warehouse filter changed to:', newValue);
+        displayedItemCount.value = itemsPerPage.value; // Reset pagination
         await loadDashboardStats(newValue);
         
         if (newValue === 'all') {
@@ -1730,10 +1790,15 @@ export default {
       statsLoading,
       warehouseStatsLoading,
       modalLoading,
+      loadingMore,
       selectedWarehouse,
       currentTime,
       currentDate,
       lastUpdated,
+      
+      // Pagination state
+      displayedItems,
+      hasMoreItems,
       
       // Modal state
       showItemModal,
@@ -1751,7 +1816,6 @@ export default {
       userProfile,
       accessibleWarehouses,
       canModifyItems,
-      recentItems,
       recentItemsCount,
       recentItemsStatusClass,
       recentTransactions,
@@ -1793,7 +1857,8 @@ export default {
       
       // Actions
       refreshDashboard,
-      handleWarehouseChange
+      handleWarehouseChange,
+      loadMoreItems
     };
   }
 };
