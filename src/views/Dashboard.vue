@@ -995,8 +995,6 @@ export default {
     const initialLoading = ref(true);
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
-    const recentItemsLoading = ref(false);
-    const recentTransactionsLoading = ref(false);
     const modalLoading = ref(false);
     
     // UI state
@@ -1034,9 +1032,14 @@ export default {
       }
     });
 
-    // Limited inventory items for dashboard (only recent ones)
+    // Use Vuex inventory getter directly
+    const inventoryItems = computed(() => {
+      return store.getters.inventoryItems || [];
+    });
+
+    // Limited inventory items for dashboard (only recent ones from Vuex store)
     const recentInventoryItems = computed(() => {
-      const inventory = store.getters.inventoryItems || [];
+      const inventory = inventoryItems.value;
       // Sort by creation date and take only 20 items for dashboard
       return [...inventory]
         .sort((a, b) => {
@@ -1047,6 +1050,7 @@ export default {
         .slice(0, 20);
     });
 
+    // Use Vuex transactions getter directly
     const recentTransactions = computed(() => {
       try {
         const items = store.getters.recentTransactions || [];
@@ -1109,7 +1113,7 @@ export default {
         return allWarehouseStatsCache.value;
       }
 
-      const inventory = store.getters.inventoryItems || [];
+      const inventory = inventoryItems.value;
       
       const stats = {
         totalItems: inventory.length,
@@ -1157,7 +1161,7 @@ export default {
       return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
-    // Today's transactions
+    // Today's transactions from Vuex store
     const todayTransactionsCount = computed(() => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -1256,7 +1260,7 @@ export default {
       return formatRelativeTime(recentTransactions.value[0]?.timestamp);
     });
 
-    // Calculate cartons and singles from limited data
+    // Calculate cartons and singles from Vuex store data
     const totalCartons = computed(() => {
       const items = recentInventoryItems.value;
       return items.reduce((sum, item) => {
@@ -1399,7 +1403,7 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    // Warehouse stats calculation with caching
+    // Warehouse stats calculation using Vuex getters only
     const calculateWarehouseStats = async (warehouseId) => {
       if (warehouseStatsCache.value[warehouseId] && 
           Date.now() - warehouseStatsCache.value[warehouseId].lastUpdated < 30000) {
@@ -1407,13 +1411,21 @@ export default {
       }
 
       try {
-        // Use optimized Vuex action to get warehouse stats
-        const stats = await store.dispatch('refreshDashboardCounts', warehouseId);
+        // Use Vuex getter to calculate stats from store data
+        const inventory = inventoryItems.value;
+        const filteredItems = warehouseId === 'all' 
+          ? inventory 
+          : inventory.filter(item => item.warehouse_id === warehouseId);
         
-        warehouseStatsCache.value[warehouseId] = {
-          ...stats,
+        const stats = {
+          totalItems: filteredItems.length,
+          totalQuantity: filteredItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
+          lowStockItems: filteredItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length,
+          outOfStockItems: filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length,
           lastUpdated: new Date()
         };
+        
+        warehouseStatsCache.value[warehouseId] = stats;
         
         return stats;
       } catch (error) {
@@ -1508,7 +1520,7 @@ export default {
     
     const loadDashboardData = async () => {
       initialLoading.value = true;
-      console.log('🚀 Loading optimized dashboard data...');
+      console.log('🚀 Loading optimized dashboard data from Vuex store...');
       
       try {
         // Check if user is authenticated
@@ -1524,30 +1536,31 @@ export default {
           await store.dispatch('loadUserProfile');
         }
         
-        // OPTIMIZED: Load limited data for dashboard only
-        console.log('📊 Loading limited dashboard data...');
+        // OPTIMIZED: Load data from Vuex store only
+        console.log('📊 Loading dashboard data from Vuex store...');
         
-        // 1. Load warehouses (small dataset)
+        // 1. Load warehouses (from Vuex store)
         if (!accessibleWarehouses.value || accessibleWarehouses.value.length === 0) {
           await store.dispatch('loadWarehousesEnhanced');
         }
         
-        // 2. Load only recent inventory (20 items) instead of ALL inventory
-        console.log('📦 Loading recent inventory (20 items)...');
-        await store.dispatch('loadAllInventory', { 
-          forceRefresh: false,
-          limit: 20 // Only load 20 items for dashboard
-        });
+        // 2. Load inventory if not already loaded (Vuex will handle caching)
+        if (inventoryItems.value.length === 0) {
+          console.log('📦 Loading inventory from Vuex store...');
+          await store.dispatch('loadAllInventory');
+        }
         
-        // 3. Load only recent transactions (30 items)
-        console.log('📋 Loading recent transactions (30 items)...');
-        await store.dispatch('getRecentTransactions');
+        // 3. Load recent transactions (Vuex will handle caching)
+        if (recentTransactions.value.length === 0) {
+          console.log('📋 Loading recent transactions from Vuex store...');
+          await store.dispatch('getRecentTransactions');
+        }
         
-        // 4. Load dashboard stats (optimized with caching)
-        console.log('📈 Loading dashboard stats...');
+        // 4. Calculate dashboard stats from Vuex store data
+        console.log('📈 Calculating dashboard stats from Vuex store...');
         await loadDashboardStats(selectedWarehouse.value);
         
-        console.log('✅ Optimized dashboard data loaded successfully!');
+        console.log('✅ Dashboard data loaded successfully from Vuex store!');
         
       } catch (error) {
         console.error('❌ Error loading dashboard data:', error);
@@ -1567,18 +1580,18 @@ export default {
     const loadDashboardStats = async (warehouseId = 'all') => {
       statsLoading.value = true;
       try {
-        console.log(`📊 Loading dashboard stats for: ${warehouseId}`);
+        console.log(`📊 Calculating dashboard stats for: ${warehouseId} from Vuex store`);
         
-        // Use optimized Vuex action to get stats
-        const stats = await store.dispatch('refreshDashboardCounts', warehouseId);
+        // Calculate stats from Vuex store data
+        await calculateWarehouseStats(warehouseId);
         
         // Update last updated time
         lastUpdated.value = new Date();
         
-        console.log('✅ Dashboard stats loaded:', stats);
+        console.log('✅ Dashboard stats calculated from Vuex store');
         
       } catch (error) {
-        console.error('Error loading dashboard stats:', error);
+        console.error('Error calculating dashboard stats:', error);
       } finally {
         statsLoading.value = false;
       }
@@ -1588,14 +1601,14 @@ export default {
       if (selectedWarehouse.value === 'all' && accessibleWarehouses.value.length > 1) {
         warehouseStatsLoading.value = true;
         try {
-          console.log('📊 Loading all warehouse stats...');
+          console.log('📊 Loading all warehouse stats from Vuex store...');
           
-          // Load stats for each warehouse with caching
+          // Calculate stats for each warehouse from Vuex store
           for (const warehouse of accessibleWarehouses.value) {
             await calculateWarehouseStats(warehouse.id);
           }
           
-          console.log('✅ All warehouse stats loaded');
+          console.log('✅ All warehouse stats calculated from Vuex store');
         } catch (error) {
           console.error('Error loading warehouse stats:', error);
         } finally {
@@ -1609,7 +1622,7 @@ export default {
     const refreshDashboard = async () => {
       loading.value = true;
       try {
-        console.log('🔄 Refreshing dashboard...');
+        console.log('🔄 Refreshing dashboard from Vuex store...');
         
         // Clear cache
         warehouseStatsCache.value = {};
@@ -1621,10 +1634,14 @@ export default {
           lastUpdated: null
         };
         
-        // Refresh dashboard data
+        // Refresh Vuex store data
+        await store.dispatch('loadAllInventory', { forceRefresh: true });
+        await store.dispatch('getRecentTransactions');
+        
+        // Recalculate stats
         await loadDashboardData();
         
-        console.log('✅ Dashboard refreshed successfully');
+        console.log('✅ Dashboard refreshed successfully from Vuex store');
         
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
@@ -1638,7 +1655,7 @@ export default {
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
         
-        // Load dashboard stats for selected warehouse
+        // Calculate dashboard stats for selected warehouse from Vuex store
         await loadDashboardStats(selectedWarehouse.value);
         
         // If viewing all warehouses, load stats for each
@@ -1664,7 +1681,7 @@ export default {
     // ========== LIFECYCLE HOOKS ==========
     
     onMounted(async () => {
-      console.log('🚀 Dashboard mounted');
+      console.log('🚀 Dashboard mounted - using Vuex store data only');
       
       // Start time update
       updateTime();
@@ -1674,7 +1691,7 @@ export default {
       document.addEventListener('keydown', handleEscapeKey);
       
       try {
-        // Load dashboard data
+        // Load dashboard data from Vuex store
         await loadDashboardData();
       } catch (error) {
         console.error('❌ Error in dashboard mounted:', error);
@@ -1712,8 +1729,6 @@ export default {
       initialLoading,
       statsLoading,
       warehouseStatsLoading,
-      recentItemsLoading,
-      recentTransactionsLoading,
       modalLoading,
       selectedWarehouse,
       currentTime,
@@ -1783,7 +1798,6 @@ export default {
   }
 };
 </script>
-
 <style scoped>
 /* Custom animations */
 @keyframes fadeIn {
