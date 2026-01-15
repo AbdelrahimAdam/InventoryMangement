@@ -3086,197 +3086,181 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
     },
 
-    async getTotalItemCount({ state }, warehouseId = 'all') {
-      try {
-        console.log(`📊 Getting total item count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
-
-        const itemsRef = collection(db, 'items');
-
-        if (warehouseId === 'all') {
-          const q = query(itemsRef);
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        } else {
-          const q = query(
-            itemsRef,
-            where('warehouse_id', '==', warehouseId)
-          );
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        }
-      } catch (error) {
-        console.error('❌ Error getting total item count:', error);
-        const items = state.inventory;
-        const filteredItems = warehouseId === 'all' 
-          ? items 
-          : items.filter(item => item.warehouse_id === warehouseId);
-        return filteredItems.length;
-      }
-    },
-
-    async getLowStockCount({ state }, warehouseId = 'all') {
-      try {
-        console.log(`📊 Getting low stock count for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
-
-        const itemsRef = collection(db, 'items');
-
-        if (warehouseId === 'all') {
-          const q = query(
-            itemsRef,
-            where('remaining_quantity', '<', 10),
-            where('remaining_quantity', '>', 0)
-          );
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        } else {
-          const q = query(
-            itemsRef,
-            where('warehouse_id', '==', warehouseId),
-            where('remaining_quantity', '<', 10),
-            where('remaining_quantity', '>', 0)
-          );
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        }
-      } catch (error) {
-        console.error('❌ Error getting low stock count:', error);
-        const items = state.inventory;
-        const filteredItems = warehouseId === 'all' 
-          ? items 
-          : items.filter(item => item.warehouse_id === warehouseId);
-        return filteredItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
-      }
-    },
-
+   async getTotalItemCount({ state }, warehouseId = 'all') {
+  try {
+    console.log(`📊 Getting total item count from local data for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+    
+    const inventory = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    return filteredItems.length;
+  } catch (error) {
+    console.error('❌ Error getting total item count:', error);
+    const items = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? items 
+      : items.filter(item => item.warehouse_id === warehouseId);
+    return filteredItems.length;
+  }
+},
+   async getLowStockCount({ state }, warehouseId = 'all') {
+  try {
+    console.log(`📊 Getting low stock count from local data for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+    
+    const inventory = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    return filteredItems.filter(item => 
+      (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+    ).length;
+  } catch (error) {
+    console.error('❌ Error getting low stock count:', error);
+    const items = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? items 
+      : items.filter(item => item.warehouse_id === warehouseId);
+    return filteredItems.filter(item => 
+      (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+    ).length;
+  }
+},
     async getOutOfStockCount({ state }, warehouseId = 'all') {
-      try {
-        const itemsRef = collection(db, 'items');
+  try {
+    console.log(`📊 Getting out of stock count from local data for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+    
+    const inventory = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    return filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
+  } catch (error) {
+    console.error('❌ Error getting out of stock count:', error);
+    const items = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? items 
+      : items.filter(item => item.warehouse_id === warehouseId);
+    return filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
+  }
+},
 
-        if (warehouseId === 'all') {
-          const q = query(
-            itemsRef,
-            where('remaining_quantity', '==', 0)
-          );
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        } else {
-          const q = query(
-            itemsRef,
-            where('warehouse_id', '==', warehouseId),
-            where('remaining_quantity', '==', 0)
-          );
-          const snapshot = await getCountFromServer(q);
-          return snapshot.data().count;
-        }
-      } catch (error) {
-        console.error('❌ Error getting out of stock count:', error);
-        const items = state.inventory;
-        const filteredItems = warehouseId === 'all' 
-          ? items 
-          : items.filter(item => item.warehouse_id === warehouseId);
-        return filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
-      }
-    },
+   async getTotalQuantitySum({ state }, warehouseId = 'all') {
+  try {
+    console.log(`📊 Getting total quantity sum from local data for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+    
+    const inventory = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    return filteredItems.reduce((sum, item) => 
+      sum + (item.remaining_quantity || 0), 0
+    );
+  } catch (error) {
+    console.error('❌ Error getting total quantity sum:', error);
+    const inventory = state.inventory;
+    const filteredItems = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    return filteredItems.reduce((sum, item) => 
+      sum + (item.remaining_quantity || 0), 0
+    );
+  }
+},
 
-    async getTotalQuantitySum({ state }, warehouseId = 'all') {
-      try {
-        console.log(`📊 Getting total quantity sum for ${warehouseId === 'all' ? 'all warehouses' : 'warehouse ' + warehouseId}`);
+   async refreshDashboardCounts({ commit, state, dispatch }, warehouseId = 'all') {
+  try {
+    console.log('🔄 Refreshing dashboard counts from local data...');
+    
+    // Use local inventory data instead of Firebase queries
+    const inventory = state.inventory;
+    const filteredInventory = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    const totalItems = filteredInventory.length;
+    const totalQuantity = filteredInventory.reduce((sum, item) => 
+      sum + (item.remaining_quantity || 0), 0
+    );
+    const lowStockItems = filteredInventory.filter(item => 
+      (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+    ).length;
+    
+    const counts = {
+      totalItems,
+      totalQuantity,
+      lowStockItems,
+      lastUpdated: new Date()
+    };
+    
+    console.log('✅ Dashboard counts calculated from local data:', counts);
+    return counts;
+    
+  } catch (error) {
+    console.error('❌ Error calculating dashboard counts:', error);
+    
+    // Fallback to basic calculation
+    const inventory = state.inventory;
+    const filteredInventory = warehouseId === 'all' 
+      ? inventory 
+      : inventory.filter(item => item.warehouse_id === warehouseId);
+    
+    const fallbackCounts = {
+      totalItems: filteredInventory.length,
+      totalQuantity: filteredInventory.reduce((sum, item) => 
+        sum + (item.remaining_quantity || 0), 0
+      ),
+      lowStockItems: filteredInventory.filter(item => 
+        (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
+      ).length,
+      lastUpdated: new Date()
+    };
+    
+    return fallbackCounts;
+  }
+},
 
-        if (warehouseId === 'all') {
-          return state.inventory.reduce((sum, item) => 
-            sum + (item.remaining_quantity || 0), 0
-          );
-        } else {
-          const warehouseItems = state.inventory.filter(item => 
-            item.warehouse_id === warehouseId
-          );
-          return warehouseItems.reduce((sum, item) => 
-            sum + (item.remaining_quantity || 0), 0
-          );
-        }
-      } catch (error) {
-        console.error('❌ Error getting total quantity sum:', error);
-        return 0;
-      }
-    },
-
-    async refreshDashboardCounts({ commit, state, dispatch }, warehouseId = 'all') {
-      try {
-        console.log('🔄 Refreshing dashboard counts...');
-
-        const totalItems = await dispatch('getTotalItemCount', warehouseId);
-        const lowStockItems = await dispatch('getLowStockCount', warehouseId);
-        const totalQuantity = await dispatch('getTotalQuantitySum', warehouseId);
-
-        const counts = {
-          totalItems,
-          totalQuantity,
-          lowStockItems,
-          lastUpdated: new Date()
-        };
-
-        console.log('✅ Dashboard counts refreshed:', counts);
-        return counts;
-
-      } catch (error) {
-        console.error('❌ Error refreshing dashboard counts:', error);
-        const items = state.inventory;
-        const filteredItems = warehouseId === 'all' 
-          ? items 
-          : items.filter(item => item.warehouse_id === warehouseId);
-
-        const fallbackCounts = {
-          totalItems: filteredItems.length,
-          totalQuantity: filteredItems.reduce((sum, item) => 
-            sum + (item.remaining_quantity || 0), 0
-          ),
-          lowStockItems: filteredItems.filter(item => 
-            (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0
-          ).length,
-          lastUpdated: new Date()
-        };
-
-        return fallbackCounts;
-      }
-    },
-
-    async getDashboardStats({ dispatch }, warehouseId = 'all') {
-      try {
-        const counts = await dispatch('refreshDashboardCounts', warehouseId);
-        return {
-          ...counts,
-          recentTransactions: 0
-        };
-      } catch (error) {
-        console.error('❌ Error getting dashboard stats:', error);
-        throw error;
-      }
-    },
+    async getDashboardStats({ state, dispatch }, warehouseId = 'all') {
+  try {
+    const counts = await dispatch('refreshDashboardCounts', warehouseId);
+    return {
+      ...counts,
+      recentTransactions: 0 // Or calculate from state.recentTransactions
+    };
+  } catch (error) {
+    console.error('❌ Error getting dashboard stats:', error);
+    throw error;
+  }
+},
 
     async getAllWarehousesSummary({ dispatch, getters }) {
-      try {
-        const warehouses = getters.warehouses;
-        const summary = {
-          totalItems: 0,
-          totalQuantity: 0,
-          lowStockItems: 0,
-          warehouseCount: warehouses.length,
-          lastUpdated: new Date()
-        };
+  try {
+    const warehouses = getters.warehouses;
+    const summary = {
+      totalItems: 0,
+      totalQuantity: 0,
+      lowStockItems: 0,
+      warehouseCount: warehouses.length,
+      lastUpdated: new Date()
+    };
 
-        for (const warehouse of warehouses) {
-          const counts = await dispatch('refreshDashboardCounts', warehouse.id);
-          summary.totalItems += counts.totalItems;
-          summary.totalQuantity += counts.totalQuantity;
-          summary.lowStockItems += counts.lowStockItems;
-        }
+    for (const warehouse of warehouses) {
+      const counts = await dispatch('refreshDashboardCounts', warehouse.id);
+      summary.totalItems += counts.totalItems;
+      summary.totalQuantity += counts.totalQuantity;
+      summary.lowStockItems += counts.lowStockItems;
+    }
 
-        return summary;
-      } catch (error) {
-        console.error('❌ Error getting all warehouses summary:', error);
-        throw error;
-      }
-    },
+    return summary;
+  } catch (error) {
+    console.error('❌ Error getting all warehouses summary:', error);
+    throw error;
+  }
+},
 
     async getItemById({ state, dispatch }, { itemId, itemCode, itemName }) {
       try {
