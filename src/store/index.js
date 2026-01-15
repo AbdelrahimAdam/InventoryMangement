@@ -189,18 +189,6 @@ function ensureCompleteItemFields(item) {
   return completeItem;
 }
 
-/**
- * Get Firebase auth with safety check
- * @returns {Promise<Object>} Firebase auth instance
- */
-async function getFirebaseAuth() {
-  await ensureFirebaseReady();
-  if (!auth) {
-    throw new Error('Firebase authentication not available');
-  }
-  return auth;
-}
-
 // ============================================
 // SPARK PLAN ENHANCED CONFIGURATION
 // ============================================
@@ -233,7 +221,6 @@ const SPARK_CONFIG = {
     RECENCY_BONUS: 50
   }
 };
-
 // SPARK ENHANCED SEARCH CACHE
 class SearchCache {
   constructor() {
