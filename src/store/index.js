@@ -3063,28 +3063,51 @@ async addInventoryItem({ commit, state, dispatch }, { itemData, isAddingCartons 
       }
     },
 
-    async getDispatchWarehouses({ dispatch }) {
-      try {
-        const warehousesRef = collection(db, 'warehouses');
-        const q = query(
-          warehousesRef,
-          where('type', '==', 'dispatch')
-        );
+   async getDispatchWarehouses({ dispatch }) {
+  try {
+    const warehousesRef = collection(db, 'warehouses');
+    const q = query(
+      warehousesRef,
+      where('type', '==', 'dispatch')
+    );
 
-        const snapshot = await getDocs(q);
-        const dispatchWarehouses = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
-        return dispatchWarehouses;
-
-      } catch (error) {
-        console.error('❌ Error loading dispatch warehouses:', error);
-        return [];
+    const snapshot = await getDocs(q);
+    const dispatchWarehouses = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const warehouseId = doc.id;
+      
+      // تحديد الاسم العربي بناءً على معرف المخزن
+      let arabicName = data.name_ar || data.name || warehouseId;
+      
+      if (warehouseId === 'dubi_factory') {
+        arabicName = 'مصنع دبي';
+      } 
+      else if (warehouseId === 'external_wharehouse') {
+        arabicName = 'صرف خارجي';
       }
-    },
+      else if (warehouseId === 'factory') {
+        arabicName = 'مصنع البران';
+      }
+      else if (warehouseId === 'dispat_item') {
+        arabicName = 'موقع صرف';
+      }
+      
+      // إرجاع البيانات مع name_ar المحدث
+      return {
+        id: warehouseId,
+        name_ar: arabicName, // هذا هو التغيير الوحيد
+        ...data
+      };
+    });
+
+    console.log(`✅ Dispatch warehouses loaded: ${dispatchWarehouses.length}`);
+    return dispatchWarehouses;
+
+  } catch (error) {
+    console.error('❌ Error loading dispatch warehouses:', error);
+    return [];
+  }
+},
 
    async getTotalItemCount({ state }, warehouseId = 'all') {
   try {
