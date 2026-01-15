@@ -141,6 +141,66 @@ async function getFirebaseAuth() {
   return auth;
 }
 
+/**
+ * Ensures all required item fields are present with proper defaults
+ * @param {Object} item - The item object to complete
+ * @returns {Object} - Complete item object with all fields
+ */
+function ensureCompleteItemFields(item) {
+  if (!item) return null;
+  
+  // Define all possible fields with defaults
+  const completeItem = {
+    id: item.id || '',
+    name: item.name || '',
+    code: item.code || '',
+    color: item.color || '',
+    supplier: item.supplier || '',
+    warehouse_id: item.warehouse_id || '',
+    item_location: item.item_location || '',
+    notes: item.notes || '',
+    barcode: item.barcode || '',
+    sku: item.sku || '',
+    category: item.category || '',
+    // Quantity fields
+    cartons_count: Number(item.cartons_count) || 0,
+    per_carton_count: Number(item.per_carton_count) || 12,
+    single_bottles_count: Number(item.single_bottles_count) || 0,
+    total_added: Number(item.total_added) || 0,
+    remaining_quantity: Number(item.remaining_quantity) || 0,
+    // Timestamps
+    created_at: item.created_at || null,
+    updated_at: item.updated_at || null,
+    created_by: item.created_by || '',
+    updated_by: item.updated_by || '',
+    // Photo
+    photo_url: item.photo_url || '',
+    // Include any other fields from the original item
+    ...item
+  };
+  
+  // Ensure calculated fields are correct
+  if (completeItem.remaining_quantity === 0 && 
+      (completeItem.cartons_count > 0 || completeItem.single_bottles_count > 0)) {
+    completeItem.remaining_quantity = (completeItem.cartons_count * completeItem.per_carton_count) + 
+                                       completeItem.single_bottles_count;
+  }
+  
+  return completeItem;
+}
+
+/**
+ * Get Firebase auth with safety check
+ * @returns {Promise<Object>} Firebase auth instance
+ */
+async function getFirebaseAuth() {
+  await ensureFirebaseReady();
+  if (!auth) {
+    throw new Error('Firebase authentication not available');
+  }
+  return auth;
+}
+
 // ============================================
 // SPARK PLAN ENHANCED CONFIGURATION
 // ============================================
@@ -698,46 +758,6 @@ function fuzzyLocalSearch(items, searchTerm, warehouseId, limit) {
   // Sort by score and limit
   scoredItems.sort((a, b) => b.score - a.score);
   return scoredItems.slice(0, limit).map(scored => scored.item);
-}
-
-// ============================================
-// ENHANCED LOCAL SEARCH ACTION
-// ============================================
-async function searchLocalSpark({ state }, {
-  query,
-  warehouseId,
-  limit = SPARK_CONFIG.MAX_RESULTS
-}) {
-  if (!query || query.trim().length < 1) return [];
-
-  const searchTerm = query.trim();
-
-  // Get inventory with limits
-  let items = [...state.inventory];
-
-  // Early exit if too many items
-  if (items.length > SPARK_CONFIG.LOCAL_SEARCH_LIMIT) {
-    items = items.slice(0, SPARK_CONFIG.LOCAL_SEARCH_LIMIT);
-    console.log(`⚠️ Limiting local search to ${SPARK_CONFIG.LOCAL_SEARCH_LIMIT} items`);
-  }
-
-  // Apply warehouse filter if specified
-  if (warehouseId && warehouseId !== 'all') {
-    items = items.filter(i => i.warehouse_id === warehouseId);
-  }
-
-  // Early exit if no items
-  if (items.length === 0) return [];
-
-  console.log(`🔎 SPARK Local search for: "${searchTerm}" in ${items.length} items`);
-
-  // Use enhanced fuzzy search with scoring
-  const matches = fuzzyLocalSearch(items, searchTerm, warehouseId, limit * 2);
-
-  console.log(`📍 SPARK Local search found ${matches.length} matches`);
-
-  // Sort by relevance
-  return removeDuplicatesAndSortByRelevance(matches, searchTerm, limit);
 }
 
 // ============================================
