@@ -443,25 +443,28 @@
 
             <div v-else class="text-center py-8">
               <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586m0 0L18 18m-2-2l2.586-2.586M4 13h2.586m0 0L6 10.414M8.586 13 6 15.586"/>
               </svg>
               <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
 
             <!-- LOAD MORE BUTTON -->
-            <div v-if="recentItems.length > 0 && hasMoreItems && !loadingMore" class="mt-6 text-center">
+            <div v-if="hasMoreItemsToLoad" class="mt-6 text-center">
               <button
                 @click="loadMoreItems"
+                :disabled="loadingMore || storePagination.isFetching"
                 class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
               >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                <svg v-if="loadingMore || storePagination.isFetching" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                تحميل المزيد
+                <span v-else>📥 تحميل المزيد</span>
               </button>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 عرض {{ displayedItems.length }} من {{ recentItems.length }} صنف
+                <span v-if="storePagination.hasMore"> • {{ storePagination.totalLoaded }} محملة</span>
               </p>
             </div>
 
@@ -1056,9 +1059,22 @@ export default {
       }
     });
 
-    // Use Vuex inventory getter directly
+    // Use Vuex inventory getter directly - FIXED: Add null check
     const inventoryItems = computed(() => {
-      return store.getters.inventoryItems || [];
+      try {
+        return store.getters.inventoryItems || [];
+      } catch {
+        return [];
+      }
+    });
+
+    // Get store pagination state
+    const storePagination = computed(() => {
+      return store.state.pagination || {
+        hasMore: false,
+        isFetching: false,
+        totalLoaded: 0
+      };
     });
 
     // Has more items from store
@@ -1069,6 +1085,11 @@ export default {
     // Recent inventory items for dashboard (filtered by warehouse)
     const recentInventoryItems = computed(() => {
       const inventory = inventoryItems.value;
+      
+      // FIXED: Ensure inventory is an array before filtering
+      if (!Array.isArray(inventory)) {
+        return [];
+      }
       
       // Filter by warehouse if selected
       let filteredItems = inventory;
@@ -1090,8 +1111,9 @@ export default {
       return recentInventoryItems.value.slice(0, displayedItemCount.value);
     });
 
-    const hasMoreItems = computed(() => {
-      return displayedItemCount.value < recentInventoryItems.value.length;
+    // Check if we have more items to load from store
+    const hasMoreItemsToLoad = computed(() => {
+      return storePagination.value.hasMore || displayedItemCount.value < recentInventoryItems.value.length;
     });
 
     // Recent items count
@@ -1169,6 +1191,17 @@ export default {
 
       const inventory = inventoryItems.value;
       
+      // FIXED: Ensure inventory is an array
+      if (!Array.isArray(inventory)) {
+        return {
+          totalItems: 0,
+          totalQuantity: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          lastUpdated: new Date()
+        };
+      }
+      
       const stats = {
         totalItems: inventory.length,
         totalQuantity: inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
@@ -1198,7 +1231,10 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      return recentTransactions.value.filter(transaction => {
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions)) return 0;
+      
+      return transactions.filter(transaction => {
         if (!transaction.timestamp) return false;
         
         try {
@@ -1216,7 +1252,10 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      return recentTransactions.value.filter(transaction => {
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions)) return 0;
+      
+      return transactions.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'ADD') return false;
         
         try {
@@ -1233,7 +1272,10 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      return recentTransactions.value.filter(transaction => {
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions)) return 0;
+      
+      return transactions.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'TRANSFER') return false;
         
         try {
@@ -1250,7 +1292,10 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      return recentTransactions.value.filter(transaction => {
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions)) return 0;
+      
+      return transactions.filter(transaction => {
         if (!transaction.timestamp || transaction.type !== 'DISPATCH') return false;
         
         try {
@@ -1264,12 +1309,13 @@ export default {
     });
 
     const lastTransactionTime = computed(() => {
-      if (recentTransactions.value.length === 0) return 'لا توجد حركات';
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions) || transactions.length === 0) return 'لا توجد حركات';
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const todayTransactions = recentTransactions.value.filter(transaction => {
+      const todayTransactions = transactions.filter(transaction => {
         if (!transaction.timestamp) return false;
         
         try {
@@ -1288,13 +1334,16 @@ export default {
     });
 
     const lastActivityTime = computed(() => {
-      if (recentTransactions.value.length === 0) return 'لا يوجد نشاط';
-      return formatRelativeTime(recentTransactions.value[0]?.timestamp);
+      const transactions = recentTransactions.value;
+      if (!Array.isArray(transactions) || transactions.length === 0) return 'لا يوجد نشاط';
+      return formatRelativeTime(transactions[0]?.timestamp);
     });
 
     // Calculate cartons and singles from Vuex store data
     const totalCartons = computed(() => {
       const items = displayedItems.value;
+      if (!Array.isArray(items)) return 0;
+      
       return items.reduce((sum, item) => {
         const cartons = item.cartons_count || 0;
         const perCarton = item.per_carton_count || 12;
@@ -1304,6 +1353,8 @@ export default {
 
     const totalSingles = computed(() => {
       const items = displayedItems.value;
+      if (!Array.isArray(items)) return 0;
+      
       return items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
     });
 
@@ -1445,6 +1496,19 @@ export default {
       try {
         // Use Vuex getter to calculate stats from store data
         const inventory = inventoryItems.value;
+        // FIXED: Ensure inventory is an array
+        if (!Array.isArray(inventory)) {
+          const stats = {
+            totalItems: 0,
+            totalQuantity: 0,
+            lowStockItems: 0,
+            outOfStockItems: 0,
+            lastUpdated: new Date()
+          };
+          warehouseStatsCache.value[warehouseId] = stats;
+          return stats;
+        }
+        
         const filteredItems = warehouseId === 'all' 
           ? inventory 
           : inventory.filter(item => item.warehouse_id === warehouseId);
@@ -1501,9 +1565,14 @@ export default {
       
       // Load item transactions from recent transactions (no additional Firebase read)
       try {
-        itemTransactions.value = recentTransactions.value
-          .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
-          .slice(0, 10);
+        const transactions = recentTransactions.value;
+        if (Array.isArray(transactions)) {
+          itemTransactions.value = transactions
+            .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
+            .slice(0, 10);
+        } else {
+          itemTransactions.value = [];
+        }
       } catch {
         itemTransactions.value = [];
       } finally {
@@ -1551,23 +1620,38 @@ export default {
     // ========== LOAD MORE FUNCTION ==========
     
     const loadMoreItems = async () => {
+      if (loadingMore.value || storePagination.value.isFetching) {
+        return;
+      }
+      
       loadingMore.value = true;
       try {
         console.log('📥 Loading more items...');
         
-        // If we need to load more from Firestore, use store action
-        if (displayedItemCount.value >= recentInventoryItems.value.length && hasMoreInventory.value) {
-          console.log('🔄 Loading more inventory from Firestore...');
-          await store.dispatch('loadMoreInventory');
+        // Option 1: Load more from store if there are more items in Firestore
+        if (storePagination.value.hasMore) {
+          console.log('🔄 Loading more inventory from Firestore via store...');
+          const newItems = await store.dispatch('loadMoreInventory');
+          
+          if (newItems && newItems.length > 0) {
+            console.log(`✅ Loaded ${newItems.length} new items from Firestore`);
+          } else {
+            console.log('⚠️ No new items loaded from Firestore');
+          }
         }
         
-        // Increase displayed items count
+        // Option 2: Increase displayed items count for local pagination
         displayedItemCount.value += itemsPerPage.value;
         
-        console.log(`✅ Now showing ${displayedItemCount.value} items`);
+        console.log(`✅ Now showing ${displayedItemCount.value} items out of ${recentInventoryItems.value.length}`);
         
       } catch (error) {
         console.error('❌ Error loading more items:', error);
+        // Show error notification
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل المزيد من الأصناف'
+        });
       } finally {
         loadingMore.value = false;
       }
@@ -1628,6 +1712,12 @@ export default {
           await router.push('/login');
           return;
         }
+        
+        // Show error notification
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل بيانات لوحة التحكم'
+        });
       } finally {
         initialLoading.value = false;
         loading.value = false;
@@ -1703,6 +1793,10 @@ export default {
         
       } catch (error) {
         console.error('Error refreshing dashboard:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحديث لوحة التحكم'
+        });
       } finally {
         loading.value = false;
       }
@@ -1798,7 +1892,8 @@ export default {
       
       // Pagination state
       displayedItems,
-      hasMoreItems,
+      hasMoreItemsToLoad,
+      storePagination,
       
       // Modal state
       showItemModal,
@@ -1863,6 +1958,7 @@ export default {
   }
 };
 </script>
+
 <style scoped>
 /* Custom animations */
 @keyframes fadeIn {
