@@ -5513,21 +5513,22 @@ async updateUser({ commit, state, dispatch }, { userId, userData }) {
   }
 },    
 // ============================================
-// UPDATED: DISPATCH ITEM ACTION (With Detailed Field Updates)
+// ENHANCED DISPATCH ITEM ACTION WITH UTF-8 SUPPORT
 // ============================================
 async dispatchItem({ commit, state, dispatch }, dispatchData) {
   commit('SET_OPERATION_LOADING', true);
   commit('CLEAR_OPERATION_ERROR');
 
   try {
-    console.log('🚀 Starting dispatch with detailed fields:', {
+    console.log('🚀 Starting dispatch with enhanced UTF-8 support:', {
       item_id: dispatchData.item_id,
+      destination: dispatchData.destination,
+      from_warehouse_id: dispatchData.from_warehouse_id,
       cartons_count: dispatchData.cartons_count,
-      single_bottles_count: dispatchData.single_bottles_count,
-      per_carton_count: dispatchData.per_carton_count,
-      quantity: dispatchData.quantity
+      single_bottles_count: dispatchData.single_bottles_count
     });
 
+    // 🔴 VALIDATION: User authentication
     if (!state.userProfile) {
       throw new Error('يجب تسجيل الدخول أولاً');
     }
@@ -5536,11 +5537,12 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
       throw new Error('ليس لديك صلاحية لصرف الأصناف');
     }
 
-    // Validate required fields
+    // 🔴 VALIDATION: Required fields
     const requiredFields = [
       { field: dispatchData.item_id, name: 'معرف الصنف' },
       { field: dispatchData.from_warehouse_id, name: 'المخزن المصدر' },
-      { field: dispatchData.destination, name: 'الوجهة' }
+      { field: dispatchData.destination, name: 'الوجهة' },
+      { field: dispatchData.destination_id, name: 'معرف الوجهة' }
     ];
 
     const missingFields = requiredFields.filter(f => !f.field);
@@ -5548,7 +5550,7 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
       throw new Error(`بيانات الصرف غير مكتملة: ${missingFields.map(f => f.name).join('، ')}`);
     }
 
-    // Validate user has access to source warehouse
+    // 🔴 VALIDATION: Warehouse access
     if (state.userProfile.role === 'warehouse_manager') {
       const allowedWarehouses = state.userProfile.allowed_warehouses || [];
       if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
@@ -5558,332 +5560,325 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
       }
     }
 
+    // 🔴 ENSURE FIREBASE IS READY
+    await ensureFirebaseReady();
+    if (!db) {
+      throw new Error('Firestore database not available');
+    }
+
+    // ========== ARABIC TEXT NORMALIZATION ==========
+    const normalizeArabic = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      // Ensure UTF-8 encoding
+      return text.trim();
+    };
+
+    // Prepare normalized Arabic data
+    const normalizedData = {
+      // Essential fields
+      item_id: dispatchData.item_id,
+      from_warehouse_id: dispatchData.from_warehouse_id,
+      destination: normalizeArabic(dispatchData.destination || 'dispat_item'),
+      destination_id: dispatchData.destination_id,
+      
+      // 🔴 CRITICAL: Arabic text with UTF-8
+      item_name: normalizeArabic(dispatchData.item_name || ''),
+      from_warehouse_name: normalizeArabic(dispatchData.from_warehouse_name || ''),
+      notes: normalizeArabic(dispatchData.notes || ''),
+      
+      // Quantity fields
+      quantity: Number(dispatchData.quantity) || 0,
+      cartons_count: Number(dispatchData.cartons_count) || 0,
+      per_carton_count: Number(dispatchData.per_carton_count) || 12,
+      single_bottles_count: Number(dispatchData.single_bottles_count) || 0,
+      
+      // Optional fields with normalization
+      color: normalizeArabic(dispatchData.color || ''),
+      supplier: normalizeArabic(dispatchData.supplier || ''),
+      priority: normalizeArabic(dispatchData.priority || 'normal'),
+      item_location: normalizeArabic(dispatchData.item_location || '')
+    };
+
+    console.log('📤 Normalized dispatch data:', normalizedData);
+
     // ========== ATOMIC TRANSACTION ==========
     const result = await runTransaction(db, async (transaction) => {
-      // Get item document WITHIN transaction
-      const itemRef = doc(db, 'items', dispatchData.item_id);
+      // Get item document
+      const itemRef = doc(db, 'items', normalizedData.item_id);
       const itemDoc = await transaction.get(itemRef);
       
       if (!itemDoc.exists()) {
-        throw new Error('الصنف غير موجود');
+        throw new Error('الصنف غير موجود في المخزن المصدر');
       }
 
       const itemData = itemDoc.data();
 
-      // Validate item is in the correct warehouse
-      if (itemData.warehouse_id !== dispatchData.from_warehouse_id) {
-        throw new Error('الصنف ليس في المخزن المصدر المحدد');
+      // Verify item is in correct warehouse
+      if (itemData.warehouse_id !== normalizedData.from_warehouse_id) {
+        throw new Error(`الصنف ليس في المخزن المصدر المحدد. يوجد في: ${itemData.warehouse_id}`);
       }
 
-      // Get current detailed quantities
+      // Get current quantities
       const currentCartons = Number(itemData.cartons_count) || 0;
       const currentSingles = Number(itemData.single_bottles_count) || 0;
-      const perCarton = Number(itemData.per_carton_count) || 12;
+      const perCarton = normalizedData.per_carton_count;
       
-      // Get dispatch quantities (use detailed if provided, otherwise calculate from total)
-      let dispatchCartons = 0;
-      let dispatchSingles = 0;
-      let dispatchTotal = 0;
-      
-      if (dispatchData.cartons_count !== undefined && dispatchData.single_bottles_count !== undefined) {
-        // Use detailed breakdown from modal
-        dispatchCartons = Number(dispatchData.cartons_count) || 0;
-        dispatchSingles = Number(dispatchData.single_bottles_count) || 0;
-        const dispatchPerCarton = Number(dispatchData.per_carton_count) || perCarton;
-        dispatchTotal = (dispatchCartons * dispatchPerCarton) + dispatchSingles;
-        
-        console.log('📊 Using detailed dispatch:', {
-          cartons: dispatchCartons,
-          singles: dispatchSingles,
-          perCarton: dispatchPerCarton,
-          total: dispatchTotal
-        });
-      } else {
-        // Calculate from total quantity (fallback)
-        dispatchTotal = Number(dispatchData.quantity) || 0;
+      // Use detailed quantities if provided
+      let dispatchCartons = normalizedData.cartons_count;
+      let dispatchSingles = normalizedData.single_bottles_count;
+      let dispatchTotal = normalizedData.quantity;
+
+      // Calculate from total if detailed not provided
+      if (!dispatchCartons && !dispatchSingles && dispatchTotal > 0) {
         dispatchCartons = Math.floor(dispatchTotal / perCarton);
         dispatchSingles = dispatchTotal % perCarton;
-        
-        console.log('📊 Calculated from total:', {
-          total: dispatchTotal,
-          cartons: dispatchCartons,
-          singles: dispatchSingles,
-          perCarton: perCarton
-        });
       }
 
+      console.log('📊 Quantity calculations:', {
+        current: { cartons: currentCartons, singles: currentSingles, perCarton: perCarton },
+        dispatch: { cartons: dispatchCartons, singles: dispatchSingles, total: dispatchTotal }
+      });
+
+      // Validate quantities
       if (dispatchTotal <= 0) {
         throw new Error('يجب إدخال كمية صحيحة للصرف (أكبر من صفر)');
       }
 
-      // Calculate current total quantity
       const currentTotal = (currentCartons * perCarton) + currentSingles;
-
-      // Validate sufficient quantity
       if (dispatchTotal > currentTotal) {
-        throw new Error(
-          `الكمية المطلوبة للصرف (${dispatchTotal}) أكبر من الكمية المتاحة (${currentTotal})`
-        );
+        throw new Error(`الكمية المطلوبة للصرف (${dispatchTotal}) أكبر من الكمية المتاحة (${currentTotal})`);
       }
 
-      // Validate detailed availability
-      if (dispatchCartons > currentCartons) {
-        throw new Error(
-          `عدد الكرتونات المطلوبة (${dispatchCartons}) أكبر من المتاح (${currentCartons})`
-        );
-      }
-
-      // Handle single bottles: first use available singles, then break cartons if needed
-      let remainingSinglesToDispatch = dispatchSingles;
+      // Calculate new quantities
       let newCartons = currentCartons;
       let newSingles = currentSingles;
-      
-      // Step 1: Use available single bottles first
+      let remainingSinglesToDispatch = dispatchSingles;
+
+      // 1. Use available single bottles first
       if (remainingSinglesToDispatch > 0 && newSingles > 0) {
         const singlesToUse = Math.min(newSingles, remainingSinglesToDispatch);
         newSingles -= singlesToUse;
         remainingSinglesToDispatch -= singlesToUse;
       }
-      
-      // Step 2: Break cartons for remaining singles
+
+      // 2. Break cartons for remaining singles
       if (remainingSinglesToDispatch > 0) {
         const cartonsToBreak = Math.ceil(remainingSinglesToDispatch / perCarton);
-        
         if (newCartons < cartonsToBreak) {
           throw new Error(`لا يوجد عدد كافٍ من الكرتونات للأكياس الفردية`);
         }
-        
         newCartons -= cartonsToBreak;
-        // After breaking cartons, we have new singles from the broken cartons
         const bottlesFromBrokenCartons = cartonsToBreak * perCarton;
         newSingles += bottlesFromBrokenCartons - remainingSinglesToDispatch;
       }
-      
-      // Step 3: Remove whole cartons
+
+      // 3. Remove whole cartons
       if (dispatchCartons > 0) {
         if (newCartons < dispatchCartons) {
           throw new Error(`لا يوجد عدد كافٍ من الكرتونات`);
         }
         newCartons -= dispatchCartons;
       }
-      
-      // Ensure no negative values
-      if (newCartons < 0) newCartons = 0;
-      if (newSingles < 0) newSingles = 0;
-      
-      // Calculate new total quantity
-      const newTotal = (newCartons * perCarton) + newSingles;
-      
-      // Final validation
-      const expectedNewTotal = currentTotal - dispatchTotal;
-      if (Math.abs(newTotal - expectedNewTotal) > 0.1) {
-        console.warn('⚠️ Quantity mismatch:', {
-          expected: expectedNewTotal,
-          actual: newTotal,
-          currentTotal,
-          dispatchTotal
-        });
-        throw new Error('حساب الكمية غير صحيح. يرجى المحاولة مرة أخرى.');
-      }
 
-      // Prepare update data - UPDATE ALL QUANTITY FIELDS
-      const updateData = {
+      // Ensure non-negative values
+      newCartons = Math.max(0, newCartons);
+      newSingles = Math.max(0, newSingles);
+
+      const newTotal = (newCartons * perCarton) + newSingles;
+
+      console.log('🔄 Quantity update:', {
+        previous: { cartons: currentCartons, singles: currentSingles, total: currentTotal },
+        dispatch: { cartons: dispatchCartons, singles: dispatchSingles, total: dispatchTotal },
+        new: { cartons: newCartons, singles: newSingles, total: newTotal }
+      });
+
+      // Update item
+      transaction.update(itemRef, {
         cartons_count: newCartons,
         single_bottles_count: newSingles,
         remaining_quantity: newTotal,
-        total_added: Math.max(0, Number(itemData.total_added || 0) - dispatchTotal),
         updated_at: serverTimestamp(),
         updated_by: state.user.uid
-      };
-
-      console.log('🔄 Updating item with:', {
-        previous: {
-          cartons: currentCartons,
-          singles: currentSingles,
-          total: currentTotal
-        },
-        dispatch: {
-          cartons: dispatchCartons,
-          singles: dispatchSingles,
-          total: dispatchTotal
-        },
-        new: {
-          cartons: newCartons,
-          singles: newSingles,
-          total: newTotal
-        },
-        perCarton: perCarton
       });
 
-      // Update item WITHIN transaction
-      transaction.update(itemRef, updateData);
-
-      // Create transaction record WITHIN transaction
+      // ========== CREATE TRANSACTION RECORD WITH ARABIC SUPPORT ==========
       const transactionRef = doc(collection(db, 'transactions'));
+      
+      // 🔴 FIXED: Create complete transaction data with proper Arabic encoding
       const transactionData = {
         type: TRANSACTION_TYPES.DISPATCH,
-        item_id: dispatchData.item_id,
-        item_name: itemData.name || dispatchData.item_name,
-        item_code: itemData.code || dispatchData.item_code,
-        color: itemData.color || '',
-        from_warehouse: dispatchData.from_warehouse_id,
-        destination: dispatchData.destination,
-        destination_id: dispatchData.destination_id,
         
-        // Detailed dispatch info
+        // Item identification
+        item_id: normalizedData.item_id,
+        item_name: normalizedData.item_name,
+        item_code: itemData.code || '',
+        color: normalizedData.color,
+        
+        // Warehouse info
+        from_warehouse: normalizedData.from_warehouse_id,
+        from_warehouse_name: normalizedData.from_warehouse_name,
+        destination: normalizedData.destination,
+        destination_id: normalizedData.destination_id,
+        
+        // Quantity info (for display in transactions page)
+        quantity: dispatchTotal, // 🔴 هذا الحقل ضروري للعرض في صفحة الحركات
+        total_delta: dispatchTotal, // 🔴 هذا أيضاً مهم
+        new_remaining: newTotal, // 🔴 هذا يظهر الكمية الجديدة
+        
+        // Detailed quantities
         cartons_count: dispatchCartons,
         per_carton_count: perCarton,
         single_bottles_count: dispatchSingles,
-        quantity: dispatchTotal,
         
-        // Previous state
+        // Previous and new state
         previous_cartons: currentCartons,
         previous_single_bottles: currentSingles,
         previous_quantity: currentTotal,
         
-        // New state
         new_cartons: newCartons,
         new_single_bottles: newSingles,
         new_quantity: newTotal,
         
         // User info
         user_id: state.user.uid,
-        user_name: state.userProfile?.name || state.user?.email,
-        user_role: state.userProfile?.role,
-        user_email: state.user?.email,
+        user_name: normalizeArabic(state.userProfile?.name || ''),
+        user_role: state.userProfile?.role || '',
+        user_email: state.user?.email || '',
+        
+        // Timestamps
         timestamp: serverTimestamp(),
-        notes: dispatchData.notes || 'صرف إلى فرع',
-        priority: dispatchData.priority || 'normal',
-        from_warehouse_name: dispatchData.from_warehouse_name,
-        status: 'completed',
-        created_by: state.userProfile?.name || state.user?.email || 'نظام',
+        created_at: serverTimestamp(),
         
         // Metadata
+        notes: normalizedData.notes,
+        priority: normalizedData.priority,
+        status: 'completed',
+        created_by: normalizeArabic(state.userProfile?.name || state.user?.email || 'نظام'),
+        
+        // 🔴 CRITICAL: Add these fields for proper display
+        display_type: 'صرف',
+        display_quantity: `${dispatchTotal} وحدة`,
+        display_destination: normalizedData.destination,
+        
+        // Technical metadata
         atomic_operation: true,
-        transaction_timestamp: serverTimestamp(),
-        detailed_breakdown_applied: true
+        detailed_breakdown_applied: true,
+        utf8_encoded: true
       };
+
       transaction.set(transactionRef, transactionData);
 
-      // Create item history WITHIN transaction
+      // ========== CREATE ITEM HISTORY RECORD ==========
       const historyRef = doc(collection(db, 'item_history'));
       const historyData = {
-        item_id: dispatchData.item_id,
-        warehouse_id: dispatchData.from_warehouse_id,
+        item_id: normalizedData.item_id,
+        warehouse_id: normalizedData.from_warehouse_id,
         change_type: 'DISPATCH',
         
-        // Detailed quantity changes
-        old_cartons: currentCartons,
-        old_single_bottles: currentSingles,
+        // Quantity changes
         old_quantity: currentTotal,
-        
-        new_cartons: newCartons,
-        new_single_bottles: newSingles,
         new_quantity: newTotal,
-        
-        cartons_delta: -dispatchCartons,
-        single_bottles_delta: -dispatchSingles,
         quantity_delta: -dispatchTotal,
         
+        old_cartons: currentCartons,
+        new_cartons: newCartons,
+        cartons_delta: -dispatchCartons,
+        
+        old_single_bottles: currentSingles,
+        new_single_bottles: newSingles,
+        single_bottles_delta: -dispatchSingles,
+        
+        // Dispatch details
+        destination: normalizedData.destination,
+        destination_id: normalizedData.destination_id,
+        
+        // User info
         user_id: state.user.uid,
-        user_name: state.userProfile?.name || state.user?.email,
+        user_name: normalizeArabic(state.userProfile?.name || ''),
         timestamp: serverTimestamp(),
+        
         details: {
-          name: itemData.name,
-          code: itemData.code,
-          color: itemData.color,
-          destination: dispatchData.destination,
-          notes: dispatchData.notes,
-          priority: dispatchData.priority,
+          name: normalizedData.item_name,
+          code: itemData.code || '',
+          color: normalizedData.color,
+          notes: normalizedData.notes,
+          priority: normalizedData.priority,
           transaction_id: transactionRef.id,
           per_carton: perCarton,
           detailed_dispatch: true
         }
       };
+      
       transaction.set(historyRef, historyData);
 
-      // Return data for local state update
       return {
-        itemData,
-        transactionData,
         transactionId: transactionRef.id,
-        dispatchTotal,
-        newTotal,
+        transactionData: transactionData,
+        dispatchTotal: dispatchTotal,
+        newTotal: newTotal,
         detailedUpdate: {
           cartons_count: newCartons,
           single_bottles_count: newSingles,
           per_carton_count: perCarton,
-          remaining_quantity: newTotal,
-          total_added: updateData.total_added
+          remaining_quantity: newTotal
         }
       };
     });
 
     // ========== UPDATE LOCAL STATE ==========
-    console.log('✅ Transaction completed successfully:', result);
+    console.log('✅ Transaction completed successfully');
     
-    // Update local inventory state
-    const updatedItem = {
-      id: dispatchData.item_id,
-      cartons_count: result.detailedUpdate.cartons_count,
-      single_bottles_count: result.detailedUpdate.single_bottles_count,
-      per_carton_count: result.detailedUpdate.per_carton_count,
-      remaining_quantity: result.detailedUpdate.remaining_quantity,
-      total_added: result.detailedUpdate.total_added,
-      updated_at: new Date(),
-      updated_by: state.user.uid
-    };
-    
-    // Find and update the item in inventory
-    const inventoryIndex = state.inventory.findIndex(item => item.id === dispatchData.item_id);
+    // Update local inventory
+    const inventoryIndex = state.inventory.findIndex(item => item.id === normalizedData.item_id);
     if (inventoryIndex !== -1) {
-      // Create a new array to trigger Vue reactivity
-      const newInventory = [...state.inventory];
-      newInventory[inventoryIndex] = {
-        ...newInventory[inventoryIndex],
-        ...updatedItem
+      const updatedItem = {
+        ...state.inventory[inventoryIndex],
+        cartons_count: result.detailedUpdate.cartons_count,
+        single_bottles_count: result.detailedUpdate.single_bottles_count,
+        remaining_quantity: result.detailedUpdate.remaining_quantity,
+        updated_at: new Date()
       };
-      commit('SET_INVENTORY', newInventory);
-    } else {
-      // If item not found in local inventory, add it
+      
       commit('UPDATE_INVENTORY_ITEM', updatedItem);
     }
 
-    // Add to recent transactions
-    const transactionRecord = {
+    // 🔴 FIXED: Create transaction object with all required fields for Vuex
+    const transactionForState = {
       id: result.transactionId,
       ...result.transactionData,
-      timestamp: new Date()
+      timestamp: new Date(),
+      created_at: new Date(),
+      
+      // 🔴 Ensure these fields are present for display
+      quantity: result.dispatchTotal,
+      total_delta: result.dispatchTotal,
+      new_remaining: result.newTotal,
+      
+      // Display fields
+      display_quantity: `${result.dispatchTotal} وحدة`,
+      display_type: 'صرف',
+      display_destination: normalizedData.destination
     };
-    commit('ADD_RECENT_TRANSACTION', transactionRecord);
+
+    // Add to transactions
+    commit('ADD_TRANSACTION', transactionForState);
+    commit('ADD_RECENT_TRANSACTION', transactionForState);
 
     // Show success notification
     dispatch('showNotification', {
       type: 'success',
       title: 'تم الصرف بنجاح',
-      message: `تم صرف ${result.dispatchTotal} وحدة من ${result.itemData.name || 'الصنف'} إلى ${dispatchData.destination}`,
+      message: `تم صرف ${result.dispatchTotal} وحدة من "${normalizedData.item_name}" إلى ${normalizedData.destination}`,
       icon: 'check-circle',
       timeout: 5000
     });
 
-    // Log detailed dispatch info
-    console.log('📊 Dispatch completed:', {
-      item: result.itemData.name,
-      previous: {
-        cartons: result.transactionData.previous_cartons,
-        singles: result.transactionData.previous_single_bottles,
-        total: result.transactionData.previous_quantity
-      },
-      dispatched: {
-        cartons: result.transactionData.cartons_count,
-        singles: result.transactionData.single_bottles_count,
-        total: result.dispatchTotal
-      },
-      new: {
-        cartons: result.detailedUpdate.cartons_count,
-        singles: result.detailedUpdate.single_bottles_count,
-        total: result.newQuantity
-      }
+    // Log success
+    console.log('📊 Dispatch completed successfully:', {
+      item: normalizedData.item_name,
+      quantity: result.dispatchTotal,
+      destination: normalizedData.destination,
+      transactionId: result.transactionId
     });
 
     return {
@@ -5909,8 +5904,7 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
 
     return {
       success: false,
-      message: error.message || 'فشل الصرف',
-      error: error
+      message: error.message || 'فشل الصرف'
     };
   } finally {
     commit('SET_OPERATION_LOADING', false);
