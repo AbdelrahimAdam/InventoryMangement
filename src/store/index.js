@@ -5536,6 +5536,131 @@ async updateUser({ commit, state, dispatch }, { userId, userData }) {
   }
 },    
 // ============================================
+// GET DISPATCH WAREHOUSES ACTION - DATABASE ONLY
+// ============================================
+async getDispatchWarehouses({ dispatch }) {
+  try {
+    console.log('🔄 Fetching dispatch warehouses from database...');
+    
+    // 🔴 CRITICAL: Ensure Firebase is ready
+    console.log('⏳ Ensuring Firebase is ready for dispatch warehouses...');
+    await ensureFirebaseReady();
+    console.log('✅ Firebase ready for dispatch warehouses');
+
+    if (!db) {
+      console.error('❌ Firestore database not available');
+      throw new Error('Firestore database not available');
+    }
+
+    // Import Firestore functions
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      collection,
+      query,
+      where,
+      orderBy,
+      getDocs
+    } = firebaseFirestore;
+
+    // Query ONLY dispatch warehouses (type === 'dispatch')
+    const warehousesRef = collection(db, 'warehouses');
+    const q = query(
+      warehousesRef,
+      where('type', '==', 'dispatch'), // 🔴 Only fetch dispatch type
+      orderBy('name_ar') // Optional: order by Arabic name
+    );
+
+    console.log('🔍 Executing dispatch warehouses query...');
+    const snapshot = await getDocs(q);
+    console.log(`📊 Found ${snapshot.size} dispatch warehouses in database`);
+    
+    // Map results from database WITHOUT hardcoding
+    const dispatchWarehouses = [];
+    
+    snapshot.forEach(doc => {
+      try {
+        const data = doc.data();
+        const warehouseId = doc.id;
+        
+        // 🔴 DEBUG: Log what we're getting from database
+        console.log(`📋 Warehouse ${warehouseId}:`, {
+          name_ar: data.name_ar,
+          name: data.name,
+          type: data.type,
+          is_active: data.is_active
+        });
+        
+        // 🔴 Use ONLY database values, NO hardcoding
+        const arabicName = data.name_ar || data.name || warehouseId;
+        
+        // Return complete warehouse data from database
+        const warehouse = {
+          id: warehouseId,
+          name_ar: arabicName, // From database
+          name: data.name || '', // From database
+          type: data.type || 'dispatch', // Should be 'dispatch' from query
+          location: data.location || '',
+          is_active: data.is_active !== false,
+          is_main: data.is_main || false,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          // Include all other fields from database
+          ...data
+        };
+        
+        dispatchWarehouses.push(warehouse);
+      } catch (docError) {
+        console.warn(`⚠️ Error processing warehouse document ${doc.id}:`, docError);
+      }
+    });
+
+    console.log(`✅ Dispatch warehouses loaded from database: ${dispatchWarehouses.length}`);
+    
+    // Debug log to verify data
+    if (dispatchWarehouses.length > 0) {
+      console.log('🎯 Final dispatch warehouses list:', 
+        dispatchWarehouses.map(w => ({ 
+          id: w.id, 
+          name_ar: w.name_ar,
+          name: w.name,
+          type: w.type,
+          is_active: w.is_active
+        }))
+      );
+    } else {
+      console.warn('⚠️ No dispatch warehouses found in database with type="dispatch"');
+      
+      // Optional: Check if there are any warehouses at all
+      const allWarehousesRef = collection(db, 'warehouses');
+      const allSnapshot = await getDocs(query(allWarehousesRef, limit(10)));
+      
+      const allWarehouses = allSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name_ar: doc.data().name_ar,
+        name: doc.data().name,
+        type: doc.data().type || 'not specified'
+      }));
+      
+      console.log('📊 First 10 warehouses in database (all types):', allWarehouses);
+    }
+    
+    return dispatchWarehouses;
+
+  } catch (error) {
+    console.error('❌ Error loading dispatch warehouses:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Show a helpful error message
+    dispatch('showNotification', {
+      type: 'error',
+      message: `خطأ في تحميل مخازن الصرف: ${error.message || 'يرجى التحقق من اتصال الإنترنت'}`
+    });
+    
+    return [];
+  }
+},
+
+// ============================================
 // ENHANCED DISPATCH ITEM ACTION WITH UTF-8 SUPPORT
 // ============================================
 async dispatchItem({ commit, state, dispatch }, dispatchData) {
@@ -5584,7 +5709,10 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
     }
 
     // 🔴 ENSURE FIREBASE IS READY
+    console.log('⏳ Ensuring Firebase is ready for dispatch...');
     await ensureFirebaseReady();
+    console.log('✅ Firebase ready for dispatch');
+    
     if (!db) {
       throw new Error('Firestore database not available');
     }
