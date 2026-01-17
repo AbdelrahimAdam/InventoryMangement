@@ -12,7 +12,7 @@
 
         <div class="flex items-center gap-3">
           <button
-            @click="refreshWarehouses"
+            @click="refreshAllWarehouses"
             :disabled="loading"
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >
@@ -184,7 +184,7 @@
       <h3 class="mt-4 text-lg font-medium text-red-800 dark:text-red-300">حدث خطأ في تحميل المخازن</h3>
       <p class="mt-2 text-sm text-red-700 dark:text-red-300">{{ error }}</p>
       <button
-        @click="refreshWarehouses"
+        @click="refreshAllWarehouses"
         class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
       >
         <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,7 +310,9 @@
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                   warehouse.type === 'primary' 
                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                    : warehouse.type === 'dispatch'
+                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
                 ]">
                   <svg 
                     class="w-3 h-3 ml-1" 
@@ -326,14 +328,21 @@
                       d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                     />
                     <path 
-                      v-else
+                      v-else-if="warehouse.type === 'dispatch'"
                       stroke-linecap="round" 
                       stroke-linejoin="round" 
                       stroke-width="2" 
                       d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                     />
+                    <path 
+                      v-else
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    />
                   </svg>
-                  {{ warehouse.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}
+                  {{ warehouse.type === 'primary' ? 'مخزن رئيسي' : warehouse.type === 'dispatch' ? 'موقع صرف' : warehouse.type || 'غير محدد' }}
                 </span>
               </td>
 
@@ -587,9 +596,11 @@
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                     selectedWarehouseDetails?.type === 'primary' 
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                      : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                      : selectedWarehouseDetails?.type === 'dispatch'
+                      ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
                   ]">
-                    {{ selectedWarehouseDetails?.type === 'primary' ? 'مخزن رئيسي' : 'موقع صرف' }}
+                    {{ selectedWarehouseDetails?.type === 'primary' ? 'مخزن رئيسي' : selectedWarehouseDetails?.type === 'dispatch' ? 'موقع صرف' : selectedWarehouseDetails?.type || 'غير محدد' }}
                   </span>
                   <span v-if="selectedWarehouseDetails?.is_main" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 mr-2">
                     رئيسي
@@ -736,7 +747,7 @@ export default {
       const warehousesList = warehouses.value;
       return {
         totalWarehouses: warehousesList.length,
-        primaryWarehouses: warehousesList.filter(w => w.type === 'primary').length,
+        primaryWarehouses: warehousesList.filter(w => w.type === 'primary' || !w.type).length,
         dispatchWarehouses: warehousesList.filter(w => w.type === 'dispatch').length,
         activeWarehouses: warehousesList.filter(w => w.status === 'active').length
       };
@@ -815,12 +826,23 @@ export default {
     });
     
     // Methods
-    const loadWarehouses = async () => {
+    const loadAllWarehouses = async () => {
       loading.value = true;
       error.value = '';
       
       try {
-        await store.dispatch('loadWarehouses');
+        // Load primary warehouses (this filters out dispatch warehouses)
+        await store.dispatch('loadWarehousesEnhanced');
+        
+        // Load dispatch warehouses separately
+        const dispatchWarehouses = await store.dispatch('getDispatchWarehouses');
+        
+        // If we got dispatch warehouses, merge them with the state
+        if (dispatchWarehouses && dispatchWarehouses.length > 0) {
+          // The dispatch warehouses will be added to state.warehouses by the action
+          console.log(`✅ Loaded ${dispatchWarehouses.length} dispatch warehouses`);
+        }
+        
       } catch (err) {
         console.error('Error loading warehouses:', err);
         error.value = err.message || 'حدث خطأ في تحميل المخازن';
@@ -829,12 +851,12 @@ export default {
       }
     };
     
-    const refreshWarehouses = async () => {
+    const refreshAllWarehouses = async () => {
       loading.value = true;
       error.value = '';
       
       try {
-        await loadWarehouses();
+        await loadAllWarehouses();
         
         // Show success notification
         store.dispatch('showNotification', {
@@ -909,7 +931,7 @@ export default {
           });
           
           // Reload warehouses to get updated data
-          await loadWarehouses();
+          await loadAllWarehouses();
         }
         
       } catch (err) {
@@ -974,7 +996,7 @@ export default {
           });
           
           // Reload warehouses
-          await loadWarehouses();
+          await loadAllWarehouses();
         }
       } catch (err) {
         console.error('Error deleting warehouse:', err);
@@ -1093,10 +1115,8 @@ export default {
         return;
       }
       
-      // Load warehouses if not already loaded
-      if (!warehousesLoaded.value) {
-        await loadWarehouses();
-      }
+      // Load all warehouses (primary + dispatch)
+      await loadAllWarehouses();
     });
     
     return {
@@ -1127,8 +1147,8 @@ export default {
       visiblePages,
       
       // Methods
-      loadWarehouses,
-      refreshWarehouses,
+      loadAllWarehouses,
+      refreshAllWarehouses,
       openAddWarehouseModal,
       openEditWarehouseModal,
       closeWarehouseModal,
