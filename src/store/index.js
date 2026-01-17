@@ -5225,6 +5225,108 @@ async transferItem({ commit, state, dispatch }, transferData) {
   }
 },
 // ============================================
+// LOAD MORE TRANSACTIONS ACTION
+// ============================================
+async loadMoreTransactions({ commit, state }) {
+  if (!state.pagination.hasMore || state.pagination.isFetching) {
+    return [];
+  }
+
+  commit('SET_PAGINATION', { isFetching: true });
+
+  try {
+    console.log('📥 Loading more transactions...');
+
+    const transactionsRef = collection(db, 'transactions');
+    let q;
+
+    if (state.pagination.lastDoc) {
+      q = query(
+        transactionsRef,
+        orderBy('timestamp', 'desc'),
+        startAfter(state.pagination.lastDoc),
+        limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+      );
+    } else {
+      q = query(
+        transactionsRef,
+        orderBy('timestamp', 'desc'),
+        limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      commit('SET_PAGINATION', { hasMore: false });
+      return [];
+    }
+
+    const newTransactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    const allTransactions = [...state.transactions, ...newTransactions];
+    commit('SET_TRANSACTIONS', allTransactions);
+    
+    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    commit('SET_PAGINATION', {
+      lastDoc,
+      hasMore: snapshot.size === PERFORMANCE_CONFIG.SCROLL_LOAD,
+      isFetching: false
+    });
+
+    return newTransactions;
+
+  } catch (error) {
+    console.error('❌ Error loading more transactions:', error);
+    commit('SET_PAGINATION', { isFetching: false });
+    throw error;
+  }
+},
+
+// ============================================
+// SETUP REAL-TIME TRANSACTIONS
+// ============================================
+async setupRealtimeTransactions({ commit, state }) {
+  if (state.realtimeListeners.length > 0) {
+    console.log('⚠️ Real-time transactions already set up');
+    return;
+  }
+
+  try {
+    console.log('🔴 Setting up real-time transactions...');
+
+    const transactionsRef = collection(db, 'transactions');
+    const q = query(
+      transactionsRef,
+      orderBy('timestamp', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const transactions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      commit('SET_TRANSACTIONS', transactions);
+      
+      // Add recent transactions
+      const recentTransactions = transactions.slice(0, 30);
+      commit('SET_RECENT_TRANSACTIONS', recentTransactions);
+    });
+
+    commit('ADD_REALTIME_LISTENER', unsubscribe);
+    console.log('✅ Real-time transactions set up successfully');
+
+  } catch (error) {
+    console.error('❌ Error setting up real-time transactions:', error);
+  }
+},
+    
+// ============================================
 // SIMPLE CREATE USER ACTION (EXACT MATCH TO MODAL)
 // ============================================
 async createUser({ commit, state, dispatch }, userData) {
@@ -7967,33 +8069,247 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
         lastSearchSource: state.search.source
       };
     },
-
-    getWarehouseSearchResults: (state) => {
-      if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
-        return [];
-      }
-
-      const query = state.search.query.toLowerCase();
-      const recentFirebaseResults = state.search.results.length > 0 && 
-                                    state.search.source === 'firebase';
-
-      if (recentFirebaseResults) {
-        return state.search.results;
-      }
-
-      return state.inventory.filter(item => 
-        item.name?.toLowerCase().includes(query) ||
-        item.code?.toLowerCase().includes(query) ||
-        item.color?.toLowerCase().includes(query) ||
-        item.supplier?.toLowerCase().includes(query)
-      );
-    },
-
-    getSearchReady: (state) => {
-      return state.inventoryLoaded || 
-             (state.search.query && 
-              state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
-              state.search.results.length > 0);
+   
+  getWarehouseSearchResults: (state) => {
+    if (!state.search.query || state.search.query.length < PERFORMANCE_CONFIG.MIN_SEARCH_CHARS) {
+      return [];
     }
+
+    const query = state.search.query.toLowerCase();
+    const recentFirebaseResults = state.search.results.length > 0 && 
+                                  state.search.source === 'firebase';
+
+    if (recentFirebaseResults) {
+      return state.search.results;
+    }
+
+    return state.inventory.filter(item => 
+      item.name?.toLowerCase().includes(query) ||
+      item.code?.toLowerCase().includes(query) ||
+      item.color?.toLowerCase().includes(query) ||
+      item.supplier?.toLowerCase().includes(query)
+    );
+  },
+
+  getSearchReady: (state) => {
+    return state.inventoryLoaded || 
+           (state.search.query && 
+            state.search.query.length >= PERFORMANCE_CONFIG.MIN_SEARCH_CHARS &&
+            state.search.results.length > 0);
+  },
+
+  // ============================================
+  // ✅ NEW TRANSACTIONS-RELATED GETTERS
+  // ============================================
+  getWarehouseArabicName: (state) => (warehouseId, warehouseData = null) => {
+    if (!warehouseId) return 'غير محدد';
+    
+    // If warehouseData is provided, use it
+    if (warehouseData && warehouseData.name_ar) {
+      return warehouseData.name_ar;
+    }
+    
+    // Find in warehouses array
+    const warehouse = state.warehouses.find(w => w.id === warehouseId);
+    if (warehouse) {
+      return warehouse.name_ar || warehouse.name || warehouseId;
+    }
+    
+    // Check dispatch locations (warehouses with type='dispatch')
+    const dispatchLocation = state.warehouses.find(w => 
+      w.type === 'dispatch' && w.id === warehouseId
+    );
+    
+    if (dispatchLocation) {
+      return dispatchLocation.name_ar || dispatchLocation.name || warehouseId;
+    }
+    
+    return warehouseId;
+  },
+  
+  getDispatchDestinationName: (state, getters) => (transaction) => {
+    if (!transaction || transaction.type !== 'DISPATCH') return '';
+    
+    // Priority 1: Direct destination fields
+    if (transaction.destination_name) {
+      return transaction.destination_name;
+    }
+    
+    // Priority 2: Lookup in warehouses using the new getter
+    const destinationId = transaction.destination || transaction.destination_id;
+    if (destinationId) {
+      return getters.getWarehouseArabicName(destinationId);
+    }
+    
+    // Priority 3: Check notes for destination info
+    if (transaction.notes) {
+      // Look for common patterns in notes
+      const patterns = [
+        /إلى\s+(.+)/,
+        /إلى:\s*(.+)/,
+        /إلى\s*:\s*(.+)/,
+        /لـ\s+(.+)/,
+        /لـ:\s*(.+)/,
+        /destination:\s*(.+)/i,
+        /dest:\s*(.+)/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = transaction.notes.match(pattern);
+        if (match && match[1]) {
+          const destination = match[1].trim();
+          return destination
+            .replace(/\.$/, '')
+            .replace(/,$/, '')
+            .replace(/;$/, '');
+        }
+      }
+    }
+    
+    // Default fallback
+    return 'موقع صرف';
+  },
+  
+  getTransactionTypeLabel: () => (type) => {
+    const labels = {
+      'ADD': 'إضافة',
+      'TRANSFER': 'تحويل',
+      'DISPATCH': 'صرف',
+      'UPDATE': 'تحديث',
+      'DELETE': 'حذف'
+    };
+    return labels[type] || type;
+  },
+  
+  getUserRoleLabel: () => (role) => {
+    const labels = {
+      'superadmin': 'مدير عام',
+      'company_manager': 'مدير شركة',
+      'warehouse_manager': 'مدير مستودع',
+      'staff': 'موظف'
+    };
+    return labels[role] || role || 'غير معروف';
+  },
+
+  // Enhanced filtered transactions with all filters
+  filteredTransactions: (state, getters) => (filters = {}) => {
+    let filtered = [...state.transactions];
+
+    // Apply search filter
+    if (filters.search && filters.search.length >= 2) {
+      const term = filters.search.toLowerCase();
+      filtered = filtered.filter(transaction => 
+        (transaction.item_name?.toLowerCase() || '').includes(term) ||
+        (transaction.item_code?.toLowerCase() || '').includes(term) ||
+        (transaction.notes?.toLowerCase() || '').includes(term) ||
+        (transaction.user_name?.toLowerCase() || '').includes(term) ||
+        (transaction.created_by?.toLowerCase() || '').includes(term)
+      );
+    }
+
+    // Apply type filter
+    if (filters.type) {
+      filtered = filtered.filter(transaction => transaction.type === filters.type);
+    }
+
+    // Apply warehouse filter
+    if (filters.warehouse) {
+      filtered = filtered.filter(transaction => 
+        transaction.from_warehouse === filters.warehouse || 
+        transaction.to_warehouse === filters.warehouse ||
+        transaction.destination_id === filters.warehouse
+      );
+    }
+
+    // Apply date filter
+    if (filters.dateFrom || filters.dateTo) {
+      const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : null;
+      const toDate = filters.dateTo ? new Date(filters.dateTo) : null;
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      
+      filtered = filtered.filter(transaction => {
+        if (!transaction.timestamp) return false;
+        try {
+          const transDate = transaction.timestamp?.toDate ? 
+            transaction.timestamp.toDate() : new Date(transaction.timestamp);
+          
+          if (fromDate && transDate < fromDate) return false;
+          if (toDate && transDate > toDate) return false;
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    // Sort by date (newest first)
+    filtered.sort((a, b) => {
+      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+      return dateB - dateA;
+    });
+
+    return filtered;
+  },
+  
+  // Transaction stats
+  getTransactionStats: (state) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayTransactions = state.transactions.filter(t => {
+      if (!t.timestamp) return false;
+      try {
+        const transDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        return transDate >= today;
+      } catch {
+        return false;
+      }
+    });
+
+    const addCount = todayTransactions.filter(t => t.type === 'ADD').length;
+    const transferCount = todayTransactions.filter(t => t.type === 'TRANSFER').length;
+    const dispatchCount = todayTransactions.filter(t => t.type === 'DISPATCH').length;
+    const updateCount = todayTransactions.filter(t => t.type === 'UPDATE').length;
+    const deleteCount = todayTransactions.filter(t => t.type === 'DELETE').length;
+
+    return {
+      total: state.transactions.length,
+      today: todayTransactions.length,
+      add: addCount,
+      transfer: transferCount,
+      dispatch: dispatchCount,
+      update: updateCount,
+      delete: deleteCount,
+      lastUpdated: state.transactions.length > 0 ? 
+        (state.transactions[0].timestamp?.toDate ? 
+         state.transactions[0].timestamp.toDate() : 
+         new Date(state.transactions[0].timestamp)) : 
+        null
+    };
+  },
+
+  // Helper to get transaction quantity
+  getTransactionQuantity: () => (transaction) => {
+    const quantity = 
+      transaction.quantity || 
+      transaction.qty || 
+      transaction.total_delta || 
+      transaction.total_quantity || 
+      transaction.delta_quantity || 
+      0;
+    
+    // For DISPATCH type, show negative value
+    if (transaction.type === 'DISPATCH' && quantity > 0) {
+      return -Math.abs(quantity);
+    }
+    
+    // For ADD type, ensure positive
+    if (transaction.type === 'ADD' && quantity < 0) {
+      return Math.abs(quantity);
+    }
+    
+    return quantity;
   }
+}
 });
