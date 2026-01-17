@@ -171,13 +171,13 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading && warehouses.length === 0" class="text-center py-12">
+    <div v-if="loading && localWarehouses.length === 0" class="text-center py-12">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
       <p class="mt-4 text-gray-600 dark:text-gray-400">جاري تحميل المخازن...</p>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error && warehouses.length === 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+    <div v-else-if="error && localWarehouses.length === 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
       <svg class="h-12 w-12 text-red-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.195 16.5c-.77.833.192 2.5 1.732 2.5z"/>
       </svg>
@@ -212,7 +212,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length === 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+    <div v-else-if="!loading && filteredWarehouses.length === 0 && localWarehouses.length === 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
       </svg>
@@ -230,7 +230,7 @@
     </div>
 
     <!-- No Results State -->
-    <div v-else-if="!loading && filteredWarehouses.length === 0 && warehouses.length > 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+    <div v-else-if="!loading && filteredWarehouses.length === 0 && localWarehouses.length > 0 && canManageWarehouses" class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
@@ -702,7 +702,6 @@
   </div>
 </template>
 
-
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
@@ -727,7 +726,7 @@ export default {
     const selectedWarehouse = ref(null);
     const selectedWarehouseDetails = ref(null);
     
-    // Local warehouses state
+    // Local warehouses state - renamed from localWarehouses to match template
     const localWarehouses = ref([]);
     
     // Filters
@@ -841,8 +840,8 @@ export default {
         console.log(`✅ Loaded ${primaryWarehouses.length} primary warehouses`);
         
         // 2. Load dispatch warehouses separately
-        const dispatchWarehouses = await store.dispatch('getDispatchWarehouses');
-        console.log(`✅ Loaded ${dispatchWarehouses?.length || 0} dispatch warehouses`);
+        const dispatchWarehouses = await store.dispatch('getDispatchWarehouses') || [];
+        console.log(`✅ Loaded ${dispatchWarehouses.length} dispatch warehouses`);
         
         // 3. Merge both lists
         const allWarehouses = [...primaryWarehouses];
@@ -1163,12 +1162,15 @@ export default {
       itemsPerPage,
       currentPage,
       
+      // Data
+      localWarehouses,
+      
       // Computed
       userRole,
       canManageWarehouses,
       stats,
-      filteredWarehouses: filteredWarehouses,
-      paginatedWarehouses: paginatedWarehouses,
+      filteredWarehouses,
+      paginatedWarehouses,
       totalPages,
       startItem,
       endItem,
