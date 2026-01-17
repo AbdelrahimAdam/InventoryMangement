@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <!-- Navigation Bar (Mobile/Desktop) -->
+    <!-- Navigation Bar -->
     <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
@@ -27,7 +27,7 @@
             </button>
 
             <button 
-              @click="manualRefresh"
+              @click="refreshTransactions"
               :disabled="loading"
               class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 disabled:opacity-50"
             >
@@ -45,7 +45,7 @@
               <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              تصدير
+              تصدير Excel
             </button>
           </div>
 
@@ -80,7 +80,7 @@
             </button>
 
             <button 
-              @click="manualRefresh"
+              @click="refreshTransactions"
               :disabled="loading"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/40 disabled:opacity-50"
             >
@@ -207,7 +207,7 @@
                 :key="warehouse.id" 
                 :value="warehouse.id"
               >
-                {{ getWarehouseArabicName(warehouse.id, warehouse) }}
+                {{ getWarehouseArabicName(warehouse) }}
               </option>
             </select>
           </div>
@@ -278,7 +278,7 @@
               @click="warehouseFilter = ''"
               class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300"
             >
-              مخزن: {{ getWarehouseArabicName(warehouseFilter) }}
+              مخزن: {{ getWarehouseArabicName({ id: warehouseFilter }) }}
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
               </svg>
@@ -289,7 +289,7 @@
               @click="typeFilter = ''"
               class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300"
             >
-              نوع: {{ getTypeLabel(typeFilter) }}
+              نوع: {{ getTransactionTypeLabel(typeFilter) }}
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
               </svg>
@@ -326,7 +326,7 @@
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">الحركات</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">إجمالي: {{ formatNumber(displayedTransactions.length) }} حركة ({{ loadedCount }}/{{ estimatedTotalCount }})</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">إجمالي: {{ formatNumber(filteredTransactions.length) }} حركة</p>
             </div>
             <div class="mt-2 sm:mt-0">
               <div class="text-sm text-gray-500 dark:text-gray-400 english-numbers">
@@ -352,7 +352,7 @@
           <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">حدث خطأ في تحميل البيانات</p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ error }}</p>
           <button 
-            @click="manualRefresh"
+            @click="refreshTransactions"
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -363,7 +363,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="displayedTransactions.length === 0" class="p-8 text-center">
+        <div v-else-if="filteredTransactions.length === 0" class="p-8 text-center">
           <div class="text-gray-400 dark:text-gray-500 mb-4">
             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -378,15 +378,15 @@
           <!-- Mobile/Tablet View -->
           <div class="md:hidden">
             <div 
-              v-for="(transaction, index) in displayedTransactions" 
-              :key="'mobile-' + (transaction.id || index)"
+              v-for="transaction in displayedTransactions" 
+              :key="'mobile-' + transaction.id"
               class="p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
             >
               <!-- Header -->
               <div class="flex justify-between items-start mb-3">
                 <div>
                   <span :class="getTypeBadgeClass(transaction.type)">
-                    {{ getTypeLabel(transaction.type) }}
+                    {{ getTransactionTypeLabel(transaction.type) }}
                   </span>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {{ formatTransactionDate(transaction) }} - {{ formatTransactionTime(transaction) }}
@@ -417,13 +417,13 @@
                     <svg class="w-4 h-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                     </svg>
-                    <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName({ id: transaction.from_warehouse || transaction.from_warehouse_id }) }}</span>
                   </div>
                   <div class="flex items-center text-sm">
                     <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                     </svg>
-                    <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName({ id: transaction.to_warehouse || transaction.to_warehouse_id }) }}</span>
                   </div>
                 </div>
                 <div v-else-if="transaction.type === 'DISPATCH'" class="space-y-1">
@@ -431,22 +431,21 @@
                     <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                     </svg>
-                    <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                    <span>{{ getWarehouseArabicName({ id: transaction.from_warehouse || transaction.from_warehouse_id }) }}</span>
                   </div>
-                  <!-- FIXED: Properly show dispatch destination -->
                   <div class="flex items-center text-sm text-blue-600 dark:text-blue-400">
                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <span>{{ getDestinationDisplayName(transaction) }}</span>
+                    <span>{{ getDispatchDestinationName(transaction) }}</span>
                   </div>
                 </div>
                 <div v-else class="flex items-center text-sm">
                   <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                   </svg>
-                  <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                  <span>{{ getWarehouseArabicName({ id: transaction.to_warehouse || transaction.to_warehouse_id }) }}</span>
                 </div>
               </div>
 
@@ -509,8 +508,8 @@
               </thead>
               <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 <tr 
-                  v-for="(transaction, index) in displayedTransactions" 
-                  :key="'desktop-' + (transaction.id || index)"
+                  v-for="transaction in displayedTransactions" 
+                  :key="'desktop-' + transaction.id"
                   class="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                 >
                   <!-- Date -->
@@ -526,7 +525,7 @@
                   <!-- Type -->
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span :class="getTypeBadgeClass(transaction.type)">
-                      {{ getTypeLabel(transaction.type) }}
+                      {{ getTransactionTypeLabel(transaction.type) }}
                     </span>
                   </td>
 
@@ -554,13 +553,13 @@
                         <svg class="w-4 h-4 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                         </svg>
-                        <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                        <span>{{ getWarehouseArabicName({ id: transaction.from_warehouse || transaction.from_warehouse_id }) }}</span>
                       </div>
                       <div class="flex items-center text-sm">
                         <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                         </svg>
-                        <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                        <span>{{ getWarehouseArabicName({ id: transaction.to_warehouse || transaction.to_warehouse_id }) }}</span>
                       </div>
                     </div>
                     <div v-else-if="transaction.type === 'DISPATCH'" class="space-y-1">
@@ -568,22 +567,21 @@
                         <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                         </svg>
-                        <span>{{ getWarehouseArabicName(transaction.from_warehouse || transaction.from_warehouse_id) }}</span>
+                        <span>{{ getWarehouseArabicName({ id: transaction.from_warehouse || transaction.from_warehouse_id }) }}</span>
                       </div>
-                      <!-- FIXED: Properly show dispatch destination -->
                       <div class="flex items-center text-sm text-blue-600 dark:text-blue-400">
                         <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span>{{ getDestinationDisplayName(transaction) }}</span>
+                        <span>{{ getDispatchDestinationName(transaction) }}</span>
                       </div>
                     </div>
                     <div v-else class="flex items-center text-sm">
                       <svg class="w-4 h-4 text-green-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                       </svg>
-                      <span>{{ getWarehouseArabicName(transaction.to_warehouse || transaction.to_warehouse_id) }}</span>
+                      <span>{{ getWarehouseArabicName({ id: transaction.to_warehouse || transaction.to_warehouse_id }) }}</span>
                     </div>
                   </td>
 
@@ -615,8 +613,8 @@
           </div>
         </div>
 
-        <!-- Load More -->
-        <div v-if="hasMoreTransactions && displayedTransactions.length > 0" class="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
+        <!-- Pagination -->
+        <div v-if="hasMore" class="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
           <button 
             @click="loadMoreTransactions"
             :disabled="loadingMore"
@@ -626,31 +624,13 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
             <span>{{ loadingMore ? 'جاري التحميل...' : 'تحميل المزيد' }}</span>
-            <span class="mr-2 text-xs">({{ loadedCount }}/{{ estimatedTotalCount }})</span>
           </button>
-        </div>
-
-        <!-- Search More Indicator -->
-        <div v-if="isSearchActive && !hasMoreTransactions && displayedTransactions.length < estimatedTotalCount" class="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            <span class="english-numbers">{{ displayedTransactions.length }}</span> من 
-            <span class="english-numbers">{{ estimatedTotalCount }}</span> نتيجة
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            للبحث في جميع الحركات، استخدم فلاتر أكثر تحديداً
-          </p>
         </div>
       </div>
 
-      <!-- Pagination Info -->
+      <!-- Info Footer -->
       <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p class="english-numbers">عرض {{ displayedTransactions.length }} من {{ loadedCount }} حركة محملة</p>
-        <p v-if="estimatedTotalCount > loadedCount" class="mt-1 english-numbers">
-          تقدير إجمالي الحركات: {{ formatNumber(estimatedTotalCount) }}
-        </p>
-        <p v-if="isSearchActive && displayedTransactions.length > 0" class="mt-1">
-          بحث: "{{ searchTerm }}" - {{ formatNumber(searchMatchCount) }} نتيجة مطابقة
-        </p>
+        <p class="english-numbers">عرض {{ displayedTransactions.length }} من {{ filteredTransactions.length }} حركة</p>
       </div>
     </main>
 
@@ -685,19 +665,22 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import * as XLSX from 'xlsx';
-import { collection, query, orderBy, limit, onSnapshot, getDocs, startAfter, where } from 'firebase/firestore';
-import { db } from '@/firebase/config';
 import { debounce } from 'lodash';
 
-// Configuration for Spark Plan
+// Configuration
 const TRANSACTION_CONFIG = {
-  INITIAL_LOAD: 100,        // Initial load limit for Spark Plan
-  LOAD_MORE_BATCH: 50,      // Batch size for loading more
-  SEARCH_DEBOUNCE: 500,     // Search debounce time
-  MAX_DISPLAY: 200,         // Maximum transactions to display at once
-  CACHE_DURATION: 30000,    // Cache duration for search results (30 seconds)
-  MIN_SEARCH_CHARS: 2       // Minimum characters for search
+  INITIAL_LOAD: 50,
+  LOAD_MORE_BATCH: 20,
+  SEARCH_DEBOUNCE: 500,
+  MAX_DISPLAY: 100,
+  MIN_SEARCH_CHARS: 2
 };
+
+// Arabic months for date formatting
+const arabicMonths = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
 
 export default {
   name: 'Transactions',
@@ -715,12 +698,8 @@ export default {
     const showMobileMenu = ref(false);
     const loadingMore = ref(false);
     const transactionsRef = ref(null);
-    const searchCache = ref(new Map());
     const lastVisibleDoc = ref(null);
     const allTransactionsLoaded = ref(false);
-    const estimatedTotalCount = ref(0);
-    const searchMatchCount = ref(0);
-    const lastSearchTime = ref(0);
     
     // Use Vuex state and getters
     const userRole = computed(() => store.getters.userRole);
@@ -728,28 +707,23 @@ export default {
       return userRole.value === 'superadmin' || userRole.value === 'company_manager';
     });
     
-    // Use store data from Vuex store
-    const allTransactions = computed(() => store.state.transactions || []);
+    // Store data
     const loading = computed(() => store.state.transactionsLoading);
     const error = computed(() => store.state.inventoryError);
-    
-    // Get transaction stats from Vuex store
+    const allTransactions = computed(() => store.state.transactions || []);
     const transactionStats = computed(() => store.getters.getTransactionStats || {
       total: 0,
       today: 0,
       add: 0,
       transfer: 0,
       dispatch: 0,
-      update: 0,
-      delete: 0,
       lastUpdated: null
     });
     
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses);
-
-    // Local cache for loaded transactions
-    const loadedTransactions = ref([]);
-    const loadedCount = computed(() => loadedTransactions.value.length);
+    
+    // Loaded transactions count
+    const loadedCount = computed(() => allTransactions.value.length);
     
     // Check if search is active
     const isSearchActive = computed(() => {
@@ -760,103 +734,22 @@ export default {
              dateTo.value;
     });
 
-    // Filter transactions with live search
+    // Filter transactions using store getter
     const filteredTransactions = computed(() => {
-      const now = Date.now();
-      const cacheKey = `${searchTerm.value}|${typeFilter.value}|${warehouseFilter.value}|${dateFrom.value}|${dateTo.value}`;
-      
-      // Check cache first
-      const cached = searchCache.value.get(cacheKey);
-      if (cached && (now - cached.timestamp < TRANSACTION_CONFIG.CACHE_DURATION)) {
-        searchMatchCount.value = cached.matchCount;
-        return cached.results;
-      }
-
-      let transactions = loadedTransactions.value;
-      
-      // Apply text search if active
-      if (searchTerm.value.length >= TRANSACTION_CONFIG.MIN_SEARCH_CHARS) {
-        const term = searchTerm.value.toLowerCase();
-        transactions = transactions.filter(transaction => 
-          (transaction.item_name?.toLowerCase() || '').includes(term) ||
-          (transaction.item_code?.toLowerCase() || '').includes(term) ||
-          (transaction.notes?.toLowerCase() || '').includes(term) ||
-          (transaction.user_name?.toLowerCase() || '').includes(term) ||
-          (transaction.created_by?.toLowerCase() || '').includes(term)
-        );
-      }
-      
-      // Apply type filter
-      if (typeFilter.value) {
-        transactions = transactions.filter(transaction => transaction.type === typeFilter.value);
-      }
-      
-      // Apply warehouse filter
-      if (warehouseFilter.value) {
-        const fromWarehouse = warehouseFilter.value;
-        transactions = transactions.filter(transaction => {
-          const fromWarehouseId = transaction.from_warehouse || transaction.from_warehouse_id;
-          const toWarehouseId = transaction.to_warehouse || transaction.to_warehouse_id;
-          const destination = transaction.destination || transaction.destination_id;
-          
-          return fromWarehouseId === fromWarehouse || 
-                 toWarehouseId === fromWarehouse ||
-                 destination === fromWarehouse;
-        });
-      }
-      
-      // Apply date filter
-      if (dateFrom.value || dateTo.value) {
-        const fromDate = dateFrom.value ? new Date(dateFrom.value) : null;
-        const toDate = dateTo.value ? new Date(dateTo.value) : null;
-        if (toDate) toDate.setHours(23, 59, 59, 999);
-        
-        transactions = transactions.filter(transaction => {
-          if (!transaction.timestamp) return false;
-          try {
-            const transDate = transaction.timestamp?.toDate ? 
-              transaction.timestamp.toDate() : new Date(transaction.timestamp);
-            
-            if (fromDate && transDate < fromDate) return false;
-            if (toDate && transDate > toDate) return false;
-            return true;
-          } catch {
-            return false;
-          }
-        });
-      }
-      
-      // Sort by date (newest first)
-      transactions.sort((a, b) => {
-        const dateA = getTransactionTime(a);
-        const dateB = getTransactionTime(b);
-        return dateB - dateA;
+      return store.getters.filteredTransactions({
+        search: searchTerm.value,
+        type: typeFilter.value,
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value
       });
-      
-      // Update search match count
-      searchMatchCount.value = transactions.length;
-      
-      // Cache results
-      if (isSearchActive.value) {
-        searchCache.value.set(cacheKey, {
-          results: transactions,
-          matchCount: transactions.length,
-          timestamp: now
-        });
-        
-        // Clean old cache entries
-        if (searchCache.value.size > 20) {
-          const oldestKey = Array.from(searchCache.value.keys())[0];
-          searchCache.value.delete(oldestKey);
-        }
-      }
-      
-      return transactions;
     });
 
     // Display paginated transactions
     const displayedTransactions = computed(() => {
-      return filteredTransactions.value.slice(0, TRANSACTION_CONFIG.MAX_DISPLAY);
+      if (isSearchActive.value) {
+        return filteredTransactions.value.slice(0, TRANSACTION_CONFIG.MAX_DISPLAY);
+      }
+      return filteredTransactions.value.slice(0, TRANSACTION_CONFIG.INITIAL_LOAD);
     });
     
     const hasActiveFilters = computed(() => {
@@ -864,17 +757,17 @@ export default {
     });
     
     const filterPercentage = computed(() => {
-      if (loadedTransactions.value.length === 0) return 0;
-      const percentage = Math.round((displayedTransactions.value.length / loadedTransactions.value.length) * 100);
+      if (allTransactions.value.length === 0) return 0;
+      const percentage = Math.round((displayedTransactions.value.length / allTransactions.value.length) * 100);
       return Math.min(100, percentage);
     });
 
     // Check if more transactions can be loaded
-    const hasMoreTransactions = computed(() => {
+    const hasMore = computed(() => {
       return !allTransactionsLoaded.value && 
              !isSearchActive.value && 
              !loadingMore.value &&
-             loadedTransactions.value.length < estimatedTotalCount.value;
+             displayedTransactions.value.length < filteredTransactions.value.length;
     });
 
     // Helper function to get transaction time
@@ -890,118 +783,27 @@ export default {
       }
     };
 
-    // Arabic months for custom date formatting
-    const arabicMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-    ];
-
-    // ============================================
-    // FIXED: ARABIC WAREHOUSE NAME FUNCTIONS
-    // ============================================
-    const getWarehouseArabicName = (warehouseId, warehouseData = null) => {
-      if (!warehouseId) return 'غير محدد';
-      
-      // Check if warehouseData is provided
-      if (warehouseData && warehouseData.name_ar) {
-        return warehouseData.name_ar;
-      }
-      
-      // Try to find warehouse in store
-      const warehouses = store.state.warehouses || [];
-      const foundWarehouse = warehouses.find(w => w.id === warehouseId);
-      if (foundWarehouse?.name_ar) {
-        return foundWarehouse.name_ar;
-      }
-      
-      // Custom mapping for known warehouses
-      const arabicNameMap = {
-        // Dispatch warehouses
-        'dubi_factory': 'مصنع دبي',
-        'external_wharehouse': 'صرف خارجي',
-        'external_warehouse': 'صرف خارجي',
-        'factory': 'مصنع البران',
-        'dispat_item': 'موقع صرف',
-        'dispatch_center': 'مركز الصرف',
-        'shipping_dock': 'رصيف الشحن',
-        
-        // Branch warehouses
-        'branch_1': 'الفرع الأول',
-        'branch_2': 'الفرع الثاني',
-        'branch_3': 'الفرع الثالث',
-        
-        // Regular warehouses
-        'warehouse_1': 'مستودع ١',
-        'warehouse_2': 'مستودع ٢',
-        'main_warehouse': 'المخزن الرئيسي',
-        'warehouse_main': 'المخزن الرئيسي',
-        
-        // Common warehouse IDs
-        'main': 'الرئيسي',
-        'primary': 'رئيسي',
-        'dispatch': 'صرف'
-      };
-      
-      return arabicNameMap[warehouseId] || warehouseId;
+    // Use store getters for warehouse and user info
+    const getWarehouseArabicName = (warehouse) => {
+      return store.getters.getWarehouseArabicName(warehouse?.id, warehouse);
     };
-
-    // FIXED: Get destination display name for dispatch transactions
-    const getDestinationDisplayName = (transaction) => {
-      if (!transaction) return '';
-      
-      // For dispatch transactions
-      if (transaction.type === 'DISPATCH') {
-        // First check destination name
-        if (transaction.destination_name) {
-          return transaction.destination_name;
-        }
-        
-        // Then check destination/destination_id
-        const destinationId = transaction.destination || transaction.destination_id;
-        if (destinationId) {
-          // Try to get from known warehouses
-          const warehouseName = getWarehouseArabicName(destinationId);
-          if (warehouseName !== destinationId) {
-            return warehouseName;
-          }
-          
-          // Check if it's a known dispatch destination
-          const dispatchDestinations = {
-            'customer': 'عميل',
-            'client': 'عميل',
-            'customer_site': 'موقع العميل',
-            'construction_site': 'موقع بناء',
-            'project': 'مشروع',
-            'site': 'موقع',
-            'external': 'خارجي',
-            'other': 'أخرى'
-          };
-          
-          return dispatchDestinations[destinationId] || destinationId;
-        }
-        
-        // Default fallback
-        return 'موقع صرف';
-      }
-      
-      return '';
+    
+    const getDispatchDestinationName = (transaction) => {
+      return store.getters.getDispatchDestinationName(transaction);
+    };
+    
+    const getTransactionTypeLabel = (type) => {
+      return store.getters.getTransactionTypeLabel(type);
+    };
+    
+    const getUserRoleLabel = (role) => {
+      return store.getters.getUserRoleLabel(role);
     };
 
     // Methods
     const formatNumber = (num) => {
       if (num === undefined || num === null) return '0';
       return new Intl.NumberFormat('en-US').format(num);
-    };
-    
-    const getTypeLabel = (type) => {
-      const labels = {
-        'ADD': 'إضافة',
-        'TRANSFER': 'تحويل',
-        'DISPATCH': 'صرف',
-        'UPDATE': 'تحديث',
-        'DELETE': 'حذف'
-      };
-      return labels[type] || type;
     };
     
     const getTypeBadgeClass = (type) => {
@@ -1024,19 +826,8 @@ export default {
       return classes[type] || 'text-gray-700 dark:text-gray-300 font-medium';
     };
     
-    const getUserRoleLabel = (role) => {
-      const labels = {
-        'superadmin': 'مدير عام',
-        'company_manager': 'مدير شركة',
-        'warehouse_manager': 'مدير مستودع',
-        'staff': 'موظف'
-      };
-      return labels[role] || role || 'غير معروف';
-    };
-    
     // Helper function to get transaction quantity from various property names
     const getTransactionQuantity = (transaction) => {
-      // Try different property names that might contain quantity
       const quantity = 
         transaction.quantity || 
         transaction.qty || 
@@ -1097,20 +888,19 @@ export default {
     
     // Debounced search
     const handleSearch = debounce(() => {
-      searchCache.value.clear();
-      lastSearchTime.value = Date.now();
+      // Filtering is handled by computed property
     }, TRANSACTION_CONFIG.SEARCH_DEBOUNCE);
     
     const handleFilter = () => {
-      searchCache.value.clear();
+      // Filtering is handled by computed property
     };
     
     const handleWarehouseFilter = () => {
-      searchCache.value.clear();
+      // Filtering is handled by computed property
     };
 
     const handleDateFilter = () => {
-      searchCache.value.clear();
+      // Filtering is handled by computed property
     };
     
     const clearFilters = () => {
@@ -1119,15 +909,13 @@ export default {
       warehouseFilter.value = '';
       dateFrom.value = '';
       dateTo.value = '';
-      searchCache.value.clear();
-      store.commit('CLEAR_INVOICE_FILTERS');
     };
     
     const showNotes = (transaction) => {
       selectedNotes.value = transaction.notes;
     };
 
-    // Load more transactions on demand
+    // Load more transactions
     const loadMoreTransactions = async () => {
       if (loadingMore.value || allTransactionsLoaded.value || isSearchActive.value) {
         return;
@@ -1136,62 +924,8 @@ export default {
       loadingMore.value = true;
       
       try {
-        console.log('📥 جاري تحميل المزيد من الحركات...');
-        
-        let q;
-        const transactionsCollection = collection(db, 'transactions');
-        
-        if (lastVisibleDoc.value) {
-          q = query(
-            transactionsCollection,
-            orderBy('timestamp', 'desc'),
-            startAfter(lastVisibleDoc.value),
-            limit(TRANSACTION_CONFIG.LOAD_MORE_BATCH)
-          );
-        } else {
-          // Should not happen, but as fallback
-          q = query(
-            transactionsCollection,
-            orderBy('timestamp', 'desc'),
-            limit(TRANSACTION_CONFIG.LOAD_MORE_BATCH)
-          );
-        }
-
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-          allTransactionsLoaded.value = true;
-          console.log('✅ تم تحميل جميع الحركات المتاحة');
-        } else {
-          const newTransactions = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // Add to local loaded transactions
-          loadedTransactions.value.push(...newTransactions);
-          
-          // Update Vuex store (for recent transactions)
-          const currentTransactions = store.state.transactions || [];
-          store.commit('SET_TRANSACTIONS', [...currentTransactions, ...newTransactions]);
-          
-          // Update last visible document
-          lastVisibleDoc.value = snapshot.docs[snapshot.docs.length - 1];
-          
-          console.log(`✅ تم تحميل ${newTransactions.length} حركة إضافية`);
-          
-          // Update estimated count
-          if (newTransactions.length < TRANSACTION_CONFIG.LOAD_MORE_BATCH) {
-            allTransactionsLoaded.value = true;
-            estimatedTotalCount.value = loadedTransactions.value.length;
-          } else {
-            // Estimate based on loaded count
-            estimatedTotalCount.value = Math.max(
-              estimatedTotalCount.value,
-              loadedTransactions.value.length + TRANSACTION_CONFIG.LOAD_MORE_BATCH
-            );
-          }
-        }
+        // Use store action to load more
+        await store.dispatch('loadMoreTransactions');
       } catch (error) {
         console.error('❌ خطأ في تحميل المزيد من الحركات:', error);
         store.dispatch('showNotification', {
@@ -1203,75 +937,10 @@ export default {
       }
     };
 
-    // Load transactions using Vuex action
-    const loadTransactionsFromFirestore = async (initialLoad = true) => {
+    // Refresh transactions using store action
+    const refreshTransactions = async () => {
       try {
-        if (initialLoad) {
-          console.log('📡 جاري تحميل الحركات من Firestore...');
-          
-          // Clear previous data
-          loadedTransactions.value = [];
-          lastVisibleDoc.value = null;
-          allTransactionsLoaded.value = false;
-          searchCache.value.clear();
-          
-          // Load initial batch
-          const transactionsCollection = collection(db, 'transactions');
-          const q = query(
-            transactionsCollection,
-            orderBy('timestamp', 'desc'),
-            limit(TRANSACTION_CONFIG.INITIAL_LOAD)
-          );
-
-          const snapshot = await getDocs(q);
-          
-          if (!snapshot.empty) {
-            const transactions = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            
-            // Store in local array
-            loadedTransactions.value = transactions;
-            
-            // Update Vuex store
-            store.commit('SET_TRANSACTIONS', transactions);
-            
-            // Update last visible document for pagination
-            lastVisibleDoc.value = snapshot.docs[snapshot.docs.length - 1];
-            
-            // Update estimated total count
-            estimatedTotalCount.value = transactions.length;
-            
-            // If we got fewer than requested, mark as fully loaded
-            if (transactions.length < TRANSACTION_CONFIG.INITIAL_LOAD) {
-              allTransactionsLoaded.value = true;
-            } else {
-              // Estimate there might be more
-              estimatedTotalCount.value = transactions.length + TRANSACTION_CONFIG.LOAD_MORE_BATCH;
-            }
-            
-            console.log(`✅ تم تحميل ${transactions.length} حركة مبدئية`);
-          } else {
-            console.log('📭 لا توجد حركات');
-            loadedTransactions.value = [];
-            estimatedTotalCount.value = 0;
-            allTransactionsLoaded.value = true;
-          }
-        }
-      } catch (error) {
-        console.error('❌ خطأ في تحميل الحركات:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ أثناء تحميل الحركات'
-        });
-      }
-    };
-
-    // Manual refresh using Vuex action
-    const manualRefresh = async () => {
-      try {
-        await loadTransactionsFromFirestore(true);
+        await store.dispatch('fetchTransactions');
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1304,12 +973,12 @@ export default {
         }
         store.dispatch('showNotification', {
           type: 'info',
-          message: 'تم إيقاف التحديث المباشر'
+          message: 'تم إوقف التحديث المباشر'
         });
       }
     };
 
-    // Export transactions to Excel with Arabic names
+    // Export transactions to Excel
     const exportTransactions = () => {
       try {
         const wb = XLSX.utils.book_new();
@@ -1322,14 +991,15 @@ export default {
           return {
             'التاريخ': formatTransactionDate(transaction),
             'الوقت': formatTransactionTime(transaction),
-            'نوع الحركة': getTypeLabel(transaction.type),
+            'نوع الحركة': getTransactionTypeLabel(transaction.type),
             'اسم المنتج': transaction.item_name || '',
             'كود المنتج': transaction.item_code || '',
             'الكمية': quantity,
-            'من مستودع': getWarehouseArabicName(fromWarehouseId),
-            'إلى مستودع': getWarehouseArabicName(toWarehouseId),
-            'الوجهة': transaction.type === 'DISPATCH' ? getDestinationDisplayName(transaction) : '',
+            'من مستودع': getWarehouseArabicName({ id: fromWarehouseId }),
+            'إلى مستودع': getWarehouseArabicName({ id: toWarehouseId }),
+            'الوجهة': transaction.type === 'DISPATCH' ? getDispatchDestinationName(transaction) : '',
             'المستخدم': transaction.created_by || transaction.user_name || '',
+            'دور المستخدم': getUserRoleLabel(transaction.user_role),
             'ملاحظات': transaction.notes || ''
           };
         });
@@ -1359,54 +1029,13 @@ export default {
       }
     };
 
-    // Setup real-time transactions listener for recent transactions only
+    // Setup real-time transactions listener
     const setupRealtimeTransactions = () => {
       if (!liveUpdatesEnabled.value) return;
 
       try {
-        const q = query(
-          collection(db, 'transactions'),
-          orderBy('timestamp', 'desc'),
-          limit(50) // Only listen to recent 50 transactions for real-time updates
-        );
-
-        transactionsRef.value = onSnapshot(q, (snapshot) => {
-          const newTransactions = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          // Update Vuex store with new transactions (for recent transactions)
-          store.commit('SET_TRANSACTIONS', newTransactions);
-          
-          // Only add new transactions to our loaded list if they're not already there
-          const existingIds = new Set(loadedTransactions.value.map(t => t.id));
-          const uniqueNewTransactions = newTransactions.filter(t => !existingIds.has(t.id));
-          
-          if (uniqueNewTransactions.length > 0) {
-            // Add to beginning of array (newest first)
-            loadedTransactions.value.unshift(...uniqueNewTransactions);
-            
-            // Keep only the most recent transactions in memory
-            if (loadedTransactions.value.length > TRANSACTION_CONFIG.INITIAL_LOAD * 2) {
-              loadedTransactions.value = loadedTransactions.value.slice(0, TRANSACTION_CONFIG.INITIAL_LOAD * 2);
-            }
-            
-            // Clear search cache since data changed
-            searchCache.value.clear();
-            
-            // Show notification for new transactions
-            if (snapshot.docChanges().length > 0) {
-              const latestTransaction = newTransactions[0];
-              store.dispatch('showNotification', {
-                type: 'info',
-                message: `حركة جديدة: ${getTypeLabel(latestTransaction.type)} - ${latestTransaction.item_name}`,
-                duration: 3000
-              });
-            }
-          }
-        });
-
+        // Use store action to setup real-time updates
+        store.dispatch('setupRealtimeTransactions');
       } catch (error) {
         console.error('Error setting up real-time transactions:', error);
       }
@@ -1421,7 +1050,7 @@ export default {
         }
         
         // Load initial transactions
-        await loadTransactionsFromFirestore(true);
+        await store.dispatch('fetchTransactions');
         
         // Enable real-time updates by default
         setupRealtimeTransactions();
@@ -1437,8 +1066,7 @@ export default {
 
     // Watch for filter changes
     watch([searchTerm, typeFilter, warehouseFilter, dateFrom, dateTo], () => {
-      // Clear cache when filters change
-      searchCache.value.clear();
+      // Filtering is handled by computed property
     });
     
     onMounted(() => {
@@ -1475,19 +1103,17 @@ export default {
       transactionStats,
       accessibleWarehouses,
       loadedCount,
-      estimatedTotalCount,
-      searchMatchCount,
-      hasMoreTransactions,
+      hasMore,
       isSearchActive,
       
       // Methods
       formatNumber,
-      getTypeLabel,
+      getTransactionTypeLabel,
       getTypeBadgeClass,
       getQuantityClass,
       getUserRoleLabel,
       getWarehouseArabicName,
-      getDestinationDisplayName,
+      getDispatchDestinationName,
       formatTransactionDate,
       formatTransactionTime,
       formatDateRange,
@@ -1496,10 +1122,9 @@ export default {
       handleWarehouseFilter,
       handleDateFilter,
       clearFilters,
-      manualRefresh,
+      refreshTransactions,
       toggleLiveUpdates,
       exportTransactions,
-      getTransactionTime,
       getTransactionQuantity,
       showNotes,
       loadMoreTransactions
@@ -1573,11 +1198,6 @@ export default {
   animation: spin 1s linear infinite;
 }
 
-/* Modal backdrop */
-.modal-backdrop {
-  backdrop-filter: blur(4px);
-}
-
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -1610,111 +1230,6 @@ export default {
   background: #9ca3af;
 }
 
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-table {
-    width: 100% !important;
-  }
-}
-
-/* Accessibility */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
-/* Focus styles */
-.focus-visible:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-}
-
-/* Touch target sizes */
-@media (pointer: coarse) {
-  button,
-  [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .contrast-border {
-    border-width: 2px;
-  }
-}
-
-/* Force LTR for numbers */
-.ltr-numbers {
-  direction: ltr !important;
-  text-align: left !important;
-}
-
-/* Mobile-first responsive utilities */
-.mobile-first {
-  /* Base styles for mobile */
-}
-
-@media (min-width: 640px) {
-  .mobile-first {
-    /* Tablet styles */
-  }
-}
-
-@media (min-width: 1024px) {
-  .mobile-first {
-    /* Desktop styles */
-  }
-}
-
-/* Grid fallback for older browsers */
-.grid-fallback {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -0.5rem;
-}
-
-.grid-fallback > * {
-  margin: 0.5rem;
-  flex: 1 1 300px;
-}
-
-@supports (display: grid) {
-  .grid-fallback {
-    display: grid;
-    margin: 0;
-  }
-  
-  .grid-fallback > * {
-    margin: 0;
-  }
-}
-
 /* Ensure table takes full width */
 table {
   min-width: 100%;
@@ -1726,18 +1241,6 @@ table {
   .lg\:px-8 {
     padding-left: 2rem;
     padding-right: 2rem;
-  }
-  
-  /* Make sure the main content area takes full width */
-  main {
-    width: 100%;
-  }
-}
-
-/* Optional: Add a container query for very wide screens */
-@container (min-width: 1280px) {
-  .table-container {
-    max-width: none;
   }
 }
 </style>
