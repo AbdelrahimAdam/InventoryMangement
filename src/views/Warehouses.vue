@@ -702,6 +702,7 @@
   </div>
 </template>
 
+
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
@@ -726,6 +727,9 @@ export default {
     const selectedWarehouse = ref(null);
     const selectedWarehouseDetails = ref(null);
     
+    // Local warehouses state
+    const localWarehouses = ref([]);
+    
     // Filters
     const filters = ref({
       type: '',
@@ -738,16 +742,14 @@ export default {
     
     // Computed properties
     const userRole = computed(() => store.getters.userRole);
-    const warehouses = computed(() => store.state.warehouses || []);
-    const warehousesLoaded = computed(() => store.state.warehousesLoaded || false);
     const canManageWarehouses = computed(() => store.getters.canManageWarehouses || false);
     
-    // Stats
+    // Local stats based on localWarehouses
     const stats = computed(() => {
-      const warehousesList = warehouses.value;
+      const warehousesList = localWarehouses.value;
       return {
         totalWarehouses: warehousesList.length,
-        primaryWarehouses: warehousesList.filter(w => w.type === 'primary' || !w.type).length,
+        primaryWarehouses: warehousesList.filter(w => w.type === 'primary' || !w.type || w.type === '').length,
         dispatchWarehouses: warehousesList.filter(w => w.type === 'dispatch').length,
         activeWarehouses: warehousesList.filter(w => w.status === 'active').length
       };
@@ -755,7 +757,7 @@ export default {
     
     // Filtered warehouses
     const filteredWarehouses = computed(() => {
-      let filtered = [...warehouses.value];
+      let filtered = [...localWarehouses.value];
       
       // Apply search filter
       if (searchTerm.value.trim()) {
@@ -831,21 +833,55 @@ export default {
       error.value = '';
       
       try {
-        // Load primary warehouses (this filters out dispatch warehouses)
+        console.log('🔄 Loading all warehouses (primary + dispatch)...');
+        
+        // 1. Load primary warehouses (filters out dispatch)
         await store.dispatch('loadWarehousesEnhanced');
+        const primaryWarehouses = store.state.warehouses || [];
+        console.log(`✅ Loaded ${primaryWarehouses.length} primary warehouses`);
         
-        // Load dispatch warehouses separately
+        // 2. Load dispatch warehouses separately
         const dispatchWarehouses = await store.dispatch('getDispatchWarehouses');
+        console.log(`✅ Loaded ${dispatchWarehouses?.length || 0} dispatch warehouses`);
         
-        // If we got dispatch warehouses, merge them with the state
-        if (dispatchWarehouses && dispatchWarehouses.length > 0) {
-          // The dispatch warehouses will be added to state.warehouses by the action
-          console.log(`✅ Loaded ${dispatchWarehouses.length} dispatch warehouses`);
+        // 3. Merge both lists
+        const allWarehouses = [...primaryWarehouses];
+        
+        // Add dispatch warehouses if they exist
+        if (dispatchWarehouses && Array.isArray(dispatchWarehouses)) {
+          // Check for duplicates before adding
+          dispatchWarehouses.forEach(dispatchWarehouse => {
+            const exists = allWarehouses.some(w => w.id === dispatchWarehouse.id);
+            if (!exists) {
+              allWarehouses.push(dispatchWarehouse);
+            }
+          });
+        }
+        
+        // 4. Update local state
+        localWarehouses.value = allWarehouses;
+        
+        console.log(`📊 Total warehouses loaded: ${allWarehouses.length}`);
+        console.log('📋 Warehouse types:', {
+          primary: allWarehouses.filter(w => w.type === 'primary' || !w.type).length,
+          dispatch: allWarehouses.filter(w => w.type === 'dispatch').length,
+          other: allWarehouses.filter(w => w.type && w.type !== 'primary' && w.type !== 'dispatch').length
+        });
+        
+        // Log some warehouse details for debugging
+        if (allWarehouses.length > 0) {
+          console.log('🔍 First few warehouses:');
+          allWarehouses.slice(0, 3).forEach((w, i) => {
+            console.log(`  ${i + 1}. ID: ${w.id}, Name: ${w.name_ar}, Type: ${w.type || 'none'}`);
+          });
         }
         
       } catch (err) {
-        console.error('Error loading warehouses:', err);
+        console.error('❌ Error loading warehouses:', err);
         error.value = err.message || 'حدث خطأ في تحميل المخازن';
+        
+        // Try to use whatever is in the store as fallback
+        localWarehouses.value = store.state.warehouses || [];
       } finally {
         loading.value = false;
       }
@@ -1094,12 +1130,6 @@ export default {
       }
     };
     
-    // Watch for warehouses changes
-    watch(warehouses, () => {
-      // Reset to first page when warehouses change
-      currentPage.value = 1;
-    });
-    
     // Watch for user role changes
     watch(userRole, (newRole) => {
       if (newRole !== 'superadmin') {
@@ -1135,12 +1165,10 @@ export default {
       
       // Computed
       userRole,
-      warehouses,
-      warehousesLoaded,
       canManageWarehouses,
       stats,
-      filteredWarehouses,
-      paginatedWarehouses,
+      filteredWarehouses: filteredWarehouses,
+      paginatedWarehouses: paginatedWarehouses,
       totalPages,
       startItem,
       endItem,
