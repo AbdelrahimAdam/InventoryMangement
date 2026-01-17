@@ -650,118 +650,45 @@ export default {
     })
 
     // ============================================
-    // ENHANCED: Dispatch Warehouses Loading with Store
+    // UPDATED: Dispatch Warehouses Loading - STORE ONLY
     // ============================================
     const loadDispatchWarehouses = async () => {
       try {
         loadingWarehouses.value = true
-        console.log('🔄 Loading dispatch warehouses...')
+        console.log('🔄 Loading dispatch warehouses from store...')
         
-        // OPTION 1: Use store action (RECOMMENDED)
-        if (store._actions.getDispatchWarehouses) {
-          console.log('📡 Loading from store action...')
-          const warehouses = await store.dispatch('getDispatchWarehouses')
-          
-          if (warehouses && warehouses.length > 0) {
-            // Ensure Arabic names are present
-            const mappedWarehouses = warehouses.map(warehouse => ({
-              ...warehouse,
-              name_ar: getDispatchWarehouseArabicName(warehouse.id, warehouse)
-            }))
-            
-            dispatchWarehouses.value = mappedWarehouses
-            console.log(`✅ Loaded ${mappedWarehouses.length} dispatch warehouses from store`)
-            return mappedWarehouses
-          }
+        // Use store action directly - no fallbacks
+        const warehouses = await store.dispatch('getDispatchWarehouses')
+        
+        if (warehouses && warehouses.length > 0) {
+          dispatchWarehouses.value = warehouses
+          console.log(`✅ Loaded ${warehouses.length} dispatch warehouses from store`)
+          console.log('📋 Dispatch warehouses data:', warehouses.map(w => ({ 
+            id: w.id, 
+            name_ar: w.name_ar,
+            type: w.type 
+          })))
+        } else {
+          dispatchWarehouses.value = []
+          console.warn('⚠️ No dispatch warehouses returned from store')
         }
         
-        // OPTION 2: Fallback to local filtering (if store fails)
-        console.log('🔄 Falling back to local warehouse filtering...')
-        const allWarehouses = store.state.warehouses || []
-        
-        // Map dispatch warehouses with consistent Arabic names
-        const mappedWarehouses = allWarehouses
-          .filter(w => w.type === 'dispatch' || w.is_dispatch)
-          .map(warehouse => ({
-            ...warehouse,
-            // Ensure Arabic name exists
-            name_ar: getDispatchWarehouseArabicName(warehouse.id, warehouse)
-          }))
-        
-        dispatchWarehouses.value = mappedWarehouses
-        console.log(`✅ Filtered ${mappedWarehouses.length} dispatch warehouses locally`)
-        return mappedWarehouses
+        return warehouses || []
         
       } catch (error) {
         console.error('❌ Error loading dispatch warehouses:', error)
+        dispatchWarehouses.value = []
         
-        // OPTION 3: Last resort - hardcoded list
-        const fallbackWarehouses = getHardcodedDispatchWarehouses()
-        dispatchWarehouses.value = fallbackWarehouses
-        console.log(`✅ Using ${fallbackWarehouses.length} fallback dispatch warehouses`)
-        return fallbackWarehouses
+        // Show error notification
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'فشل في تحميل مواقع الصرف'
+        })
         
+        return []
       } finally {
         loadingWarehouses.value = false
       }
-    }
-
-    // Helper: Get Arabic name for dispatch warehouse
-    const getDispatchWarehouseArabicName = (warehouseId, warehouseData) => {
-      // Custom mapping for known dispatch warehouses
-      const arabicNameMap = {
-        'dubi_factory': 'مصنع دبي',
-        'external_wharehouse': 'صرف خارجي',
-        'external_warehouse': 'صرف خارجي',
-        'factory': 'مصنع البران',
-        'dispat_item': 'موقع صرف',
-        'dispatch_center': 'مركز الصرف',
-        'shipping_dock': 'رصيف الشحن',
-        'branch_1': 'الفرع الأول',
-        'branch_2': 'الفرع الثاني',
-        'branch_3': 'الفرع الثالث',
-        'warehouse_1': 'مستودع ١',
-        'warehouse_2': 'مستودع ٢'
-      }
-      
-      return arabicNameMap[warehouseId] || 
-             warehouseData?.name_ar || 
-             warehouseData?.name || 
-             warehouseId
-    }
-
-    // Helper: Hardcoded fallback
-    const getHardcodedDispatchWarehouses = () => {
-      return [
-        { 
-          id: 'dubi_factory', 
-          name_ar: 'مصنع دبي', 
-          name: 'Dubi Factory', 
-          type: 'dispatch', 
-          icon: '🏭' 
-        },
-        { 
-          id: 'external_wharehouse', 
-          name_ar: 'صرف خارجي', 
-          name: 'External Dispatch', 
-          type: 'dispatch', 
-          icon: '🚚' 
-        },
-        { 
-          id: 'factory', 
-          name_ar: 'مصنع البران', 
-          name: 'Al Buran Factory', 
-          type: 'dispatch', 
-          icon: '🏢' 
-        },
-        { 
-          id: 'dispat_item', 
-          name_ar: 'موقع صرف', 
-          name: 'Dispatch Site', 
-          type: 'dispatch', 
-          icon: '📍' 
-        }
-      ]
     }
 
     // Helper: Get icon based on warehouse
@@ -772,6 +699,7 @@ export default {
         'external_wharehouse': '🚚',
         'external_warehouse': '🚚',
         'dispat_item': '📍',
+        'dispatch_item': '📍',
         'dispatch_center': '🏢',
         'shipping_dock': '🚢',
         'branch_1': '🏪',
@@ -796,7 +724,7 @@ export default {
         }]
       }
       
-      // Return actual dispatch warehouses
+      // Return actual dispatch warehouses with icons
       return dispatchWarehouses.value.map(warehouse => ({
         ...warehouse,
         icon: getWarehouseIcon(warehouse.id),
@@ -804,18 +732,17 @@ export default {
       }))
     })
 
-    // Compute accessible source warehouses
+    // Compute accessible source warehouses (NON-DISPATCH ONLY)
     const accessibleSourceWarehouses = computed(() => {
       if (isSuperadmin.value) {
-        return warehouses.value.filter(w => w.type !== 'dispatch' && !w.is_dispatch)
+        return warehouses.value.filter(w => w.type !== 'dispatch')
       }
       
       const userWarehouseIds = userProfile.value?.accessible_warehouses || 
                               userProfile.value?.allowed_warehouses || []
       return warehouses.value.filter(warehouse => 
         userWarehouseIds.includes(warehouse.id) && 
-        warehouse.type !== 'dispatch' && 
-        !warehouse.is_dispatch
+        warehouse.type !== 'dispatch'
       )
     })
 
@@ -841,7 +768,7 @@ export default {
     // Helper function to get destination name
     const getDestinationName = (destinationId) => {
       const destination = dispatchDestinations.value.find(d => d.id === destinationId)
-      return destination ? destination.name_ar : 'وجهة غير معروفة'
+      return destination ? destination.name_ar : destinationId
     }
 
     // Helper function to get warehouse type
@@ -1294,7 +1221,7 @@ export default {
           // Required identification
           item_id: currentItemId,
           from_warehouse_id: form.sourceWarehouse,
-          destination: 'dispat_item',
+          destination: 'dispatch',
           destination_id: form.destinationBranch,
           
           // Quantity fields
@@ -1470,7 +1397,7 @@ export default {
       if (isOpen) {
         resetForm()
         
-        // Load dispatch warehouses
+        // Load dispatch warehouses from store
         await loadDispatchWarehouses()
       }
     }, { immediate: true })
