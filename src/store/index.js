@@ -5225,67 +5225,76 @@ async transferItem({ commit, state, dispatch }, transferData) {
   }
 },
 // ============================================
-// LOAD MORE TRANSACTIONS ACTION
+// SIMPLE LOAD MORE TRANSACTIONS ACTION
 // ============================================
-async loadMoreTransactions({ commit, state }) {
-  if (!state.pagination.hasMore || state.pagination.isFetching) {
+async loadMoreTransactions({ commit, state, dispatch }) {
+  if (state.pagination.isFetching) {
     return [];
   }
 
   commit('SET_PAGINATION', { isFetching: true });
 
   try {
-    console.log('📥 Loading more transactions...');
+    console.log('📥 Loading more transactions (simple method)...');
 
+    // Get all transactions and filter client-side
     const transactionsRef = collection(db, 'transactions');
-    let q;
-
-    if (state.pagination.lastDoc) {
-      q = query(
-        transactionsRef,
-        orderBy('timestamp', 'desc'),
-        startAfter(state.pagination.lastDoc),
-        limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-      );
-    } else {
-      q = query(
-        transactionsRef,
-        orderBy('timestamp', 'desc'),
-        limit(PERFORMANCE_CONFIG.SCROLL_LOAD)
-      );
-    }
-
-    const snapshot = await getDocs(q);
+    const allDocs = await getDocs(transactionsRef);
     
-    if (snapshot.empty) {
-      commit('SET_PAGINATION', { hasMore: false });
+    // Convert to array and sort by timestamp
+    const allTransactions = allDocs.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })).sort((a, b) => {
+      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+      return dateB - dateA;
+    });
+
+    // Calculate what to show
+    const currentCount = state.transactions.length;
+    const newTransactions = allTransactions.slice(currentCount, currentCount + PERFORMANCE_CONFIG.SCROLL_LOAD);
+
+    if (newTransactions.length === 0) {
+      console.log('📭 No more transactions to load');
+      commit('SET_PAGINATION', { 
+        hasMore: false, 
+        isFetching: false 
+      });
       return [];
     }
 
-    const newTransactions = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    const allTransactions = [...state.transactions, ...newTransactions];
-    commit('SET_TRANSACTIONS', allTransactions);
+    // Add new transactions
+    const updatedTransactions = [...state.transactions, ...newTransactions];
+    commit('SET_TRANSACTIONS', updatedTransactions);
     
-    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    // Update pagination
+    const hasMore = currentCount + newTransactions.length < allTransactions.length;
     commit('SET_PAGINATION', {
-      lastDoc,
-      hasMore: snapshot.size === PERFORMANCE_CONFIG.SCROLL_LOAD,
-      isFetching: false
+      hasMore: hasMore,
+      isFetching: false,
+      totalLoaded: updatedTransactions.length
     });
+
+    console.log(`✅ Loaded ${newTransactions.length} more transactions (total: ${updatedTransactions.length}, hasMore: ${hasMore})`);
 
     return newTransactions;
 
   } catch (error) {
     console.error('❌ Error loading more transactions:', error);
-    commit('SET_PAGINATION', { isFetching: false });
-    throw error;
+    
+    commit('SET_PAGINATION', { 
+      isFetching: false 
+    });
+    
+    dispatch('showNotification', {
+      type: 'error',
+      message: 'خطأ في تحميل المزيد من الحركات'
+    });
+
+    return [];
   }
 },
-
 // ============================================
 // SETUP REAL-TIME TRANSACTIONS
 // ============================================
