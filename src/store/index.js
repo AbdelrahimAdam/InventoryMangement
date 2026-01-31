@@ -6172,6 +6172,244 @@ async dispatchItem({ commit, state, dispatch }, dispatchData) {
     commit('SET_OPERATION_LOADING', false);
   }
 },
+// ============================================
+// DELETE ITEM ACTION (SPARK PLAN COMPATIBLE)
+// ============================================
+async deleteItem({ commit, state, dispatch }, itemId) {
+  commit('SET_OPERATION_LOADING', true);
+  commit('CLEAR_OPERATION_ERROR');
+
+  try {
+    console.log(`🗑️ DELETE Item Action - SPARK Plan: ${itemId}`);
+
+    // 🔴 VALIDATION 1: Authentication
+    if (!state.userProfile) {
+      throw new Error('يجب تسجيل الدخول أولاً');
+    }
+
+    // 🔴 VALIDATION 2: Only superadmin can delete
+    if (state.userProfile.role !== 'superadmin') {
+      throw new Error('فقط المشرف العام يمكنه حذف الأصناف');
+    }
+
+    if (!itemId) {
+      throw new Error('معرف الصنف مطلوب');
+    }
+
+    // 🔴 CRITICAL: Ensure Firebase is ready
+    console.log('⏳ Ensuring Firebase is ready for delete...');
+    await ensureFirebaseReady();
+    console.log('✅ Firebase ready for delete');
+
+    if (!db) {
+      throw new Error('Firestore database not available');
+    }
+
+    // 🔴 DYNAMIC IMPORT (same as other actions)
+    const firebaseFirestore = await import('firebase/firestore');
+    const {
+      doc,
+      getDoc,
+      deleteDoc,
+      addDoc,
+      collection,
+      serverTimestamp,
+      writeBatch
+    } = firebaseFirestore;
+
+    // ========== STEP 1: GET ITEM DETAILS ==========
+    const itemRef = doc(db, 'items', itemId);
+    const itemDoc = await getDoc(itemRef);
+    
+    if (!itemDoc.exists()) {
+      throw new Error('الصنف غير موجود');
+    }
+
+    const itemData = itemDoc.data();
+    const itemName = itemData.name || 'غير معروف';
+    const warehouseId = itemData.warehouse_id;
+
+    console.log('📋 Item to delete:', {
+      id: itemId,
+      name: itemName,
+      code: itemData.code,
+      warehouse: warehouseId,
+      quantity: itemData.remaining_quantity
+    });
+
+    // ========== STEP 2: USER CONFIRMATION (via modal - already handled) ==========
+    // The ConfirmDeleteModal already shows confirmation, so just proceed
+
+    // ========== STEP 3: CREATE BATCH OPERATION ==========
+    const batch = writeBatch(db);
+
+    // 3A. DELETE THE ITEM
+    batch.delete(itemRef);
+
+    // 3B. CREATE TRANSACTION RECORD
+    const transactionRef = doc(collection(db, 'transactions'));
+    const transactionData = {
+      type: 'DELETE',
+      item_id: itemId,
+      item_name: itemName,
+      item_code: itemData.code || '',
+      color: itemData.color || '',
+      from_warehouse: warehouseId,
+      to_warehouse: null,
+      previous_quantity: itemData.remaining_quantity || 0,
+      previous_cartons: itemData.cartons_count || 0,
+      previous_single_bottles: itemData.single_bottles_count || 0,
+      quantity: -(itemData.remaining_quantity || 0), // Negative for delete
+      total_delta: -(itemData.remaining_quantity || 0),
+      new_remaining: 0,
+      user_id: state.user.uid,
+      user_name: state.userProfile?.name || '',
+      user_role: state.userProfile?.role || '',
+      user_email: state.user?.email || '',
+      timestamp: serverTimestamp(),
+      created_at: serverTimestamp(),
+      notes: `حذف الصنف "${itemName}"`,
+      created_by: state.userProfile?.name || state.user?.email || 'نظام',
+      
+      // Display fields for transactions page
+      display_type: 'حذف',
+      display_quantity: `${itemData.remaining_quantity || 0} وحدة`,
+      display_destination: 'حذف نهائي',
+      
+      // Technical metadata
+      atomic_operation: true,
+      detailed_breakdown_applied: true
+    };
+    
+    batch.set(transactionRef, transactionData);
+
+    // 3C. CREATE ITEM HISTORY RECORD
+    const historyRef = doc(collection(db, 'item_history'));
+    const historyData = {
+      item_id: itemId,
+      warehouse_id: warehouseId,
+      change_type: 'DELETE',
+      old_quantity: itemData.remaining_quantity || 0,
+      new_quantity: 0,
+      quantity_delta: -(itemData.remaining_quantity || 0),
+      old_cartons: itemData.cartons_count || 0,
+      new_cartons: 0,
+      cartons_delta: -(itemData.cartons_count || 0),
+      old_single_bottles: itemData.single_bottles_count || 0,
+      new_single_bottles: 0,
+      single_bottles_delta: -(itemData.single_bottles_count || 0),
+      user_id: state.user.uid,
+      user_name: state.userProfile?.name || '',
+      timestamp: serverTimestamp(),
+      details: {
+        name: itemName,
+        code: itemData.code,
+        color: itemData.color,
+        supplier: itemData.supplier,
+        notes: 'حذف نهائي للصنف من النظام',
+        transaction_id: transactionRef.id
+      }
+    };
+    
+    batch.set(historyRef, historyData);
+
+    // ========== STEP 4: EXECUTE BATCH ==========
+    await batch.commit();
+    console.log('✅ Batch operations committed successfully');
+
+    // ========== STEP 5: UPDATE LOCAL STATE ==========
+    
+    // 5A. Remove from main inventory
+    commit('REMOVE_INVENTORY_ITEM', itemId);
+    
+    // 5B. Update search results if item is there
+    if (state.search.results.length > 0) {
+      const updatedSearchResults = state.search.results.filter(item => item.id !== itemId);
+      if (updatedSearchResults.length !== state.search.results.length) {
+        commit('SET_SEARCH_RESULTS', {
+          results: updatedSearchResults,
+          source: state.search.source,
+          query: state.search.query
+        });
+      }
+    }
+    
+    // 5C. Create transaction object for Vuex state
+    const transactionForState = {
+      id: transactionRef.id,
+      ...transactionData,
+      timestamp: new Date(),
+      created_at: new Date(),
+      
+      // Ensure display fields
+      display_quantity: `${itemData.remaining_quantity || 0} وحدة`,
+      display_type: 'حذف',
+      display_destination: 'حذف نهائي'
+    };
+    
+    // Add to transactions and recent transactions
+    commit('ADD_TRANSACTION', transactionForState);
+    commit('ADD_RECENT_TRANSACTION', transactionForState);
+
+    // ========== STEP 6: SHOW SUCCESS ==========
+    dispatch('showNotification', {
+      type: 'success',
+      title: 'تم الحذف بنجاح',
+      message: `تم حذف الصنف "${itemName}" من النظام`,
+      icon: 'check-circle',
+      timeout: 5000
+    });
+
+    // ========== STEP 7: LOG SUCCESS ==========
+    console.log('📊 Delete completed successfully:', {
+      itemId,
+      itemName,
+      quantityDeleted: itemData.remaining_quantity || 0,
+      transactionId: transactionRef.id
+    });
+
+    return {
+      success: true,
+      message: 'تم حذف الصنف بنجاح',
+      itemId,
+      itemName,
+      transactionId: transactionRef.id
+    };
+
+  } catch (error) {
+    console.error('❌ DELETE Item Error:', error);
+    console.error('Error stack:', error.stack);
+    
+    commit('SET_OPERATION_ERROR', error.message);
+    
+    // 🔴 USER-FRIENDLY ERROR MESSAGES
+    let errorMessage = error.message;
+    
+    if (error.code === 'permission-denied') {
+      errorMessage = 'ليس لديك صلاحية لحذف الأصناف';
+    } else if (error.code === 'not-found') {
+      errorMessage = 'الصنف غير موجود أو تم حذفه بالفعل';
+    } else if (error.message.includes('network') || error.message.includes('اتصال')) {
+      errorMessage = 'فشل الاتصال. يرجى التحقق من اتصال الإنترنت';
+    }
+
+    dispatch('showNotification', {
+      type: 'error',
+      title: 'فشل الحذف',
+      message: errorMessage,
+      icon: 'alert-circle',
+      timeout: 7000
+    });
+
+    return {
+      success: false,
+      message: errorMessage,
+      error: error
+    };
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+},
     async loadWarehouses({ dispatch }) {
       try {
         console.log('🔄 Loading warehouses...');
