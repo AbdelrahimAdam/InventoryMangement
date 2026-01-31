@@ -768,13 +768,12 @@
                 :key="item.id"
                 class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
                 @click="showItemDetails(item)"
-                data-mobile-card
               >
                 <!-- Main Row -->
                 <div class="flex gap-3">
                   <!-- Photo -->
                   <div class="flex-shrink-0">
-                    <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                    <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                       <img
                         :src="item.photo_url || getPlaceholderImage()"
                         :alt="item.name"
@@ -787,13 +786,13 @@
 
                   <!-- Item Details -->
                   <div class="flex-1 min-w-0">
-                    <!-- First Row: Name, Code, and Status -->
+                    <!-- First Row: Name and Quantity -->
                     <div class="flex justify-between items-start mb-1">
-                      <div class="min-w-0 flex-1">
+                      <div class="min-w-0">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-white truncate mb-1">
                           {{ item.name }}
                         </h3>
-                        <div class="flex items-center gap-1 flex-wrap">
+                        <div class="flex items-center gap-1">
                           <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
                             {{ item.code }}
                           </span>
@@ -803,13 +802,9 @@
                           </span>
                         </div>
                       </div>
-                      <!-- Remaining Quantity -->
                       <div :class="getQuantityClass(item.remaining_quantity)"
-                           class="text-lg font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">
+                           class="text-lg font-bold px-3 py-1.5 rounded-lg">
                         {{ item.remaining_quantity }}
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 text-center">
-                          من {{ item.total_added }}
-                        </div>
                       </div>
                     </div>
 
@@ -817,7 +812,7 @@
                     <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                       <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         </svg>
                         <span class="truncate max-w-[100px]">
                           {{ getWarehouseLabel(item.warehouse_id) }}
@@ -830,29 +825,13 @@
                       </div>
                     </div>
 
-                    <!-- Third Row: Quantities (Cartons, Per Carton, Single) -->
-                    <div class="grid grid-cols-3 gap-1 mb-2">
-                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
-                        <div class="text-xs text-gray-500 dark:text-gray-400">كراتين</div>
-                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.cartons_count || 0 }}</div>
-                      </div>
-                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
-                        <div class="text-xs text-gray-500 dark:text-gray-400">في الكرتونة</div>
-                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.per_carton_count || 0 }}</div>
-                      </div>
-                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
-                        <div class="text-xs text-gray-500 dark:text-gray-400">فردي</div>
-                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.single_bottles_count || 0 }}</div>
-                      </div>
-                    </div>
-
-                    <!-- Fourth Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    <!-- Third Row: Supplier and Location -->
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                       <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
-                        <span class="truncate">{{ item.supplier || 'غير محدد' }}</span>
+                        <span class="truncate">{{ item.supplier }}</span>
                       </div>
                       <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -877,17 +856,6 @@
 
                   <!-- Quick Action Buttons -->
                   <div class="flex items-center gap-1">
-                    <!-- View Details Button -->
-                    <button
-                      @click.stop="showItemDetails(item)"
-                      class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors"
-                      title="عرض التفاصيل"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                      </svg>
-                    </button>
                     <button
                       v-if="canEditItem(item)"
                       @click.stop="handleEdit(item)"
@@ -906,16 +874,6 @@
                     >
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="canDispatchItem(item)"
-                      @click.stop="handleDispatch(item)"
-                      class="p-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 transition-colors"
-                      title="صرف"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                       </svg>
                     </button>
                     <button
@@ -1062,7 +1020,6 @@ function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
   text = String(text).trim();
   text = text.normalize('NFC');
-  
   const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
   text = text.replace(diacriticsRegex, '');
   
@@ -1074,12 +1031,12 @@ function normalizeArabicText(text) {
     'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
     'ـ': '',
   };
-  
+
   Object.keys(arabicNormalizationMap).forEach(key => {
     const regex = new RegExp(key, 'g');
     text = text.replace(regex, arabicNormalizationMap[key]);
   });
-  
+
   text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
   text = text.replace(/\s+/g, ' ').trim().toLowerCase();
   return text;
@@ -1221,13 +1178,18 @@ export default {
     const isDataFresh = ref(false);
 
     // ============================================
-    // STORE COMPUTED PROPERTIES - USING EXACT STORE GETTERS
+    // CRITICAL: Optimize store refresh tracking
+    // ============================================
+    const lastStoreRefresh = ref(null);
+    const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between full refreshes
+    
+    // ============================================
+    // STORE COMPUTED PROPERTIES
     // ============================================
     const user = computed(() => store.state.user);
     const userProfile = computed(() => store.state.userProfile);
     const userRole = computed(() => userProfile.value?.role || '');
     
-    // 🔴 FIXED: Use exact store state names
     const searchResults = computed(() => store.state.search?.results || []);
     const isLiveSearching = computed(() => store.state.search?.loading || false);
     const searchQuery = computed(() => store.state.search?.query || '');
@@ -1236,17 +1198,6 @@ export default {
     const inventoryLoading = computed(() => store.state.inventoryLoading);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
-    const allWarehouses = computed(() => store.getters.warehouses || []);
-    const allUsers = computed(() => store.state.allUsers || []);
-    
-    const hasMore = computed(() => store.getters.hasMore);
-    const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
-    const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
-
-    // ============================================
-    // FILTERED INVENTORY COMPUTED
-    // ============================================
     const filteredInventory = computed(() => {
       let items = allInventory.value;
       
@@ -1272,22 +1223,60 @@ export default {
     });
     
     const displayedItems = computed(() => {
-      // If store search has results, use them
       if (isSearchMode.value) {
         return searchResults.value;
       }
       
-      // If local search term, use fuzzy search
       if (searchTerm.value && searchTerm.value.length >= 2) {
         return fuzzyLocalSearch(filteredInventory.value, searchTerm.value, selectedWarehouse.value, 50);
       }
       
-      // Otherwise, use filtered inventory
       return filteredInventory.value;
     });
+    
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
+    const allWarehouses = computed(() => store.getters.warehouses || []);
+    const allUsers = computed(() => store.state.allUsers || []);
+    
+    const hasMore = computed(() => store.getters.hasMore);
+    const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
+    const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
 
     // ============================================
-    // COMPUTED STATISTICS
+    // CRITICAL: Optimized refresh function
+    // ============================================
+    const shouldRefreshFromStore = () => {
+      if (!lastStoreRefresh.value) return true;
+      
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastStoreRefresh.value;
+      
+      // Only refresh if it's been more than 30 seconds
+      return timeSinceLastRefresh > MIN_REFRESH_INTERVAL;
+    };
+
+    // ============================================
+    // CRITICAL: Update single item in local state without store refresh
+    // ============================================
+    const updateSingleItemInLocalState = (updatedItem) => {
+      if (!updatedItem?.id) return;
+      
+      console.log('🔄 Updating single item in local state:', {
+        id: updatedItem.id,
+        name: updatedItem.name,
+        remaining_quantity: updatedItem.remaining_quantity
+      });
+      
+      // Update the Vuex state directly
+      store.commit('UPDATE_INVENTORY_ITEM', updatedItem);
+      
+      // Update last refresh time
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
+    };
+
+    // ============================================
+    // COMPUTED STATISTICS (Keep existing)
     // ============================================
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
@@ -1335,7 +1324,7 @@ export default {
     const readonly = computed(() => userRole.value === 'viewer');
 
     // ============================================
-    // VIRTUAL SCROLLING COMPUTED PROPERTIES
+    // VIRTUAL SCROLLING COMPUTED PROPERTIES (Keep existing)
     // ============================================
     const visibleItems = computed(() => {
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
@@ -1350,14 +1339,12 @@ export default {
     });
 
     // ============================================
-    // 🔴 FIXED: ENHANCED STORE SEARCH SYSTEM
-    // Matches EXACT store action parameters
+    // ENHANCED STORE SEARCH SYSTEM (Keep existing)
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
-        // 🔴 Use store action to clear search
         await store.dispatch('clearSearch');
         resetScrollPositions();
         return;
@@ -1371,11 +1358,11 @@ export default {
       try {
         console.log(`🚀 Triggering store search for: "${term}"`);
         
-        // 🔴 EXACT MATCH to store action parameters
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
-          limit: 50
+          limit: 50,
+          strategy: 'parallel'
         });
         
         console.log(`✅ Store returned ${results.length} results`);
@@ -1409,13 +1396,10 @@ export default {
     }, 500);
 
     // ============================================
-    // FILTER HANDLERS
+    // FILTER HANDLERS (Keep existing)
     // ============================================
     const handleWarehouseChange = async () => {
       resetScrollPositions();
-      
-      // 🔴 Use store action for warehouse filter
-      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
       
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
@@ -1428,15 +1412,12 @@ export default {
     
     const clearSearch = async () => {
       searchTerm.value = '';
-      // 🔴 Use store action
       await store.dispatch('clearSearch');
       resetScrollPositions();
     };
     
     const clearWarehouseFilter = async () => {
       selectedWarehouse.value = '';
-      // 🔴 Use store action
-      await store.dispatch('setWarehouseFilter', '');
       resetScrollPositions();
       
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
@@ -1450,9 +1431,7 @@ export default {
       selectedWarehouse.value = '';
       showFilters.value = false;
       
-      // 🔴 Use store actions
       await store.dispatch('clearSearch');
-      await store.dispatch('setWarehouseFilter', '');
       resetScrollPositions();
     };
     
@@ -1468,38 +1447,35 @@ export default {
     };
 
     // ============================================
-    // DATA LOADING METHODS - USING EXACT STORE ACTIONS
+    // DATA LOADING METHODS (Keep existing with optimization)
     // ============================================
     const loadInitialData = async () => {
       try {
         loading.value = true;
         
-        // 🔴 Use EXACT store action names
         const loadPromises = [
-          store.dispatch('loadWarehousesEnhanced'),  // Changed from loadWarehouses
+          store.dispatch('loadWarehouses'),
           store.dispatch('loadUsers')
         ];
         
         await Promise.all(loadPromises);
         
-        // Handle route warehouse parameter
         const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
         if (routeWarehouseId) {
           const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
           if (warehouseExists) {
             selectedWarehouse.value = routeWarehouseId;
-            await store.dispatch('setWarehouseFilter', routeWarehouseId);
           }
         }
         
         console.log('🔄 Loading inventory via store...');
-        // 🔴 Use exact store action with correct parameters
         await store.dispatch('loadAllInventory', { 
-          forceRefresh: true 
+          forceRefresh: true
         });
         
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
+        lastStoreRefresh.value = Date.now(); // Track last full refresh
         
         await nextTick();
         resetScrollPositions();
@@ -1544,7 +1520,6 @@ export default {
           loadingMore.value = true;
           console.log('📥 Loading more items via store...');
           
-          // 🔴 Use exact store action
           await store.dispatch('loadMoreInventory');
           
           console.log('✅ Loaded more items successfully');
@@ -1567,11 +1542,11 @@ export default {
       try {
         refreshing.value = true;
         
-        // 🔴 Use exact store action
         await store.dispatch('loadAllInventory', { forceRefresh: true });
         
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
+        lastStoreRefresh.value = Date.now();
         
         if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
           await handleLiveSearch();
@@ -1594,8 +1569,7 @@ export default {
     };
 
     // ============================================
-    // 🔴 FIXED: ITEM ACTION HANDLERS
-    // Using EXACT store action names and parameters
+    // ITEM ACTION HANDLERS WITH STORE INTEGRATION (Keep existing)
     // ============================================
     const canEditItem = (item) => {
       if (userRole.value === 'superadmin') return true;
@@ -1632,111 +1606,51 @@ export default {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
     };
     
-    const handleTransfer = async (item) => {
-      try {
-        if (!canTransferItem(item)) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'ليس لديك صلاحية النقل من هذا المخزن'
-          });
-          return;
-        }
-
-        console.log('🔄 handleTransfer: Loading item data for transfer');
-        
-        selectedItemForTransfer.value = {
-          ...item,
-          warehouse_name: getWarehouseLabel(item.warehouse_id),
-          cartons_count: item.cartons_count || 0,
-          single_bottles_count: item.single_bottles_count || 0,
-          per_carton_count: item.per_carton_count || 12,
-          remaining_quantity: item.remaining_quantity || 0
-        };
-        
-        showTransferModal.value = true;
-        showDetailsModal.value = false;
-        showActionMenu.value = null;
-        
-      } catch (error) {
-        console.error('❌ Error in handleTransfer:', error);
+    const handleTransfer = (item) => {
+      if (!canTransferItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في تحميل بيانات الصنف للنقل'
+          message: 'ليس لديك صلاحية النقل من هذا المخزن'
         });
+        return;
       }
+      selectedItemForTransfer.value = item;
+      showTransferModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
     };
     
-    const handleDispatch = async (item) => {
-      try {
-        if (!canDispatchItem(item)) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'ليس لديك صلاحية الصرف من هذا المخزن'
-          });
-          return;
-        }
-
-        console.log('🔄 handleDispatch: Loading item data for dispatch');
-        
-        selectedItemForDispatch.value = {
-          ...item,
-          warehouse_name: getWarehouseLabel(item.warehouse_id),
-          cartons_count: item.cartons_count || 0,
-          single_bottles_count: item.single_bottles_count || 0,
-          per_carton_count: item.per_carton_count || 12,
-          remaining_quantity: item.remaining_quantity || 0,
-          total_added: item.total_added || 0
-        };
-        
-        showDispatchModal.value = true;
-        showDetailsModal.value = false;
-        showActionMenu.value = null;
-        
-      } catch (error) {
-        console.error('❌ Error in handleDispatch:', error);
+    const handleDispatch = (item) => {
+      if (!canDispatchItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في تحميل بيانات الصنف للصرف'
+          message: 'ليس لديك صلاحية الصرف من هذا المخزن'
         });
+        return;
       }
+      selectedItemForDispatch.value = item;
+      showDispatchModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
     };
     
-    const handleEdit = async (item) => {
-      try {
-        if (!canEditItem(item)) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'ليس لديك صلاحية التعديل على هذا المخزن'
-          });
-          return;
-        }
-
-        console.log('🔄 handleEdit: Loading item data for editing');
-        
-        selectedItemForEdit.value = {
-          ...item,
-          warehouse_name: getWarehouseLabel(item.warehouse_id),
-          cartons_count: item.cartons_count || 0,
-          single_bottles_count: item.single_bottles_count || 0,
-          per_carton_count: item.per_carton_count || 12,
-          remaining_quantity: item.remaining_quantity || 0,
-          total_added: item.total_added || 0
-        };
-        
-        showEditModal.value = true;
-        showDetailsModal.value = false;
-        showActionMenu.value = null;
-        
-      } catch (error) {
-        console.error('❌ Error in handleEdit:', error);
+    const handleEdit = (item) => {
+      if (!canEditItem(item)) {
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'خطأ في تحميل بيانات الصنف للتعديل'
+          message: 'ليس لديك صلاحية التعديل على هذا المخزن'
         });
+        return;
       }
+      selectedItemForEdit.value = {
+        ...item,
+        warehouse_name: getWarehouseLabel(item.warehouse_id)
+      };
+      showEditModal.value = true;
+      showDetailsModal.value = false;
+      showActionMenu.value = null;
     };
     
-    // 🔴 FIXED: DELETE ITEM - Using correct store action
     const handleDelete = (item) => {
       if (!canDeleteItem(item)) {
         store.dispatch('showNotification', {
@@ -1755,15 +1669,10 @@ export default {
       showActionMenu.value = null;
     };
     
-    // 🔴 FIXED: DELETE ACTION - Using correct parameters
     const confirmDelete = async () => {
       try {
         deleteLoading.value = true;
-        
-        // 🔴 Use correct store action for delete
-        await store.dispatch('deleteItem', { 
-          itemId: itemToDelete.value.id 
-        });
+        await store.dispatch('deleteItem', itemToDelete.value.id);
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1773,9 +1682,6 @@ export default {
         if (showDetailsModal.value && selectedItem.value?.id === itemToDelete.value.id) {
           closeDetailsModal();
         }
-        
-        // Refresh after delete
-        await store.dispatch('refreshInventory');
         
         if (searchTerm.value.trim()) {
           await handleLiveSearch();
@@ -1796,72 +1702,107 @@ export default {
     };
 
     // ============================================
-    // 🔴 FIXED: MODAL SUCCESS HANDLERS
-    // Using correct store actions
+    // CRITICAL: CORRECTED MODAL SUCCESS HANDLERS
     // ============================================
     const handleItemSaved = async (result) => {
-      try {
-        showAddModal.value = false;
-        
-        console.log('📦 handleItemSaved called with result:', {
-          type: result?.type,
-          success: result?.success,
-          itemId: result?.itemId || result?.id,
-          itemName: result?.itemName,
-          message: result?.message,
-          hasItemData: !!result?.item
-        });
-        
-        if (!result) {
-          console.error('❌ No result provided to handleItemSaved');
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'حدث خطأ: لم يتم استلام نتيجة من عملية الإضافة'
-          });
-          return;
-        }
-        
-        // Show notification
-        if (result.message) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: result.message
-          });
-        } else if (result.type === 'updated') {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `✅ تم تحديث الصنف "${result.itemName || 'غير معروف'}" بنجاح`
-          });
-        } else if (result.type === 'created') {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `✅ تم إضافة الصنف الجديد "${result.itemName || 'غير معروف'}" بنجاح`
-          });
-        }
-        
-        // Refresh from store
-        console.log('🔄 Refreshing from store after item operation...');
-        await store.dispatch('refreshInventory');
-        
-        // Update UI timestamps
-        lastUpdate.value = Date.now();
-        isDataFresh.value = true;
-        
-        // Refresh search if active
-        if (searchTerm.value.trim()) {
-          console.log('🔍 Refreshing search after item operation...');
-          await handleLiveSearch();
-        }
-        
-        console.log('✅ handleItemSaved completed successfully');
-        
-      } catch (error) {
-        console.error('❌ Error in handleItemSaved:', error);
+      showAddModal.value = false;
+      
+      console.log('📦 Inventory: handleItemSaved called with result:', {
+        type: result?.type,
+        success: result?.success,
+        itemId: result?.itemId || result?.id,
+        itemName: result?.itemName,
+        message: result?.message,
+        hasItemData: !!result?.item,
+        fullResult: result
+      });
+      
+      if (!result) {
+        console.error('❌ No result provided to handleItemSaved');
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'تمت العملية ولكن حدث خطأ في تحديث البيانات المحلية'
+          message: 'حدث خطأ: لم يتم استلام نتيجة من عملية الإضافة'
+        });
+        return;
+      }
+      
+      // Show notification
+      if (result.message) {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: result.message
+        });
+      } else if (result.type === 'updated') {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `✅ تم تحديث الصنف "${result.itemName || 'غير معروف'}" بنجاح`
+        });
+      } else if (result.type === 'created') {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `✅ تم إضافة الصنف الجديد "${result.itemName || 'غير معروف'}" بنجاح`
         });
       }
+      
+      // Handle different result types
+      if (result.type === 'updated') {
+        // For updates: EditItemModal already updated Vuex state
+        console.log('🔄 Item update processed by store, updating UI only');
+        
+        // If we have the item data, update local state
+        if (result.item && result.item.id) {
+          console.log('✅ Updating local state with item data');
+          updateSingleItemInLocalState(result.item);
+        }
+        
+      } else if (result.type === 'created') {
+        // For new items: AddItemModal called store.dispatch('addInventoryItem')
+        console.log('🆕 New item created, handling...');
+        
+        // OPTION 1: If the result contains the full item, add it directly
+        if (result.item && result.item.id) {
+          console.log('✅ Adding new item directly to local state:', {
+            id: result.item.id,
+            name: result.item.name,
+            warehouse_id: result.item.warehouse_id
+          });
+          
+          // Try to add to local Vuex state
+          try {
+            store.commit('ADD_INVENTORY_ITEM', result.item);
+            console.log('✅ Added to Vuex state via ADD_INVENTORY_ITEM mutation');
+          } catch (error) {
+            console.warn('⚠️ Could not add to Vuex state:', error);
+            // Fallback: Refresh from store
+            if (shouldRefreshFromStore()) {
+              console.log('🔄 Falling back to store refresh');
+              await store.dispatch('refreshInventorySilently');
+              lastStoreRefresh.value = Date.now();
+            }
+          }
+        } 
+        // OPTION 2: No item data, refresh from store with limits
+        else if (shouldRefreshFromStore()) {
+          console.log('🔄 Refreshing from store (new item, interval passed)');
+          await store.dispatch('refreshInventorySilently');
+          lastStoreRefresh.value = Date.now();
+        } else {
+          console.log('⏸️ Using cache for now, will refresh on next interval');
+          // Item will appear on next refresh
+        }
+      }
+      
+      // Refresh search if active
+      if (searchTerm.value.trim()) {
+        console.log('🔍 Refreshing search after item operation...');
+        await handleLiveSearch();
+      }
+      
+      // Update UI timestamps
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
+      
+      console.log('✅ handleItemSaved completed successfully');
     };
     
     const handleItemUpdated = async (result) => {
@@ -1869,7 +1810,7 @@ export default {
         showEditModal.value = false;
         selectedItemForEdit.value = null;
         
-        console.log('✅ handleItemUpdated called with result:', {
+        console.log('✅ Inventory: handleItemUpdated called with result:', {
           type: result?.type,
           message: result?.message,
           itemName: result?.itemName,
@@ -1889,15 +1830,21 @@ export default {
           });
         }
         
-        // Refresh from store
-        console.log('🔄 Refreshing from store after edit...');
-        await store.dispatch('refreshInventory');
+        // 🔴 CRITICAL: NO store calls needed here!
+        // The EditItemModal already called store.dispatch('updateItem')
+        // The store action already updated Vuex state via UPDATE_INVENTORY_ITEM
         
-        // Update UI timestamps
+        // If we have item data, update local state
+        if (result?.item && result.item.id) {
+          console.log('✅ Updating local state with edited item');
+          updateSingleItemInLocalState(result.item);
+        }
+        
+        // Just update the UI timestamp
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         
-        // Refresh search if active
+        // Refresh search if active (this doesn't load all items)
         if (searchTerm.value.trim()) {
           await handleLiveSearch();
         }
@@ -1906,101 +1853,79 @@ export default {
         console.error('❌ Error in handleItemUpdated:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'تم التحديث ولكن حدث خطأ في تحديث البيانات المحلية'
+          message: 'خطأ في معالجة تحديث الصنف'
         });
       }
     };
     
     const handleTransferSuccess = async (result) => {
-      try {
-        showTransferModal.value = false;
-        selectedItemForTransfer.value = null;
-        
-        console.log('✅ handleTransferSuccess called with result:', result);
-        
-        if (result?.message) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: result.message
-          });
-        } else {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم النقل بين المخازن بنجاح!'
-          });
-        }
-        
-        // Refresh from store
-        console.log('🔄 Refreshing from store after transfer...');
-        await store.dispatch('refreshInventory');
-        
-        // Update UI timestamps
-        lastUpdate.value = Date.now();
-        isDataFresh.value = true;
-        
-        // Refresh transactions
-        await store.dispatch('fetchTransactions');
-        
-        // Refresh search if active
-        if (searchTerm.value.trim()) {
-          await handleLiveSearch();
-        }
-        
-      } catch (error) {
-        console.error('❌ Error in handleTransferSuccess:', error);
+      showTransferModal.value = false;
+      selectedItemForTransfer.value = null;
+      
+      console.log('✅ handleTransferSuccess called with result:', result);
+      
+      if (result?.message) {
         store.dispatch('showNotification', {
-          type: 'error',
-          message: 'تم النقل ولكن حدث خطأ في تحديث البيانات المحلية'
+          type: 'success',
+          message: result.message
+        });
+      } else {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم النقل بين المخازن بنجاح!'
         });
       }
+      
+      // 🔴 CRITICAL: Only refresh if needed
+      if (shouldRefreshFromStore()) {
+        await store.dispatch('refreshInventorySilently');
+        lastStoreRefresh.value = Date.now();
+      }
+      
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
+      
+      // Update UI
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
     };
     
     const handleDispatchSuccess = async (result) => {
-      try {
-        showDispatchModal.value = false;
-        selectedItemForDispatch.value = null;
-        
-        console.log('✅ handleDispatchSuccess called with result:', result);
-        
-        if (result?.message) {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: result.message
-          });
-        } else {
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم الصرف الخارجي بنجاح!'
-          });
-        }
-        
-        // Refresh from store
-        console.log('🔄 Refreshing from store after dispatch...');
-        await store.dispatch('refreshInventory');
-        
-        // Update UI timestamps
-        lastUpdate.value = Date.now();
-        isDataFresh.value = true;
-        
-        // Refresh transactions
-        await store.dispatch('fetchTransactions');
-        
-        // Refresh search if active
-        if (searchTerm.value.trim()) {
-          await handleLiveSearch();
-        }
-        
-      } catch (error) {
-        console.error('❌ Error in handleDispatchSuccess:', error);
+      showDispatchModal.value = false;
+      selectedItemForDispatch.value = null;
+      
+      console.log('✅ handleDispatchSuccess called with result:', result);
+      
+      if (result?.message) {
         store.dispatch('showNotification', {
-          type: 'error',
-          message: 'تم الصرف ولكن حدث خطأ في تحديث البيانات المحلية'
+          type: 'success',
+          message: result.message
+        });
+      } else {
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم الصرف الخارجي بنجاح!'
         });
       }
+      
+      // 🔴 CRITICAL: Only refresh if needed
+      if (shouldRefreshFromStore()) {
+        await store.dispatch('refreshInventorySilently');
+        lastStoreRefresh.value = Date.now();
+      }
+      
+      if (searchTerm.value.trim()) {
+        await handleLiveSearch();
+      }
+      
+      // Update UI
+      lastUpdate.value = Date.now();
+      isDataFresh.value = true;
     };
 
     // ============================================
-    // HELPER FUNCTIONS
+    // HELPER FUNCTIONS (Keep existing)
     // ============================================
     const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num || 0);
     
@@ -2044,7 +1969,7 @@ export default {
     
     const getQuantityClass = (quantity) => {
       if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:orange-900/10';
+      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
       return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
     };
     
@@ -2126,7 +2051,7 @@ export default {
     };
 
     // ============================================
-    // EXCEL EXPORT
+    // EXCEL EXPORT (Keep existing)
     // ============================================
     const exportToExcel = async () => {
       if (displayedItems.value.length === 0) {
@@ -2241,7 +2166,7 @@ export default {
     };
 
     // ============================================
-    // VIRTUAL SCROLLING METHODS
+    // VIRTUAL SCROLLING METHODS (Keep existing)
     // ============================================
     const calculateVisibleItems = () => {
       if (!scrollContainer.value) return;
@@ -2390,7 +2315,7 @@ export default {
     };
 
     // ============================================
-    // WATCHERS
+    // WATCHERS (Keep existing)
     // ============================================
     watch(inventoryLoading, (newVal) => {
       if (!newVal && inventoryLoaded.value) {
@@ -2440,10 +2365,10 @@ export default {
     });
 
     // ============================================
-    // LIFECYCLE HOOKS
+    // LIFECYCLE HOOKS (Keep existing)
     // ============================================
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted with STORE-COMPATIBLE DESIGN');
+      console.log('📱 Inventory Production mounted with OPTIMIZED STORE COMPLIANCE');
       
       const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
@@ -2591,6 +2516,10 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
+      
+      // Helper functions
+      formatNumber,
+      getWarehouseLabel,
       
       // Virtual scrolling
       onScroll,
