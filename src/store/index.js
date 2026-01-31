@@ -6915,7 +6915,7 @@ async deleteItem({ commit, state, dispatch }, itemId) {
       return await dispatch('loadAllInventory');
     },
 
-    // ============================================
+   // ============================================
     // INVOICE SYSTEM ACTIONS
     // ============================================
 
@@ -7540,6 +7540,589 @@ async deleteItem({ commit, state, dispatch }, itemId) {
           message: error.message || 'خطأ في تحميل الفاتورة'
         });
         throw error;
+      }
+    },
+
+    // ============================================
+    // INVOICE DISPATCH ACTIONS (Store-Compatible)
+    // ============================================
+
+    async dispatchInvoiceItem({ commit, state, dispatch }, {
+      invoiceId,
+      invoiceNumber,
+      itemId,
+      itemName,
+      itemCode,
+      quantity,
+      warehouseId,
+      destination,
+      destinationId,
+      notes = '',
+      customerName = '',
+      customerPhone = ''
+    }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        console.log('📄 Invoice dispatch with store-compatible logic:', {
+          invoiceId,
+          invoiceNumber,
+          itemId,
+          itemName,
+          quantity,
+          warehouseId,
+          destination
+        });
+
+        // 🔴 VALIDATION 1: Authentication
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لصرف فواتير');
+        }
+
+        // 🔴 VALIDATION 2: Required fields
+        if (!invoiceId || !itemId || !quantity || !warehouseId || !destination) {
+          throw new Error('بيانات الصرف غير مكتملة');
+        }
+
+        if (quantity <= 0) {
+          throw new Error('يجب إدخال كمية صحيحة للصرف (أكبر من صفر)');
+        }
+
+        // 🔴 VALIDATION 3: Warehouse access
+        if (state.userProfile.role === 'warehouse_manager') {
+          const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+          if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+            if (!allowedWarehouses.includes(warehouseId)) {
+              throw new Error('ليس لديك صلاحية للصرف من هذا المخزن');
+            }
+          }
+        }
+
+        // 🔴 ENSURE FIREBASE IS READY
+        console.log('⏳ Ensuring Firebase is ready for invoice dispatch...');
+        await ensureFirebaseReady();
+        console.log('✅ Firebase ready for invoice dispatch');
+        
+        if (!db) {
+          throw new Error('Firestore database not available');
+        }
+
+        // Import Firestore functions
+        const firebaseFirestore = await import('firebase/firestore');
+        const {
+          doc,
+          getDoc,
+          updateDoc,
+          addDoc,
+          collection,
+          serverTimestamp,
+          increment
+        } = firebaseFirestore;
+
+        // ========== STEP 1: GET ITEM DETAILS FOR CONVERSION ==========
+        const itemRef = doc(db, 'items', itemId);
+        const itemDoc = await getDoc(itemRef);
+        
+        if (!itemDoc.exists()) {
+          throw new Error('الصنف غير موجود في المخزن');
+        }
+
+        const itemData = itemDoc.data();
+
+        // Verify item is in correct warehouse
+        if (itemData.warehouse_id !== warehouseId) {
+          throw new Error(`الصنف ليس في المخزن المحدد. يوجد في: ${itemData.warehouse_id}`);
+        }
+
+        // ========== STEP 2: CONVERT INVOICE QUANTITY TO STORE FORMAT ==========
+        const currentCartons = Number(itemData.cartons_count) || 0;
+        const currentSingles = Number(itemData.single_bottles_count) || 0;
+        const perCarton = Number(itemData.per_carton_count) || 12;
+        
+        // Calculate how many cartons and singles to dispatch
+        const dispatchQuantity = Number(quantity);
+        const currentTotal = (currentCartons * perCarton) + currentSingles;
+        
+        // Validate available quantity
+        if (dispatchQuantity > currentTotal) {
+          throw new Error(`الكمية المطلوبة للصرف (${dispatchQuantity}) أكبر من الكمية المتاحة (${currentTotal})`);
+        }
+
+        // Convert total quantity to cartons + singles (store format)
+        let dispatchCartons = Math.floor(dispatchQuantity / perCarton);
+        let dispatchSingles = dispatchQuantity % perCarton;
+
+        console.log('🔄 Invoice to store conversion:', {
+          invoiceQuantity: dispatchQuantity,
+          perCarton,
+          storeFormat: {
+            cartons: dispatchCartons,
+            singles: dispatchSingles,
+            total: (dispatchCartons * perCarton) + dispatchSingles
+          }
+        });
+
+        // ========== STEP 3: USE STORE'S DISPATCH LOGIC ==========
+        // Call the store's dispatchItem action with converted quantities
+        const dispatchResult = await dispatch('dispatchItem', {
+          item_id: itemId,
+          destination: destination,
+          destination_id: destinationId || destination,
+          from_warehouse_id: warehouseId,
+          from_warehouse_name: '', // Can be fetched from warehouses if needed
+          item_name: itemName || itemData.name,
+          item_code: itemCode || itemData.code,
+          color: itemData.color || '',
+          supplier: itemData.supplier || '',
+          cartons_count: dispatchCartons,
+          single_bottles_count: dispatchSingles,
+          per_carton_count: perCarton,
+          quantity: dispatchQuantity,
+          notes: `صرف للفاتورة #${invoiceNumber || invoiceId} - ${customerName ? `العميل: ${customerName}` : ''} ${notes}`,
+          priority: 'normal',
+          item_location: itemData.item_location || ''
+        });
+
+        if (!dispatchResult.success) {
+          throw new Error(dispatchResult.message || 'فشل عملية الصرف من المخزن');
+        }
+
+        // ========== STEP 4: UPDATE INVOICE STATUS ==========
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        
+        // Get current invoice data
+        const invoiceDoc = await getDoc(invoiceRef);
+        if (!invoiceDoc.exists()) {
+          console.warn('⚠️ Invoice document not found, creating dispatch record only');
+        } else {
+          const existingInvoice = invoiceDoc.data();
+          
+          // Create dispatch record
+          const dispatchRecord = {
+            id: dispatchResult.transactionId,
+            type: 'dispatch',
+            item_id: itemId,
+            item_name: itemName || itemData.name,
+            item_code: itemCode || itemData.code,
+            quantity: dispatchQuantity,
+            cartons: dispatchCartons,
+            singles: dispatchSingles,
+            per_carton: perCarton,
+            destination: destination,
+            destination_id: destinationId || destination,
+            dispatched_by: state.userProfile?.name || state.user?.email,
+            dispatched_at: serverTimestamp(),
+            notes: notes,
+            transaction_id: dispatchResult.transactionId,
+            status: 'completed'
+          };
+
+          // Update invoice with dispatch record
+          const invoiceUpdateData = {
+            dispatches: [...(existingInvoice.dispatches || []), dispatchRecord],
+            updated_at: serverTimestamp(),
+            last_dispatch_at: serverTimestamp(),
+            dispatch_status: 'partially_dispatched'
+          };
+
+          await updateDoc(invoiceRef, invoiceUpdateData);
+
+          // Update local invoice state
+          const updatedInvoice = {
+            ...existingInvoice,
+            ...invoiceUpdateData,
+            id: invoiceId
+          };
+          
+          commit('UPDATE_INVOICE', updatedInvoice);
+        }
+
+        // ========== STEP 5: CREATE INVOICE-SPECIFIC TRANSACTION ==========
+        const invoiceTransactionRef = doc(collection(db, 'transactions'));
+        const invoiceTransactionData = {
+          type: 'INVOICE_DISPATCH',
+          invoice_id: invoiceId,
+          invoice_number: invoiceNumber || invoiceId,
+          item_id: itemId,
+          item_name: itemName || itemData.name,
+          item_code: itemCode || itemData.code,
+          from_warehouse: warehouseId,
+          destination: destination,
+          destination_id: destinationId || destination,
+          quantity: dispatchQuantity,
+          cartons_count: dispatchCartons,
+          single_bottles_count: dispatchSingles,
+          per_carton_count: perCarton,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          user_id: state.user.uid,
+          user_name: state.userProfile?.name || '',
+          user_role: state.userProfile?.role || '',
+          timestamp: serverTimestamp(),
+          created_at: serverTimestamp(),
+          notes: `صرف للفاتورة #${invoiceNumber || invoiceId}${customerName ? ` - العميل: ${customerName}` : ''}`,
+          created_by: state.userProfile?.name || state.user?.email || 'نظام',
+          // Link to store dispatch transaction
+          dispatch_transaction_id: dispatchResult.transactionId,
+          // Display fields
+          display_type: 'صرف فاتورة',
+          display_quantity: `${dispatchQuantity} وحدة`,
+          display_destination: destination
+        };
+
+        await setDoc(invoiceTransactionRef, invoiceTransactionData);
+
+        // ========== STEP 6: UPDATE LOCAL STATE ==========
+        // Update transaction in local state
+        const transactionForState = {
+          id: invoiceTransactionRef.id,
+          ...invoiceTransactionData,
+          timestamp: new Date(),
+          created_at: new Date()
+        };
+        
+        commit('ADD_TRANSACTION', transactionForState);
+        commit('ADD_RECENT_TRANSACTION', transactionForState);
+
+        // Refresh inventory silently
+        await dispatch('refreshInventorySilently');
+
+        // ========== STEP 7: SHOW SUCCESS ==========
+        const successMessage = `تم صرف ${dispatchQuantity} وحدة من "${itemName || itemData.name}" للفاتورة #${invoiceNumber || invoiceId}`;
+        
+        dispatch('showNotification', {
+          type: 'success',
+          title: 'تم صرف الفاتورة بنجاح',
+          message: successMessage,
+          icon: 'check-circle',
+          timeout: 5000
+        });
+
+        return {
+          success: true,
+          message: successMessage,
+          invoiceId: invoiceId,
+          itemId: itemId,
+          quantityDispatched: dispatchQuantity,
+          dispatchTransactionId: dispatchResult.transactionId,
+          invoiceTransactionId: invoiceTransactionRef.id
+        };
+
+      } catch (error) {
+        console.error('❌ Invoice dispatch failed:', error);
+        
+        commit('SET_OPERATION_ERROR', error.message);
+        
+        // User-friendly error messages
+        let errorMessage = error.message;
+        if (error.message.includes('ليس لديك صلاحية')) {
+          errorMessage = 'ليس لديك صلاحية لصرف فواتير';
+        } else if (error.message.includes('أكبر من المتاح')) {
+          errorMessage = 'الكمية المطلوبة تتجاوز الكمية المتاحة';
+        }
+
+        dispatch('showNotification', {
+          type: 'error',
+          title: 'فشل صرف الفاتورة',
+          message: errorMessage,
+          icon: 'alert-circle',
+          timeout: 7000
+        });
+
+        return {
+          success: false,
+          message: errorMessage
+        };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
+      }
+    },
+
+    // ============================================
+    // BULK INVOICE DISPATCH (Multiple Items)
+    // Uses store logic internally but keeps invoice interface
+    // ============================================
+    async dispatchInvoiceBulk({ commit, state, dispatch }, {
+      invoiceId,
+      invoiceNumber,
+      items, // Array of { id, name, code, quantity }
+      warehouseId,
+      destination,
+      destinationId,
+      notes = '',
+      customerName = '',
+      customerPhone = ''
+    }) {
+      commit('SET_OPERATION_LOADING', true);
+      commit('CLEAR_OPERATION_ERROR');
+
+      try {
+        console.log('📦 Bulk invoice dispatch:', {
+          invoiceId,
+          invoiceNumber,
+          itemsCount: items.length,
+          totalQuantity: items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+        });
+
+        // 🔴 VALIDATION
+        if (!state.userProfile) {
+          throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        if (!['superadmin', 'warehouse_manager', 'company_manager'].includes(state.userProfile.role)) {
+          throw new Error('ليس لديك صلاحية لصرف فواتير');
+        }
+
+        if (!invoiceId || !items || items.length === 0 || !warehouseId || !destination) {
+          throw new Error('بيانات الصرف غير مكتملة');
+        }
+
+        // 🔴 ENSURE FIREBASE IS READY
+        await ensureFirebaseReady();
+        
+        if (!db) {
+          throw new Error('Firestore database not available');
+        }
+
+        const importFirebase = await import('firebase/firestore');
+        const {
+          doc,
+          getDoc,
+          updateDoc,
+          addDoc,
+          collection,
+          serverTimestamp,
+          writeBatch
+        } = importFirebase;
+
+        const results = [];
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const invoiceDoc = await getDoc(invoiceRef);
+        const existingInvoice = invoiceDoc.exists() ? invoiceDoc.data() : null;
+        const invoiceDispatches = existingInvoice?.dispatches || [];
+
+        // Process each item
+        for (const item of items) {
+          try {
+            // Get item details for conversion
+            const itemRef = doc(db, 'items', item.id);
+            const itemDoc = await getDoc(itemRef);
+            
+            if (!itemDoc.exists()) {
+              results.push({
+                itemId: item.id,
+                success: false,
+                error: 'الصنف غير موجود'
+              });
+              continue;
+            }
+
+            const itemData = itemDoc.data();
+            
+            // Verify warehouse
+            if (itemData.warehouse_id !== warehouseId) {
+              results.push({
+                itemId: item.id,
+                success: false,
+                error: `الصنف ليس في المخزن ${warehouseId}`
+              });
+              continue;
+            }
+
+            // Convert invoice quantity to store format
+            const perCarton = Number(itemData.per_carton_count) || 12;
+            const dispatchQuantity = Number(item.quantity) || 0;
+            
+            if (dispatchQuantity <= 0) {
+              results.push({
+                itemId: item.id,
+                success: false,
+                error: 'كمية غير صالحة'
+              });
+              continue;
+            }
+
+            // Convert to cartons + singles
+            const dispatchCartons = Math.floor(dispatchQuantity / perCarton);
+            const dispatchSingles = dispatchQuantity % perCarton;
+
+            // Use store's dispatch logic
+            const dispatchResult = await dispatch('dispatchItem', {
+              item_id: item.id,
+              destination: destination,
+              destination_id: destinationId || destination,
+              from_warehouse_id: warehouseId,
+              item_name: item.name || itemData.name,
+              item_code: item.code || itemData.code,
+              cartons_count: dispatchCartons,
+              single_bottles_count: dispatchSingles,
+              per_carton_count: perCarton,
+              quantity: dispatchQuantity,
+              notes: `صرف جماعي للفاتورة #${invoiceNumber || invoiceId} - ${notes}`
+            });
+
+            if (dispatchResult.success) {
+              // Create dispatch record for invoice
+              const dispatchRecord = {
+                id: dispatchResult.transactionId,
+                type: 'dispatch',
+                item_id: item.id,
+                item_name: item.name || itemData.name,
+                item_code: item.code || itemData.code,
+                quantity: dispatchQuantity,
+                cartons: dispatchCartons,
+                singles: dispatchSingles,
+                per_carton: perCarton,
+                destination: destination,
+                destination_id: destinationId || destination,
+                dispatched_by: state.userProfile?.name || state.user?.email,
+                dispatched_at: serverTimestamp(),
+                transaction_id: dispatchResult.transactionId,
+                status: 'completed'
+              };
+
+              invoiceDispatches.push(dispatchRecord);
+
+              results.push({
+                itemId: item.id,
+                success: true,
+                quantity: dispatchQuantity,
+                transactionId: dispatchResult.transactionId
+              });
+            } else {
+              results.push({
+                itemId: item.id,
+                success: false,
+                error: dispatchResult.message
+              });
+            }
+
+          } catch (itemError) {
+            console.error(`❌ Error processing item ${item.id}:`, itemError);
+            results.push({
+              itemId: item.id,
+              success: false,
+              error: itemError.message
+            });
+          }
+        }
+
+        // Update invoice if it exists
+        if (existingInvoice) {
+          await updateDoc(invoiceRef, {
+            dispatches: invoiceDispatches,
+            updated_at: serverTimestamp(),
+            last_dispatch_at: serverTimestamp(),
+            dispatch_status: invoiceDispatches.length > 0 ? 'partially_dispatched' : 'not_dispatched'
+          });
+
+          // Update local state
+          const updatedInvoice = {
+            ...existingInvoice,
+            dispatches: invoiceDispatches,
+            id: invoiceId
+          };
+          
+          commit('UPDATE_INVOICE', updatedInvoice);
+        }
+
+        // Create summary transaction
+        const successfulItems = results.filter(r => r.success);
+        if (successfulItems.length > 0) {
+          const totalQuantity = successfulItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+          
+          const transactionRef = doc(collection(db, 'transactions'));
+          const transactionData = {
+            type: 'INVOICE_BULK_DISPATCH',
+            invoice_id: invoiceId,
+            invoice_number: invoiceNumber || invoiceId,
+            from_warehouse: warehouseId,
+            destination: destination,
+            destination_id: destinationId || destination,
+            total_quantity: totalQuantity,
+            items_count: successfulItems.length,
+            items: successfulItems.map(item => ({
+              id: item.itemId,
+              quantity: item.quantity
+            })),
+            user_id: state.user.uid,
+            user_name: state.userProfile?.name || '',
+            user_role: state.userProfile?.role || '',
+            timestamp: serverTimestamp(),
+            created_at: serverTimestamp(),
+            notes: `صرف جماعي للفاتورة #${invoiceNumber || invoiceId} - ${notes}`,
+            created_by: state.userProfile?.name || state.user?.email || 'نظام',
+            display_type: 'صرف فاتورة جماعي',
+            display_quantity: `${totalQuantity} وحدة`,
+            display_destination: destination
+          };
+
+          await setDoc(transactionRef, transactionData);
+
+          // Update local state
+          const transactionForState = {
+            id: transactionRef.id,
+            ...transactionData,
+            timestamp: new Date(),
+            created_at: new Date()
+          };
+          
+          commit('ADD_TRANSACTION', transactionForState);
+          commit('ADD_RECENT_TRANSACTION', transactionForState);
+        }
+
+        // Refresh inventory
+        await dispatch('refreshInventorySilently');
+
+        // Show results
+        const successCount = successfulItems.length;
+        const totalDispatched = successfulItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        let message = `تم صرف ${successCount} أصناف (${totalDispatched} وحدة)`;
+        if (results.length > successCount) {
+          message += ` - فشل ${results.length - successCount} أصناف`;
+        }
+
+        dispatch('showNotification', {
+          type: successCount > 0 ? 'success' : 'warning',
+          title: successCount > 0 ? 'تم الصرف' : 'فشل جزئي',
+          message: message,
+          icon: successCount > 0 ? 'check-circle' : 'alert-circle',
+          timeout: 6000
+        });
+
+        return {
+          success: successCount > 0,
+          message: message,
+          results: results,
+          totalDispatched: totalDispatched,
+          successfulCount: successCount
+        };
+
+      } catch (error) {
+        console.error('❌ Bulk invoice dispatch failed:', error);
+        
+        commit('SET_OPERATION_ERROR', error.message);
+        
+        dispatch('showNotification', {
+          type: 'error',
+          title: 'فشل الصرف الجماعي',
+          message: error.message || 'حدث خطأ في الصرف الجماعي',
+          icon: 'alert-circle',
+          timeout: 7000
+        });
+
+        return {
+          success: false,
+          message: error.message
+        };
+      } finally {
+        commit('SET_OPERATION_LOADING', false);
       }
     },
 
