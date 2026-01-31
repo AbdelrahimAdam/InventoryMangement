@@ -768,12 +768,13 @@
                 :key="item.id"
                 class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
                 @click="showItemDetails(item)"
+                data-mobile-card
               >
                 <!-- Main Row -->
                 <div class="flex gap-3">
                   <!-- Photo -->
                   <div class="flex-shrink-0">
-                    <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                    <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                       <img
                         :src="item.photo_url || getPlaceholderImage()"
                         :alt="item.name"
@@ -786,13 +787,13 @@
 
                   <!-- Item Details -->
                   <div class="flex-1 min-w-0">
-                    <!-- First Row: Name and Quantity -->
+                    <!-- First Row: Name, Code, and Status -->
                     <div class="flex justify-between items-start mb-1">
-                      <div class="min-w-0">
+                      <div class="min-w-0 flex-1">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-white truncate mb-1">
                           {{ item.name }}
                         </h3>
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1 flex-wrap">
                           <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
                             {{ item.code }}
                           </span>
@@ -802,9 +803,13 @@
                           </span>
                         </div>
                       </div>
+                      <!-- Remaining Quantity -->
                       <div :class="getQuantityClass(item.remaining_quantity)"
-                           class="text-lg font-bold px-3 py-1.5 rounded-lg">
+                           class="text-lg font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">
                         {{ item.remaining_quantity }}
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 text-center">
+                          من {{ item.total_added }}
+                        </div>
                       </div>
                     </div>
 
@@ -812,7 +817,7 @@
                     <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                       <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                         <span class="truncate max-w-[100px]">
                           {{ getWarehouseLabel(item.warehouse_id) }}
@@ -825,13 +830,29 @@
                       </div>
                     </div>
 
-                    <!-- Third Row: Supplier and Location -->
-                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                    <!-- Third Row: Quantities (Cartons, Per Carton, Single) -->
+                    <div class="grid grid-cols-3 gap-1 mb-2">
+                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">كراتين</div>
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.cartons_count || 0 }}</div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">في الكرتونة</div>
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.per_carton_count || 0 }}</div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-700 rounded p-1.5 text-center">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">فردي</div>
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ item.single_bottles_count || 0 }}</div>
+                      </div>
+                    </div>
+
+                    <!-- Fourth Row: Supplier and Location -->
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                       <div v-if="item.supplier" class="flex items-center gap-1 truncate max-w-[120px]">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
-                        <span class="truncate">{{ item.supplier }}</span>
+                        <span class="truncate">{{ item.supplier || 'غير محدد' }}</span>
                       </div>
                       <div v-if="item.item_location" class="flex items-center gap-1 text-gray-500">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -856,6 +877,17 @@
 
                   <!-- Quick Action Buttons -->
                   <div class="flex items-center gap-1">
+                    <!-- View Details Button -->
+                    <button
+                      @click.stop="showItemDetails(item)"
+                      class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/20 transition-colors"
+                      title="عرض التفاصيل"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    </button>
                     <button
                       v-if="canEditItem(item)"
                       @click.stop="handleEdit(item)"
@@ -874,6 +906,16 @@
                     >
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="canDispatchItem(item)"
+                      @click.stop="handleDispatch(item)"
+                      class="p-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 transition-colors"
+                      title="صرف"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                       </svg>
                     </button>
                     <button
@@ -1969,7 +2011,7 @@ export default {
     
     const getQuantityClass = (quantity) => {
       if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
+      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:orange-900/10';
       return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
     };
     
