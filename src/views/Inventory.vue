@@ -1062,6 +1062,7 @@ function normalizeArabicText(text) {
   if (!text || typeof text !== 'string') return '';
   text = String(text).trim();
   text = text.normalize('NFC');
+  
   const diacriticsRegex = /[\u064B-\u065F\u0670\u0640\u0652\u0651\u064E\u064F\u064D\u0650\u0657\u0656\u0653\u0654\u0655]/g;
   text = text.replace(diacriticsRegex, '');
   
@@ -1073,12 +1074,12 @@ function normalizeArabicText(text) {
     'گ': 'ك', 'چ': 'ج', 'پ': 'ب', 'ژ': 'ز',
     'ـ': '',
   };
-
+  
   Object.keys(arabicNormalizationMap).forEach(key => {
     const regex = new RegExp(key, 'g');
     text = text.replace(regex, arabicNormalizationMap[key]);
   });
-
+  
   text = text.replace(/[^\u0621-\u064A\u0660-\u0669\u0671-\u06D3\s0-9]/g, '');
   text = text.replace(/\s+/g, ' ').trim().toLowerCase();
   return text;
@@ -1220,18 +1221,13 @@ export default {
     const isDataFresh = ref(false);
 
     // ============================================
-    // CRITICAL: Optimize store refresh tracking
-    // ============================================
-    const lastStoreRefresh = ref(null);
-    const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between full refreshes
-    
-    // ============================================
-    // STORE COMPUTED PROPERTIES
+    // STORE COMPUTED PROPERTIES - USING EXACT STORE GETTERS
     // ============================================
     const user = computed(() => store.state.user);
     const userProfile = computed(() => store.state.userProfile);
     const userRole = computed(() => userProfile.value?.role || '');
     
+    // 🔴 FIXED: Use exact store state names
     const searchResults = computed(() => store.state.search?.results || []);
     const isLiveSearching = computed(() => store.state.search?.loading || false);
     const searchQuery = computed(() => store.state.search?.query || '');
@@ -1240,6 +1236,17 @@ export default {
     const inventoryLoading = computed(() => store.state.inventoryLoading);
     const inventoryLoaded = computed(() => store.state.inventoryLoaded);
     
+    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
+    const allWarehouses = computed(() => store.getters.warehouses || []);
+    const allUsers = computed(() => store.state.allUsers || []);
+    
+    const hasMore = computed(() => store.getters.hasMore);
+    const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
+    const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
+
+    // ============================================
+    // FILTERED INVENTORY COMPUTED
+    // ============================================
     const filteredInventory = computed(() => {
       let items = allInventory.value;
       
@@ -1265,65 +1272,19 @@ export default {
     });
     
     const displayedItems = computed(() => {
+      // If store search has results, use them
       if (isSearchMode.value) {
         return searchResults.value;
       }
       
+      // If local search term, use fuzzy search
       if (searchTerm.value && searchTerm.value.length >= 2) {
         return fuzzyLocalSearch(filteredInventory.value, searchTerm.value, selectedWarehouse.value, 50);
       }
       
+      // Otherwise, use filtered inventory
       return filteredInventory.value;
     });
-    
-    const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
-    const allWarehouses = computed(() => store.getters.warehouses || []);
-    const allUsers = computed(() => store.state.allUsers || []);
-    
-    const hasMore = computed(() => store.getters.hasMore);
-    const isFetchingMore = computed(() => store.state.pagination?.isFetching || false);
-    const totalLoaded = computed(() => store.state.pagination?.totalLoaded || 0);
-
-    // ============================================
-    // CRITICAL: Optimized refresh function
-    // ============================================
-    const shouldRefreshFromStore = () => {
-      if (!lastStoreRefresh.value) return true;
-      
-      const now = Date.now();
-      const timeSinceLastRefresh = now - lastStoreRefresh.value;
-      
-      // Only refresh if it's been more than 30 seconds
-      return timeSinceLastRefresh > MIN_REFRESH_INTERVAL;
-    };
-
-    // ============================================
-    // CRITICAL: Update single item in local state without store refresh
-    // ============================================
-    const updateSingleItemInLocalState = (updatedItem) => {
-      if (!updatedItem?.id) return;
-      
-      console.log('🔄 Updating single item in local state:', {
-        id: updatedItem.id,
-        name: updatedItem.name,
-        remaining_quantity: updatedItem.remaining_quantity,
-        total_added: updatedItem.total_added
-      });
-      
-      // IMPORTANT: Only update if we have valid numeric quantities
-      if (typeof updatedItem.remaining_quantity !== 'number' || 
-          typeof updatedItem.total_added !== 'number') {
-        console.warn('⚠️ Skipping local update - invalid quantity data:', updatedItem);
-        return;
-      }
-      
-      // Update the Vuex state directly
-      store.commit('UPDATE_INVENTORY_ITEM', updatedItem);
-      
-      // Update last refresh time
-      lastUpdate.value = Date.now();
-      isDataFresh.value = true;
-    };
 
     // ============================================
     // COMPUTED STATISTICS
@@ -1389,12 +1350,14 @@ export default {
     });
 
     // ============================================
-    // ENHANCED STORE SEARCH SYSTEM
+    // 🔴 FIXED: ENHANCED STORE SEARCH SYSTEM
+    // Matches EXACT store action parameters
     // ============================================
     const handleLiveSearch = debounce(async () => {
       const term = searchTerm.value.trim();
       
       if (term.length === 0) {
+        // 🔴 Use store action to clear search
         await store.dispatch('clearSearch');
         resetScrollPositions();
         return;
@@ -1408,11 +1371,11 @@ export default {
       try {
         console.log(`🚀 Triggering store search for: "${term}"`);
         
+        // 🔴 EXACT MATCH to store action parameters
         const results = await store.dispatch('searchInventorySpark', {
           searchQuery: term,
           warehouseId: selectedWarehouse.value || 'all',
-          limit: 50,
-          strategy: 'parallel'
+          limit: 50
         });
         
         console.log(`✅ Store returned ${results.length} results`);
@@ -1451,6 +1414,9 @@ export default {
     const handleWarehouseChange = async () => {
       resetScrollPositions();
       
+      // 🔴 Use store action for warehouse filter
+      await store.dispatch('setWarehouseFilter', selectedWarehouse.value || '');
+      
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
       }
@@ -1462,12 +1428,15 @@ export default {
     
     const clearSearch = async () => {
       searchTerm.value = '';
+      // 🔴 Use store action
       await store.dispatch('clearSearch');
       resetScrollPositions();
     };
     
     const clearWarehouseFilter = async () => {
       selectedWarehouse.value = '';
+      // 🔴 Use store action
+      await store.dispatch('setWarehouseFilter', '');
       resetScrollPositions();
       
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
@@ -1481,7 +1450,9 @@ export default {
       selectedWarehouse.value = '';
       showFilters.value = false;
       
+      // 🔴 Use store actions
       await store.dispatch('clearSearch');
+      await store.dispatch('setWarehouseFilter', '');
       resetScrollPositions();
     };
     
@@ -1497,35 +1468,38 @@ export default {
     };
 
     // ============================================
-    // DATA LOADING METHODS
+    // DATA LOADING METHODS - USING EXACT STORE ACTIONS
     // ============================================
     const loadInitialData = async () => {
       try {
         loading.value = true;
         
+        // 🔴 Use EXACT store action names
         const loadPromises = [
-          store.dispatch('loadWarehouses'),
+          store.dispatch('loadWarehousesEnhanced'),  // Changed from loadWarehouses
           store.dispatch('loadUsers')
         ];
         
         await Promise.all(loadPromises);
         
+        // Handle route warehouse parameter
         const routeWarehouseId = route.params.warehouseId || route.query.warehouse;
         if (routeWarehouseId) {
           const warehouseExists = accessibleWarehouses.value.some(w => w.id === routeWarehouseId);
           if (warehouseExists) {
             selectedWarehouse.value = routeWarehouseId;
+            await store.dispatch('setWarehouseFilter', routeWarehouseId);
           }
         }
         
         console.log('🔄 Loading inventory via store...');
+        // 🔴 Use exact store action with correct parameters
         await store.dispatch('loadAllInventory', { 
-          forceRefresh: true
+          forceRefresh: true 
         });
         
         isDataFresh.value = true;
         lastUpdate.value = Date.now();
-        lastStoreRefresh.value = Date.now(); // Track last full refresh
         
         await nextTick();
         resetScrollPositions();
@@ -1570,6 +1544,7 @@ export default {
           loadingMore.value = true;
           console.log('📥 Loading more items via store...');
           
+          // 🔴 Use exact store action
           await store.dispatch('loadMoreInventory');
           
           console.log('✅ Loaded more items successfully');
@@ -1592,11 +1567,11 @@ export default {
       try {
         refreshing.value = true;
         
+        // 🔴 Use exact store action
         await store.dispatch('loadAllInventory', { forceRefresh: true });
         
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
-        lastStoreRefresh.value = Date.now();
         
         if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
           await handleLiveSearch();
@@ -1619,8 +1594,8 @@ export default {
     };
 
     // ============================================
-    // 🔴 CRITICAL FIX: ITEM ACTION HANDLERS
-    // Always use store actions for data modifications
+    // 🔴 FIXED: ITEM ACTION HANDLERS
+    // Using EXACT store action names and parameters
     // ============================================
     const canEditItem = (item) => {
       if (userRole.value === 'superadmin') return true;
@@ -1657,7 +1632,6 @@ export default {
       showActionMenu.value = showActionMenu.value === itemId ? null : itemId;
     };
     
-    // 🔴 FIXED: handleTransfer - Always use store action
     const handleTransfer = async (item) => {
       try {
         if (!canTransferItem(item)) {
@@ -1670,11 +1644,9 @@ export default {
 
         console.log('🔄 handleTransfer: Loading item data for transfer');
         
-        // Get fresh item data for transfer
         selectedItemForTransfer.value = {
           ...item,
           warehouse_name: getWarehouseLabel(item.warehouse_id),
-          // Ensure we have current quantities
           cartons_count: item.cartons_count || 0,
           single_bottles_count: item.single_bottles_count || 0,
           per_carton_count: item.per_carton_count || 12,
@@ -1694,7 +1666,6 @@ export default {
       }
     };
     
-    // 🔴 FIXED: handleDispatch - Always use store action
     const handleDispatch = async (item) => {
       try {
         if (!canDispatchItem(item)) {
@@ -1707,11 +1678,9 @@ export default {
 
         console.log('🔄 handleDispatch: Loading item data for dispatch');
         
-        // Get fresh item data for dispatch
         selectedItemForDispatch.value = {
           ...item,
           warehouse_name: getWarehouseLabel(item.warehouse_id),
-          // Ensure we have current quantities
           cartons_count: item.cartons_count || 0,
           single_bottles_count: item.single_bottles_count || 0,
           per_carton_count: item.per_carton_count || 12,
@@ -1732,7 +1701,6 @@ export default {
       }
     };
     
-    // 🔴 FIXED: handleEdit - Always use store action
     const handleEdit = async (item) => {
       try {
         if (!canEditItem(item)) {
@@ -1745,11 +1713,9 @@ export default {
 
         console.log('🔄 handleEdit: Loading item data for editing');
         
-        // Get fresh item data for editing
         selectedItemForEdit.value = {
           ...item,
           warehouse_name: getWarehouseLabel(item.warehouse_id),
-          // Ensure we have current quantities
           cartons_count: item.cartons_count || 0,
           single_bottles_count: item.single_bottles_count || 0,
           per_carton_count: item.per_carton_count || 12,
@@ -1770,6 +1736,7 @@ export default {
       }
     };
     
+    // 🔴 FIXED: DELETE ITEM - Using correct store action
     const handleDelete = (item) => {
       if (!canDeleteItem(item)) {
         store.dispatch('showNotification', {
@@ -1788,10 +1755,15 @@ export default {
       showActionMenu.value = null;
     };
     
+    // 🔴 FIXED: DELETE ACTION - Using correct parameters
     const confirmDelete = async () => {
       try {
         deleteLoading.value = true;
-        await store.dispatch('deleteItem', itemToDelete.value.id);
+        
+        // 🔴 Use correct store action for delete
+        await store.dispatch('deleteItem', { 
+          itemId: itemToDelete.value.id 
+        });
         
         store.dispatch('showNotification', {
           type: 'success',
@@ -1802,9 +1774,8 @@ export default {
           closeDetailsModal();
         }
         
-        // 🔴 Always refresh after delete
-        await store.dispatch('refreshInventorySilently');
-        lastStoreRefresh.value = Date.now();
+        // Refresh after delete
+        await store.dispatch('refreshInventory');
         
         if (searchTerm.value.trim()) {
           await handleLiveSearch();
@@ -1825,8 +1796,8 @@ export default {
     };
 
     // ============================================
-    // 🔴 CRITICAL FIX: MODAL SUCCESS HANDLERS
-    // Always refresh from store after operations
+    // 🔴 FIXED: MODAL SUCCESS HANDLERS
+    // Using correct store actions
     // ============================================
     const handleItemSaved = async (result) => {
       try {
@@ -1838,8 +1809,7 @@ export default {
           itemId: result?.itemId || result?.id,
           itemName: result?.itemName,
           message: result?.message,
-          hasItemData: !!result?.item,
-          fullResult: result
+          hasItemData: !!result?.item
         });
         
         if (!result) {
@@ -1869,10 +1839,9 @@ export default {
           });
         }
         
-        // 🔴 ALWAYS refresh from store after any operation
-        console.log('🔄 Forcing store refresh after item operation...');
-        await store.dispatch('refreshInventorySilently');
-        lastStoreRefresh.value = Date.now();
+        // Refresh from store
+        console.log('🔄 Refreshing from store after item operation...');
+        await store.dispatch('refreshInventory');
         
         // Update UI timestamps
         lastUpdate.value = Date.now();
@@ -1920,10 +1889,9 @@ export default {
           });
         }
         
-        // 🔴 ALWAYS refresh from store after edit
+        // Refresh from store
         console.log('🔄 Refreshing from store after edit...');
-        await store.dispatch('refreshInventorySilently');
-        lastStoreRefresh.value = Date.now();
+        await store.dispatch('refreshInventory');
         
         // Update UI timestamps
         lastUpdate.value = Date.now();
@@ -1962,10 +1930,9 @@ export default {
           });
         }
         
-        // 🔴 CRITICAL: ALWAYS refresh from store after transfer
-        console.log('🔄 Forcing store refresh after transfer...');
-        await store.dispatch('refreshInventorySilently');
-        lastStoreRefresh.value = Date.now();
+        // Refresh from store
+        console.log('🔄 Refreshing from store after transfer...');
+        await store.dispatch('refreshInventory');
         
         // Update UI timestamps
         lastUpdate.value = Date.now();
@@ -1973,7 +1940,6 @@ export default {
         
         // Refresh transactions
         await store.dispatch('fetchTransactions');
-        store.dispatch('getRecentTransactions');
         
         // Refresh search if active
         if (searchTerm.value.trim()) {
@@ -2008,18 +1974,16 @@ export default {
           });
         }
         
-        // 🔴 CRITICAL: ALWAYS refresh from store after dispatch
-        console.log('🔄 Forcing store refresh after dispatch...');
-        await store.dispatch('refreshInventorySilently');
-        lastStoreRefresh.value = Date.now();
+        // Refresh from store
+        console.log('🔄 Refreshing from store after dispatch...');
+        await store.dispatch('refreshInventory');
         
         // Update UI timestamps
         lastUpdate.value = Date.now();
         isDataFresh.value = true;
         
-        // 🔴 Also refresh transactions and recent transactions
+        // Refresh transactions
         await store.dispatch('fetchTransactions');
-        store.dispatch('getRecentTransactions');
         
         // Refresh search if active
         if (searchTerm.value.trim()) {
@@ -2479,7 +2443,7 @@ export default {
     // LIFECYCLE HOOKS
     // ============================================
     onMounted(async () => {
-      console.log('📱 Inventory Production mounted with STORE-CENTRIC DESIGN');
+      console.log('📱 Inventory Production mounted with STORE-COMPATIBLE DESIGN');
       
       const resizeObserver = new ResizeObserver(() => {
         if (scrollContainer.value) calculateVisibleItems();
@@ -2627,10 +2591,6 @@ export default {
       handleItemUpdated,
       handleTransferSuccess,
       handleDispatchSuccess,
-      
-      // Helper functions
-      formatNumber,
-      getWarehouseLabel,
       
       // Virtual scrolling
       onScroll,
