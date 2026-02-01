@@ -1989,7 +1989,7 @@ export default {
     const hasFilters = computed(() => historySearch.value.trim() || historyWarehouseFilter.value || dateFilter.value !== 'all');
     
     // ============================================
-    // SECTION 6: INVOICE SYSTEM COMPUTED PROPERTIES
+    // SECTION 6: INVOICE SYSTEM COMPUTED PROPERTIES (UPDATED)
     // ============================================
     const totalInvoices = computed(() => invoices.value.length);
     
@@ -2079,7 +2079,7 @@ export default {
       return invoiceForm.value.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
     });
     
-    // New computed properties for carton logic
+    // ✅ NEW: Computed properties for carton logic
     const hasCartonItems = computed(() => {
       return invoiceForm.value.items.some(item => item.per_carton_count > 1);
     });
@@ -2964,9 +2964,6 @@ export default {
       }
     };
     
-    // ✅ CORRECTED: Remove non-existent loadDispatchHistory function
-    // The computed property filteredDispatchHistory handles filtering automatically
-    
     // ============================================
     // SECTION 10: INVOICE SYSTEM ACTIONS WITH UPDATED CARTON LOGIC
     // ============================================
@@ -3046,7 +3043,7 @@ export default {
       }
     };
     
-    // UPDATED: Add item to invoice with dynamic carton logic
+    // ✅ UPDATED: Add item to invoice with dynamic carton logic
     const addItemToInvoice = (item) => {
       const existingItemIndex = invoiceForm.value.items.findIndex(i => i.id === item.id);
       
@@ -3057,7 +3054,7 @@ export default {
         const availableCartons = Math.floor(item.remaining_quantity / (item.per_carton_count || 12));
         const availableSingles = item.remaining_quantity % (item.per_carton_count || 12);
         
-        const currentTotalQuantity = existingItem.cartons_count * existingItem.per_carton_count + existingItem.single_bottles_count;
+        const currentTotalQuantity = (existingItem.cartons_count || 0) * (existingItem.per_carton_count || 12) + (existingItem.single_bottles_count || 0);
         const newTotalQuantity = currentTotalQuantity + 1;
         
         if (newTotalQuantity <= item.remaining_quantity) {
@@ -3145,13 +3142,42 @@ export default {
       });
     };
     
-    // UPDATED: Quantity control functions with carton logic
+    // ✅ NEW: Carton control functions
+    const increaseCarton = (index) => {
+      const item = invoiceForm.value.items[index];
+      const perCarton = item.per_carton_count || 12;
+      
+      const newCartons = (item.cartons_count || 0) + 1;
+      const newTotalUnits = newCartons * perCarton + (item.single_bottles_count || 0);
+      
+      if (newTotalUnits <= item.maxQuantity) {
+        item.cartons_count = newCartons;
+        item.quantity = newTotalUnits;
+        updateItemTotal(index);
+      }
+    };
+    
+    const decreaseCarton = (index) => {
+      const item = invoiceForm.value.items[index];
+      const perCarton = item.per_carton_count || 12;
+      
+      if (item.cartons_count > 0) {
+        const newCartons = item.cartons_count - 1;
+        const newTotalUnits = newCartons * perCarton + (item.single_bottles_count || 0);
+        
+        item.cartons_count = newCartons;
+        item.quantity = newTotalUnits;
+        updateItemTotal(index);
+      }
+    };
+    
+    // ✅ UPDATED: Quantity control functions with carton logic
     const increaseQuantity = (index) => {
       const item = invoiceForm.value.items[index];
       const perCarton = item.per_carton_count || 12;
       
       // Calculate total quantity in units
-      const currentTotalUnits = item.cartons_count * perCarton + item.single_bottles_count;
+      const currentTotalUnits = (item.cartons_count || 0) * perCarton + (item.single_bottles_count || 0);
       
       if (currentTotalUnits < item.maxQuantity) {
         // Increase by 1 unit
@@ -3175,7 +3201,7 @@ export default {
       const perCarton = item.per_carton_count || 12;
       
       // Calculate total quantity in units
-      const currentTotalUnits = item.cartons_count * perCarton + item.single_bottles_count;
+      const currentTotalUnits = (item.cartons_count || 0) * perCarton + (item.single_bottles_count || 0);
       
       if (currentTotalUnits > 1) {
         // Decrease by 1 unit
@@ -3189,42 +3215,13 @@ export default {
       }
     };
     
-    // Carton control functions
-    const increaseCarton = (index) => {
-      const item = invoiceForm.value.items[index];
-      const perCarton = item.per_carton_count || 12;
-      
-      const newCartons = item.cartons_count + 1;
-      const newTotalUnits = newCartons * perCarton + item.single_bottles_count;
-      
-      if (newTotalUnits <= item.maxQuantity) {
-        item.cartons_count = newCartons;
-        item.quantity = newTotalUnits;
-        updateItemTotal(index);
-      }
-    };
-    
-    const decreaseCarton = (index) => {
-      const item = invoiceForm.value.items[index];
-      const perCarton = item.per_carton_count || 12;
-      
-      if (item.cartons_count > 0) {
-        const newCartons = item.cartons_count - 1;
-        const newTotalUnits = newCartons * perCarton + item.single_bottles_count;
-        
-        item.cartons_count = newCartons;
-        item.quantity = newTotalUnits;
-        updateItemTotal(index);
-      }
-    };
-    
-    // UPDATED: Validate item quantity with carton logic
+    // ✅ UPDATED: Validate item quantity with carton logic
     const validateItemQuantity = (index) => {
       const item = invoiceForm.value.items[index];
       const perCarton = item.per_carton_count || 12;
       
       // Convert quantity to total units
-      const totalUnits = item.quantity;
+      const totalUnits = item.quantity || 0;
       
       if (totalUnits > item.maxQuantity) {
         item.quantity = item.maxQuantity;
@@ -3647,17 +3644,42 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         
         const element = document.createElement('div');
         element.innerHTML = `
-          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto;">
-            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
-              <h1 style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px;">تقرير جميع الفواتير</h1>
-              <div style="color: #666; font-size: 16px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
-              <div style="color: #666; font-size: 14px;">إجمالي عدد الفواتير: ${invoices.value.length}</div>
+          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+            <h1 style="text-align: center; font-size: 28px; font-weight: bold; color: #333; margin-bottom: 30px;">
+              تقرير الفواتير
+            </h1>
+            <div style="text-align: center; color: #666; margin-bottom: 20px;">
+              <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+              <p>إجمالي الفواتير: ${invoices.value.length}</p>
+              <p>إجمالي المبيعات: ${formatCurrency(totalSales.value)}</p>
             </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px;">
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${totalInvoices.value}</div>
+                <div style="font-size: 12px; color: #666;">إجمالي الفواتير</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalSales.value)}</div>
+                <div style="font-size: 12px; color: #666;">إجمالي المبيعات</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${uniqueCustomers.value}</div>
+                <div style="font-size: 12px; color: #666;">العملاء</div>
+              </div>
+              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
+                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalTax.value)}</div>
+                <div style="font-size: 12px; color: #666;">الضريبة</div>
+              </div>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+              قائمة الفواتير
+            </h2>
             
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">
               <thead>
                 <tr style="background-color: #f5f5f5;">
-                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">#</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">رقم الفاتورة</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">التاريخ</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">العميل</th>
@@ -3667,7 +3689,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                 </tr>
               </thead>
               <tbody>
-                ${invoices.value.map((invoice, index) => {
+                ${filteredInvoices.value.map(invoice => {
                   const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
                   const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
                   const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
@@ -3675,7 +3697,6 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                   
                   return `
                     <tr>
-                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${index + 1}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.invoiceNumber}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatDate(invoice.date)}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.customer.name}</td>
@@ -3688,43 +3709,9 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
               </tbody>
             </table>
             
-            <div style="margin-top: 40px; padding: 20px; background-color: #f9f9f9; border-radius: 5px;">
-              <h3 style="color: #333; margin-bottom: 20px;">إحصائيات الفواتير</h3>
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-                <div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>إجمالي عدد الفواتير:</span>
-                    <span style="font-weight: bold;">${totalInvoices.value}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>إجمالي المبيعات:</span>
-                    <span style="font-weight: bold;">${formatCurrency(totalSales.value)}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>إجمالي الضريبة:</span>
-                    <span style="font-weight: bold;">${formatCurrency(totalTax.value)}</span>
-                  </div>
-                </div>
-                <div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>عدد العملاء:</span>
-                    <span style="font-weight: bold;">${uniqueCustomers.value}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>متوسط قيمة الفاتورة:</span>
-                    <span style="font-weight: bold;">${formatCurrency(totalSales.value / (totalInvoices.value || 1))}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span>آخر تحديث:</span>
-                    <span style="font-weight: bold;">${new Date().toLocaleString('ar-EG')}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
               <p>تم الإنشاء بواسطة نظام إدارة المخزون والفواتير</p>
-              <p>جميع الحقوق محفوظة © ${new Date().getFullYear()}</p>
+              <p>${new Date().toLocaleString('ar-EG')}</p>
             </div>
           </div>
         `;
@@ -3742,7 +3729,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'landscape',
+            orientation: 'portrait',
             compress: true
           },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
@@ -3752,25 +3739,237 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: 'تم تصدير جميع الفواتير كملف PDF بنجاح'
+          message: `تم تصدير ${filteredInvoices.value.length} فاتورة كملف PDF بنجاح`
         });
         
       } catch (error) {
-        console.error('Error exporting invoices to PDF:', error);
+        console.error('Error exporting to PDF:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تصدير الفواتير كملف PDF'
+          message: 'حدث خطأ في تصدير التقرير كملف PDF'
         });
       } finally {
         loading.value = false;
       }
     };
     
-    const exportInvoicesToExcel = () => {
+    const deleteInvoice = async (invoiceId) => {
+      if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
+      
       try {
         loading.value = true;
         
-        if (invoices.value.length === 0) {
+        const invoice = invoices.value.find(inv => inv.id === invoiceId);
+        if (invoice && invoice.items) {
+          const batch = writeBatch(db);
+          
+          for (const item of invoice.items) {
+            if (item.id) {
+              const itemRef = doc(db, 'items', item.id);
+              batch.update(itemRef, {
+                remaining_quantity: increment(item.quantity || 0)
+              });
+            }
+          }
+          
+          await batch.commit();
+        }
+        
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        await deleteDoc(invoiceRef);
+        
+        await loadInvoices();
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم حذف الفاتورة بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('Error deleting invoice:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ أثناء حذف الفاتورة'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const saveInvoice = async () => {
+      if (!canSaveInvoice.value) return;
+      
+      try {
+        saving.value = true;
+        
+        // ✅ UPDATED: Enhanced tax validation for B2B invoices
+        if (invoiceForm.value.type === 'B2B') {
+          if (!invoiceForm.value.customer.taxId || invoiceForm.value.customer.taxId.length < 9) {
+            store.dispatch('showNotification', {
+              type: 'error',
+              message: 'يرجى إدخال رقم ضريبي صالح (9 أرقام على الأقل) للفواتير الضريبية B2B'
+            });
+            saving.value = false;
+            return;
+          }
+        }
+        
+        // Enhanced phone validation
+        const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
+        if (!phoneRegex.test(invoiceForm.value.customer.phone)) {
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'يرجى إدخال رقم هاتف صحيح (مثال: 01012345678)'
+          });
+          saving.value = false;
+          return;
+        }
+        
+        // Calculate invoice totals with carton logic
+        const subtotal = invoiceForm.value.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+        const discount = invoiceForm.value.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+        const tax = (invoiceForm.value.type === 'B2B' || invoiceForm.value.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
+        const total = subtotal - discount + tax;
+        
+        const invoiceData = {
+          ...invoiceForm.value,
+          warehouseId: selectedWarehouseForInvoice.value,
+          subtotal,
+          discount,
+          taxAmount: tax,
+          totalAmount: total,
+          date: Timestamp.now(),
+          createdBy: userProfile.value?.name || userName.value,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        };
+        
+        let invoiceId;
+        
+        if (editingInvoice.value) {
+          const invoiceRef = doc(db, 'invoices', editingInvoice.value.id);
+          await updateDoc(invoiceRef, invoiceData);
+          invoiceId = editingInvoice.value.id;
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم تحديث الفاتورة بنجاح'
+          });
+        } else {
+          const lastInvoice = invoices.value[0];
+          const lastNumber = lastInvoice ? lastInvoice.invoiceNumber : 0;
+          const invoiceNumber = lastNumber + 1;
+          
+          invoiceData.invoiceNumber = invoiceNumber;
+          const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
+          invoiceId = docRef.id;
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: `تم إنشاء الفاتورة #${invoiceNumber} بنجاح`
+          });
+        }
+        
+        // Dispatch items with carton logic
+        for (const item of invoiceForm.value.items) {
+          try {
+            // Prepare dispatch data with carton details
+            const dispatchData = {
+              item_id: item.id,
+              from_warehouse_id: selectedWarehouseForInvoice.value,
+              from_warehouse_name: getWarehouseLabel(selectedWarehouseForInvoice.value),
+              destination: `فاتورة #${invoiceData.invoiceNumber}`,
+              destination_id: invoiceId,
+              item_name: item.name,
+              item_code: item.code,
+              notes: `صرف عبر فاتورة #${invoiceData.invoiceNumber} - عميل: ${invoiceForm.value.customer.name}`,
+              priority: 'normal'
+            };
+            
+            // Add carton details if applicable
+            if (item.cartons_count > 0) {
+              dispatchData.cartons_count = item.cartons_count;
+              dispatchData.per_carton_count = item.per_carton_count;
+            }
+            
+            if (item.single_bottles_count > 0) {
+              dispatchData.single_bottles_count = item.single_bottles_count;
+            }
+            
+            // Always include total quantity
+            dispatchData.quantity = item.quantity;
+            
+            await store.dispatch('dispatchItem', dispatchData);
+            
+          } catch (dispatchError) {
+            console.error(`Error dispatching item ${item.name}:`, dispatchError);
+            store.dispatch('showNotification', {
+              type: 'error',
+              message: `خطأ في صرف الصنف ${item.name}: ${dispatchError.message}`
+            });
+          }
+        }
+        
+        cancelInvoiceForm();
+        await loadInvoices();
+        
+        // ✅ CORRECTED: Refresh transactions from store (includes dispatch history)
+        await store.dispatch('fetchTransactions');
+        
+      } catch (error) {
+        console.error('Error saving invoice:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ أثناء حفظ الفاتورة'
+        });
+      } finally {
+        saving.value = false;
+      }
+    };
+    
+    const saveAndPrint = async () => {
+      await saveInvoice();
+    };
+    
+    const exportInvoicesToExcel = async () => {
+      try {
+        loading.value = true;
+        
+        const exportData = filteredInvoices.value.map(invoice => {
+          const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+          const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+          const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+          const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+          
+          // Calculate carton details
+          const cartonItems = invoice.items.filter(item => item.cartons_count > 0);
+          const totalCartons = cartonItems.reduce((sum, item) => sum + (item.cartons_count || 0), 0);
+          const totalSingles = invoice.items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
+          
+          return {
+            'رقم الفاتورة': invoice.invoiceNumber,
+            'التاريخ': formatDate(invoice.date),
+            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
+            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
+            'اسم العميل': invoice.customer.name,
+            'هاتف العميل': invoice.customer.phone,
+            'الرقم الضريبي': invoice.customer.taxId || '',
+            'عدد الأصناف': invoice.items?.length || 0,
+            'إجمالي الكراتين': totalCartons,
+            'إجمالي الفردي': totalSingles,
+            'المجموع': invoiceSubtotal,
+            'الخصم': invoiceDiscount,
+            'الضريبة': invoiceTax,
+            'الإجمالي': invoiceTotal,
+            'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
+                           invoice.paymentMethod === 'bank' ? 'بنكي' : 
+                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
+            'المخزن': getWarehouseLabel(invoice.warehouseId) || '',
+            'ملاحظات': invoice.notes || ''
+          };
+        });
+        
+        if (exportData.length === 0) {
           store.dispatch('showNotification', {
             type: 'warning',
             message: 'لا توجد فواتير للتصدير'
@@ -3778,52 +3977,27 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
-        const exportData = invoices.value.map(invoice => {
-          const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-          const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
-          const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
-          const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
-          
-          return {
-            'رقم الفاتورة': invoice.invoiceNumber,
-            'تاريخ الفاتورة': formatDate(invoice.date),
-            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
-            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
-            'اسم العميل': invoice.customer.name,
-            'هاتف العميل': invoice.customer.phone,
-            'الرقم الضريبي': invoice.customer.taxId || '',
-            'عنوان العميل': invoice.customer.address || '',
-            'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
-                           invoice.paymentMethod === 'bank' ? 'تحويل بنكي' : 
-                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
-            'عدد الأصناف': invoice.items?.length || 0,
-            'المجموع': invoiceSubtotal,
-            'الخصم': invoiceDiscount,
-            'الضريبة': invoiceTax,
-            'الإجمالي النهائي': invoiceTotal,
-            'ملاحظات': invoice.notes || ''
-          };
-        });
-        
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(exportData);
         
         const wscols = [
-          { wch: 15 }, // رقم الفاتورة
-          { wch: 12 }, // تاريخ الفاتورة
-          { wch: 20 }, // نوع الفاتورة
-          { wch: 15 }, // حالة الفاتورة
-          { wch: 25 }, // اسم العميل
-          { wch: 15 }, // هاتف العميل
-          { wch: 20 }, // الرقم الضريبي
-          { wch: 30 }, // عنوان العميل
-          { wch: 15 }, // طريقة الدفع
-          { wch: 12 }, // عدد الأصناف
-          { wch: 15 }, // المجموع
-          { wch: 15 }, // الخصم
-          { wch: 15 }, // الضريبة
-          { wch: 18 }, // الإجمالي النهائي
-          { wch: 30 }  // ملاحظات
+          { wch: 12 },  // رقم الفاتورة
+          { wch: 12 },  // التاريخ
+          { wch: 18 },  // نوع الفاتورة
+          { wch: 12 },  // حالة الفاتورة
+          { wch: 20 },  // اسم العميل
+          { wch: 15 },  // هاتف العميل
+          { wch: 15 },  // الرقم الضريبي
+          { wch: 10 },  // عدد الأصناف
+          { wch: 12 },  // الكراتين
+          { wch: 12 },  // الفردي
+          { wch: 15 },  // المجموع
+          { wch: 15 },  // الخصم
+          { wch: 15 },  // الضريبة
+          { wch: 15 },  // الإجمالي
+          { wch: 10 },  // طريقة الدفع
+          { wch: 20 },  // المخزن
+          { wch: 30 }   // ملاحظات
         ];
         ws['!cols'] = wscols;
         
@@ -3839,7 +4013,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         });
         
       } catch (error) {
-        console.error('Error exporting invoices to Excel:', error);
+        console.error('Error exporting invoices:', error);
         store.dispatch('showNotification', {
           type: 'error',
           message: 'حدث خطأ في تصدير الفواتير'
@@ -3849,233 +4023,21 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     };
     
-    const saveInvoice = async () => {
-      if (!canSaveInvoice.value) {
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'يرجى ملء جميع البيانات المطلوبة'
-        });
-        return;
-      }
-
-      saving.value = true;
-
-      try {
-        // Validate customer phone
-        const phone = invoiceForm.value.customer.phone.replace(/\D/g, '');
-        if (phone.length < 10) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'رقم الهاتف غير صحيح'
-          });
-          saving.value = false;
-          return;
-        }
-
-        // Validate tax ID for B2B invoices
-        if (invoiceForm.value.type === 'B2B' && invoiceForm.value.customer.taxId) {
-          const taxId = invoiceForm.value.customer.taxId.replace(/\D/g, '');
-          if (taxId.length !== 14) {
-            store.dispatch('showNotification', {
-              type: 'error',
-              message: 'الرقم الضريبي يجب أن يكون 14 رقمًا'
-            });
-            saving.value = false;
-            return;
-          }
-        }
-
-        // Validate items
-        if (invoiceForm.value.items.length === 0) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'يرجى إضافة أصناف إلى الفاتورة'
-          });
-          saving.value = false;
-          return;
-        }
-
-        // Validate warehouse
-        if (!selectedWarehouseForInvoice.value) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'يرجى اختيار مخزن'
-          });
-          saving.value = false;
-          return;
-        }
-
-        // Calculate totals
-        const subtotal = invoiceForm.value.items.reduce((sum, item) => {
-          return sum + ((item.unitPrice || 0) * (item.quantity || 0));
-        }, 0);
-
-        const totalDiscount = invoiceForm.value.items.reduce((sum, item) => {
-          const itemSubtotal = (item.unitPrice || 0) * (item.quantity || 0);
-          return sum + (itemSubtotal * ((item.discount || 0) / 100));
-        }, 0);
-
-        const taxAmount = (invoiceForm.value.type === 'B2B' || invoiceForm.value.type === 'B2C') ? (subtotal - totalDiscount) * 0.14 : 0;
-        const totalAmount = subtotal - totalDiscount + taxAmount;
-
-        // Generate invoice number
-        const timestamp = new Date().getTime();
-        const invoiceNumber = editingInvoice.value ? editingInvoice.value.invoiceNumber : `INV-${timestamp.toString().slice(-8)}`;
-
-        // Prepare invoice data
-        const invoiceData = {
-          invoiceNumber,
-          type: invoiceForm.value.type,
-          paymentMethod: invoiceForm.value.paymentMethod,
-          customer: {
-            name: invoiceForm.value.customer.name.trim(),
-            phone: invoiceForm.value.customer.phone.trim(),
-            taxId: invoiceForm.value.customer.taxId.trim(),
-            address: invoiceForm.value.customer.address.trim()
-          },
-          items: invoiceForm.value.items.map(item => ({
-            id: item.id,
-            name: item.name,
-            code: item.code || '',
-            unitPrice: item.unitPrice || 0,
-            quantity: item.quantity || 0,
-            discount: item.discount || 0,
-            total: item.total || 0,
-            cartons_count: item.cartons_count || 0,
-            single_bottles_count: item.single_bottles_count || 0,
-            per_carton_count: item.per_carton_count || 12,
-            warehouseId: item.warehouseId || selectedWarehouseForInvoice.value
-          })),
-          notes: invoiceForm.value.notes.trim(),
-          warehouseId: selectedWarehouseForInvoice.value,
-          status: editingInvoice.value ? editingInvoice.value.status : 'draft',
-          date: editingInvoice.value ? editingInvoice.value.date : new Date().toISOString(),
-          subtotal,
-          totalDiscount,
-          taxAmount,
-          totalAmount,
-          createdBy: userName.value,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        // Save to Firebase
-        if (editingInvoice.value) {
-          // Update existing invoice
-          const invoiceDoc = doc(db, 'invoices', editingInvoice.value.id);
-          await updateDoc(invoiceDoc, invoiceData);
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم تحديث الفاتورة بنجاح'
-          });
-        } else {
-          // Create new invoice
-          const invoicesRef = collection(db, 'invoices');
-          await addDoc(invoicesRef, invoiceData);
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم حفظ الفاتورة بنجاح'
-          });
-        }
-
-        // Reset form and reload invoices
-        showInvoiceForm.value = false;
-        invoiceForm.value = {
-          type: 'B2B',
-          paymentMethod: 'cash',
-          customer: {
-            name: '',
-            phone: '',
-            taxId: '',
-            address: ''
-          },
-          items: [],
-          notes: '',
-          warehouseId: '',
-          status: 'draft'
-        };
-        selectedWarehouseForInvoice.value = '';
-        editingInvoice.value = null;
-        loadInvoices();
-
-      } catch (error) {
-        console.error('Error saving invoice:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في حفظ الفاتورة'
-        });
-      } finally {
-        saving.value = false;
-      }
-    };
-    
-    const saveAndPrint = async () => {
-      await saveInvoice();
-      if (!saving.value) {
-        // Find the newly created/updated invoice
-        const latestInvoice = invoices.value[0];
-        if (latestInvoice) {
-          setTimeout(() => {
-            printInvoice(latestInvoice);
-          }, 500);
-        }
-      }
-    };
-    
-    const deleteInvoice = async (invoiceId) => {
-      if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
-        return;
-      }
-
-      try {
-        loading.value = true;
-        
-        const invoiceDoc = doc(db, 'invoices', invoiceId);
-        await deleteDoc(invoiceDoc);
-        
-        invoices.value = invoices.value.filter(inv => inv.id !== invoiceId);
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم حذف الفاتورة بنجاح'
-        });
-        
-      } catch (error) {
-        console.error('Error deleting invoice:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في حذف الفاتورة'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
-    
+    // ============================================
+    // SECTION 11: DATA LOADING FUNCTIONS
+    // ============================================
     const loadInvoices = async () => {
       try {
         loading.value = true;
         
-        const invoicesRef = collection(db, 'invoices');
-        const q = query(
-          invoicesRef,
-          orderBy('createdAt', 'desc'),
-          limit(100)
-        );
+        const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
         
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          invoices.value = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          loading.value = false;
-        });
-        
-        // Store unsubscribe function
-        onUnmounted(() => {
-          if (unsubscribe) unsubscribe();
-        });
+        invoices.value = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate?.() || doc.data().date
+        }));
         
       } catch (error) {
         console.error('Error loading invoices:', error);
@@ -4083,40 +4045,140 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           type: 'error',
           message: 'حدث خطأ في تحميل الفواتير'
         });
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const setupRealtimeUpdates = () => {
+      try {
+        const transactionsRef = collection(db, 'transactions');
+        const q = query(
+          transactionsRef,
+          where('type', '==', 'DISPATCH'),
+          orderBy('timestamp', 'desc'),
+          limit(100)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const transactions = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          if (transactions.length > 0 && dispatchTransactions.value.length > 0) {
+            const latestTransaction = transactions[0];
+            const isNew = !dispatchTransactions.value.find(t => t.id === latestTransaction.id);
+            
+            if (isNew && !showDispatchModal.value) {
+              store.dispatch('showNotification', {
+                type: 'info',
+                message: `صرف جديد: ${latestTransaction.item_name} - ${calculateDispatchQuantity(latestTransaction)} وحدة`,
+                duration: 5000
+              });
+              
+              // ✅ CORRECTED: Refresh transactions from store
+              store.dispatch('fetchTransactions');
+            }
+          }
+        });
+
+        realtimeUnsubscribe.value = unsubscribe;
+      } catch (error) {
+        console.error('Error setting up real-time dispatch updates:', error);
+      }
+    };
+    
+    const diagnoseDispatchIssues = () => {
+      console.log('=== Dispatch System Diagnostics ===');
+      console.log('1. User Info:', {
+        role: userRole.value,
+        canViewDispatches: canViewDispatches.value,
+        canPerformDispatch: canPerformDispatch.value
+      });
+      
+      console.log('2. Store State:', {
+        warehouses: store.state.warehouses?.length || 0,
+        transactions: store.state.transactions?.length || 0,
+        inventory: store.state.inventory?.length || 0,
+        dispatchTransactions: dispatchTransactions.value?.length || 0
+      });
+      
+      console.log('3. Available Warehouses:', availableWarehousesForDispatch.value);
+      console.log('4. Selected Warehouse:', selectedWarehouse.value);
+      
+      console.log('5. Dispatch History:', {
+        dispatchTransactions: dispatchTransactions.value?.length || 0,
+        filteredHistory: filteredDispatchHistory.value?.length || 0
+      });
+      
+      console.log('6. Search Term:', searchTerm.value);
+      console.log('7. Available Items:', availableItems.value?.length || 0);
+      
+      if (dispatchTransactions.value.length > 0) {
+        console.log('Sample Dispatch Data:', dispatchTransactions.value.slice(0, 3));
+      }
+      
+      console.log('=== End Diagnostics ===');
+    };
+    
+    const loadInitialData = async () => {
+      loading.value = true;
+      try {
+        console.log('Dispatch page: Loading initial data...');
+        
+        if (!canViewDispatches.value) {
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'يجب تسجيل الدخول لعرض صفحة الصرف'
+          });
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+        
+        if (!store.state.warehousesLoaded || store.state.warehouses.length === 0) {
+          await store.dispatch('loadWarehouses');
+        }
+        
+        // ✅ CORRECTED: Load transactions (includes dispatch history)
+        if (store.state.transactions.length === 0) {
+          await store.dispatch('fetchTransactions');
+        }
+        
+        if (store.state.inventory.length === 0) {
+          await store.dispatch('fetchInventory');
+        }
+        
+        if (availableWarehousesForDispatch.value.length === 1) {
+          selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
+        }
+        
+        console.log('Dispatch history loaded from transactions:', dispatchTransactions.value.length);
+        console.log('Filtered history:', filteredDispatchHistory.value.length);
+        
+        diagnoseDispatchIssues();
+        
+        setupRealtimeUpdates();
+        
+      } catch (error) {
+        console.error('Error loading dispatch data:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في تحميل بيانات الصرف'
+        });
+      } finally {
         loading.value = false;
       }
     };
     
     // ============================================
-    // SECTION 11: LIFE CYCLE HOOKS
+    // SECTION 12: LIFECYCLE HOOKS AND WATCHERS
     // ============================================
-    onMounted(async () => {
-      // Load initial data
-      try {
-        loading.value = true;
-        
-        // Ensure store has latest data
-        await Promise.all([
-          store.dispatch('fetchInventory'),
-          store.dispatch('fetchTransactions'),
-          store.dispatch('fetchWarehouses')
-        ]);
-        
-        console.log('✅ Store data loaded successfully');
-        console.log('📊 Inventory items:', allInventory.value.length);
-        console.log('📊 Transaction items:', allTransactions.value.length);
-        console.log('📊 Warehouse items:', allWarehouses.value.length);
-        console.log('📊 Dispatch transactions:', dispatchTransactions.value.length);
-        
-      } catch (error) {
-        console.error('❌ Error loading initial data:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ في تحميل البيانات الأولية'
-        });
-      } finally {
-        loading.value = false;
-      }
+    onMounted(() => {
+      console.log('Dispatch page with invoices mounted');
+      loadInitialData();
     });
     
     onUnmounted(() => {
@@ -4134,49 +4196,42 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
-    // Watch for user authentication changes
-    watch(
-      () => store.getters.isAuthenticated,
-      (isAuthenticated) => {
-        if (isAuthenticated) {
-          // User is authenticated, refresh data
-          store.dispatch('fetchInventory');
-          store.dispatch('fetchTransactions');
-          store.dispatch('fetchWarehouses');
+    // ✅ CORRECTED: Remove watcher for non-existent loadDispatchHistory function
+    // The computed property filteredDispatchHistory handles filtering automatically when dependencies change
+    
+    // Watch for warehouse changes to reload items
+    watch(selectedWarehouseForInvoice, () => {
+      if (selectedWarehouseForInvoice.value) {
+        if (itemSearch.value.trim()) {
+          searchItemsWithSpark();
+        } else {
+          loadWarehouseItems();
+        }
+      } else {
+        searchResults.value = [];
+      }
+    });
+    
+    watch(searchAllWarehouses, () => {
+      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
+        searchItemsWithSpark();
+      } else if (selectedWarehouseForInvoice.value) {
+        loadWarehouseItems();
+      }
+    });
+    
+    watch(() => allInventory.value, () => {
+      if (selectedWarehouseForInvoice.value) {
+        if (itemSearch.value.trim()) {
+          searchItemsWithSpark();
+        } else {
+          loadWarehouseItems();
         }
       }
-    );
+    }, { deep: true });
     
-    // Watch for warehouse selection in dispatch
-    watch(selectedWarehouse, () => {
-      updateAvailableItems();
-    });
-    
-    // Watch for warehouse selection in invoice
-    watch(selectedWarehouseForInvoice, () => {
-      loadWarehouseItems();
-    });
-    
-    // Watch for search term in dispatch
-    watch(searchTerm, () => {
-      handleDispatchSearch();
-    });
-    
-    // Watch for search term in invoice
-    watch(itemSearch, () => {
-      debouncedSearchItems();
-    });
-    
-    // Watch for invoice system toggle
-    watch(showInvoiceSystem, (newValue) => {
-      if (newValue) {
-        loadInvoices();
-      }
-    });
-    
-    // Return all reactive properties and methods
     return {
-      // State
+      // Original dispatch state
       loading,
       showDispatchModal,
       selectedWarehouse,
@@ -4188,8 +4243,27 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       customDateFrom,
       customDateTo,
       currentHistoryPage,
-      itemsPerPage,
       showAllItems,
+      userRole,
+      userName,
+      canPerformDispatch,
+      canExport,
+      canViewDispatches,
+      availableWarehousesForDispatch,
+      availableItems,
+      displayedAvailableItems,
+      totalDispatches,
+      monthlyDispatches,
+      totalDispatchedQuantity,
+      totalDispatchValue,
+      filteredDispatchHistory,
+      paginatedHistory,
+      totalHistoryPages,
+      startIndex,
+      endIndex,
+      hasFilters,
+      
+      // Invoice system state with SPARK search
       showInvoiceSystem,
       showInvoiceForm,
       saving,
@@ -4198,66 +4272,50 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       invoiceTypeFilter,
       itemSearch,
       currentPage,
-      itemsPerPageInvoices,
       selectedWarehouseForInvoice,
-      searchingItems,
-      searchResults,
-      lastSearchSource,
-      searchAllWarehouses,
-      searchingDispatchItems,
-      filteredDispatchItems,
-      lastDispatchSearchSource,
       invoiceForm,
       editingInvoice,
       invoices,
-      
-      // Computed
-      userRole,
-      userName,
-      userProfile,
-      dispatchTransactions,
-      dispatchHistoryLoading,
-      canExport,
-      accessibleWarehouses,
       availableWarehouses,
-      availableWarehousesForDispatch,
-      canViewDispatches,
-      canPerformDispatch,
+      
+      // SPARK Search specific
+      searchingItems,
       filteredSearchResults,
       totalItemsInWarehouse,
-      dispatchHistory,
-      totalDispatches,
-      monthlyDispatches,
-      totalDispatchedQuantity,
-      totalDispatchValue,
-      availableItems,
-      displayedAvailableItems,
-      filteredDispatchHistory,
-      totalHistoryPages,
-      startIndex,
-      endIndex,
-      paginatedHistory,
-      hasFilters,
+      lastSearchSource,
+      searchAllWarehouses,
+      
+      // SPARK Dispatch Search specific
+      searchingDispatchItems,
+      filteredDispatchItems,
+      lastDispatchSearchSource,
+      
+      // ✅ CORRECTED: Use transactions loading state
+      dispatchHistoryLoading,
+      
+      // ✅ NEW: Carton computed properties
+      hasCartonItems,
+      totalCartons,
+      totalSingles,
+      
+      // Computed properties
       totalInvoices,
       totalSales,
       totalTax,
       uniqueCustomers,
       filteredInvoices,
+      paginatedInvoices,
       totalPages,
       startInvoiceIndex,
       endInvoiceIndex,
-      paginatedInvoices,
       subtotal,
       totalDiscount,
       taxAmount,
       totalAmount,
       totalQuantity,
-      hasCartonItems,
-      totalCartons,
-      totalSingles,
       canSaveInvoice,
       
-      // Methods
+      // Utility functions
       formatNumber,
       formatCurrency,
       formatDate,
@@ -4276,11 +4334,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getInvoiceTypeClass,
       getInvoiceStatusLabel,
       getInvoiceStatusClass,
+      
+      // Original dispatch actions
       selectItemForDispatch,
       updateAvailableItems,
       handleModalClose,
       handleDispatchSuccess,
       handleSearch,
+      handleDispatchSearch,
       applyHistoryFilters,
       clearHistoryFilters,
       nextPage,
@@ -4288,20 +4349,20 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       viewDispatchDetails,
       printDispatch,
       exportDispatches,
+      
+      // Invoice system actions with SPARK search
       toggleInvoiceSystem,
       createNewInvoice,
       editInvoice,
       cancelInvoiceForm,
       onInvoiceTypeChange,
-      debouncedSearchItems,
-      searchItemsWithSpark,
-      handleDispatchSearch,
-      searchDispatchItemsWithSpark,
       loadWarehouseItems,
+      debouncedSearchItems,
       addItemToInvoice,
       removeItem,
       increaseQuantity,
       decreaseQuantity,
+      // ✅ NEW: Carton control functions
       increaseCarton,
       decreaseCarton,
       validateItemQuantity,
@@ -4313,16 +4374,14 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       printInvoice,
       exportInvoicePDF,
       exportToPDF,
-      exportInvoicesToExcel,
+      deleteInvoice,
       saveInvoice,
       saveAndPrint,
-      deleteInvoice,
-      loadInvoices
+      exportInvoicesToExcel
     };
   }
 };
 </script>
-
 <style scoped>
 /* ============================================ */
 /* MOBILE-FIRST RESPONSIVE STYLES */
