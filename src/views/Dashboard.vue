@@ -1008,7 +1008,7 @@ export default {
     const selectedItem = ref(null);
     const itemTransactions = ref([]);
     
-    // Local cache for warehouse stats to prevent re-calculation
+    // Local cache for warehouse stats
     const warehouseStatsCache = ref({});
     const allWarehouseStatsCache = ref({
       totalItems: 0,
@@ -1032,15 +1032,14 @@ export default {
       }
     });
 
-    // Use Vuex inventory getter directly
+    // Inventory items from Vuex
     const inventoryItems = computed(() => {
       return store.getters.inventoryItems || [];
     });
 
-    // Limited inventory items for dashboard (only recent ones from Vuex store)
+    // Limited inventory items for dashboard
     const recentInventoryItems = computed(() => {
       const inventory = inventoryItems.value;
-      // Sort by creation date and take only 20 items for dashboard
       return [...inventory]
         .sort((a, b) => {
           const dateA = new Date(a.created_at || a.updated_at || 0);
@@ -1050,7 +1049,7 @@ export default {
         .slice(0, 20);
     });
 
-    // Use Vuex transactions getter directly
+    // Recent transactions
     const recentTransactions = computed(() => {
       try {
         const items = store.getters.recentTransactions || [];
@@ -1089,20 +1088,31 @@ export default {
       }
     });
 
-    // ========== OPTIMIZED DASHBOARD STATS USING VUEX GETTERS ==========
+    // ========== FIXED: DASHBOARD STATS CALCULATION ==========
     
     const dashboardStats = computed(() => {
-      // Use Vuex getter for dashboard stats (optimized)
-      const stats = store.getters.warehouseStats ? 
-        store.getters.warehouseStats(selectedWarehouse.value) : 
-        { totalItems: 0, totalQuantity: 0, lowStockItems: 0, outOfStockItems: 0 };
+      const inventory = inventoryItems.value;
+      
+      // Filter by warehouse if selected
+      const filteredItems = selectedWarehouse.value === 'all' 
+        ? inventory 
+        : inventory.filter(item => item.warehouse_id === selectedWarehouse.value);
+      
+      // Calculate stats
+      const totalItems = filteredItems.length;
+      const totalQuantity = filteredItems.reduce((sum, item) => 
+        sum + (item.remaining_quantity || 0), 0);
+      const lowStockItems = filteredItems.filter(item => 
+        (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      const outOfStockItems = filteredItems.filter(item => 
+        (item.remaining_quantity || 0) === 0).length;
       
       return {
-        totalItems: stats.totalItems || 0,
-        totalQuantity: stats.totalQuantity || 0,
-        lowStockItems: stats.lowStockItems || 0,
-        outOfStockItems: stats.outOfStockItems || 0,
-        estimatedValue: (stats.totalQuantity || 0) * 25 // Simple estimation
+        totalItems,
+        totalQuantity,
+        lowStockItems,
+        outOfStockItems,
+        estimatedValue: totalQuantity * 25 // Simple estimation
       };
     });
 
@@ -1161,7 +1171,7 @@ export default {
       return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
     });
 
-    // Today's transactions from Vuex store
+    // Today's transactions
     const todayTransactionsCount = computed(() => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -1170,8 +1180,7 @@ export default {
         if (!transaction.timestamp) return false;
         
         try {
-          const transDate = transaction.timestamp instanceof Date ? 
-            transaction.timestamp : new Date(transaction.timestamp);
+          const transDate = getTransactionDate(transaction);
           return transDate >= today;
         } catch {
           return false;
@@ -1188,8 +1197,7 @@ export default {
         if (!transaction.timestamp || transaction.type !== 'ADD') return false;
         
         try {
-          const transDate = transaction.timestamp instanceof Date ? 
-            transaction.timestamp : new Date(transaction.timestamp);
+          const transDate = getTransactionDate(transaction);
           return transDate >= today;
         } catch {
           return false;
@@ -1205,8 +1213,7 @@ export default {
         if (!transaction.timestamp || transaction.type !== 'TRANSFER') return false;
         
         try {
-          const transDate = transaction.timestamp instanceof Date ? 
-            transaction.timestamp : new Date(transaction.timestamp);
+          const transDate = getTransactionDate(transaction);
           return transDate >= today;
         } catch {
           return false;
@@ -1222,8 +1229,7 @@ export default {
         if (!transaction.timestamp || transaction.type !== 'DISPATCH') return false;
         
         try {
-          const transDate = transaction.timestamp instanceof Date ? 
-            transaction.timestamp : new Date(transaction.timestamp);
+          const transDate = getTransactionDate(transaction);
           return transDate >= today;
         } catch {
           return false;
@@ -1241,8 +1247,7 @@ export default {
         if (!transaction.timestamp) return false;
         
         try {
-          const transDate = transaction.timestamp instanceof Date ? 
-            transaction.timestamp : new Date(transaction.timestamp);
+          const transDate = getTransactionDate(transaction);
           return transDate >= today;
         } catch {
           return false;
@@ -1257,12 +1262,13 @@ export default {
 
     const lastActivityTime = computed(() => {
       if (recentTransactions.value.length === 0) return 'لا يوجد نشاط';
-      return formatRelativeTime(recentTransactions.value[0]?.timestamp);
+      const last = recentTransactions.value[0];
+      return formatRelativeTime(last?.timestamp);
     });
 
-    // Calculate cartons and singles from Vuex store data
+    // Calculate cartons and singles
     const totalCartons = computed(() => {
-      const items = recentInventoryItems.value;
+      const items = recentItems.value;
       return items.reduce((sum, item) => {
         const cartons = item.cartons_count || 0;
         const perCarton = item.per_carton_count || 12;
@@ -1271,7 +1277,7 @@ export default {
     });
 
     const totalSingles = computed(() => {
-      const items = recentInventoryItems.value;
+      const items = recentItems.value;
       return items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
     });
 
@@ -1307,10 +1313,32 @@ export default {
       return new Intl.NumberFormat('en-US').format(num);
     };
 
+    // FIXED: Better date handling for transactions
+    const getTransactionDate = (transaction) => {
+      if (!transaction.timestamp) return new Date(0);
+      
+      try {
+        // Handle Firestore Timestamp
+        if (transaction.timestamp.toDate && typeof transaction.timestamp.toDate === 'function') {
+          return transaction.timestamp.toDate();
+        }
+        
+        // Handle timestamp with seconds and nanoseconds
+        if (transaction.timestamp.seconds) {
+          return new Date(transaction.timestamp.seconds * 1000);
+        }
+        
+        // Handle ISO string or milliseconds
+        return new Date(transaction.timestamp);
+      } catch {
+        return new Date(0);
+      }
+    };
+
     const formatDetailedTime = (timestamp) => {
       if (!timestamp) return '';
       try {
-        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        const date = getTransactionDate({ timestamp });
         return date.toLocaleTimeString('ar-EG', {
           hour: '2-digit',
           minute: '2-digit',
@@ -1321,10 +1349,18 @@ export default {
       }
     };
 
+    // FIXED: Enhanced relative time formatting
     const formatRelativeTime = (timestamp) => {
-      if (!timestamp) return '';
+      if (!timestamp) return 'غير محدد';
+      
       try {
-        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        const date = getTransactionDate({ timestamp });
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return 'تاريخ غير صالح';
+        }
+        
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -1336,9 +1372,15 @@ export default {
         if (diffHours < 24) return `قبل ${diffHours} ساعة`;
         if (diffDays === 1) return 'أمس';
         if (diffDays < 7) return `قبل ${diffDays} أيام`;
-        return date.toLocaleDateString('ar-EG');
+        
+        return date.toLocaleDateString('ar-EG', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+        
       } catch {
-        return '';
+        return 'تاريخ غير صالح';
       }
     };
 
@@ -1403,7 +1445,7 @@ export default {
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
 
-    // Warehouse stats calculation using Vuex getters only
+    // Warehouse stats calculation
     const calculateWarehouseStats = async (warehouseId) => {
       if (warehouseStatsCache.value[warehouseId] && 
           Date.now() - warehouseStatsCache.value[warehouseId].lastUpdated < 30000) {
@@ -1411,7 +1453,6 @@ export default {
       }
 
       try {
-        // Use Vuex getter to calculate stats from store data
         const inventory = inventoryItems.value;
         const filteredItems = warehouseId === 'all' 
           ? inventory 
@@ -1467,7 +1508,7 @@ export default {
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
       
-      // Load item transactions from recent transactions (no additional Firebase read)
+      // Load item transactions from recent transactions
       try {
         itemTransactions.value = recentTransactions.value
           .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
@@ -1536,7 +1577,6 @@ export default {
           await store.dispatch('loadUserProfile');
         }
         
-        // OPTIMIZED: Load data from Vuex store only
         console.log('📊 Loading dashboard data from Vuex store...');
         
         // 1. Load warehouses (from Vuex store)
@@ -1544,19 +1584,19 @@ export default {
           await store.dispatch('loadWarehousesEnhanced');
         }
         
-        // 2. Load inventory if not already loaded (Vuex will handle caching)
+        // 2. Load inventory if not already loaded
         if (inventoryItems.value.length === 0) {
           console.log('📦 Loading inventory from Vuex store...');
           await store.dispatch('loadAllInventory');
         }
         
-        // 3. Load recent transactions (Vuex will handle caching)
+        // 3. Load recent transactions
         if (recentTransactions.value.length === 0) {
           console.log('📋 Loading recent transactions from Vuex store...');
           await store.dispatch('getRecentTransactions');
         }
         
-        // 4. Calculate dashboard stats from Vuex store data
+        // 4. Calculate dashboard stats
         console.log('📈 Calculating dashboard stats from Vuex store...');
         await loadDashboardStats(selectedWarehouse.value);
         
@@ -1603,7 +1643,7 @@ export default {
         try {
           console.log('📊 Loading all warehouse stats from Vuex store...');
           
-          // Calculate stats for each warehouse from Vuex store
+          // Calculate stats for each warehouse
           for (const warehouse of accessibleWarehouses.value) {
             await calculateWarehouseStats(warehouse.id);
           }
@@ -1655,7 +1695,7 @@ export default {
       try {
         console.log(`🏢 Warehouse changed to: ${selectedWarehouse.value}`);
         
-        // Calculate dashboard stats for selected warehouse from Vuex store
+        // Calculate dashboard stats for selected warehouse
         await loadDashboardStats(selectedWarehouse.value);
         
         // If viewing all warehouses, load stats for each
@@ -1691,7 +1731,7 @@ export default {
       document.addEventListener('keydown', handleEscapeKey);
       
       try {
-        // Load dashboard data from Vuex store
+        // Load dashboard data
         await loadDashboardData();
       } catch (error) {
         console.error('❌ Error in dashboard mounted:', error);
