@@ -746,7 +746,7 @@
           </div>
         </div>
 
-        <!-- Mobile Cards with Virtual Scrolling -->
+        <!-- Mobile Cards with Virtual Scrolling - UPDATED SECTION -->
         <div class="lg:hidden">
           <div
             class="overflow-y-auto"
@@ -766,11 +766,11 @@
               <div
                 v-for="item in mobileVisibleItems"
                 :key="item.id"
+                data-mobile-card
                 class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 active:bg-gray-100 dark:active:bg-gray-700"
-                @click="showItemDetails(item)"
               >
                 <!-- Main Row -->
-                <div class="flex gap-3">
+                <div class="flex gap-3" @click="showItemDetails(item)">
                   <!-- Photo -->
                   <div class="flex-shrink-0">
                     <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
@@ -786,13 +786,13 @@
 
                   <!-- Item Details -->
                   <div class="flex-1 min-w-0">
-                    <!-- First Row: Name and Quantity -->
+                    <!-- First Row: Name and Status -->
                     <div class="flex justify-between items-start mb-1">
                       <div class="min-w-0">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-white truncate mb-1">
                           {{ item.name }}
                         </h3>
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1 mb-1">
                           <span class="text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
                             {{ item.code }}
                           </span>
@@ -802,9 +802,29 @@
                           </span>
                         </div>
                       </div>
+                      <!-- Remaining Quantity -->
                       <div :class="getQuantityClass(item.remaining_quantity)"
-                           class="text-lg font-bold px-3 py-1.5 rounded-lg">
-                        {{ item.remaining_quantity }}
+                           class="text-lg font-bold px-3 py-1.5 rounded-lg flex flex-col items-center">
+                        <span>{{ item.remaining_quantity }}</span>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          من {{ item.total_added || item.remaining_quantity }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Quantities Breakdown -->
+                    <div class="grid grid-cols-3 gap-2 mb-2">
+                      <div class="text-center px-2 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">كراتين</div>
+                        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.cartons_count || 0 }}</div>
+                      </div>
+                      <div class="text-center px-2 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">في الكرتونة</div>
+                        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.per_carton_count || 0 }}</div>
+                      </div>
+                      <div class="text-center px-2 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">فردي</div>
+                        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.single_bottles_count || 0 }}</div>
                       </div>
                     </div>
 
@@ -874,6 +894,16 @@
                     >
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="canDispatchItem(item)"
+                      @click.stop="handleDispatch(item)"
+                      class="p-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/20 transition-colors"
+                      title="صرف خارجي"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                       </svg>
                     </button>
                     <button
@@ -985,6 +1015,7 @@
     />
   </div>
 </template>
+
 <script>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -2891,4 +2922,3 @@ export default {
   animation: scaleIn 0.2s ease-out;
 }
 </style>
-
