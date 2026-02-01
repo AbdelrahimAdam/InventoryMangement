@@ -734,11 +734,12 @@ export default {
              dateTo.value;
     });
 
-    // Filter transactions using store getter
+    // Filter transactions using store getter - إضافة فلتر المخزن
     const filteredTransactions = computed(() => {
       return store.getters.filteredTransactions({
         search: searchTerm.value,
         type: typeFilter.value,
+        warehouse: warehouseFilter.value, // إضافة فلتر المخزن
         dateFrom: dateFrom.value,
         dateTo: dateTo.value
       });
@@ -897,6 +898,8 @@ export default {
     
     const handleWarehouseFilter = () => {
       // Filtering is handled by computed property
+      // يمكنك إضافة أي منطق إضافي هنا إذا لزم الأمر
+      console.log('Warehouse filter changed to:', warehouseFilter.value);
     };
 
     const handleDateFilter = () => {
