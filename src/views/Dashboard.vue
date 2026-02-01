@@ -34,39 +34,10 @@
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يرجى الانتظار</p>
       </div>
 
-      <!-- Top Stats Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <!-- Low Quantity Items Card -->
-        <div class="col-span-2 md:col-span-1 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-medium text-blue-100 mb-1">الأصناف قليلة الكمية</p>
-              <div v-if="statsLoading" class="h-8 w-24 bg-blue-400/50 rounded animate-pulse"></div>
-              <p v-else class="text-3xl font-bold">
-                {{ formatEnglishNumber(dashboardStats.lowQuantityItems) }}
-              </p>
-              <p class="mt-2 text-sm text-blue-100 opacity-90">
-                أصناف كمية أقل من 500
-              </p>
-            </div>
-            <div class="h-12 w-12 rounded-xl bg-blue-400/20 flex items-center justify-center">
-              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
-              </svg>
-            </div>
-          </div>
-          <div class="mt-4 pt-4 border-t border-blue-400/30">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-blue-100">نسبة من المجموع</span>
-              <span class="font-medium">
-                {{ lowQuantityPercentage }}%
-              </span>
-            </div>
-          </div>
-        </div>
-
+      <!-- Top Stats Cards - REMOVED DUPLICATE LOW QUANTITY CARD -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <!-- Out of Stock Items Card -->
-        <div class="col-span-2 md:col-span-1 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-sm font-medium text-red-100 mb-1">الأصناف المنتهية</p>
@@ -94,8 +65,37 @@
           </div>
         </div>
 
+        <!-- Low Quantity Items Card -->
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-orange-100 mb-1">الأصناف قليلة الكمية</p>
+              <div v-if="statsLoading" class="h-8 w-24 bg-orange-400/50 rounded animate-pulse"></div>
+              <p v-else class="text-3xl font-bold">
+                {{ formatEnglishNumber(dashboardStats.lowQuantityItems) }}
+              </p>
+              <p class="mt-2 text-sm text-orange-100 opacity-90">
+                أصناف كمية أقل من 500
+              </p>
+            </div>
+            <div class="h-12 w-12 rounded-xl bg-orange-400/20 flex items-center justify-center">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-orange-400/30">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-orange-100">نسبة من المجموع</span>
+              <span class="font-medium">
+                {{ lowQuantityPercentage }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Healthy Items Card -->
-        <div class="col-span-2 md:col-span-1 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-sm font-medium text-green-100 mb-1">الأصناف الجيدة</p>
@@ -124,253 +124,14 @@
         </div>
       </div>
 
-      <!-- Main Stats Grid - 2 COLUMNS ON MOBILE -->
-      <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Total Items Card -->
-        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الأصناف</p>
-              <div v-if="statsLoading" class="h-8 w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              <p v-else class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(dashboardStats.totalItems) }}
-              </p>
-              <div v-if="selectedWarehouse !== 'all' && allWarehouseStats.totalItems > 0" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span class="inline-flex items-center gap-1">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                  </svg>
-                  {{ warehousePercentage }}% من المجموع
-                </span>
-              </div>
-            </div>
-            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
-              <svg class="h-5 w-5 md:h-6 md:w-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-            </div>
-          </div>
-          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-            <div class="flex items-center justify-between text-xs md:text-sm">
-              <span class="text-gray-500 dark:text-gray-400">متوسط الكمية لكل صنف</span>
-              <span class="font-medium text-gray-900 dark:text-white">
-                {{ avgQuantityPerItem }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Quantity Card -->
-        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الكمية</p>
-              <div v-if="statsLoading" class="h-8 w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              <p v-else class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(dashboardStats.totalQuantity) }}
-              </p>
-              <div class="mt-2">
-                <div class="flex flex-col gap-1 text-xs md:text-sm">
-                  <span class="flex items-center gap-1">
-                    <div class="h-2 w-2 rounded-full bg-green-500"></div>
-                    كراتين: {{ formatEnglishNumber(totalCartons) }}
-                  </span>
-                  <span class="flex items-center gap-1">
-                    <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-                    فردي: {{ formatEnglishNumber(totalSingles) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <svg class="h-5 w-5 md:h-6 md:w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-          </div>
-          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-            <div class="flex items-center justify-between text-xs md:text-sm">
-              <span class="text-gray-500 dark:text-gray-400">قيمة تقديرية</span>
-              <span class="font-medium text-green-600 dark:text-green-400">
-                {{ formatEnglishNumber(estimatedValue) }} ج
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Low Quantity Items Card -->
-        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأصناف قليلة الكمية</p>
-              <div v-if="statsLoading" class="h-8 w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              <p v-else class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(dashboardStats.lowQuantityItems) }}
-              </p>
-              <div class="mt-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                <span class="inline-flex items-center gap-1">
-                  <svg class="h-3 w-3 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                  </svg>
-                  كمية ≤ 500
-                </span>
-              </div>
-            </div>
-            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
-              <svg class="h-5 w-5 md:h-6 md:w-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-          </div>
-          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-            <div class="text-xs md:text-sm">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-gray-500 dark:text-gray-400">نسبة من الإجمالي</span>
-                <span class="font-medium text-orange-600 dark:text-orange-400">
-                  {{ lowQuantityPercentage }}%
-                </span>
-              </div>
-              <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  class="h-full rounded-full bg-orange-500 transition-all duration-500"
-                  :style="{ width: lowQuantityPercentage + '%' }"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Today's Activity Card -->
-        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">نشاط اليوم</p>
-              <p class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatEnglishNumber(todayTransactionsCount) }}
-              </p>
-              <div class="mt-2 grid grid-cols-3 gap-1 md:gap-2">
-                <div class="text-center">
-                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mb-1">
-                    <span class="text-xs font-bold text-green-600 dark:text-green-400">+</span>
-                  </div>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayAddCount }}</span>
-                </div>
-                <div class="text-center">
-                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-1">
-                    <span class="text-xs font-bold text-blue-600 dark:text-blue-400">↔</span>
-                  </div>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayTransferCount }}</span>
-                </div>
-                <div class="text-center">
-                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-1">
-                    <span class="text-xs font-bold text-purple-600 dark:text-purple-400">→</span>
-                  </div>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayDispatchCount }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <svg class="h-5 w-5 md:h-6 md:w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-          </div>
-          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-            <div class="flex items-center justify-between text-xs md:text-sm">
-              <span class="text-gray-500 dark:text-gray-400">آخر حركة</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ lastTransactionTime }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- QUICK ACTIONS SECTION - MOVED HERE -->
-      <div class="mb-8">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
-          <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <router-link 
-              to="/inventory"
-              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
-            >
-              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <svg class="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-              </div>
-              <div class="flex-1">
-                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">المخزون الكامل</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">عرض جميع الأصناف</div>
-              </div>
-              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-
-            <router-link 
-              to="/reports"
-              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
-            >
-              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <svg class="h-4 w-4 md:h-5 md:w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-              </div>
-              <div class="flex-1">
-                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">التقارير</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">تحليل كامل للأداء</div>
-              </div>
-              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-
-            <router-link 
-              v-if="canModifyItems"
-              to="/inventory/add"
-              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
-            >
-              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <svg class="h-4 w-4 md:h-5 md:w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-              </div>
-              <div class="flex-1">
-                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">إضافة صنف</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">إضافة صنف جديد</div>
-              </div>
-              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-
-            <router-link 
-              to="/transactions"
-              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
-            >
-              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <svg class="h-4 w-4 md:h-5 md:w-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                </svg>
-              </div>
-              <div class="flex-1">
-                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">الحركات</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">سجل الحركات الكامل</div>
-              </div>
-              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-          </div>
-        </div>
-      </div>
-
-      <!-- Warehouse Filter Section -->
+      <!-- Warehouse Filter Section - MOVED TO TOP -->
       <div class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">تصفية حسب المخزن</h2>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                {{ selectedWarehouse !== 'all' ? `المخزن: ${getWarehouseLabel(selectedWarehouse)}` : 'جميع المخازن' }}
+              </h2>
               <p class="text-sm text-gray-500 dark:text-gray-400">اختر مخزن لعرض إحصائياته وحركاته</p>
             </div>
             
@@ -448,6 +209,249 @@
         </div>
       </div>
 
+      <!-- Main Stats Grid - UPDATED TO SHOW FILTERED WAREHOUSE DATA -->
+      <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Total Items Card -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الأصناف</p>
+              <div v-if="statsLoading" class="h-8 w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <p v-else class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(dashboardStats.totalItems) }}
+              </p>
+              <div v-if="selectedWarehouse !== 'all' && allWarehouseStats.totalItems > 0" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <span class="inline-flex items-center gap-1">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                  </svg>
+                  {{ warehousePercentage }}% من المجموع
+                </span>
+              </div>
+            </div>
+            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+              <svg class="h-5 w-5 md:h-6 md:w-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between text-xs md:text-sm">
+              <span class="text-gray-500 dark:text-gray-400">متوسط الكمية لكل صنف</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ avgQuantityPerItem }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Quantity Card -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الكمية</p>
+              <div v-if="statsLoading" class="h-8 w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <p v-else class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(dashboardStats.totalQuantity) }}
+              </p>
+              <div class="mt-2">
+                <div class="flex flex-col gap-1 text-xs md:text-sm">
+                  <span class="flex items-center gap-1">
+                    <div class="h-2 w-2 rounded-full bg-green-500"></div>
+                    كراتين: {{ formatEnglishNumber(totalCartons) }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <div class="h-2 w-2 rounded-full bg-blue-500"></div>
+                    فردي: {{ formatEnglishNumber(totalSingles) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-green-100 dark:bg-green-900 flex items-center justify-center">
+              <svg class="h-5 w-5 md:h-6 md:w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between text-xs md:text-sm">
+              <span class="text-gray-500 dark:text-gray-400">قيمة تقديرية</span>
+              <span class="font-medium text-green-600 dark:text-green-400">
+                {{ formatEnglishNumber(estimatedValue) }} ج
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPLACED DUPLICATE LOW QUANTITY CARD WITH TODAY'S ACTIVITY CARD -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">نشاط اليوم</p>
+              <p class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(todayTransactionsCount) }}
+              </p>
+              <div class="mt-2 grid grid-cols-3 gap-1 md:gap-2">
+                <div class="text-center">
+                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mb-1">
+                    <span class="text-xs font-bold text-green-600 dark:text-green-400">+</span>
+                  </div>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayAddCount }}</span>
+                </div>
+                <div class="text-center">
+                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-1">
+                    <span class="text-xs font-bold text-blue-600 dark:text-blue-400">↔</span>
+                  </div>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayTransferCount }}</span>
+                </div>
+                <div class="text-center">
+                  <div class="h-5 w-5 md:h-6 md:w-6 mx-auto rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-1">
+                    <span class="text-xs font-bold text-purple-600 dark:text-purple-400">→</span>
+                  </div>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ todayDispatchCount }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+              <svg class="h-5 w-5 md:h-6 md:w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between text-xs md:text-sm">
+              <span class="text-gray-500 dark:text-gray-400">آخر حركة</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ lastTransactionTime }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPLACED WITH WAREHOUSE PERFORMANCE CARD -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أداء المخزن</p>
+              <p v-else class="text-2xl md:text-3xl font-bold" :class="getHealthTextClass(performanceScore)">
+                {{ performanceScore }}%
+              </p>
+              <div class="mt-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                <span class="inline-flex items-center gap-1">
+                  <svg class="h-3 w-3 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                  </svg>
+                  مؤشر الصحة
+                </span>
+              </div>
+            </div>
+            <div class="h-10 w-10 md:h-12 md:w-12 rounded-xl" :class="getHealthColorClass(performanceScore, true)">
+              <svg class="h-5 w-5 md:h-6 md:w-6" :class="getHealthIconClass(performanceScore)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path v-if="performanceScore >= 80" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path v-else-if="performanceScore >= 60" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div class="text-xs md:text-sm">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-gray-500 dark:text-gray-400">مستوى الأداء</span>
+                <span class="font-medium" :class="getHealthTextClass(performanceScore)">
+                  {{ getPerformanceLabel(performanceScore) }}
+                </span>
+              </div>
+              <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="getHealthColorClass(performanceScore)"
+                  :style="{ width: Math.min(performanceScore, 100) + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS SECTION -->
+      <div class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">الإجراءات السريعة</h2>
+          <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <router-link 
+              :to="selectedWarehouse !== 'all' ? `/inventory?warehouse=${selectedWarehouse}` : '/inventory'"
+              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">المخزون</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">عرض جميع الأصناف</div>
+              </div>
+              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              :to="selectedWarehouse !== 'all' ? `/reports?warehouse=${selectedWarehouse}` : '/reports'"
+              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-4 w-4 md:h-5 md:w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">التقارير</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">تحليل كامل للأداء</div>
+              </div>
+              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              v-if="canModifyItems"
+              :to="selectedWarehouse !== 'all' ? `/inventory/add?warehouse=${selectedWarehouse}` : '/inventory/add'"
+              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-4 w-4 md:h-5 md:w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">إضافة صنف</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">إضافة صنف جديد</div>
+              </div>
+              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+
+            <router-link 
+              :to="selectedWarehouse !== 'all' ? `/transactions?warehouse=${selectedWarehouse}` : '/transactions'"
+              class="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover-lift"
+            >
+              <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <svg class="h-4 w-4 md:h-5 md:w-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900 dark:text-white text-sm md:text-base">الحركات</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">سجل الحركات الكامل</div>
+              </div>
+              <svg class="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </router-link>
+          </div>
+        </div>
+      </div>
+
       <!-- Warehouse Statistics Table -->
       <div class="mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700">
@@ -488,11 +492,17 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                   <tr v-for="warehouse in accessibleWarehouses" :key="warehouse.id" 
-                      class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                      :class="[
+                        'transition-colors duration-200',
+                        warehouse.id === selectedWarehouse ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ]">
                     <td class="px-3 md:px-6 py-3 md:py-4">
                       <div class="flex items-center">
-                        <div class="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-2 md:ml-3">
-                          <svg class="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div :class="[
+                          'h-8 w-8 md:h-10 md:w-10 rounded-lg flex items-center justify-center ml-2 md:ml-3',
+                          warehouse.id === selectedWarehouse ? 'bg-blue-600 dark:bg-blue-800' : 'bg-blue-100 dark:bg-blue-900'
+                        ]">
+                          <svg class="h-4 w-4 md:h-5 md:w-5" :class="warehouse.id === selectedWarehouse ? 'text-white' : 'text-blue-600 dark:text-blue-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                           </svg>
                         </div>
@@ -796,7 +806,7 @@
             <!-- View All Transactions Button -->
             <div v-if="recentTransactions.length > 0" class="mt-4">
               <router-link 
-                to="/transactions"
+                :to="selectedWarehouse !== 'all' ? `/transactions?warehouse=${selectedWarehouse}` : '/transactions'"
                 class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-center gap-2"
               >
                 <span>عرض جميع الحركات</span>
@@ -812,7 +822,6 @@
   </div>
 </template>
 
-<!-- Script section remains exactly the same -->
 <script>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from 'vuex';
@@ -1020,6 +1029,17 @@ export default {
     const healthyItemsPercentage = computed(() => {
       if (dashboardStats.value.totalItems === 0) return 0;
       return Math.round((dashboardStats.value.healthyItems / dashboardStats.value.totalItems) * 100);
+    });
+
+    // Performance score based on warehouse health
+    const performanceScore = computed(() => {
+      if (dashboardStats.value.totalItems === 0) return 100; // Empty warehouse is considered perfect
+      
+      const lowStockPenalty = lowQuantityPercentage.value * 0.3; // 30% weight for low stock
+      const outOfStockPenalty = outOfStockPercentage.value * 0.7; // 70% weight for out of stock
+      
+      const score = 100 - (lowStockPenalty + outOfStockPenalty);
+      return Math.max(0, Math.min(100, Math.round(score)));
     });
 
     // Recent items filtered by warehouse
@@ -1274,16 +1294,29 @@ export default {
       return 'bg-green-500';
     };
 
-    const getHealthColorClass = (percentage) => {
-      if (percentage <= 10) return 'bg-green-500';
-      if (percentage <= 30) return 'bg-yellow-500';
-      return 'bg-red-500';
+    const getHealthColorClass = (percentage, isBackground = false) => {
+      if (percentage >= 80) return isBackground ? 'bg-green-100 dark:bg-green-900' : 'bg-green-500';
+      if (percentage >= 60) return isBackground ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-yellow-500';
+      return isBackground ? 'bg-red-100 dark:bg-red-900' : 'bg-red-500';
+    };
+
+    const getHealthIconClass = (percentage) => {
+      if (percentage >= 80) return 'text-green-600 dark:text-green-400';
+      if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
+      return 'text-red-600 dark:text-red-400';
     };
 
     const getHealthTextClass = (percentage) => {
-      if (percentage <= 10) return 'text-green-600 dark:text-green-400';
-      if (percentage <= 30) return 'text-yellow-600 dark:text-yellow-400';
+      if (percentage >= 80) return 'text-green-600 dark:text-green-400';
+      if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
       return 'text-red-600 dark:text-red-400';
+    };
+
+    const getPerformanceLabel = (percentage) => {
+      if (percentage >= 80) return 'ممتاز';
+      if (percentage >= 60) return 'جيد';
+      if (percentage >= 40) return 'متوسط';
+      return 'ضعيف';
     };
 
     const calculateTotalQuantity = (item) => {
@@ -1624,6 +1657,7 @@ export default {
       lowQuantityPercentage,
       outOfStockPercentage,
       healthyItemsPercentage,
+      performanceScore,
       
       // Helper methods
       formatEnglishNumber,
@@ -1634,7 +1668,9 @@ export default {
       getQuantityClass,
       getQuantityStatusClass,
       getHealthColorClass,
+      getHealthIconClass,
       getHealthTextClass,
+      getPerformanceLabel,
       calculateTotalQuantity,
       handleImageError,
       warehouseLowQuantityPercentage,
