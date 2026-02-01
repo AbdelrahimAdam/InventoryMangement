@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
     <!-- Header Section -->
     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-800 dark:to-indigo-800 text-white">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <h1 class="text-2xl lg:text-3xl font-bold mb-2">لوحة تحكم المخازن</h1>
@@ -26,12 +26,102 @@
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
       <!-- Loading Overlay -->
       <div v-if="initialLoading" class="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-80 dark:bg-opacity-80 z-50 flex flex-col items-center justify-center">
         <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
         <p class="text-lg font-semibold text-gray-700 dark:text-gray-300">جاري تحميل البيانات...</p>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">يرجى الانتظار</p>
+      </div>
+
+      <!-- Top Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Low Quantity Items Card -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-blue-100 mb-1">الأصناف قليلة الكمية</p>
+              <div v-if="statsLoading" class="h-8 w-24 bg-blue-400/50 rounded animate-pulse"></div>
+              <p v-else class="text-3xl font-bold">
+                {{ formatEnglishNumber(dashboardStats.lowQuantityItems) }}
+              </p>
+              <p class="mt-2 text-sm text-blue-100 opacity-90">
+                أصناف كمية أقل من 500
+              </p>
+            </div>
+            <div class="h-12 w-12 rounded-xl bg-blue-400/20 flex items-center justify-center">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-blue-400/30">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-blue-100">نسبة من المجموع</span>
+              <span class="font-medium">
+                {{ lowQuantityPercentage }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Out of Stock Items Card -->
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-red-100 mb-1">الأصناف المنتهية</p>
+              <div v-if="statsLoading" class="h-8 w-24 bg-red-400/50 rounded animate-pulse"></div>
+              <p v-else class="text-3xl font-bold">
+                {{ formatEnglishNumber(dashboardStats.outOfStockItems) }}
+              </p>
+              <p class="mt-2 text-sm text-red-100 opacity-90">
+                أصناف بدون كمية
+              </p>
+            </div>
+            <div class="h-12 w-12 rounded-xl bg-red-400/20 flex items-center justify-center">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-red-400/30">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-red-100">نسبة من المجموع</span>
+              <span class="font-medium">
+                {{ outOfStockPercentage }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy Items Card -->
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm font-medium text-green-100 mb-1">الأصناف الجيدة</p>
+              <div v-if="statsLoading" class="h-8 w-24 bg-green-400/50 rounded animate-pulse"></div>
+              <p v-else class="text-3xl font-bold">
+                {{ formatEnglishNumber(dashboardStats.healthyItems) }}
+              </p>
+              <p class="mt-2 text-sm text-green-100 opacity-90">
+                أصناف كمية أكثر من 500
+              </p>
+            </div>
+            <div class="h-12 w-12 rounded-xl bg-green-400/20 flex items-center justify-center">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-green-400/30">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-green-100">نسبة من المجموع</span>
+              <span class="font-medium">
+                {{ healthyItemsPercentage }}%
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Warehouse Filter Section -->
@@ -117,7 +207,7 @@
         </div>
       </div>
 
-      <!-- Main Stats Grid - OPTIMIZED WITH VUEX GETTERS -->
+      <!-- Main Stats Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Total Items Card -->
         <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
@@ -191,27 +281,22 @@
           </div>
         </div>
 
-        <!-- Stock Status Card -->
+        <!-- Low Quantity Items Card -->
         <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
           <div class="flex items-start justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">حالة المخزون</p>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأصناف قليلة الكمية</p>
               <div v-if="statsLoading" class="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              <div v-else>
-                <div class="flex items-baseline gap-2">
-                  <span class="text-3xl font-bold text-gray-900 dark:text-white">
-                    {{ formatEnglishNumber(dashboardStats.lowStockItems) }}
-                  </span>
-                  <span class="text-sm text-red-600 dark:text-red-400">قليلة</span>
-                </div>
-                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  <span class="inline-flex items-center gap-1">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    {{ formatEnglishNumber(dashboardStats.outOfStockItems) }} منتهية
-                  </span>
-                </div>
+              <p v-else class="text-3xl font-bold text-gray-900 dark:text-white">
+                {{ formatEnglishNumber(dashboardStats.lowQuantityItems) }}
+              </p>
+              <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <span class="inline-flex items-center gap-1">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  كمية ≤ 500
+                </span>
               </div>
             </div>
             <div class="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
@@ -223,16 +308,15 @@
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
             <div class="text-sm">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-gray-500 dark:text-gray-400">نسبة المخزون الجيد</span>
-                <span class="font-medium text-green-600 dark:text-green-400">
-                  {{ stockHealthPercentage }}%
+                <span class="text-gray-500 dark:text-gray-400">نسبة من الإجمالي</span>
+                <span class="font-medium text-orange-600 dark:text-orange-400">
+                  {{ lowQuantityPercentage }}%
                 </span>
               </div>
               <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div 
-                  :class="stockHealthColor"
-                  class="h-full rounded-full transition-all duration-500"
-                  :style="{ width: stockHealthPercentage + '%' }"
+                  class="h-full rounded-full bg-orange-500 transition-all duration-500"
+                  :style="{ width: lowQuantityPercentage + '%' }"
                 ></div>
               </div>
             </div>
@@ -278,6 +362,177 @@
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">آخر حركة</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ lastTransactionTime }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warehouse Statistics Table -->
+      <div class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-6">إحصائيات المخازن</h2>
+          
+          <div v-if="warehouseStatsLoading" class="py-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل إحصائيات المخازن...</p>
+          </div>
+          
+          <div v-else>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-gray-700/50">
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      المخزن
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      إجمالي الأصناف
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      إجمالي الكمية
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      الأصناف قليلة الكمية
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      نسبة قليلة الكمية
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      الأصناف المنتهية
+                    </th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                      نسبة المنتهية
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="warehouse in accessibleWarehouses" :key="warehouse.id" 
+                      class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                    <td class="px-6 py-4">
+                      <div class="flex items-center">
+                        <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center ml-3">
+                          <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <div class="text-sm font-bold text-gray-900 dark:text-white">
+                            {{ warehouse.name_ar || warehouse.name }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-gray-900 dark:text-white">
+                        {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalItems || 0) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-gray-900 dark:text-white">
+                        {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalQuantity || 0) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-orange-600 dark:text-orange-400">
+                        {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.lowQuantityItems || 0) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              :class="getHealthColorClass(warehouseLowQuantityPercentage(warehouse.id))"
+                              class="h-full rounded-full"
+                              :style="{ width: Math.min(warehouseLowQuantityPercentage(warehouse.id), 100) + '%' }"
+                            ></div>
+                          </div>
+                        </div>
+                        <span class="text-sm font-bold text-orange-600 dark:text-orange-400">
+                          {{ warehouseLowQuantityPercentage(warehouse.id) }}%
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-red-600 dark:text-red-400">
+                        {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.outOfStockItems || 0) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              class="h-full rounded-full bg-red-500"
+                              :style="{ width: Math.min(warehouseOutOfStockPercentage(warehouse.id), 100) + '%' }"
+                            ></div>
+                          </div>
+                        </div>
+                        <span class="text-sm font-bold text-red-600 dark:text-red-400">
+                          {{ warehouseOutOfStockPercentage(warehouse.id) }}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-gray-900 dark:text-white">المجموع الكلي</div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-gray-900 dark:text-white">
+                        {{ formatEnglishNumber(allWarehouseStats.totalItems) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-gray-900 dark:text-white">
+                        {{ formatEnglishNumber(allWarehouseStats.totalQuantity) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-orange-600 dark:text-orange-400">
+                        {{ formatEnglishNumber(allWarehouseStats.lowQuantityItems) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              class="h-full rounded-full bg-orange-500"
+                              :style="{ width: Math.min(lowQuantityPercentage, 100) + '%' }"
+                            ></div>
+                          </div>
+                        </div>
+                        <span class="text-sm font-bold text-orange-600 dark:text-orange-400">
+                          {{ lowQuantityPercentage }}%
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="text-lg font-bold text-red-600 dark:text-red-400">
+                        {{ formatEnglishNumber(allWarehouseStats.outOfStockItems) }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              class="h-full rounded-full bg-red-500"
+                              :style="{ width: Math.min(outOfStockPercentage, 100) + '%' }"
+                            ></div>
+                          </div>
+                        </div>
+                        <span class="text-sm font-bold text-red-600 dark:text-red-400">
+                          {{ outOfStockPercentage }}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         </div>
@@ -410,7 +665,7 @@
                         </svg>
                       </div>
                     </div>
-                    <span :class="getStatusClass(item.remaining_quantity)" 
+                    <span :class="getQuantityStatusClass(item.remaining_quantity)" 
                           class="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 status-dot"></span>
                   </div>
                   <div class="flex-1 min-w-0">
@@ -448,8 +703,6 @@
               <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">لا توجد أصناف</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم إضافة أي أصناف بعد.</p>
             </div>
-
-            <!-- No Load More Button - Limited to 8 items for performance -->
           </div>
         </div>
 
@@ -555,426 +808,6 @@
           </div>
         </div>
       </div>
-
-      <!-- WAREHOUSE STATISTICS SECTION - OPTIMIZED -->
-      <div v-if="selectedWarehouse === 'all' && accessibleWarehouses.length > 1" class="mb-8">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">إحصائيات جميع المخازن</h2>
-          
-          <div v-if="warehouseStatsLoading" class="py-8 text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-2 text-gray-600 dark:text-gray-400">جاري تحميل إحصائيات المخازن...</p>
-          </div>
-          
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead>
-                <tr>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    المخزن
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    إجمالي الأصناف
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    إجمالي الكمية
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    الأصناف قليلة المخزون
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    الأصناف المنتهية
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    نسبة المخزون الجيد
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="warehouse in accessibleWarehouses" :key="warehouse.id" 
-                    class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
-                        <svg class="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">
-                          {{ warehouse.name_ar || warehouse.name }}
-                        </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                          {{ warehouseStatsCache[warehouse.id]?.totalItems || 0 }} صنف
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalItems || 0) }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ warehousePercentageOfTotal(warehouse.id, 'totalItems') }}%
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.totalQuantity || 0) }}
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ warehousePercentageOfTotal(warehouse.id, 'totalQuantity') }}%
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="(warehouseStatsCache[warehouse.id]?.lowStockItems || 0) > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.lowStockItems || 0) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium" :class="(warehouseStatsCache[warehouse.id]?.outOfStockItems || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'">
-                      {{ formatEnglishNumber(warehouseStatsCache[warehouse.id]?.outOfStockItems || 0) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center gap-2">
-                      <div class="flex-1">
-                        <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            :class="getHealthColorClass(warehouseHealthPercentage(warehouse.id))"
-                            class="h-full rounded-full"
-                            :style="{ width: warehouseHealthPercentage(warehouse.id) + '%' }"
-                          ></div>
-                        </div>
-                      </div>
-                      <span class="text-sm font-medium" :class="getHealthTextClass(warehouseHealthPercentage(warehouse.id))">
-                        {{ warehouseHealthPercentage(warehouse.id) }}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot class="bg-gray-50 dark:bg-gray-800/50">
-                <tr>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">المجموع الكلي</div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(allWarehouseStats.totalItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-white">
-                      {{ formatEnglishNumber(allWarehouseStats.totalQuantity) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-orange-600 dark:text-orange-400">
-                      {{ formatEnglishNumber(allWarehouseStats.lowStockItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-red-600 dark:text-red-400">
-                      {{ formatEnglishNumber(allWarehouseStats.outOfStockItems) }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center gap-2">
-                      <div class="flex-1">
-                        <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            :class="stockHealthColor"
-                            class="h-full rounded-full"
-                            :style="{ width: stockHealthPercentage + '%' }"
-                          ></div>
-                        </div>
-                      </div>
-                      <span class="text-sm font-bold" :class="getHealthTextClass(stockHealthPercentage)">
-                        {{ stockHealthPercentage }}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Item Details Modal -->
-    <div v-if="showItemModal" class="fixed inset-0 z-50 overflow-y-auto modal-backdrop">
-      <!-- Backdrop -->
-      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeItemModal"></div>
-
-      <!-- Modal Container -->
-      <div class="flex min-h-full items-center justify-center p-4">
-        <!-- Modal Content -->
-        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden transition-all duration-300 transform scale-100 slide-in">
-          <!-- Modal Header -->
-          <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-xl font-bold text-gray-900 dark:text-white">تفاصيل الصنف</h2>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">المعلومات الكاملة عن الصنف المحدد</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-3">
-                <!-- Edit Button -->
-                <button 
-                  v-if="canModifyItems"
-                  @click="editItem"
-                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                  </svg>
-                  تعديل
-                </button>
-                <!-- Close Button -->
-                <button 
-                  @click="closeItemModal"
-                  class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)] custom-scrollbar">
-            <div v-if="modalLoading" class="py-20 text-center">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600 dark:text-gray-400">جاري تحميل تفاصيل الصنف...</p>
-            </div>
-
-            <div v-else-if="selectedItem" class="space-y-6">
-              <!-- Item Header -->
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Item Image -->
-                <div class="lg:col-span-1">
-                  <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 h-full flex flex-col items-center justify-center">
-                    <div class="relative w-48 h-48 rounded-xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg mb-4">
-                      <img 
-                        v-if="selectedItem.photo_url" 
-                        :src="selectedItem.photo_url" 
-                        :alt="selectedItem.name"
-                        class="w-full h-full object-cover lazy-image"
-                        loading="lazy"
-                        @error="handleModalImageError"
-                      >
-                      <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-600">
-                        <svg class="h-20 w-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                      </div>
-                      <div :class="[
-                        'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold',
-                        selectedItem.remaining_quantity === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                        selectedItem.remaining_quantity < 10 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
-                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      ]">
-                        {{ selectedItem.remaining_quantity === 0 ? 'منتهي' : 
-                           selectedItem.remaining_quantity < 10 ? 'قليل' : 'متوفر' }}
-                      </div>
-                    </div>
-                    <div class="text-center">
-                      <div class="text-4xl font-bold mb-2" :class="getQuantityClass(selectedItem.remaining_quantity)">
-                        {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
-                      </div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400">الكمية المتاحة</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Item Info -->
-                <div class="lg:col-span-2">
-                  <div class="space-y-6">
-                    <!-- Basic Info -->
-                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">المعلومات الأساسية</h3>
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اسم الصنف</label>
-                          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedItem.name }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الكود</label>
-                          <p class="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">{{ selectedItem.code }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">اللون</label>
-                          <div class="flex items-center gap-2">
-                            <div 
-                              v-if="selectedItem.color" 
-                              class="h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600"
-                              :style="{ backgroundColor: selectedItem.color }"
-                            ></div>
-                            <span class="text-gray-900 dark:text-white">{{ selectedItem.color || 'بدون لون' }}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحجم</label>
-                          <p class="text-gray-900 dark:text-white">{{ selectedItem.size || 'غير محدد' }}</p>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">المخزن</label>
-                          <div class="flex items-center gap-2">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                            </svg>
-                            <span class="text-gray-900 dark:text-white">{{ getWarehouseLabel(selectedItem.warehouse_id) }}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">آخر تحديث</label>
-                          <div class="flex items-center gap-2">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span class="text-gray-900 dark:text-white">{{ formatRelativeTime(selectedItem.updated_at || selectedItem.created_at) }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Quantity Details -->
-                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">تفاصيل الكمية</h3>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.cartons_count || 0) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الكراتين</p>
-                          <div class="text-xs text-gray-400 mt-1">
-                            × {{ selectedItem.per_carton_count || 12 }} لكل كرتون
-                          </div>
-                        </div>
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.single_bottles_count || 0) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">عدد الفردي</p>
-                        </div>
-                        <div class="text-center">
-                          <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                            {{ formatEnglishNumber(selectedItem.remaining_quantity) }}
-                          </div>
-                          <p class="text-sm text-gray-500 dark:text-gray-400">المجموع الكلي</p>
-                          <div class="text-xs text-gray-400 mt-1">
-                            {{ calculateTotalQuantity(selectedItem) }} وحدة
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Additional Info -->
-                    <div v-if="selectedItem.description || selectedItem.notes" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">معلومات إضافية</h3>
-                      <div class="space-y-4">
-                        <div v-if="selectedItem.description">
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الوصف</label>
-                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.description }}</p>
-                        </div>
-                        <div v-if="selectedItem.notes">
-                          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ملاحظات</label>
-                          <p class="text-gray-900 dark:text-white whitespace-pre-line">{{ selectedItem.notes }}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Recent Transactions for this item -->
-              <div v-if="itemTransactions.length > 0" class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">آخر الحركات لهذا الصنف</h3>
-                <div class="space-y-3">
-                  <div 
-                    v-for="trans in itemTransactions.slice(0, 5)" 
-                    :key="trans.id"
-                    class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 fade-in"
-                  >
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-3">
-                        <div :class="[
-                          'h-8 w-8 rounded-lg flex items-center justify-center',
-                          trans.type === 'ADD' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
-                          trans.type === 'TRANSFER' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' :
-                          'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
-                        ]">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path v-if="trans.type === 'ADD'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            <path v-if="trans.type === 'TRANSFER'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                            <path v-if="trans.type === 'DISPATCH'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getTransactionTypeLabel(trans.type) }}</span>
-                          <p class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ formatDetailedTime(trans.timestamp) }} 
-                            ({{ formatRelativeTime(trans.timestamp) }})
-                          </p>
-                        </div>
-                      </div>
-                      <div class="text-right">
-                        <span :class="[
-                          'font-bold',
-                          trans.type === 'ADD' ? 'text-green-600 dark:text-green-400' :
-                          'text-red-600 dark:text-red-400'
-                        ]">
-                          {{ trans.type === 'ADD' ? '+' : '' }}{{ formatEnglishNumber(trans.total_delta || 0) }}
-                        </span>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                          {{ trans.created_by || 'نظام' }}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ selectedItem ? `معرف الصنف: ${selectedItem.id}` : '' }}
-              </div>
-              <div class="flex items-center gap-3">
-                <button
-                  @click="closeItemModal"
-                  class="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  إغلاق
-                </button>
-                <router-link 
-                  v-if="selectedItem"
-                  :to="`/inventory/${selectedItem.id}`"
-                  class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  عرض كامل التفاصيل
-                </router-link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -995,7 +828,8 @@ export default {
     const initialLoading = ref(true);
     const statsLoading = ref(false);
     const warehouseStatsLoading = ref(false);
-    const modalLoading = ref(false);
+    const recentItemsLoading = ref(false);
+    const recentTransactionsLoading = ref(false);
     
     // UI state
     const selectedWarehouse = ref('all');
@@ -1003,18 +837,14 @@ export default {
     const currentDate = ref('');
     const lastUpdated = ref(new Date());
     
-    // Modal state
-    const showItemModal = ref(false);
-    const selectedItem = ref(null);
-    const itemTransactions = ref([]);
-    
     // Local cache for warehouse stats
     const warehouseStatsCache = ref({});
     const allWarehouseStatsCache = ref({
       totalItems: 0,
       totalQuantity: 0,
-      lowStockItems: 0,
+      lowQuantityItems: 0,
       outOfStockItems: 0,
+      healthyItems: 0,
       lastUpdated: null
     });
 
@@ -1032,12 +862,10 @@ export default {
       }
     });
 
-    // Inventory items from Vuex
     const inventoryItems = computed(() => {
       return store.getters.inventoryItems || [];
     });
 
-    // Limited inventory items for dashboard
     const recentInventoryItems = computed(() => {
       const inventory = inventoryItems.value;
       return [...inventory]
@@ -1049,7 +877,6 @@ export default {
         .slice(0, 20);
     });
 
-    // Recent transactions
     const recentTransactions = computed(() => {
       try {
         const items = store.getters.recentTransactions || [];
@@ -1088,7 +915,7 @@ export default {
       }
     });
 
-    // ========== FIXED: DASHBOARD STATS CALCULATION ==========
+    // ========== ENHANCED: DASHBOARD STATS CALCULATION WITH LOW QUANTITY (≤ 500) ==========
     
     const dashboardStats = computed(() => {
       const inventory = inventoryItems.value;
@@ -1102,17 +929,28 @@ export default {
       const totalItems = filteredItems.length;
       const totalQuantity = filteredItems.reduce((sum, item) => 
         sum + (item.remaining_quantity || 0), 0);
-      const lowStockItems = filteredItems.filter(item => 
-        (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length;
+      
+      // Low quantity items (500 or less, but greater than 0)
+      const lowQuantityItems = filteredItems.filter(item => {
+        const quantity = item.remaining_quantity || 0;
+        return quantity > 0 && quantity <= 500;
+      }).length;
+      
+      // Out of stock items
       const outOfStockItems = filteredItems.filter(item => 
         (item.remaining_quantity || 0) === 0).length;
+      
+      // Healthy items (more than 500)
+      const healthyItems = filteredItems.filter(item => 
+        (item.remaining_quantity || 0) > 500).length;
       
       return {
         totalItems,
         totalQuantity,
-        lowStockItems,
+        lowQuantityItems,
         outOfStockItems,
-        estimatedValue: totalQuantity * 25 // Simple estimation
+        healthyItems,
+        estimatedValue: totalQuantity * 25
       };
     });
 
@@ -1125,11 +963,27 @@ export default {
 
       const inventory = inventoryItems.value;
       
+      const totalItems = inventory.length;
+      const totalQuantity = inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+      
+      // Low quantity items (500 or less, but greater than 0)
+      const lowQuantityItems = inventory.filter(item => {
+        const quantity = item.remaining_quantity || 0;
+        return quantity > 0 && quantity <= 500;
+      }).length;
+      
+      // Out of stock items
+      const outOfStockItems = inventory.filter(item => (item.remaining_quantity || 0) === 0).length;
+      
+      // Healthy items (more than 500)
+      const healthyItems = inventory.filter(item => (item.remaining_quantity || 0) > 500).length;
+
       const stats = {
-        totalItems: inventory.length,
-        totalQuantity: inventory.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-        lowStockItems: inventory.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length,
-        outOfStockItems: inventory.filter(item => (item.remaining_quantity || 0) === 0).length,
+        totalItems,
+        totalQuantity,
+        lowQuantityItems,
+        outOfStockItems,
+        healthyItems,
         lastUpdated: new Date()
       };
 
@@ -1147,6 +1001,24 @@ export default {
       if (allStats.totalQuantity === 0) return '0';
       
       return ((selectedStats.totalQuantity / allStats.totalQuantity) * 100).toFixed(1);
+    });
+
+    // Low quantity percentage
+    const lowQuantityPercentage = computed(() => {
+      if (dashboardStats.value.totalItems === 0) return 0;
+      return Math.round((dashboardStats.value.lowQuantityItems / dashboardStats.value.totalItems) * 100);
+    });
+
+    // Out of stock percentage
+    const outOfStockPercentage = computed(() => {
+      if (dashboardStats.value.totalItems === 0) return 0;
+      return Math.round((dashboardStats.value.outOfStockItems / dashboardStats.value.totalItems) * 100);
+    });
+
+    // Healthy items percentage
+    const healthyItemsPercentage = computed(() => {
+      if (dashboardStats.value.totalItems === 0) return 0;
+      return Math.round((dashboardStats.value.healthyItems / dashboardStats.value.totalItems) * 100);
     });
 
     // Recent items filtered by warehouse
@@ -1293,19 +1165,6 @@ export default {
       return Math.round(totalQuantity / totalItems);
     });
 
-    const stockHealthPercentage = computed(() => {
-      const total = dashboardStats.value.totalItems;
-      const healthy = total - dashboardStats.value.lowStockItems - dashboardStats.value.outOfStockItems;
-      return total > 0 ? Math.round((healthy / total) * 100) : 0;
-    });
-
-    const stockHealthColor = computed(() => {
-      const percentage = stockHealthPercentage.value;
-      if (percentage >= 80) return 'bg-green-500';
-      if (percentage >= 60) return 'bg-yellow-500';
-      return 'bg-red-500';
-    });
-
     // ========== HELPER FUNCTIONS ==========
     
     const formatEnglishNumber = (num) => {
@@ -1313,7 +1172,6 @@ export default {
       return new Intl.NumberFormat('en-US').format(num);
     };
 
-    // FIXED: Better date handling for transactions
     const getTransactionDate = (transaction) => {
       if (!transaction.timestamp) return new Date(0);
       
@@ -1349,7 +1207,6 @@ export default {
       }
     };
 
-    // FIXED: Enhanced relative time formatting
     const formatRelativeTime = (timestamp) => {
       if (!timestamp) return 'غير محدد';
       
@@ -1406,25 +1263,25 @@ export default {
 
     const getQuantityClass = (quantity) => {
       if (!quantity || quantity === 0) return 'text-red-600 dark:text-red-400';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400';
+      if (quantity <= 500) return 'text-orange-600 dark:text-orange-400';
       return 'text-green-600 dark:text-green-400';
     };
 
-    const getStatusClass = (quantity) => {
+    const getQuantityStatusClass = (quantity) => {
       if (!quantity || quantity === 0) return 'bg-red-500';
-      if (quantity < 5) return 'bg-orange-500';
+      if (quantity <= 500) return 'bg-orange-500';
       return 'bg-green-500';
     };
 
     const getHealthColorClass = (percentage) => {
-      if (percentage >= 80) return 'bg-green-500';
-      if (percentage >= 60) return 'bg-yellow-500';
+      if (percentage <= 10) return 'bg-green-500';
+      if (percentage <= 30) return 'bg-yellow-500';
       return 'bg-red-500';
     };
 
     const getHealthTextClass = (percentage) => {
-      if (percentage >= 80) return 'text-green-600 dark:text-green-400';
-      if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
+      if (percentage <= 10) return 'text-green-600 dark:text-green-400';
+      if (percentage <= 30) return 'text-yellow-600 dark:text-yellow-400';
       return 'text-red-600 dark:text-red-400';
     };
 
@@ -1436,11 +1293,6 @@ export default {
     };
 
     const handleImageError = (event) => {
-      event.target.style.display = 'none';
-      event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
-    };
-
-    const handleModalImageError = (event) => {
       event.target.style.display = 'none';
       event.target.parentElement.classList.add('bg-gray-200', 'dark:bg-gray-700');
     };
@@ -1458,11 +1310,23 @@ export default {
           ? inventory 
           : inventory.filter(item => item.warehouse_id === warehouseId);
         
+        const totalItems = filteredItems.length;
+        const totalQuantity = filteredItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0);
+        
+        // Low quantity items (500 or less, but greater than 0)
+        const lowQuantityItems = filteredItems.filter(item => {
+          const quantity = item.remaining_quantity || 0;
+          return quantity > 0 && quantity <= 500;
+        }).length;
+        
+        // Out of stock items
+        const outOfStockItems = filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length;
+        
         const stats = {
-          totalItems: filteredItems.length,
-          totalQuantity: filteredItems.reduce((sum, item) => sum + (item.remaining_quantity || 0), 0),
-          lowStockItems: filteredItems.filter(item => (item.remaining_quantity || 0) < 10 && (item.remaining_quantity || 0) > 0).length,
-          outOfStockItems: filteredItems.filter(item => (item.remaining_quantity || 0) === 0).length,
+          totalItems,
+          totalQuantity,
+          lowQuantityItems,
+          outOfStockItems,
           lastUpdated: new Date()
         };
         
@@ -1474,69 +1338,34 @@ export default {
         return {
           totalItems: 0,
           totalQuantity: 0,
-          lowStockItems: 0,
+          lowQuantityItems: 0,
           outOfStockItems: 0,
           lastUpdated: new Date()
         };
       }
     };
 
-    const warehouseHealthPercentage = (warehouseId) => {
+    const warehouseLowQuantityPercentage = (warehouseId) => {
       const stats = warehouseStatsCache.value[warehouseId];
-      if (!stats) return 0;
-      
-      const total = stats.totalItems;
-      const healthy = total - stats.lowStockItems - stats.outOfStockItems;
-      return total > 0 ? Math.round((healthy / total) * 100) : 0;
+      if (!stats || stats.totalItems === 0) return 0;
+      return Math.round((stats.lowQuantityItems / stats.totalItems) * 100);
     };
 
-    const warehousePercentageOfTotal = (warehouseId, statType) => {
+    const warehouseOutOfStockPercentage = (warehouseId) => {
       const stats = warehouseStatsCache.value[warehouseId];
-      const allStats = allWarehouseStats.value;
-      
-      if (!stats || allStats[statType] === 0) return '0';
-      return ((stats[statType] / allStats[statType]) * 100).toFixed(1);
+      if (!stats || stats.totalItems === 0) return 0;
+      return Math.round((stats.outOfStockItems / stats.totalItems) * 100);
     };
 
     // ========== MODAL FUNCTIONS ==========
     
     const openItemModal = async (item) => {
-      selectedItem.value = item;
-      modalLoading.value = true;
-      showItemModal.value = true;
-      
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-      
-      // Load item transactions from recent transactions
-      try {
-        itemTransactions.value = recentTransactions.value
-          .filter(trans => trans.item_id === item.id || trans.item_code === item.code)
-          .slice(0, 10);
-      } catch {
-        itemTransactions.value = [];
-      } finally {
-        modalLoading.value = false;
-      }
-    };
-
-    const closeItemModal = () => {
-      showItemModal.value = false;
-      selectedItem.value = null;
-      itemTransactions.value = [];
-      
-      // Restore body scroll
-      document.body.style.overflow = '';
-    };
-
-    const editItem = () => {
-      if (selectedItem.value) {
-        router.push(`/inventory/edit/${selectedItem.value.id}`);
-      }
+      // You can implement this if needed
+      console.log('Item clicked:', item);
     };
 
     const openTransactionModal = (transaction) => {
-      // You can implement a transaction modal here if needed
+      // You can implement this if needed
       console.log('Transaction clicked:', transaction);
     };
 
@@ -1638,7 +1467,7 @@ export default {
     };
 
     const loadWarehouseStats = async () => {
-      if (selectedWarehouse.value === 'all' && accessibleWarehouses.value.length > 1) {
+      if (accessibleWarehouses.value.length > 0) {
         warehouseStatsLoading.value = true;
         try {
           console.log('📊 Loading all warehouse stats from Vuex store...');
@@ -1669,8 +1498,9 @@ export default {
         allWarehouseStatsCache.value = {
           totalItems: 0,
           totalQuantity: 0,
-          lowStockItems: 0,
+          lowQuantityItems: 0,
           outOfStockItems: 0,
+          healthyItems: 0,
           lastUpdated: null
         };
         
@@ -1710,14 +1540,6 @@ export default {
       }
     };
 
-    // ========== KEYBOARD HANDLING ==========
-    
-    const handleEscapeKey = (event) => {
-      if (event.key === 'Escape' && showItemModal.value) {
-        closeItemModal();
-      }
-    };
-
     // ========== LIFECYCLE HOOKS ==========
     
     onMounted(async () => {
@@ -1727,12 +1549,12 @@ export default {
       updateTime();
       const timeInterval = setInterval(updateTime, 60000);
       
-      // Add event listener for escape key
-      document.addEventListener('keydown', handleEscapeKey);
-      
       try {
         // Load dashboard data
         await loadDashboardData();
+        
+        // Load warehouse stats for the table
+        await loadWarehouseStats();
       } catch (error) {
         console.error('❌ Error in dashboard mounted:', error);
         initialLoading.value = false;
@@ -1741,10 +1563,6 @@ export default {
       
       onUnmounted(() => {
         clearInterval(timeInterval);
-        document.removeEventListener('keydown', handleEscapeKey);
-        
-        // Ensure body scroll is restored
-        document.body.style.overflow = '';
       });
     });
 
@@ -1769,16 +1587,12 @@ export default {
       initialLoading,
       statsLoading,
       warehouseStatsLoading,
-      modalLoading,
+      recentItemsLoading,
+      recentTransactionsLoading,
       selectedWarehouse,
       currentTime,
       currentDate,
       lastUpdated,
-      
-      // Modal state
-      showItemModal,
-      selectedItem,
-      itemTransactions,
       
       // Stats
       dashboardStats,
@@ -1806,8 +1620,9 @@ export default {
       estimatedValue,
       avgQuantityPerItem,
       warehousePercentage,
-      stockHealthPercentage,
-      stockHealthColor,
+      lowQuantityPercentage,
+      outOfStockPercentage,
+      healthyItemsPercentage,
       
       // Helper methods
       formatEnglishNumber,
@@ -1816,19 +1631,16 @@ export default {
       getWarehouseLabel,
       getTransactionTypeLabel,
       getQuantityClass,
-      getStatusClass,
+      getQuantityStatusClass,
       getHealthColorClass,
       getHealthTextClass,
       calculateTotalQuantity,
       handleImageError,
-      handleModalImageError,
-      warehouseHealthPercentage,
-      warehousePercentageOfTotal,
+      warehouseLowQuantityPercentage,
+      warehouseOutOfStockPercentage,
       
       // Modal functions
       openItemModal,
-      closeItemModal,
-      editItem,
       openTransactionModal,
       
       // Actions
@@ -1838,6 +1650,7 @@ export default {
   }
 };
 </script>
+
 <style scoped>
 /* Custom animations */
 @keyframes fadeIn {
@@ -1936,11 +1749,6 @@ export default {
   border-color: #1f2937;
 }
 
-/* Modal backdrop blur effect */
-.modal-backdrop {
-  backdrop-filter: blur(4px);
-}
-
 /* Smooth transitions */
 .transition-all {
   transition: all 0.3s ease;
@@ -1979,5 +1787,25 @@ export default {
   50% {
     opacity: .5;
   }
+}
+
+/* Full width layout */
+.w-full {
+  width: 100%;
+}
+
+/* Edge rounded blue cards */
+.bg-gradient-to-br.from-blue-500.to-blue-600 {
+  border-radius: 16px;
+}
+
+/* Full desktop view */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+/* Remove max-width constraints for full width */
+.max-w-7xl {
+  max-width: none;
 }
 </style>
