@@ -326,12 +326,12 @@
           </div>
         </div>
 
-        <!-- REPLACED WITH WAREHOUSE PERFORMANCE CARD -->
+        <!-- REPLACED WITH WAREHOUSE PERFORMANCE CARD - FIXED SYNTAX -->
         <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أداء المخزن</p>
-              <p v-else class="text-2xl md:text-3xl font-bold" :class="getHealthTextClass(performanceScore)">
+              <p class="text-2xl md:text-3xl font-bold" :class="getHealthTextClass(performanceScore)">
                 {{ performanceScore }}%
               </p>
               <div class="mt-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
