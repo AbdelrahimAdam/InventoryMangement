@@ -483,6 +483,32 @@
                         </button>
                       </div>
 
+                      <!-- Carton Info -->
+                      <div v-if="item.per_carton_count > 1" class="mb-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+                        {{ item.cartons_count || 0 }} كرتون + {{ item.single_bottles_count || 0 }} فردي
+                        ({{ item.per_carton_count }} لكل كرتون)
+                      </div>
+
+                      <!-- Carton Control -->
+                      <div v-if="item.per_carton_count > 1" class="mb-3">
+                        <div class="flex justify-between items-center">
+                          <span class="text-xs text-gray-500 dark:text-gray-400">التحكم بالكرتون:</span>
+                          <div class="flex items-center space-x-1 space-x-reverse">
+                            <button @click="decreaseCarton(index)" 
+                              class="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                              :disabled="item.cartons_count <= 0">
+                              -
+                            </button>
+                            <span class="text-xs px-2">{{ item.cartons_count || 0 }} كرتون</span>
+                            <button @click="increaseCarton(index)" 
+                              class="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                              :disabled="(item.cartons_count + 1) * item.per_carton_count + item.single_bottles_count > item.maxQuantity">
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
                       <!-- Item Controls - Mobile Optimized -->
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <!-- Price -->
@@ -568,6 +594,11 @@
                         <div v-if="item.warehouseId" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           المخزن: {{ getWarehouseLabel(item.warehouseId) }}
                         </div>
+                        <!-- Carton Info for Desktop -->
+                        <div v-if="item.per_carton_count > 1" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {{ item.cartons_count || 0 }} كرتون + {{ item.single_bottles_count || 0 }} فردي
+                          ({{ item.per_carton_count }} لكل كرتون)
+                        </div>
                       </div>
 
                       <!-- Unit Price -->
@@ -606,6 +637,20 @@
                         </div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
                           متوفر: {{ formatNumber(item.maxQuantity) }}
+                        </div>
+                        <!-- Carton Control for Desktop -->
+                        <div v-if="item.per_carton_count > 1" class="mt-2 flex justify-center items-center space-x-1 space-x-reverse">
+                          <button @click="decreaseCarton(index)" 
+                            class="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                            :disabled="item.cartons_count <= 0">
+                            -
+                          </button>
+                          <span class="text-xs px-2">{{ item.cartons_count || 0 }} كرتون</span>
+                          <button @click="increaseCarton(index)" 
+                            class="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                            :disabled="(item.cartons_count + 1) * item.per_carton_count + item.single_bottles_count > item.maxQuantity">
+                            +
+                          </button>
                         </div>
                       </div>
 
@@ -667,6 +712,10 @@
                       <div class="flex justify-between">
                         <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">إجمالي الكميات:</span>
                         <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{{ totalQuantity }}</span>
+                      </div>
+                      <div v-if="hasCartonItems" class="flex justify-between">
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">إجمالي الكراتين:</span>
+                        <span class="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{{ totalCartons }}</span>
                       </div>
                       <div class="flex justify-between">
                         <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">المخزن:</span>
@@ -2030,6 +2079,19 @@ export default {
       return invoiceForm.value.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
     });
     
+    // New computed properties for carton logic
+    const hasCartonItems = computed(() => {
+      return invoiceForm.value.items.some(item => item.per_carton_count > 1);
+    });
+    
+    const totalCartons = computed(() => {
+      return invoiceForm.value.items.reduce((sum, item) => sum + (item.cartons_count || 0), 0);
+    });
+    
+    const totalSingles = computed(() => {
+      return invoiceForm.value.items.reduce((sum, item) => sum + (item.single_bottles_count || 0), 0);
+    });
+    
     const canSaveInvoice = computed(() => {
       return invoiceForm.value.customer.name.trim() !== '' &&
              invoiceForm.value.customer.phone.trim() !== '' &&
@@ -2300,7 +2362,7 @@ export default {
             sale_price: item.sale_price || item.unitPrice || 0,
             cartons_count: item.cartons_count || 0,
             single_bottles_count: item.single_bottles_count || 0,
-            per_carton_count: item.per_carton_count || 12,
+            per_carton_count: item.per_carton_count || item.items_per_carton || 12, // Dynamic value from database
             item_location: item.item_location || '',
             notes: item.notes || '',
             updated_at: item.updated_at || null
@@ -2906,7 +2968,7 @@ export default {
     // The computed property filteredDispatchHistory handles filtering automatically
     
     // ============================================
-    // SECTION 10: INVOICE SYSTEM ACTIONS (ALL REMAIN THE SAME)
+    // SECTION 10: INVOICE SYSTEM ACTIONS WITH UPDATED CARTON LOGIC
     // ============================================
     const toggleInvoiceSystem = () => {
       showInvoiceSystem.value = !showInvoiceSystem.value;
@@ -2984,13 +3046,29 @@ export default {
       }
     };
     
+    // UPDATED: Add item to invoice with dynamic carton logic
     const addItemToInvoice = (item) => {
       const existingItemIndex = invoiceForm.value.items.findIndex(i => i.id === item.id);
       
       if (existingItemIndex !== -1) {
         const existingItem = invoiceForm.value.items[existingItemIndex];
-        if (existingItem.quantity < item.remaining_quantity) {
-          existingItem.quantity++;
+        
+        // Check if we can add more quantity
+        const availableCartons = Math.floor(item.remaining_quantity / (item.per_carton_count || 12));
+        const availableSingles = item.remaining_quantity % (item.per_carton_count || 12);
+        
+        const currentTotalQuantity = existingItem.cartons_count * existingItem.per_carton_count + existingItem.single_bottles_count;
+        const newTotalQuantity = currentTotalQuantity + 1;
+        
+        if (newTotalQuantity <= item.remaining_quantity) {
+          // Increase quantity by 1 unit
+          const newCartonsCount = Math.floor(newTotalQuantity / (item.per_carton_count || 12));
+          const newSinglesCount = newTotalQuantity % (item.per_carton_count || 12);
+          
+          existingItem.quantity = newTotalQuantity;
+          existingItem.cartons_count = newCartonsCount;
+          existingItem.single_bottles_count = newSinglesCount;
+          
           updateItemTotal(existingItemIndex);
           store.dispatch('showNotification', {
             type: 'success',
@@ -3003,15 +3081,30 @@ export default {
           });
         }
       } else {
+        // Add new item with carton logic
+        const perCartonCount = item.per_carton_count || item.items_per_carton || 12;
+        const availableCartons = Math.floor(item.remaining_quantity / perCartonCount);
+        const availableSingles = item.remaining_quantity % perCartonCount;
+        
+        // Start with 1 unit
+        const initialQuantity = 1;
+        const initialCartons = Math.floor(initialQuantity / perCartonCount);
+        const initialSingles = initialQuantity % perCartonCount;
+        
         invoiceForm.value.items.push({
           id: item.id,
           name: item.name,
           code: item.code,
           unitPrice: item.sale_price || item.unitPrice || 0,
-          quantity: 1,
+          quantity: initialQuantity,
+          cartons_count: initialCartons,
+          single_bottles_count: initialSingles,
+          per_carton_count: perCartonCount,
           discount: 0,
           total: item.sale_price || item.unitPrice || 0,
           maxQuantity: item.remaining_quantity,
+          availableCartons: availableCartons,
+          availableSingles: availableSingles,
           warehouseId: item.warehouse_id,
           color: item.color,
           supplier: item.supplier,
@@ -3024,6 +3117,7 @@ export default {
         });
       }
       
+      // Remove from search results
       searchResults.value = searchResults.value.filter(i => i.id !== item.id);
       
       if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
@@ -3051,10 +3145,22 @@ export default {
       });
     };
     
+    // UPDATED: Quantity control functions with carton logic
     const increaseQuantity = (index) => {
       const item = invoiceForm.value.items[index];
-      if (item.quantity < item.maxQuantity) {
-        item.quantity++;
+      const perCarton = item.per_carton_count || 12;
+      
+      // Calculate total quantity in units
+      const currentTotalUnits = item.cartons_count * perCarton + item.single_bottles_count;
+      
+      if (currentTotalUnits < item.maxQuantity) {
+        // Increase by 1 unit
+        const newTotalUnits = currentTotalUnits + 1;
+        
+        item.quantity = newTotalUnits;
+        item.cartons_count = Math.floor(newTotalUnits / perCarton);
+        item.single_bottles_count = newTotalUnits % perCarton;
+        
         updateItemTotal(index);
       } else {
         store.dispatch('showNotification', {
@@ -3066,24 +3172,83 @@ export default {
     
     const decreaseQuantity = (index) => {
       const item = invoiceForm.value.items[index];
-      if (item.quantity > 1) {
-        item.quantity--;
+      const perCarton = item.per_carton_count || 12;
+      
+      // Calculate total quantity in units
+      const currentTotalUnits = item.cartons_count * perCarton + item.single_bottles_count;
+      
+      if (currentTotalUnits > 1) {
+        // Decrease by 1 unit
+        const newTotalUnits = currentTotalUnits - 1;
+        
+        item.quantity = newTotalUnits;
+        item.cartons_count = Math.floor(newTotalUnits / perCarton);
+        item.single_bottles_count = newTotalUnits % perCarton;
+        
         updateItemTotal(index);
       }
     };
     
+    // Carton control functions
+    const increaseCarton = (index) => {
+      const item = invoiceForm.value.items[index];
+      const perCarton = item.per_carton_count || 12;
+      
+      const newCartons = item.cartons_count + 1;
+      const newTotalUnits = newCartons * perCarton + item.single_bottles_count;
+      
+      if (newTotalUnits <= item.maxQuantity) {
+        item.cartons_count = newCartons;
+        item.quantity = newTotalUnits;
+        updateItemTotal(index);
+      }
+    };
+    
+    const decreaseCarton = (index) => {
+      const item = invoiceForm.value.items[index];
+      const perCarton = item.per_carton_count || 12;
+      
+      if (item.cartons_count > 0) {
+        const newCartons = item.cartons_count - 1;
+        const newTotalUnits = newCartons * perCarton + item.single_bottles_count;
+        
+        item.cartons_count = newCartons;
+        item.quantity = newTotalUnits;
+        updateItemTotal(index);
+      }
+    };
+    
+    // UPDATED: Validate item quantity with carton logic
     const validateItemQuantity = (index) => {
       const item = invoiceForm.value.items[index];
-      if (item.quantity > item.maxQuantity) {
+      const perCarton = item.per_carton_count || 12;
+      
+      // Convert quantity to total units
+      const totalUnits = item.quantity;
+      
+      if (totalUnits > item.maxQuantity) {
         item.quantity = item.maxQuantity;
+        
+        // Recalculate cartons and singles
+        item.cartons_count = Math.floor(item.maxQuantity / perCarton);
+        item.single_bottles_count = item.maxQuantity % perCarton;
+        
         store.dispatch('showNotification', {
           type: 'warning',
           message: 'تم ضبط الكمية إلى الحد الأقصى المتاح'
         });
       }
-      if (item.quantity < 1) {
+      
+      if (totalUnits < 1) {
         item.quantity = 1;
+        item.cartons_count = Math.floor(1 / perCarton);
+        item.single_bottles_count = 1 % perCarton;
+      } else {
+        // Recalculate cartons and singles based on validated quantity
+        item.cartons_count = Math.floor(totalUnits / perCarton);
+        item.single_bottles_count = totalUnits % perCarton;
       }
+      
       updateItemTotal(index);
     };
     
@@ -3482,42 +3647,17 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         
         const element = document.createElement('div');
         element.innerHTML = `
-          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-            <h1 style="text-align: center; font-size: 28px; font-weight: bold; color: #333; margin-bottom: 30px;">
-              تقرير الفواتير
-            </h1>
-            <div style="text-align: center; color: #666; margin-bottom: 20px;">
-              <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
-              <p>إجمالي الفواتير: ${invoices.value.length}</p>
-              <p>إجمالي المبيعات: ${formatCurrency(totalSales.value)}</p>
+          <div dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+              <h1 style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px;">تقرير جميع الفواتير</h1>
+              <div style="color: #666; font-size: 16px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
+              <div style="color: #666; font-size: 14px;">إجمالي عدد الفواتير: ${invoices.value.length}</div>
             </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px;">
-              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${totalInvoices.value}</div>
-                <div style="font-size: 12px; color: #666;">إجمالي الفواتير</div>
-              </div>
-              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalSales.value)}</div>
-                <div style="font-size: 12px; color: #666;">إجمالي المبيعات</div>
-              </div>
-              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${uniqueCustomers.value}</div>
-                <div style="font-size: 12px; color: #666;">العملاء</div>
-              </div>
-              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${formatCurrency(totalTax.value)}</div>
-                <div style="font-size: 12px; color: #666;">الضريبة</div>
-              </div>
-            </div>
-            
-            <h2 style="color: #333; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
-              قائمة الفواتير
-            </h2>
             
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">
               <thead>
                 <tr style="background-color: #f5f5f5;">
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">#</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">رقم الفاتورة</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">التاريخ</th>
                   <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">العميل</th>
@@ -3527,7 +3667,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                 </tr>
               </thead>
               <tbody>
-                ${filteredInvoices.value.map(invoice => {
+                ${invoices.value.map((invoice, index) => {
                   const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
                   const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
                   const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
@@ -3535,6 +3675,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
                   
                   return `
                     <tr>
+                      <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${index + 1}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.invoiceNumber}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${formatDate(invoice.date)}</td>
                       <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">${invoice.customer.name}</td>
@@ -3547,9 +3688,43 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
               </tbody>
             </table>
             
+            <div style="margin-top: 40px; padding: 20px; background-color: #f9f9f9; border-radius: 5px;">
+              <h3 style="color: #333; margin-bottom: 20px;">إحصائيات الفواتير</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>إجمالي عدد الفواتير:</span>
+                    <span style="font-weight: bold;">${totalInvoices.value}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>إجمالي المبيعات:</span>
+                    <span style="font-weight: bold;">${formatCurrency(totalSales.value)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>إجمالي الضريبة:</span>
+                    <span style="font-weight: bold;">${formatCurrency(totalTax.value)}</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>عدد العملاء:</span>
+                    <span style="font-weight: bold;">${uniqueCustomers.value}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>متوسط قيمة الفاتورة:</span>
+                    <span style="font-weight: bold;">${formatCurrency(totalSales.value / (totalInvoices.value || 1))}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>آخر تحديث:</span>
+                    <span style="font-weight: bold;">${new Date().toLocaleString('ar-EG')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
               <p>تم الإنشاء بواسطة نظام إدارة المخزون والفواتير</p>
-              <p>${new Date().toLocaleString('ar-EG')}</p>
+              <p>جميع الحقوق محفوظة © ${new Date().getFullYear()}</p>
             </div>
           </div>
         `;
@@ -3567,7 +3742,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait',
+            orientation: 'landscape',
             compress: true
           },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
@@ -3577,207 +3752,25 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         
         store.dispatch('showNotification', {
           type: 'success',
-          message: `تم تصدير ${filteredInvoices.value.length} فاتورة كملف PDF بنجاح`
+          message: 'تم تصدير جميع الفواتير كملف PDF بنجاح'
         });
         
       } catch (error) {
-        console.error('Error exporting to PDF:', error);
+        console.error('Error exporting invoices to PDF:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تصدير التقرير كملف PDF'
+          message: 'حدث خطأ في تصدير الفواتير كملف PDF'
         });
       } finally {
         loading.value = false;
       }
     };
     
-    const deleteInvoice = async (invoiceId) => {
-      if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
-      
+    const exportInvoicesToExcel = () => {
       try {
         loading.value = true;
         
-        const invoice = invoices.value.find(inv => inv.id === invoiceId);
-        if (invoice && invoice.items) {
-          const batch = writeBatch(db);
-          
-          for (const item of invoice.items) {
-            if (item.id) {
-              const itemRef = doc(db, 'items', item.id);
-              batch.update(itemRef, {
-                remaining_quantity: increment(item.quantity || 0)
-              });
-            }
-          }
-          
-          await batch.commit();
-        }
-        
-        const invoiceRef = doc(db, 'invoices', invoiceId);
-        await deleteDoc(invoiceRef);
-        
-        await loadInvoices();
-        
-        store.dispatch('showNotification', {
-          type: 'success',
-          message: 'تم حذف الفاتورة بنجاح'
-        });
-        
-      } catch (error) {
-        console.error('Error deleting invoice:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ أثناء حذف الفاتورة'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
-    
-    const saveInvoice = async () => {
-      if (!canSaveInvoice.value) return;
-      
-      try {
-        saving.value = true;
-        
-        if (invoiceForm.value.type === 'B2B' && (!invoiceForm.value.customer.taxId || invoiceForm.value.customer.taxId.length < 9)) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'يرجى إدخال رقم ضريبي صالح (9 أرقام على الأقل)'
-          });
-          saving.value = false;
-          return;
-        }
-        
-        const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
-        if (!phoneRegex.test(invoiceForm.value.customer.phone)) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'يرجى إدخال رقم هاتف صحيح (مثال: 01012345678)'
-          });
-          saving.value = false;
-          return;
-        }
-        
-        const subtotal = invoiceForm.value.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-        const discount = invoiceForm.value.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
-        const tax = (invoiceForm.value.type === 'B2B' || invoiceForm.value.type === 'B2C') ? (subtotal - discount) * 0.14 : 0;
-        const total = subtotal - discount + tax;
-        
-        const invoiceData = {
-          ...invoiceForm.value,
-          warehouseId: selectedWarehouseForInvoice.value,
-          subtotal,
-          discount,
-          taxAmount: tax,
-          totalAmount: total,
-          date: Timestamp.now(),
-          createdBy: userProfile.value?.name || userName.value,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
-        };
-        
-        let invoiceId;
-        
-        if (editingInvoice.value) {
-          const invoiceRef = doc(db, 'invoices', editingInvoice.value.id);
-          await updateDoc(invoiceRef, invoiceData);
-          invoiceId = editingInvoice.value.id;
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: 'تم تحديث الفاتورة بنجاح'
-          });
-        } else {
-          const lastInvoice = invoices.value[0];
-          const lastNumber = lastInvoice ? lastInvoice.invoiceNumber : 0;
-          const invoiceNumber = lastNumber + 1;
-          
-          invoiceData.invoiceNumber = invoiceNumber;
-          const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
-          invoiceId = docRef.id;
-          
-          store.dispatch('showNotification', {
-            type: 'success',
-            message: `تم إنشاء الفاتورة #${invoiceNumber} بنجاح`
-          });
-        }
-        
-        for (const item of invoiceForm.value.items) {
-          try {
-            await store.dispatch('dispatchItem', {
-              item_id: item.id,
-              from_warehouse_id: selectedWarehouseForInvoice.value,
-              from_warehouse_name: getWarehouseLabel(selectedWarehouseForInvoice.value),
-              destination: `فاتورة #${invoiceData.invoiceNumber}`,
-              destination_id: invoiceId,
-              quantity: item.quantity,
-              item_name: item.name,
-              item_code: item.code,
-              notes: `صرف عبر فاتورة #${invoiceData.invoiceNumber} - عميل: ${invoiceForm.value.customer.name}`,
-              priority: 'normal'
-            });
-          } catch (dispatchError) {
-            console.error(`Error dispatching item ${item.name}:`, dispatchError);
-            store.dispatch('showNotification', {
-              type: 'error',
-              message: `خطأ في صرف الصنف ${item.name}: ${dispatchError.message}`
-            });
-          }
-        }
-        
-        cancelInvoiceForm();
-        await loadInvoices();
-        
-        // ✅ CORRECTED: Refresh transactions from store (includes dispatch history)
-        await store.dispatch('fetchTransactions');
-        
-      } catch (error) {
-        console.error('Error saving invoice:', error);
-        store.dispatch('showNotification', {
-          type: 'error',
-          message: 'حدث خطأ أثناء حفظ الفاتورة'
-        });
-      } finally {
-        saving.value = false;
-      }
-    };
-    
-    const saveAndPrint = async () => {
-      await saveInvoice();
-    };
-    
-    const exportInvoicesToExcel = async () => {
-      try {
-        loading.value = true;
-        
-        const exportData = filteredInvoices.value.map(invoice => {
-          const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-          const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
-          const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
-          const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
-          
-          return {
-            'رقم الفاتورة': invoice.invoiceNumber,
-            'التاريخ': formatDate(invoice.date),
-            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
-            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
-            'اسم العميل': invoice.customer.name,
-            'هاتف العميل': invoice.customer.phone,
-            'الرقم الضريبي': invoice.customer.taxId || '',
-            'عدد الأصناف': invoice.items?.length || 0,
-            'المجموع': invoiceSubtotal,
-            'الخصم': invoiceDiscount,
-            'الضريبة': invoiceTax,
-            'الإجمالي': invoiceTotal,
-            'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
-                           invoice.paymentMethod === 'bank' ? 'بنكي' : 
-                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
-            'ملاحظات': invoice.notes || ''
-          };
-        });
-        
-        if (exportData.length === 0) {
+        if (invoices.value.length === 0) {
           store.dispatch('showNotification', {
             type: 'warning',
             message: 'لا توجد فواتير للتصدير'
@@ -3785,24 +3778,52 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           return;
         }
         
+        const exportData = invoices.value.map(invoice => {
+          const invoiceSubtotal = invoice.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+          const invoiceDiscount = invoice.items.reduce((sum, item) => sum + ((item.unitPrice * item.quantity) * (item.discount / 100)), 0);
+          const invoiceTax = (invoice.type === 'B2B' || invoice.type === 'B2C') ? (invoiceSubtotal - invoiceDiscount) * 0.14 : 0;
+          const invoiceTotal = invoiceSubtotal - invoiceDiscount + invoiceTax;
+          
+          return {
+            'رقم الفاتورة': invoice.invoiceNumber,
+            'تاريخ الفاتورة': formatDate(invoice.date),
+            'نوع الفاتورة': getInvoiceTypeLabel(invoice.type),
+            'حالة الفاتورة': getInvoiceStatusLabel(invoice.status),
+            'اسم العميل': invoice.customer.name,
+            'هاتف العميل': invoice.customer.phone,
+            'الرقم الضريبي': invoice.customer.taxId || '',
+            'عنوان العميل': invoice.customer.address || '',
+            'طريقة الدفع': invoice.paymentMethod === 'cash' ? 'نقدي' : 
+                           invoice.paymentMethod === 'bank' ? 'تحويل بنكي' : 
+                           invoice.paymentMethod === 'check' ? 'شيك' : 'آجل',
+            'عدد الأصناف': invoice.items?.length || 0,
+            'المجموع': invoiceSubtotal,
+            'الخصم': invoiceDiscount,
+            'الضريبة': invoiceTax,
+            'الإجمالي النهائي': invoiceTotal,
+            'ملاحظات': invoice.notes || ''
+          };
+        });
+        
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(exportData);
         
         const wscols = [
-          { wch: 12 },
-          { wch: 12 },
-          { wch: 15 },
-          { wch: 12 },
-          { wch: 20 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 10 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 10 },
-          { wch: 30 }
+          { wch: 15 }, // رقم الفاتورة
+          { wch: 12 }, // تاريخ الفاتورة
+          { wch: 20 }, // نوع الفاتورة
+          { wch: 15 }, // حالة الفاتورة
+          { wch: 25 }, // اسم العميل
+          { wch: 15 }, // هاتف العميل
+          { wch: 20 }, // الرقم الضريبي
+          { wch: 30 }, // عنوان العميل
+          { wch: 15 }, // طريقة الدفع
+          { wch: 12 }, // عدد الأصناف
+          { wch: 15 }, // المجموع
+          { wch: 15 }, // الخصم
+          { wch: 15 }, // الضريبة
+          { wch: 18 }, // الإجمالي النهائي
+          { wch: 30 }  // ملاحظات
         ];
         ws['!cols'] = wscols;
         
@@ -3818,7 +3839,7 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
         });
         
       } catch (error) {
-        console.error('Error exporting invoices:', error);
+        console.error('Error exporting invoices to Excel:', error);
         store.dispatch('showNotification', {
           type: 'error',
           message: 'حدث خطأ في تصدير الفواتير'
@@ -3828,21 +3849,233 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     };
     
-    // ============================================
-    // SECTION 11: DATA LOADING FUNCTIONS
-    // ============================================
+    const saveInvoice = async () => {
+      if (!canSaveInvoice.value) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'يرجى ملء جميع البيانات المطلوبة'
+        });
+        return;
+      }
+
+      saving.value = true;
+
+      try {
+        // Validate customer phone
+        const phone = invoiceForm.value.customer.phone.replace(/\D/g, '');
+        if (phone.length < 10) {
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'رقم الهاتف غير صحيح'
+          });
+          saving.value = false;
+          return;
+        }
+
+        // Validate tax ID for B2B invoices
+        if (invoiceForm.value.type === 'B2B' && invoiceForm.value.customer.taxId) {
+          const taxId = invoiceForm.value.customer.taxId.replace(/\D/g, '');
+          if (taxId.length !== 14) {
+            store.dispatch('showNotification', {
+              type: 'error',
+              message: 'الرقم الضريبي يجب أن يكون 14 رقمًا'
+            });
+            saving.value = false;
+            return;
+          }
+        }
+
+        // Validate items
+        if (invoiceForm.value.items.length === 0) {
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'يرجى إضافة أصناف إلى الفاتورة'
+          });
+          saving.value = false;
+          return;
+        }
+
+        // Validate warehouse
+        if (!selectedWarehouseForInvoice.value) {
+          store.dispatch('showNotification', {
+            type: 'error',
+            message: 'يرجى اختيار مخزن'
+          });
+          saving.value = false;
+          return;
+        }
+
+        // Calculate totals
+        const subtotal = invoiceForm.value.items.reduce((sum, item) => {
+          return sum + ((item.unitPrice || 0) * (item.quantity || 0));
+        }, 0);
+
+        const totalDiscount = invoiceForm.value.items.reduce((sum, item) => {
+          const itemSubtotal = (item.unitPrice || 0) * (item.quantity || 0);
+          return sum + (itemSubtotal * ((item.discount || 0) / 100));
+        }, 0);
+
+        const taxAmount = (invoiceForm.value.type === 'B2B' || invoiceForm.value.type === 'B2C') ? (subtotal - totalDiscount) * 0.14 : 0;
+        const totalAmount = subtotal - totalDiscount + taxAmount;
+
+        // Generate invoice number
+        const timestamp = new Date().getTime();
+        const invoiceNumber = editingInvoice.value ? editingInvoice.value.invoiceNumber : `INV-${timestamp.toString().slice(-8)}`;
+
+        // Prepare invoice data
+        const invoiceData = {
+          invoiceNumber,
+          type: invoiceForm.value.type,
+          paymentMethod: invoiceForm.value.paymentMethod,
+          customer: {
+            name: invoiceForm.value.customer.name.trim(),
+            phone: invoiceForm.value.customer.phone.trim(),
+            taxId: invoiceForm.value.customer.taxId.trim(),
+            address: invoiceForm.value.customer.address.trim()
+          },
+          items: invoiceForm.value.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            code: item.code || '',
+            unitPrice: item.unitPrice || 0,
+            quantity: item.quantity || 0,
+            discount: item.discount || 0,
+            total: item.total || 0,
+            cartons_count: item.cartons_count || 0,
+            single_bottles_count: item.single_bottles_count || 0,
+            per_carton_count: item.per_carton_count || 12,
+            warehouseId: item.warehouseId || selectedWarehouseForInvoice.value
+          })),
+          notes: invoiceForm.value.notes.trim(),
+          warehouseId: selectedWarehouseForInvoice.value,
+          status: editingInvoice.value ? editingInvoice.value.status : 'draft',
+          date: editingInvoice.value ? editingInvoice.value.date : new Date().toISOString(),
+          subtotal,
+          totalDiscount,
+          taxAmount,
+          totalAmount,
+          createdBy: userName.value,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        // Save to Firebase
+        if (editingInvoice.value) {
+          // Update existing invoice
+          const invoiceDoc = doc(db, 'invoices', editingInvoice.value.id);
+          await updateDoc(invoiceDoc, invoiceData);
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم تحديث الفاتورة بنجاح'
+          });
+        } else {
+          // Create new invoice
+          const invoicesRef = collection(db, 'invoices');
+          await addDoc(invoicesRef, invoiceData);
+          
+          store.dispatch('showNotification', {
+            type: 'success',
+            message: 'تم حفظ الفاتورة بنجاح'
+          });
+        }
+
+        // Reset form and reload invoices
+        showInvoiceForm.value = false;
+        invoiceForm.value = {
+          type: 'B2B',
+          paymentMethod: 'cash',
+          customer: {
+            name: '',
+            phone: '',
+            taxId: '',
+            address: ''
+          },
+          items: [],
+          notes: '',
+          warehouseId: '',
+          status: 'draft'
+        };
+        selectedWarehouseForInvoice.value = '';
+        editingInvoice.value = null;
+        loadInvoices();
+
+      } catch (error) {
+        console.error('Error saving invoice:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في حفظ الفاتورة'
+        });
+      } finally {
+        saving.value = false;
+      }
+    };
+    
+    const saveAndPrint = async () => {
+      await saveInvoice();
+      if (!saving.value) {
+        // Find the newly created/updated invoice
+        const latestInvoice = invoices.value[0];
+        if (latestInvoice) {
+          setTimeout(() => {
+            printInvoice(latestInvoice);
+          }, 500);
+        }
+      }
+    };
+    
+    const deleteInvoice = async (invoiceId) => {
+      if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+        return;
+      }
+
+      try {
+        loading.value = true;
+        
+        const invoiceDoc = doc(db, 'invoices', invoiceId);
+        await deleteDoc(invoiceDoc);
+        
+        invoices.value = invoices.value.filter(inv => inv.id !== invoiceId);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: 'تم حذف الفاتورة بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('Error deleting invoice:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'حدث خطأ في حذف الفاتورة'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
+    
     const loadInvoices = async () => {
       try {
         loading.value = true;
         
-        const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
+        const invoicesRef = collection(db, 'invoices');
+        const q = query(
+          invoicesRef,
+          orderBy('createdAt', 'desc'),
+          limit(100)
+        );
         
-        invoices.value = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          date: doc.data().date?.toDate?.() || doc.data().date
-        }));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          invoices.value = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          loading.value = false;
+        });
+        
+        // Store unsubscribe function
+        onUnmounted(() => {
+          if (unsubscribe) unsubscribe();
+        });
         
       } catch (error) {
         console.error('Error loading invoices:', error);
@@ -3850,140 +4083,40 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
           type: 'error',
           message: 'حدث خطأ في تحميل الفواتير'
         });
-      } finally {
         loading.value = false;
       }
     };
     
-    const setupRealtimeUpdates = () => {
+    // ============================================
+    // SECTION 11: LIFE CYCLE HOOKS
+    // ============================================
+    onMounted(async () => {
+      // Load initial data
       try {
-        const transactionsRef = collection(db, 'transactions');
-        const q = query(
-          transactionsRef,
-          where('type', '==', 'DISPATCH'),
-          orderBy('timestamp', 'desc'),
-          limit(100)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const transactions = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          if (transactions.length > 0 && dispatchTransactions.value.length > 0) {
-            const latestTransaction = transactions[0];
-            const isNew = !dispatchTransactions.value.find(t => t.id === latestTransaction.id);
-            
-            if (isNew && !showDispatchModal.value) {
-              store.dispatch('showNotification', {
-                type: 'info',
-                message: `صرف جديد: ${latestTransaction.item_name} - ${calculateDispatchQuantity(latestTransaction)} وحدة`,
-                duration: 5000
-              });
-              
-              // ✅ CORRECTED: Refresh transactions from store
-              store.dispatch('fetchTransactions');
-            }
-          }
-        });
-
-        realtimeUnsubscribe.value = unsubscribe;
-      } catch (error) {
-        console.error('Error setting up real-time dispatch updates:', error);
-      }
-    };
-    
-    const diagnoseDispatchIssues = () => {
-      console.log('=== Dispatch System Diagnostics ===');
-      console.log('1. User Info:', {
-        role: userRole.value,
-        canViewDispatches: canViewDispatches.value,
-        canPerformDispatch: canPerformDispatch.value
-      });
-      
-      console.log('2. Store State:', {
-        warehouses: store.state.warehouses?.length || 0,
-        transactions: store.state.transactions?.length || 0,
-        inventory: store.state.inventory?.length || 0,
-        dispatchTransactions: dispatchTransactions.value?.length || 0
-      });
-      
-      console.log('3. Available Warehouses:', availableWarehousesForDispatch.value);
-      console.log('4. Selected Warehouse:', selectedWarehouse.value);
-      
-      console.log('5. Dispatch History:', {
-        dispatchTransactions: dispatchTransactions.value?.length || 0,
-        filteredHistory: filteredDispatchHistory.value?.length || 0
-      });
-      
-      console.log('6. Search Term:', searchTerm.value);
-      console.log('7. Available Items:', availableItems.value?.length || 0);
-      
-      if (dispatchTransactions.value.length > 0) {
-        console.log('Sample Dispatch Data:', dispatchTransactions.value.slice(0, 3));
-      }
-      
-      console.log('=== End Diagnostics ===');
-    };
-    
-    const loadInitialData = async () => {
-      loading.value = true;
-      try {
-        console.log('Dispatch page: Loading initial data...');
+        loading.value = true;
         
-        if (!canViewDispatches.value) {
-          store.dispatch('showNotification', {
-            type: 'error',
-            message: 'يجب تسجيل الدخول لعرض صفحة الصرف'
-          });
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-          return;
-        }
+        // Ensure store has latest data
+        await Promise.all([
+          store.dispatch('fetchInventory'),
+          store.dispatch('fetchTransactions'),
+          store.dispatch('fetchWarehouses')
+        ]);
         
-        if (!store.state.warehousesLoaded || store.state.warehouses.length === 0) {
-          await store.dispatch('loadWarehouses');
-        }
-        
-        // ✅ CORRECTED: Load transactions (includes dispatch history)
-        if (store.state.transactions.length === 0) {
-          await store.dispatch('fetchTransactions');
-        }
-        
-        if (store.state.inventory.length === 0) {
-          await store.dispatch('fetchInventory');
-        }
-        
-        if (availableWarehousesForDispatch.value.length === 1) {
-          selectedWarehouse.value = availableWarehousesForDispatch.value[0].id;
-        }
-        
-        console.log('Dispatch history loaded from transactions:', dispatchTransactions.value.length);
-        console.log('Filtered history:', filteredDispatchHistory.value.length);
-        
-        diagnoseDispatchIssues();
-        
-        setupRealtimeUpdates();
+        console.log('✅ Store data loaded successfully');
+        console.log('📊 Inventory items:', allInventory.value.length);
+        console.log('📊 Transaction items:', allTransactions.value.length);
+        console.log('📊 Warehouse items:', allWarehouses.value.length);
+        console.log('📊 Dispatch transactions:', dispatchTransactions.value.length);
         
       } catch (error) {
-        console.error('Error loading dispatch data:', error);
+        console.error('❌ Error loading initial data:', error);
         store.dispatch('showNotification', {
           type: 'error',
-          message: 'حدث خطأ في تحميل بيانات الصرف'
+          message: 'حدث خطأ في تحميل البيانات الأولية'
         });
       } finally {
         loading.value = false;
       }
-    };
-    
-    // ============================================
-    // SECTION 12: LIFECYCLE HOOKS AND WATCHERS
-    // ============================================
-    onMounted(() => {
-      console.log('Dispatch page with invoices mounted');
-      loadInitialData();
     });
     
     onUnmounted(() => {
@@ -4001,42 +4134,49 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       }
     });
     
-    // ✅ CORRECTED: Remove watcher for non-existent loadDispatchHistory function
-    // The computed property filteredDispatchHistory handles filtering automatically when dependencies change
+    // Watch for user authentication changes
+    watch(
+      () => store.getters.isAuthenticated,
+      (isAuthenticated) => {
+        if (isAuthenticated) {
+          // User is authenticated, refresh data
+          store.dispatch('fetchInventory');
+          store.dispatch('fetchTransactions');
+          store.dispatch('fetchWarehouses');
+        }
+      }
+    );
     
-    // Watch for warehouse changes to reload items
+    // Watch for warehouse selection in dispatch
+    watch(selectedWarehouse, () => {
+      updateAvailableItems();
+    });
+    
+    // Watch for warehouse selection in invoice
     watch(selectedWarehouseForInvoice, () => {
-      if (selectedWarehouseForInvoice.value) {
-        if (itemSearch.value.trim()) {
-          searchItemsWithSpark();
-        } else {
-          loadWarehouseItems();
-        }
-      } else {
-        searchResults.value = [];
+      loadWarehouseItems();
+    });
+    
+    // Watch for search term in dispatch
+    watch(searchTerm, () => {
+      handleDispatchSearch();
+    });
+    
+    // Watch for search term in invoice
+    watch(itemSearch, () => {
+      debouncedSearchItems();
+    });
+    
+    // Watch for invoice system toggle
+    watch(showInvoiceSystem, (newValue) => {
+      if (newValue) {
+        loadInvoices();
       }
     });
     
-    watch(searchAllWarehouses, () => {
-      if (itemSearch.value.trim() && itemSearch.value.trim().length >= 2) {
-        searchItemsWithSpark();
-      } else if (selectedWarehouseForInvoice.value) {
-        loadWarehouseItems();
-      }
-    });
-    
-    watch(() => allInventory.value, () => {
-      if (selectedWarehouseForInvoice.value) {
-        if (itemSearch.value.trim()) {
-          searchItemsWithSpark();
-        } else {
-          loadWarehouseItems();
-        }
-      }
-    }, { deep: true });
-    
+    // Return all reactive properties and methods
     return {
-      // Original dispatch state
+      // State
       loading,
       showDispatchModal,
       selectedWarehouse,
@@ -4048,27 +4188,8 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       customDateFrom,
       customDateTo,
       currentHistoryPage,
+      itemsPerPage,
       showAllItems,
-      userRole,
-      userName,
-      canPerformDispatch,
-      canExport,
-      canViewDispatches,
-      availableWarehousesForDispatch,
-      availableItems,
-      displayedAvailableItems,
-      totalDispatches,
-      monthlyDispatches,
-      totalDispatchedQuantity,
-      totalDispatchValue,
-      filteredDispatchHistory,
-      paginatedHistory,
-      totalHistoryPages,
-      startIndex,
-      endIndex,
-      hasFilters,
-      
-      // Invoice system state with SPARK search
       showInvoiceSystem,
       showInvoiceForm,
       saving,
@@ -4077,45 +4198,66 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       invoiceTypeFilter,
       itemSearch,
       currentPage,
+      itemsPerPageInvoices,
       selectedWarehouseForInvoice,
-      invoiceForm,
-      editingInvoice,
-      invoices,
-      availableWarehouses,
-      
-      // SPARK Search specific
       searchingItems,
-      filteredSearchResults,
-      totalItemsInWarehouse,
+      searchResults,
       lastSearchSource,
       searchAllWarehouses,
-      
-      // SPARK Dispatch Search specific
       searchingDispatchItems,
       filteredDispatchItems,
       lastDispatchSearchSource,
+      invoiceForm,
+      editingInvoice,
+      invoices,
       
-      // ✅ CORRECTED: Use transactions loading state
+      // Computed
+      userRole,
+      userName,
+      userProfile,
+      dispatchTransactions,
       dispatchHistoryLoading,
-      
-      // Computed properties
+      canExport,
+      accessibleWarehouses,
+      availableWarehouses,
+      availableWarehousesForDispatch,
+      canViewDispatches,
+      canPerformDispatch,
+      filteredSearchResults,
+      totalItemsInWarehouse,
+      dispatchHistory,
+      totalDispatches,
+      monthlyDispatches,
+      totalDispatchedQuantity,
+      totalDispatchValue,
+      availableItems,
+      displayedAvailableItems,
+      filteredDispatchHistory,
+      totalHistoryPages,
+      startIndex,
+      endIndex,
+      paginatedHistory,
+      hasFilters,
       totalInvoices,
       totalSales,
       totalTax,
       uniqueCustomers,
       filteredInvoices,
-      paginatedInvoices,
       totalPages,
-      startInvoiceIndex: startInvoiceIndex,
-      endInvoiceIndex: endInvoiceIndex,
+      startInvoiceIndex,
+      endInvoiceIndex,
+      paginatedInvoices,
       subtotal,
       totalDiscount,
       taxAmount,
       totalAmount,
       totalQuantity,
+      hasCartonItems,
+      totalCartons,
+      totalSingles,
       canSaveInvoice,
       
-      // Utility functions
+      // Methods
       formatNumber,
       formatCurrency,
       formatDate,
@@ -4134,14 +4276,11 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       getInvoiceTypeClass,
       getInvoiceStatusLabel,
       getInvoiceStatusClass,
-      
-      // Original dispatch actions
       selectItemForDispatch,
       updateAvailableItems,
       handleModalClose,
       handleDispatchSuccess,
       handleSearch,
-      handleDispatchSearch,
       applyHistoryFilters,
       clearHistoryFilters,
       nextPage,
@@ -4149,19 +4288,22 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       viewDispatchDetails,
       printDispatch,
       exportDispatches,
-      
-      // Invoice system actions with SPARK search
       toggleInvoiceSystem,
       createNewInvoice,
       editInvoice,
       cancelInvoiceForm,
       onInvoiceTypeChange,
-      loadWarehouseItems,
       debouncedSearchItems,
+      searchItemsWithSpark,
+      handleDispatchSearch,
+      searchDispatchItemsWithSpark,
+      loadWarehouseItems,
       addItemToInvoice,
       removeItem,
       increaseQuantity,
       decreaseQuantity,
+      increaseCarton,
+      decreaseCarton,
       validateItemQuantity,
       updateItemTotal,
       filterInvoices,
@@ -4171,861 +4313,2156 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
       printInvoice,
       exportInvoicePDF,
       exportToPDF,
-      deleteInvoice,
+      exportInvoicesToExcel,
       saveInvoice,
       saveAndPrint,
-      exportInvoicesToExcel
+      deleteInvoice,
+      loadInvoices
     };
   }
 };
 </script>
 
 <style scoped>
-/* Fixed layout styles */
+/* ============================================ */
+/* MOBILE-FIRST RESPONSIVE STYLES */
+/* ============================================ */
 
-/* Main container padding for mobile save button */
+/* Base Styles */
 .min-h-screen {
-  padding-bottom: 64px; /* Space for mobile save button */
+  min-height: 100vh;
 }
 
-@media (min-width: 640px) {
-  .min-h-screen {
-    padding-bottom: 0;
-  }
+/* Header Styles */
+.sticky {
+  position: sticky;
 }
 
-/* Invoice Form Grid - Fixed width constraints */
+/* Button Styles */
+.btn-primary {
+  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
+}
+
+.btn-success {
+  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
+}
+
+/* Stat Cards */
+.stat-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex items-center space-x-2 sm:space-x-3 space-x-reverse hover:shadow-md transition-shadow duration-200;
+}
+
+.stat-icon {
+  @apply h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+/* Form Styles */
+.input-field {
+  @apply w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
+}
+
 .invoice-form-grid {
-  @apply grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 max-w-4xl mx-auto;
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
 }
 
 .form-field-container {
-  @apply w-full;
+  @apply sm:col-span-1;
 }
 
 .form-field-full {
-  @apply lg:col-span-2 w-full;
+  @apply lg:col-span-2;
 }
 
-/* Dispatch items grid - Fixed layout */
+/* Search Input */
+.search-input {
+  @apply w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-9 sm:pl-10 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400;
+}
+
+/* Search Stats */
+.search-stats-container {
+  @apply flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3 sm:mb-4;
+}
+
+.search-source-badge {
+  @apply px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-medium;
+}
+
+/* Search Results Grid */
+.search-results-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 max-h-[300px] overflow-y-auto p-1;
+}
+
+.search-result-card {
+  @apply p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98;
+}
+
+/* Empty States */
+.search-empty-state {
+  @apply text-center py-6 sm:py-8 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg;
+}
+
+/* Search Tips */
+.search-tips-container {
+  @apply mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg;
+}
+
+.search-tips-title {
+  @apply text-xs font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center;
+}
+
+.search-tips-list {
+  @apply space-y-1 text-xs text-blue-600 dark:text-blue-400;
+}
+
+.search-tip-item {
+  @apply flex items-start;
+}
+
+.search-tip-highlight {
+  @apply text-green-600 dark:text-green-400 font-medium;
+}
+
+/* Selected Items */
+.selected-items-container {
+  @apply border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden;
+}
+
+.selected-item-card {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3;
+}
+
+.dispatch-table-row {
+  @apply hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150;
+}
+
+/* Invoice Summary */
+.invoice-summary-card {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-800 rounded-lg p-4 sm:p-6;
+}
+
+/* Pagination */
+.pagination-container {
+  @apply px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700;
+}
+
+.pagination-btn {
+  @apply px-2.5 sm:px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Filters Container */
+.filters-container {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+/* Action Buttons */
+.action-btn {
+  @apply p-1 sm:p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-150;
+}
+
+/* Available Items Grid */
 .available-items-grid-fixed {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3;
 }
 
+/* Dispatch Table */
+.dispatch-table-container {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden;
+}
+
+.dispatch-table-header {
+  @apply bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600;
+}
+
+/* Animation Utilities */
+.scale-98 {
+  transform: scale(0.98);
+}
+
+/* Responsive Text */
 @media (max-width: 640px) {
-  .available-items-grid-fixed {
-    grid-template-columns: 1fr;
+  .text-xs-mobile {
+    font-size: 0.75rem;
+  }
+  
+  .text-sm-mobile {
+    font-size: 0.875rem;
   }
 }
 
-@media (min-width: 641px) and (max-width: 768px) {
-  .available-items-grid-fixed {
-    grid-template-columns: repeat(2, 1fr);
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
   }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .available-items-grid-fixed {
-    grid-template-columns: repeat(3, 1fr);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Loading Spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@media (min-width: 1025px) {
-  .available-items-grid-fixed {
-    grid-template-columns: repeat(4, 1fr);
+/* Transition Utilities */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .invoice-form-container {
+    max-height: calc(100vh - 120px) !important;
+  }
+  
+  .search-results-grid {
+    max-height: 200px !important;
+  }
+  
+  .dispatch-table-row {
+    grid-template-columns: repeat(1, 1fr) !important;
+    gap: 0.5rem !important;
   }
 }
 
-/* Quantity label - Always RED for dispatch */
-.quantity-red {
-  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300;
+/* Dark Mode Overrides */
+.dark .bg-gray-50 {
+  background-color: #111827 !important;
 }
 
-.quantity-label {
-  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
 }
 
-/* Search input constraints */
-.search-input-constrained {
+.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+/* Invoice Form Specific */
+.warehouse-select-container {
   @apply max-w-4xl mx-auto;
 }
 
-/* Mobile save button fix */
-@media (max-width: 640px) {
-  .mobile-save-button-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    background: white;
-    padding: 12px;
-    border-top: 1px solid #e5e7eb;
+/* Carton Styles */
+.carton-control {
+  @apply flex items-center justify-between bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded-lg;
+}
+
+/* Responsive Table Fixes */
+@media (max-width: 1024px) {
+  .dispatch-table-header {
+    display: none !important;
+  }
+  
+  .dispatch-table-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    padding: 1rem !important;
   }
 }
 
-/* Additional styles from previous CSS... */
-/* [All the existing CSS styles remain the same - they are extensive so not duplicated here for brevity] */
-
-/* Ensure buttons are visible on mobile */
-button, 
-.btn-primary,
-.btn-secondary,
-.btn-success,
-.input-field,
-select,
-.pagination-btn,
-.search-input {
-  min-height: 44px;
-  min-width: 44px;
+/* Invoice Print Optimizations */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+  }
+  
+  .invoice-form-container,
+  .dispatch-table-container,
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
 }
 
-/* Z-index fixes for mobile */
+/* Utility Classes */
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+/* Z-index Management */
+.z-10 {
+  z-index: 10;
+}
+
 .z-20 {
   z-index: 20;
-}
-
-.z-30 {
-  z-index: 30;
-}
-
-.z-40 {
-  z-index: 40;
 }
 
 .z-50 {
   z-index: 50;
 }
 
-/* Custom max-width constraints */
-.max-w-constrained {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+/* Loading Overlay */
+.fixed.inset-0 {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 
-/* Grid layout improvements */
-.grid-improved {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+/* Animation Delays */
+.delay-75 {
+  animation-delay: 75ms;
 }
 
-@media (max-width: 640px) {
-  .grid-improved {
-    grid-template-columns: 1fr;
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Card Hover Effects */
+.hover-card {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Gradient Backgrounds */
+.gradient-primary {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600;
+}
+
+.gradient-success {
+  @apply bg-gradient-to-r from-green-600 to-emerald-600;
+}
+
+.gradient-warning {
+  @apply bg-gradient-to-r from-yellow-600 to-orange-600;
+}
+
+/* Invoice Status Badges */
+.invoice-status-badge {
+  @apply px-2 py-1 rounded-full text-xs font-medium;
+}
+
+/* Mobile Touch Targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive Grid Adjustments */
+@media (min-width: 640px) and (max-width: 767px) {
+  .sm-grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Dispatch table improvements */
-.dispatch-table-row {
-  @apply grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150;
+@media (min-width: 768px) and (max-width: 1023px) {
+  .md-grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-.dispatch-table-header {
-  @apply sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700;
+/* Custom Invoice Styles */
+.invoice-header {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 sm:p-6 rounded-t-xl;
 }
 
-/* Search results improvements */
-.search-results-grid {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;
+.invoice-item-row {
+  @apply hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors duration-150;
 }
 
-.search-result-card {
-  @apply p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer;
+/* Dispatch Specific Styles */
+.dispatch-quantity-badge {
+  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 px-2 py-1 rounded-full text-xs font-medium;
 }
 
-/* Input width constraints */
-.input-constrained {
-  max-width: 100%;
+/* Search Highlight */
+.search-highlight {
+  @apply bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-200;
+}
+
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .loading-shimmer {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Custom Responsive Breakpoints */
+@media (max-width: 380px) {
+  .xs-flex-col {
+    flex-direction: column;
+  }
+  
+  .xs-w-full {
+    width: 100%;
+  }
+}
+
+/* Print Optimization */
+.print-optimized {
+  @media print {
+    color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* Accessibility */
+.focus-visible {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+/* Invoice Form Specific */
+.invoice-form-step {
+  @apply mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700;
+}
+
+.step-number {
+  @apply h-6 w-6 sm:h-7 sm:w-7 rounded-full flex items-center justify-center text-xs font-bold;
+}
+
+/* Carton Information */
+.carton-info {
+  @apply text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded;
+}
+
+/* Responsive Invoice Table */
+@media (max-width: 767px) {
+  .invoice-table-mobile {
+    display: block;
+  }
+  
+  .invoice-table-desktop {
+    display: none;
+  }
 }
 
 @media (min-width: 768px) {
-  .input-constrained {
-    max-width: 400px;
-  }
-}
-
-/* Card hover effects */
-.card-hover {
-  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
-}
-
-/* Loading states */
-.loading-overlay {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
-}
-
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
+  .invoice-table-mobile {
+    display: none;
   }
   
-  body {
-    background: white !important;
-    color: black !important;
+  .invoice-table-desktop {
+    display: table;
   }
 }
 
-/* RTL specific adjustments */
-[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
+/* SPARK Search Specific */
+.spark-search-indicator {
+  @apply absolute top-1/2 transform -translate-y-1/2 left-3 text-blue-500;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.spark-search-loading {
+  @apply animate-pulse text-blue-500 text-xs;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-800;
+/* Dispatch History Filters */
+.active-filter-badge {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+/* Invoice Payment Methods */
+.payment-method-badge {
+  @apply px-2 py-1 rounded-full text-xs font-medium;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-500;
+.payment-cash {
+  @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300;
 }
 
-/* Animation utilities */
-.animate-slide-in {
+.payment-bank {
+  @apply bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300;
+}
+
+.payment-check {
+  @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300;
+}
+
+.payment-credit {
+  @apply bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300;
+}
+
+/* Warehouse Labels */
+.warehouse-label {
+  @apply text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 truncate;
+}
+
+/* Item Quantity Indicators */
+.quantity-low {
+  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300;
+}
+
+.quantity-medium {
+  @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300;
+}
+
+.quantity-high {
+  @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300;
+}
+
+/* Animation for Notifications */
+.notification-slide {
   animation: slideIn 0.3s ease-out;
 }
 
 @keyframes slideIn {
   from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
+    transform: translateX(100%);
     opacity: 0;
   }
   to {
+    transform: translateX(0);
     opacity: 1;
   }
 }
 
-/* Responsive typography */
-.responsive-text {
-  font-size: clamp(0.875rem, 2vw, 1rem);
+/* Smooth Fade Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.responsive-heading {
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-  button,
-  .search-result-card,
-  .available-item-card {
-    min-height: 48px;
-  }
-  
-  input,
-  select,
-  textarea {
-    font-size: 16px; /* Prevents iOS zoom on focus */
-  }
+/* Modal Backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
 }
 
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .search-input,
-  .input-field {
-    border: 2px solid currentColor;
-  }
-  
-  button {
-    border: 2px solid currentColor;
+/* Responsive Modal */
+@media (max-width: 640px) {
+  .modal-content {
+    @apply mx-4 max-w-full;
   }
 }
 
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+/* Invoice Total Highlight */
+.invoice-total-highlight {
+  @apply text-lg sm:text-xl font-bold text-green-600 dark:text-green-400;
+}
+
+/* Dispatch Value Display */
+.dispatch-value {
+  @apply font-medium text-gray-900 dark:text-white;
+}
+
+/* Custom Border Utilities */
+.border-hairline {
+  border-width: 0.5px;
+}
+
+/* Responsive Padding Utilities */
+.p-responsive {
+  @apply px-3 sm:px-4 lg:px-6;
+}
+
+/* Mobile Bottom Safe Area */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+/* Invoice Items Scroll Container */
+.invoice-items-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .invoice-items-scroll {
+    max-height: 300px;
   }
 }
 
-/* Dark mode improvements */
-@media (prefers-color-scheme: dark) {
-  .search-input {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #f3f4f6;
+/* Dispatch History Table Container */
+.dispatch-history-container {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+@media (max-width: 1024px) {
+  .dispatch-history-container {
+    max-height: 500px;
   }
-  
-  .search-input::placeholder {
-    color: #9ca3af;
-  }
 }
 
-/* Custom utilities for layout */
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Search Results Scroll */
+.search-results-scroll {
+  max-height: 400px;
+  overflow-y: auto;
 }
 
-.grid-center {
-  display: grid;
-  place-items: center;
+/* Custom Scrollbar for Search */
+.search-results-scroll::-webkit-scrollbar {
+  width: 4px;
 }
 
-.truncate-2-lines {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.search-results-scroll::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
 }
 
-.truncate-3-lines {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+/* Invoice Form Scroll */
+.invoice-form-scroll {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
-/* Custom shadows for elevation */
-.shadow-elevation-1 {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.shadow-elevation-2 {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.shadow-elevation-3 {
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-}
-
-/* Gradient backgrounds */
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.bg-gradient-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.bg-gradient-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.bg-gradient-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-/* Status indicators */
-.status-indicator {
-  @apply inline-block h-2 w-2 rounded-full mr-2;
-}
-
-.status-active {
-  @apply bg-green-500;
-}
-
-.status-inactive {
-  @apply bg-gray-400;
-}
-
-.status-pending {
-  @apply bg-yellow-500;
-}
-
-.status-error {
-  @apply bg-red-500;
-}
-
-/* Badge variants */
-.badge {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
-}
-
-.badge-primary {
-  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
-}
-
-.badge-success {
-  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
-}
-
-.badge-warning {
-  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
-}
-
-.badge-danger {
-  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
-}
-
-.badge-info {
-  @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300;
-}
-
-/* Loading skeleton */
-.skeleton {
-  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
-}
-
-.skeleton-text {
-  @apply h-4 bg-gray-200 dark:bg-gray-700 rounded;
-}
-
-.skeleton-card {
-  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg h-32;
-}
-
-/* Focus styles for accessibility */
-.focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
-}
-
-/* Custom transitions */
-.transition-fast {
-  transition: all 150ms ease;
-}
-
-.transition-medium {
-  transition: all 250ms ease;
-}
-
-.transition-slow {
-  transition: all 350ms ease;
-}
-
-/* Custom borders */
-.border-subtle {
-  @apply border-gray-200 dark:border-gray-700;
-}
-
-.border-emphasis {
-  @apply border-gray-300 dark:border-gray-600;
-}
-
-/* Custom opacity */
-.opacity-hover:hover {
-  opacity: 0.9;
-}
-
-.opacity-disabled {
-  opacity: 0.5;
-}
-
-/* Custom cursor */
-.cursor-grab {
-  cursor: grab;
-}
-
-.cursor-grabbing {
-  cursor: grabbing;
-}
-
-/* Custom line clamp */
-.line-clamp-1 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.line-clamp-2 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.line-clamp-3 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-/* Custom width utilities */
-.w-responsive {
-  @apply w-full sm:w-auto;
-}
-
-/* Custom height utilities */
-.h-responsive {
-  @apply h-auto sm:h-64 lg:h-96;
-}
-
-/* Custom min-height utilities */
-.min-h-responsive {
-  @apply min-h-[150px] sm:min-h-[200px] lg:min-h-[300px];
-}
-
-/* Custom gap utilities */
-.gap-responsive {
-  @apply gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Custom margin utilities */
-.margin-responsive {
-  @apply my-3 sm:my-4 lg:my-6;
-}
-
-/* Custom padding utilities */
-.padding-responsive {
-  @apply p-3 sm:p-4 lg:p-6;
-}
-
-/* Custom text utilities */
+/* Responsive Text Sizes */
 .text-responsive {
   @apply text-xs sm:text-sm lg:text-base;
 }
 
-.text-responsive-heading {
-  @apply text-lg sm:text-xl lg:text-2xl;
+.text-responsive-lg {
+  @apply text-sm sm:text-base lg:text-lg;
 }
 
-/* Custom grid utilities */
+.text-responsive-xl {
+  @apply text-base sm:text-lg lg:text-xl;
+}
+
+/* Grid Responsive Utilities */
 .grid-responsive {
   @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
 }
 
-/* Custom flex utilities */
+/* Flex Responsive Utilities */
 .flex-responsive {
   @apply flex flex-col sm:flex-row;
 }
 
-/* Custom container utilities */
-.container-constrained {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+/* Space Responsive Utilities */
+.space-responsive-x {
+  @apply space-x-0 sm:space-x-2 lg:space-x-4;
 }
 
-/* Custom position utilities */
-.sticky-header {
-  @apply sticky top-0 z-40;
+.space-responsive-y {
+  @apply space-y-2 sm:space-y-3 lg:space-y-4;
 }
 
-.sticky-footer {
-  @apply sticky bottom-0 z-40;
+/* Gap Responsive Utilities */
+.gap-responsive {
+  @apply gap-2 sm:gap-3 lg:gap-4;
 }
 
-/* Custom overflow utilities */
-.overflow-touch {
-  -webkit-overflow-scrolling: touch;
+/* Margin Responsive Utilities */
+.m-responsive {
+  @apply m-2 sm:m-3 lg:m-4;
 }
 
-/* Custom transform utilities */
+.mx-responsive {
+  @apply mx-2 sm:mx-3 lg:mx-4;
+}
+
+.my-responsive {
+  @apply my-2 sm:my-3 lg:my-4;
+}
+
+.mt-responsive {
+  @apply mt-2 sm:mt-3 lg:mt-4;
+}
+
+.mb-responsive {
+  @apply mb-2 sm:mb-3 lg:mb-4;
+}
+
+.ml-responsive {
+  @apply ml-2 sm:ml-3 lg:ml-4;
+}
+
+.mr-responsive {
+  @apply mr-2 sm:mr-3 lg:mr-4;
+}
+
+/* Padding Responsive Utilities */
+.p-responsive {
+  @apply p-2 sm:p-3 lg:p-4;
+}
+
+.px-responsive {
+  @apply px-2 sm:px-3 lg:px-4;
+}
+
+.py-responsive {
+  @apply py-2 sm:py-3 lg:py-4;
+}
+
+.pt-responsive {
+  @apply pt-2 sm:pt-3 lg:pt-4;
+}
+
+.pb-responsive {
+  @apply pb-2 sm:pb-3 lg:pb-4;
+}
+
+.pl-responsive {
+  @apply pl-2 sm:pl-3 lg:pl-4;
+}
+
+.pr-responsive {
+  @apply pr-2 sm:pr-3 lg:pr-4;
+}
+
+/* Width Responsive Utilities */
+.w-responsive {
+  @apply w-full sm:w-auto;
+}
+
+.min-w-responsive {
+  @apply min-w-0 sm:min-w-[200px] lg:min-w-[250px];
+}
+
+.max-w-responsive {
+  @apply max-w-full sm:max-w-md lg:max-w-lg;
+}
+
+/* Height Responsive Utilities */
+.h-responsive {
+  @apply h-auto sm:h-[300px] lg:h-[400px];
+}
+
+.min-h-responsive {
+  @apply min-h-[200px] sm:min-h-[300px] lg:min-h-[400px];
+}
+
+.max-h-responsive {
+  @apply max-h-[300px] sm:max-h-[400px] lg:max-h-[500px];
+}
+
+/* Border Radius Responsive Utilities */
+.rounded-responsive {
+  @apply rounded-lg sm:rounded-xl lg:rounded-2xl;
+}
+
+/* Shadow Responsive Utilities */
+.shadow-responsive {
+  @apply shadow-sm sm:shadow-md lg:shadow-lg;
+}
+
+/* Opacity Responsive Utilities */
+.opacity-responsive {
+  @apply opacity-75 sm:opacity-90 lg:opacity-100;
+}
+
+/* Transition Duration Responsive Utilities */
+.duration-responsive {
+  @apply duration-200 sm:duration-300 lg:duration-500;
+}
+
+/* Z-index Responsive Utilities */
+.z-responsive {
+  @apply z-10 sm:z-20 lg:z-30;
+}
+
+/* Invoice Form Steps Responsive */
+.invoice-step-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.invoice-step-number-responsive {
+  @apply h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-xs sm:text-sm;
+}
+
+/* Carton Controls Responsive */
+.carton-controls-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+.carton-button-responsive {
+  @apply w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-xs sm:text-sm;
+}
+
+/* Invoice Summary Responsive */
+.invoice-summary-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+.invoice-total-responsive {
+  @apply text-base sm:text-lg lg:text-xl;
+}
+
+/* Action Buttons Responsive */
+.action-buttons-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.action-icon-responsive {
+  @apply w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5;
+}
+
+/* Pagination Responsive */
+.pagination-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.pagination-button-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Filters Responsive */
+.filters-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+.filter-input-responsive {
+  @apply px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 text-xs sm:text-sm;
+}
+
+/* Table Responsive */
+.table-header-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.table-cell-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Badge Responsive */
+.badge-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Loading Spinner Responsive */
+.spinner-responsive {
+  @apply h-4 w-4 sm:h-6 sm:w-6 lg:h-8 lg:w-8;
+}
+
+/* Notification Responsive */
+.notification-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Modal Responsive */
+.modal-responsive {
+  @apply p-3 sm:p-4 lg:p-6;
+}
+
+.modal-title-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+.modal-content-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Form Label Responsive */
+.form-label-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.form-input-responsive {
+  @apply px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 text-xs sm:text-sm lg:text-base;
+}
+
+/* Button Group Responsive */
+.button-group-responsive {
+  @apply flex flex-col sm:flex-row gap-2;
+}
+
+.button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Stats Card Responsive */
+.stats-card-responsive {
+  @apply p-3 sm:p-4 lg:p-6;
+}
+
+.stats-title-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.stats-value-responsive {
+  @apply text-lg sm:text-xl lg:text-2xl;
+}
+
+/* Search Bar Responsive */
+.search-bar-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+.search-icon-responsive {
+  @apply h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5;
+}
+
+/* Invoice Items Table Responsive */
+.invoice-items-table-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.invoice-item-quantity-responsive {
+  @apply w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-xs sm:text-sm;
+}
+
+/* Carton Info Responsive */
+.carton-info-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+.carton-count-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Warehouse Select Responsive */
+.warehouse-select-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Customer Info Responsive */
+.customer-info-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+.customer-input-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Notes Textarea Responsive */
+.notes-textarea-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Print Button Responsive */
+.print-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Export Button Responsive */
+.export-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Save Button Responsive */
+.save-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Cancel Button Responsive */
+.cancel-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* View Button Responsive */
+.view-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Edit Button Responsive */
+.edit-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Delete Button Responsive */
+.delete-button-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+}
+
+/* Invoice Status Responsive */
+.invoice-status-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Invoice Type Responsive */
+.invoice-type-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Payment Method Responsive */
+.payment-method-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Quantity Badge Responsive */
+.quantity-badge-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Value Display Responsive */
+.value-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Date Display Responsive */
+.date-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Time Display Responsive */
+.time-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* User Display Responsive */
+.user-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Notes Display Responsive */
+.notes-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Code Display Responsive */
+.code-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Name Display Responsive */
+.name-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Address Display Responsive */
+.address-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Phone Display Responsive */
+.phone-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Tax ID Display Responsive */
+.taxid-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Item Code Display Responsive */
+.item-code-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Item Name Display Responsive */
+.item-name-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Item Price Display Responsive */
+.item-price-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Item Discount Display Responsive */
+.item-discount-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Item Total Display Responsive */
+.item-total-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Subtotal Display Responsive */
+.subtotal-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Discount Display Responsive */
+.discount-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Tax Display Responsive */
+.tax-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Total Display Responsive */
+.total-display-responsive {
+  @apply text-base sm:text-lg lg:text-xl;
+}
+
+/* Carton Display Responsive */
+.carton-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Singles Display Responsive */
+.singles-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Per Carton Display Responsive */
+.per-carton-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Available Display Responsive */
+.available-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Max Quantity Display Responsive */
+.max-quantity-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Current Quantity Display Responsive */
+.current-quantity-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Unit Price Display Responsive */
+.unit-price-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Discount Percent Display Responsive */
+.discount-percent-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Item Total Price Display Responsive */
+.item-total-price-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Invoice Number Display Responsive */
+.invoice-number-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Invoice Date Display Responsive */
+.invoice-date-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Invoice Status Badge Responsive */
+.invoice-status-badge-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Invoice Type Badge Responsive */
+.invoice-type-badge-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Payment Method Badge Responsive */
+.payment-method-badge-responsive {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
+}
+
+/* Customer Name Display Responsive */
+.customer-name-display-responsive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+/* Customer Phone Display Responsive */
+.customer-phone-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Customer Tax ID Display Responsive */
+.customer-taxid-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Customer Address Display Responsive */
+.customer-address-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Invoice Notes Display Responsive */
+.invoice-notes-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Warehouse Name Display Responsive */
+.warehouse-name-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Created By Display Responsive */
+.created-by-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Updated At Display Responsive */
+.updated-at-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Items Count Display Responsive */
+.items-count-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Total Quantity Display Responsive */
+.total-quantity-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Cartons Count Display Responsive */
+.cartons-count-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Singles Count Display Responsive */
+.singles-count-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Search Term Display Responsive */
+.search-term-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Search Results Count Display Responsive */
+.search-results-count-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Search Source Display Responsive */
+.search-source-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Search Tips Display Responsive */
+.search-tips-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Search Stats Display Responsive */
+.search-stats-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Filter Badge Display Responsive */
+.filter-badge-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Active Filter Display Responsive */
+.active-filter-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Pagination Info Display Responsive */
+.pagination-info-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Page Number Display Responsive */
+.page-number-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Total Pages Display Responsive */
+.total-pages-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Showing Display Responsive */
+.showing-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Total Items Display Responsive */
+.total-items-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Start Index Display Responsive */
+.start-index-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* End Index Display Responsive */
+.end-index-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Loading Message Display Responsive */
+.loading-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Error Message Display Responsive */
+.error-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Success Message Display Responsive */
+.success-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Warning Message Display Responsive */
+.warning-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Info Message Display Responsive */
+.info-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Empty State Message Display Responsive */
+.empty-state-message-display-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Form Error Message Display Responsive */
+.form-error-message-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Validation Message Display Responsive */
+.validation-message-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Help Text Display Responsive */
+.help-text-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Tooltip Display Responsive */
+.tooltip-display-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Placeholder Text Responsive */
+.placeholder-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Required Indicator Responsive */
+.required-indicator-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Optional Indicator Responsive */
+.optional-indicator-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Field Label Responsive */
+.field-label-responsive {
+  @apply text-xs sm:text-sm lg:text-base;
+}
+
+/* Field Description Responsive */
+.field-description-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Field Error Responsive */
+.field-error-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Field Success Responsive */
+.field-success-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Field Warning Responsive */
+.field-warning-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Field Info Responsive */
+.field-info-responsive {
+  @apply text-xs sm:text-sm;
+}
+
+/* Form Group Responsive */
+.form-group-responsive {
+  @apply space-y-1 sm:space-y-2 lg:space-y-3;
+}
+
+/* Form Row Responsive */
+.form-row-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Form Column Responsive */
+.form-column-responsive {
+  @apply flex-1 min-w-0;
+}
+
+/* Form Actions Responsive */
+.form-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Form Action Button Responsive */
+.form-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Modal Actions Responsive */
+.modal-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Modal Action Button Responsive */
+.modal-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Dialog Actions Responsive */
+.dialog-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Dialog Action Button Responsive */
+.dialog-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Alert Actions Responsive */
+.alert-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Alert Action Button Responsive */
+.alert-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Notification Actions Responsive */
+.notification-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Notification Action Button Responsive */
+.notification-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Card Actions Responsive */
+.card-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Card Action Button Responsive */
+.card-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Table Actions Responsive */
+.table-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Table Action Button Responsive */
+.table-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* List Actions Responsive */
+.list-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* List Action Button Responsive */
+.list-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Grid Actions Responsive */
+.grid-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Grid Action Button Responsive */
+.grid-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Footer Actions Responsive */
+.footer-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Footer Action Button Responsive */
+.footer-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Header Actions Responsive */
+.header-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Header Action Button Responsive */
+.header-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Sidebar Actions Responsive */
+.sidebar-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Sidebar Action Button Responsive */
+.sidebar-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Navigation Actions Responsive */
+.navigation-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Navigation Action Button Responsive */
+.navigation-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Breadcrumb Actions Responsive */
+.breadcrumb-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Breadcrumb Action Button Responsive */
+.breadcrumb-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Tab Actions Responsive */
+.tab-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Tab Action Button Responsive */
+.tab-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Accordion Actions Responsive */
+.accordion-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Accordion Action Button Responsive */
+.accordion-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Carousel Actions Responsive */
+.carousel-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Carousel Action Button Responsive */
+.carousel-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Slider Actions Responsive */
+.slider-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Slider Action Button Responsive */
+.slider-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Range Actions Responsive */
+.range-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Range Action Button Responsive */
+.range-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Progress Actions Responsive */
+.progress-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Progress Action Button Responsive */
+.progress-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Spinner Actions Responsive */
+.spinner-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Spinner Action Button Responsive */
+.spinner-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Loading Actions Responsive */
+.loading-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Loading Action Button Responsive */
+.loading-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Error Actions Responsive */
+.error-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Error Action Button Responsive */
+.error-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Empty Actions Responsive */
+.empty-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Empty Action Button Responsive */
+.empty-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Success Actions Responsive */
+.success-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Success Action Button Responsive */
+.success-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Warning Actions Responsive */
+.warning-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Warning Action Button Responsive */
+.warning-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Info Actions Responsive */
+.info-actions-responsive {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
+}
+
+/* Info Action Button Responsive */
+.info-action-button-responsive {
+  @apply flex-1 sm:flex-none;
+}
+
+/* Dark Mode Specific Responsive Utilities */
+@media (prefers-color-scheme: dark) {
+  .dark\:text-responsive {
+    @apply text-xs sm:text-sm lg:text-base;
+  }
+  
+  .dark\:bg-responsive {
+    @apply bg-gray-800 sm:bg-gray-900 lg:bg-gray-950;
+  }
+  
+  .dark\:border-responsive {
+    @apply border-gray-700 sm:border-gray-600 lg:border-gray-500;
+  }
+}
+
+/* Print Specific Responsive Utilities */
+@media print {
+  .print\:text-responsive {
+    @apply text-xs sm:text-sm lg:text-base;
+  }
+  
+  .print\:hidden-responsive {
+    @apply hidden sm:block lg:hidden;
+  }
+  
+  .print\:block-responsive {
+    @apply block sm:hidden lg:block;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border-width: 2px;
+  }
+  
+  .high-contrast-text {
+    font-weight: bold;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .transition-all,
+  .transition-colors,
+  .transition-shadow,
+  .transition-transform {
+    transition: none !important;
+  }
+  
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .touch\:min-h-12 {
+    min-height: 3rem;
+  }
+  
+  .touch\:min-w-12 {
+    min-width: 3rem;
+  }
+  
+  .touch\:text-lg {
+    font-size: 1.125rem;
+  }
+  
+  .touch\:gap-4 {
+    gap: 1rem;
+  }
+  
+  .touch\:p-4 {
+    padding: 1rem;
+  }
+}
+
+/* Very Small Screens (below 320px) */
+@media (max-width: 319px) {
+  .xxs\:flex-col {
+    flex-direction: column;
+  }
+  
+  .xxs\:text-2xs {
+    font-size: 0.625rem;
+  }
+  
+  .xxs\:p-1 {
+    padding: 0.25rem;
+  }
+  
+  .xxs\:gap-1 {
+    gap: 0.25rem;
+  }
+}
+
+/* Large Screens (above 1920px) */
+@media (min-width: 1921px) {
+  .\32xl\:max-w-8xl {
+    max-width: 90rem;
+  }
+  
+  .\32xl\:text-2xl {
+    font-size: 1.5rem;
+  }
+  
+  .\32xl\:p-12 {
+    padding: 3rem;
+  }
+  
+  .\32xl\:gap-8 {
+    gap: 2rem;
+  }
+}
+
+/* Ultra Wide Screens (above 2560px) */
+@media (min-width: 2561px) {
+  .\33xl\:max-w-9xl {
+    max-width: 100rem;
+  }
+  
+  .\33xl\:text-3xl {
+    font-size: 1.875rem;
+  }
+  
+  .\33xl\:p-16 {
+    padding: 4rem;
+  }
+  
+  .\33xl\:gap-10 {
+    gap: 2.5rem;
+  }
+}
+
+/* Portrait Mode Optimization */
+@media (orientation: portrait) {
+  .portrait\:flex-col {
+    flex-direction: column;
+  }
+  
+  .portrait\:h-auto {
+    height: auto;
+  }
+  
+  .portrait\:w-full {
+    width: 100%;
+  }
+}
+
+/* Landscape Mode Optimization */
+@media (orientation: landscape) {
+  .landscape\:flex-row {
+    flex-direction: row;
+  }
+  
+  .landscape\:h-screen {
+    height: 100vh;
+  }
+  
+  .landscape\:w-auto {
+    width: auto;
+  }
+}
+
+/* Custom Breakpoint for Invoice Form */
+@media (max-width: 480px) {
+  .invoice-form-xs\:grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .invoice-form-xs\:text-xs {
+    font-size: 0.75rem !important;
+  }
+  
+  .invoice-form-xs\:p-2 {
+    padding: 0.5rem !important;
+  }
+}
+
+/* Custom Breakpoint for Dispatch Table */
+@media (max-width: 600px) {
+  .dispatch-table-sm\:hidden {
+    display: none !important;
+  }
+  
+  .dispatch-table-sm\:block {
+    display: block !important;
+  }
+  
+  .dispatch-table-sm\:text-xs {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Custom Breakpoint for Search Results */
+@media (max-width: 420px) {
+  .search-results-xs\:grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .search-results-xs\:max-h-40 {
+    max-height: 10rem !important;
+  }
+}
+
+/* Custom Breakpoint for Carton Controls */
+@media (max-width: 380px) {
+  .carton-controls-xs\:flex-col {
+    flex-direction: column !important;
+  }
+  
+  .carton-controls-xs\:items-stretch {
+    align-items: stretch !important;
+  }
+  
+  .carton-controls-xs\:gap-1 {
+    gap: 0.25rem !important;
+  }
+}
+
+/* Final Mobile Optimizations */
+@media (max-width: 640px) {
+  .mobile\:pb-16 {
+    padding-bottom: 4rem !important;
+  }
+  
+  .mobile\:sticky {
+    position: sticky !important;
+  }
+  
+  .mobile\:top-0 {
+    top: 0 !important;
+  }
+  
+  .mobile\:z-50 {
+    z-index: 50 !important;
+  }
+  
+  .mobile\:overflow-x-auto {
+    overflow-x: auto !important;
+  }
+  
+  .mobile\:flex-nowrap {
+    flex-wrap: nowrap !important;
+  }
+  
+  .mobile\:space-x-2 {
+    gap: 0.5rem !important;
+  }
+  
+  .mobile\:text-center {
+    text-align: center !important;
+  }
+  
+  .mobile\:truncate {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Performance Optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
 .transform-gpu {
   transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000px;
 }
 
-/* Custom filter utilities */
-.filter-blur {
-  backdrop-filter: blur(8px);
+/* Accessibility Improvements */
+.focus\:outline-none:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
-/* Custom background utilities */
-.bg-blur {
-  @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm;
+.focus\:ring-2:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-/* Custom shadow utilities */
-.shadow-inset {
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: rgb(59 130 246);
 }
 
-/* Custom border radius utilities */
-.rounded-inherit {
-  border-radius: inherit;
+/* Final Utility Classes */
+.inset-shadow {
+  box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 }
 
-/* Custom z-index utilities */
-.z-dropdown {
-  z-index: 1000;
+.glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
-.z-modal {
-  z-index: 2000;
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
-.z-tooltip {
-  z-index: 3000;
+/* Invoice Specific */
+.invoice-border {
+  border: 2px solid #e5e7eb;
 }
 
-/* Custom visibility utilities */
-.visibility-hidden {
-  visibility: hidden;
+.dark .invoice-border {
+  border-color: #4b5563;
 }
 
-.visibility-visible {
-  visibility: visible;
+.invoice-header-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-/* Custom pointer events utilities */
-.pointer-events-none {
-  pointer-events: none;
+.invoice-total-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-.pointer-events-auto {
-  pointer-events: auto;
+/* Dispatch Specific */
+.dispatch-warning {
+  border-left: 4px solid #f59e0b;
 }
 
-/* Custom user select utilities */
-.user-select-none {
-  user-select: none;
+.dispatch-danger {
+  border-left: 4px solid #ef4444;
 }
 
-.user-select-text {
-  user-select: text;
+.dispatch-success {
+  border-left: 4px solid #10b981;
 }
 
-/* Custom resize utilities */
-.resize-none {
-  resize: none;
+/* Animation for Success */
+@keyframes successPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
-.resize-vertical {
-  resize: vertical;
+.success-pulse {
+  animation: successPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.resize-horizontal {
-  resize: horizontal;
+/* Smooth transitions for all interactive elements */
+button, 
+a, 
+input, 
+select, 
+textarea {
+  @apply transition-all duration-200;
 }
 
-/* Custom whitespace utilities */
-.whitespace-normal {
-  white-space: normal;
+/* Ensure proper spacing for mobile touch targets */
+button, 
+a {
+  @apply min-h-[44px] min-w-[44px];
 }
 
-.whitespace-nowrap {
-  white-space: nowrap;
+/* Improve readability on mobile */
+@media (max-width: 640px) {
+  p, span, div {
+    line-height: 1.5;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.3;
+  }
 }
 
-.whitespace-pre {
-  white-space: pre;
-}
-
-.whitespace-pre-line {
-  white-space: pre-line;
-}
-
-.whitespace-pre-wrap {
-  white-space: pre-wrap;
-}
-
-/* Custom word break utilities */
-.break-normal {
-  overflow-wrap: normal;
-  word-break: normal;
-}
-
-.break-words {
-  overflow-wrap: break-word;
-}
-
-.break-all {
-  word-break: break-all;
-}
-
-/* Custom content utilities */
-.content-empty:empty::before {
-  content: '—';
-  color: #9ca3af;
-}
-
-/* Custom list utilities */
-.list-inside {
-  list-style-position: inside;
-}
-
-.list-outside {
-  list-style-position: outside;
-}
-
-/* Custom table utilities */
-.table-auto {
-  table-layout: auto;
-}
-
-.table-fixed {
-  table-layout: fixed;
-}
-
-/* Custom caption utilities */
-.caption-top {
-  caption-side: top;
-}
-
-.caption-bottom {
-  caption-side: bottom;
-}
-
-/* Custom border collapse utilities */
-.border-collapse {
-  border-collapse: collapse;
-}
-
-.border-separate {
-  border-collapse: separate;
-}
-
-/* Custom border spacing utilities */
-.border-spacing-0 {
-  border-spacing: 0;
-}
-
-.border-spacing-2 {
-  border-spacing: 0.5rem;
-}
-
-/* Custom mix blend mode utilities */
-.mix-blend-normal {
-  mix-blend-mode: normal;
-}
-
-.mix-blend-multiply {
-  mix-blend-mode: multiply;
-}
-
-.mix-blend-screen {
-  mix-blend-mode: screen;
-}
-
-.mix-blend-overlay {
-  mix-blend-mode: overlay;
-}
-
-.mix-blend-darken {
-  mix-blend-mode: darken;
-}
-
-.mix-blend-lighten {
-  mix-blend-mode: lighten;
-}
-
-.mix-blend-color-dodge {
-  mix-blend-mode: color-dodge;
-}
-
-.mix-blend-color-burn {
-  mix-blend-mode: color-burn;
-}
-
-.mix-blend-hard-light {
-  mix-blend-mode: hard-light;
-}
-
-.mix-blend-soft-light {
-  mix-blend-mode: soft-light;
-}
-
-.mix-blend-difference {
-  mix-blend-mode: difference;
-}
-
-.mix-blend-exclusion {
-  mix-blend-mode: exclusion;
-}
-
-.mix-blend-hue {
-  mix-blend-mode: hue;
-}
-
-.mix-blend-saturation {
-  mix-blend-mode: saturation;
-}
-
-.mix-blend-color {
-  mix-blend-mode: color;
-}
-
-.mix-blend-luminosity {
-  mix-blend-mode: luminosity;
-}
-
-/* Custom background blend mode utilities */
-.bg-blend-normal {
-  background-blend-mode: normal;
-}
-
-.bg-blend-multiply {
-  background-blend-mode: multiply;
-}
-
-.bg-blend-screen {
-  background-blend-mode: screen;
-}
-
-.bg-blend-overlay {
-  background-blend-mode: overlay;
-}
-
-.bg-blend-darken {
-  background-blend-mode: darken;
-}
-
-.bg-blend-lighten {
-  background-blend-mode: lighten;
-}
-
-.bg-blend-color-dodge {
-  background-blend-mode: color-dodge;
-}
-
-.bg-blend-color-burn {
-  background-blend-mode: color-burn;
-}
-
-.bg-blend-hard-light {
-  background-blend-mode: hard-light;
-}
-
-.bg-blend-soft-light {
-  background-blend-mode: soft-light;
-}
-
-.bg-blend-difference {
-  background-blend-mode: difference;
-}
-
-.bg-blend-exclusion {
-  background-blend-mode: exclusion;
-}
-
-.bg-blend-hue {
-  background-blend-mode: hue;
-}
-
-.bg-blend-saturation {
-  background-blend-mode: saturation;
-}
-
-.bg-blend-color {
-  background-blend-mode: color;
-}
-
-.bg-blend-luminosity {
-  background-blend-mode: luminosity;
+/* Ensure proper contrast in dark mode */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+  
+  .break-before-page {
+    break-before: page;
+  }
+  
+  .break-after-page {
+    break-after: page;
+  }
 }
 </style>
-
