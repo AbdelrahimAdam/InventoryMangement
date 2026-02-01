@@ -4383,2145 +4383,965 @@ ${invoice.type === 'B2B' || invoice.type === 'B2C' ? `الضريبة (14%): ${fo
 };
 </script>
 <style scoped>
-/* ============================================ */
-/* MOBILE-FIRST RESPONSIVE STYLES */
-/* ============================================ */
+/* Fixed layout styles */
 
-/* Base Styles */
+/* Main container padding for mobile save button */
 .min-h-screen {
-  min-height: 100vh;
+  padding-bottom: 64px; /* Space for mobile save button */
 }
 
-/* Header Styles */
-.sticky {
-  position: sticky;
+@media (min-width: 640px) {
+  .min-h-screen {
+    padding-bottom: 0;
+  }
 }
 
-/* Button Styles */
-.btn-primary {
-  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
-}
-
-.btn-secondary {
-  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
-}
-
-.btn-success {
-  @apply inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
-}
-
-/* Stat Cards */
-.stat-card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex items-center space-x-2 sm:space-x-3 space-x-reverse hover:shadow-md transition-shadow duration-200;
-}
-
-.stat-icon {
-  @apply h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center flex-shrink-0;
-}
-
-/* Form Styles */
-.input-field {
-  @apply w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
-}
-
+/* Invoice Form Grid - Fixed width constraints */
 .invoice-form-grid {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 max-w-4xl mx-auto;
 }
 
 .form-field-container {
-  @apply sm:col-span-1;
+  @apply w-full;
 }
 
 .form-field-full {
-  @apply lg:col-span-2;
+  @apply lg:col-span-2 w-full;
 }
 
-/* Search Input */
-.search-input {
-  @apply w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-9 sm:pl-10 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400;
-}
-
-/* Search Stats */
-.search-stats-container {
-  @apply flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3 sm:mb-4;
-}
-
-.search-source-badge {
-  @apply px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-medium;
-}
-
-/* Search Results Grid */
-.search-results-grid {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 max-h-[300px] overflow-y-auto p-1;
-}
-
-.search-result-card {
-  @apply p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-98;
-}
-
-/* Empty States */
-.search-empty-state {
-  @apply text-center py-6 sm:py-8 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg;
-}
-
-/* Search Tips */
-.search-tips-container {
-  @apply mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg;
-}
-
-.search-tips-title {
-  @apply text-xs font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center;
-}
-
-.search-tips-list {
-  @apply space-y-1 text-xs text-blue-600 dark:text-blue-400;
-}
-
-.search-tip-item {
-  @apply flex items-start;
-}
-
-.search-tip-highlight {
-  @apply text-green-600 dark:text-green-400 font-medium;
-}
-
-/* Selected Items */
-.selected-items-container {
-  @apply border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden;
-}
-
-.selected-item-card {
-  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3;
-}
-
-.dispatch-table-row {
-  @apply hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150;
-}
-
-/* Invoice Summary */
-.invoice-summary-card {
-  @apply bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border border-blue-200 dark:border-blue-800 rounded-lg p-4 sm:p-6;
-}
-
-/* Pagination */
-.pagination-container {
-  @apply px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700;
-}
-
-.pagination-btn {
-  @apply px-2.5 sm:px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-/* Filters Container */
-.filters-container {
-  @apply flex flex-wrap items-center gap-2;
-}
-
-/* Action Buttons */
-.action-btn {
-  @apply p-1 sm:p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-150;
-}
-
-/* Available Items Grid */
+/* Dispatch items grid - Fixed layout */
 .available-items-grid-fixed {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
 }
 
-/* Dispatch Table */
-.dispatch-table-container {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden;
-}
-
-.dispatch-table-header {
-  @apply bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600;
-}
-
-/* Animation Utilities */
-.scale-98 {
-  transform: scale(0.98);
-}
-
-/* Responsive Text */
 @media (max-width: 640px) {
-  .text-xs-mobile {
-    font-size: 0.75rem;
-  }
-  
-  .text-sm-mobile {
-    font-size: 0.875rem;
+  .available-items-grid-fixed {
+    grid-template-columns: 1fr;
   }
 }
 
-/* Print Styles */
-@media print {
-  .no-print {
-    display: none !important;
+@media (min-width: 641px) and (max-width: 768px) {
+  .available-items-grid-fixed {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #374151;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #6b7280;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Hover Effects */
-.hover-lift {
-  transition: transform 0.2s ease-in-out;
-}
-
-.hover-lift:hover {
-  transform: translateY(-2px);
-}
-
-/* Loading Spinner */
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
+@media (min-width: 769px) and (max-width: 1024px) {
+  .available-items-grid-fixed {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* Transition Utilities */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.transition-colors {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.transition-shadow {
-  transition-property: box-shadow;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Mobile Optimizations */
-@media (max-width: 640px) {
-  .invoice-form-container {
-    max-height: calc(100vh - 120px) !important;
-  }
-  
-  .search-results-grid {
-    max-height: 200px !important;
-  }
-  
-  .dispatch-table-row {
-    grid-template-columns: repeat(1, 1fr) !important;
-    gap: 0.5rem !important;
+@media (min-width: 1025px) {
+  .available-items-grid-fixed {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
-/* Dark Mode Overrides */
-.dark .bg-gray-50 {
-  background-color: #111827 !important;
+/* Quantity label - Always RED for dispatch */
+.quantity-red {
+  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300;
 }
 
-.dark .bg-gray-100 {
-  background-color: #1f2937 !important;
+.quantity-label {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
 }
 
-.dark .text-gray-600 {
-  color: #d1d5db !important;
-}
-
-.dark .border-gray-200 {
-  border-color: #374151 !important;
-}
-
-/* Invoice Form Specific */
-.warehouse-select-container {
+/* Search input constraints */
+.search-input-constrained {
   @apply max-w-4xl mx-auto;
 }
 
-/* Carton Styles */
-.carton-control {
-  @apply flex items-center justify-between bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded-lg;
-}
-
-/* Responsive Table Fixes */
-@media (max-width: 1024px) {
-  .dispatch-table-header {
-    display: none !important;
-  }
-  
-  .dispatch-table-row {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.75rem !important;
-    padding: 1rem !important;
+/* Mobile save button fix */
+@media (max-width: 640px) {
+  .mobile-save-button-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: white;
+    padding: 12px;
+    border-top: 1px solid #e5e7eb;
   }
 }
 
-/* Invoice Print Optimizations */
-@media print {
-  body {
-    background: white !important;
-    color: black !important;
-    font-size: 12pt !important;
-  }
-  
-  .invoice-form-container,
-  .dispatch-table-container,
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-only {
-    display: block !important;
-  }
+/* Search result card - FIXED: removed invalid active:scale-98 */
+.search-result-card {
+  @apply p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm active:scale-95;
 }
 
-/* Utility Classes */
-.whitespace-nowrap {
-  white-space: nowrap;
+/* Ensure buttons are visible on mobile */
+button, 
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.input-field,
+select,
+.pagination-btn,
+.search-input {
+  min-height: 44px;
+  min-width: 44px;
 }
 
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.min-w-0 {
-  min-width: 0;
-}
-
-.flex-1 {
-  flex: 1 1 0%;
-}
-
-/* Z-index Management */
-.z-10 {
-  z-index: 10;
-}
-
+/* Z-index fixes for mobile */
 .z-20 {
   z-index: 20;
+}
+
+.z-30 {
+  z-index: 30;
+}
+
+.z-40 {
+  z-index: 40;
 }
 
 .z-50 {
   z-index: 50;
 }
 
-/* Loading Overlay */
-.fixed.inset-0 {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+/* Custom max-width constraints */
+.max-w-constrained {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* Animation Delays */
-.delay-75 {
-  animation-delay: 75ms;
+/* Grid layout improvements */
+.grid-improved {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
-.delay-100 {
-  animation-delay: 100ms;
-}
-
-.delay-150 {
-  animation-delay: 150ms;
-}
-
-/* Smooth Transitions */
-.smooth-transition {
-  @apply transition-all duration-300 ease-in-out;
-}
-
-/* Card Hover Effects */
-.hover-card {
-  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
-}
-
-/* Gradient Backgrounds */
-.gradient-primary {
-  @apply bg-gradient-to-r from-blue-600 to-indigo-600;
-}
-
-.gradient-success {
-  @apply bg-gradient-to-r from-green-600 to-emerald-600;
-}
-
-.gradient-warning {
-  @apply bg-gradient-to-r from-yellow-600 to-orange-600;
-}
-
-/* Invoice Status Badges */
-.invoice-status-badge {
-  @apply px-2 py-1 rounded-full text-xs font-medium;
-}
-
-/* Mobile Touch Targets */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
-}
-
-/* Responsive Grid Adjustments */
-@media (min-width: 640px) and (max-width: 767px) {
-  .sm-grid-cols-2 {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 640px) {
+  .grid-improved {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
-  .md-grid-cols-3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
+/* Dispatch table improvements */
+.dispatch-table-row {
+  @apply grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150;
 }
 
-/* Custom Invoice Styles */
-.invoice-header {
-  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 sm:p-6 rounded-t-xl;
+.dispatch-table-header {
+  @apply sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700;
 }
 
-.invoice-item-row {
-  @apply hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors duration-150;
+/* Search results improvements */
+.search-results-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;
 }
 
-/* Dispatch Specific Styles */
-.dispatch-quantity-badge {
-  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 px-2 py-1 rounded-full text-xs font-medium;
+/* Search empty state */
+.search-empty-state {
+  @apply text-center py-8 sm:py-12 border border-gray-200 dark:border-gray-700 rounded-lg;
 }
 
-/* Search Highlight */
-.search-highlight {
-  @apply bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-200;
+/* Warehouse select container */
+.warehouse-select-container {
+  @apply max-w-4xl mx-auto;
 }
 
-/* Loading States */
-.loading-shimmer {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+/* Invoice summary card */
+.invoice-summary-card {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 sm:p-6;
 }
 
-.dark .loading-shimmer {
-  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
-  background-size: 200% 100%;
+/* Search stats container */
+.search-stats-container {
+  @apply flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3;
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+.search-source-badge {
+  @apply px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded text-xs;
 }
 
-/* Custom Responsive Breakpoints */
-@media (max-width: 380px) {
-  .xs-flex-col {
-    flex-direction: column;
-  }
-  
-  .xs-w-full {
-    width: 100%;
-  }
+/* Search tips container */
+.search-tips-container {
+  @apply bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 mt-3;
 }
 
-/* Print Optimization */
-.print-optimized {
-  @media print {
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
+.search-tips-title {
+  @apply text-xs font-medium text-gray-700 dark:text-gray-300 mb-2;
 }
 
-/* Accessibility */
-.focus-visible {
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+.search-tips-list {
+  @apply space-y-1 text-xs text-gray-600 dark:text-gray-400;
 }
 
-/* Invoice Form Specific */
-.invoice-form-step {
-  @apply mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700;
+.search-tip-item {
+  @apply list-disc list-inside;
 }
 
-.step-number {
-  @apply h-6 w-6 sm:h-7 sm:w-7 rounded-full flex items-center justify-center text-xs font-bold;
+.search-tip-highlight {
+  @apply text-blue-600 dark:text-blue-400 font-medium;
 }
 
-/* Carton Information */
-.carton-info {
-  @apply text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded;
+/* Selected items container */
+.selected-items-container {
+  @apply border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden max-w-full mx-auto;
 }
 
-/* Responsive Invoice Table */
-@media (max-width: 767px) {
-  .invoice-table-mobile {
-    display: block;
-  }
-  
-  .invoice-table-desktop {
-    display: none;
-  }
+/* Selected item card */
+.selected-item-card {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3;
+}
+
+/* Pagination container */
+.pagination-container {
+  @apply px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700;
+}
+
+/* Action buttons */
+.action-btn {
+  @apply p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors;
+}
+
+/* Stat card */
+.stat-card {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4;
+}
+
+.stat-icon {
+  @apply h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+/* Form fields */
+.input-field {
+  @apply px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply inline-flex items-center px-3 sm:px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px];
+}
+
+.btn-secondary {
+  @apply inline-flex items-center px-3 sm:px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px];
+}
+
+.btn-success {
+  @apply inline-flex items-center px-3 sm:px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px];
+}
+
+/* Search input */
+.search-input {
+  @apply w-full px-3 sm:px-4 py-2.5 pr-9 sm:pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+}
+
+/* Pagination button */
+.pagination-btn {
+  @apply px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[34px] sm:min-h-[36px] min-w-[70px] sm:min-w-[80px];
+}
+
+/* Filters container */
+.filters-container {
+  @apply flex flex-wrap gap-2;
+}
+
+/* Dispatch table container */
+.dispatch-table-container {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 sm:mb-8;
+}
+
+/* Invoice form container */
+.invoice-form-container {
+  @apply bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 max-w-full mx-auto;
+}
+
+/* Input width constraints */
+.input-constrained {
+  max-width: 100%;
 }
 
 @media (min-width: 768px) {
-  .invoice-table-mobile {
-    display: none;
+  .input-constrained {
+    max-width: 400px;
+  }
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+}
+
+/* Loading states */
+.loading-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
   }
   
-  .invoice-table-desktop {
-    display: table;
+  body {
+    background: white !important;
+    color: black !important;
   }
 }
 
-/* SPARK Search Specific */
-.spark-search-indicator {
-  @apply absolute top-1/2 transform -translate-y-1/2 left-3 text-blue-500;
+/* RTL specific adjustments */
+[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
 }
 
-.spark-search-loading {
-  @apply animate-pulse text-blue-500 text-xs;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* Dispatch History Filters */
-.active-filter-badge {
-  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
 }
 
-/* Invoice Payment Methods */
-.payment-method-badge {
-  @apply px-2 py-1 rounded-full text-xs font-medium;
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
 }
 
-.payment-cash {
-  @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300;
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
 }
 
-.payment-bank {
-  @apply bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300;
-}
-
-.payment-check {
-  @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300;
-}
-
-.payment-credit {
-  @apply bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300;
-}
-
-/* Warehouse Labels */
-.warehouse-label {
-  @apply text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 truncate;
-}
-
-/* Item Quantity Indicators */
-.quantity-low {
-  @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300;
-}
-
-.quantity-medium {
-  @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300;
-}
-
-.quantity-high {
-  @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300;
-}
-
-/* Animation for Notifications */
-.notification-slide {
+/* Animation utilities */
+.animate-slide-in {
   animation: slideIn 0.3s ease-out;
 }
 
 @keyframes slideIn {
   from {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
     opacity: 0;
   }
   to {
-    transform: translateX(0);
     opacity: 1;
   }
 }
 
-/* Smooth Fade Transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+/* Responsive typography */
+.responsive-text {
+  font-size: clamp(0.875rem, 2vw, 1rem);
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.responsive-heading {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
 }
 
-/* Modal Backdrop */
-.modal-backdrop {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
-}
-
-/* Responsive Modal */
-@media (max-width: 640px) {
-  .modal-content {
-    @apply mx-4 max-w-full;
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .search-result-card,
+  .available-item-card {
+    min-height: 48px;
+  }
+  
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
   }
 }
 
-/* Invoice Total Highlight */
-.invoice-total-highlight {
-  @apply text-lg sm:text-xl font-bold text-green-600 dark:text-green-400;
-}
-
-/* Dispatch Value Display */
-.dispatch-value {
-  @apply font-medium text-gray-900 dark:text-white;
-}
-
-/* Custom Border Utilities */
-.border-hairline {
-  border-width: 0.5px;
-}
-
-/* Responsive Padding Utilities */
-.p-responsive {
-  @apply px-3 sm:px-4 lg:px-6;
-}
-
-/* Mobile Bottom Safe Area */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 1rem);
-}
-
-/* Invoice Items Scroll Container */
-.invoice-items-scroll {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-@media (max-width: 640px) {
-  .invoice-items-scroll {
-    max-height: 300px;
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .search-input,
+  .input-field {
+    border: 2px solid currentColor;
+  }
+  
+  button {
+    border: 2px solid currentColor;
   }
 }
 
-/* Dispatch History Table Container */
-.dispatch-history-container {
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-@media (max-width: 1024px) {
-  .dispatch-history-container {
-    max-height: 500px;
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-/* Search Results Scroll */
-.search-results-scroll {
-  max-height: 400px;
-  overflow-y: auto;
+/* Dark mode improvements */
+@media (prefers-color-scheme: dark) {
+  .search-input {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+  
+  .search-input::placeholder {
+    color: #9ca3af;
+  }
 }
 
-/* Custom Scrollbar for Search */
-.search-results-scroll::-webkit-scrollbar {
-  width: 4px;
+/* Custom utilities for layout */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.search-results-scroll::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+.grid-center {
+  display: grid;
+  place-items: center;
 }
 
-/* Invoice Form Scroll */
-.invoice-form-scroll {
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Responsive Text Sizes */
-.text-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
+.truncate-3-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.text-responsive-lg {
-  @apply text-sm sm:text-base lg:text-lg;
+/* Custom shadows for elevation */
+.shadow-elevation-1 {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.text-responsive-xl {
-  @apply text-base sm:text-lg lg:text-xl;
+.shadow-elevation-2 {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Grid Responsive Utilities */
-.grid-responsive {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+.shadow-elevation-3 {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Flex Responsive Utilities */
-.flex-responsive {
-  @apply flex flex-col sm:flex-row;
+/* Gradient backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-/* Space Responsive Utilities */
-.space-responsive-x {
-  @apply space-x-0 sm:space-x-2 lg:space-x-4;
+.bg-gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-.space-responsive-y {
-  @apply space-y-2 sm:space-y-3 lg:space-y-4;
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
-/* Gap Responsive Utilities */
-.gap-responsive {
-  @apply gap-2 sm:gap-3 lg:gap-4;
+.bg-gradient-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
-/* Margin Responsive Utilities */
-.m-responsive {
-  @apply m-2 sm:m-3 lg:m-4;
+/* Status indicators */
+.status-indicator {
+  @apply inline-block h-2 w-2 rounded-full mr-2;
 }
 
-.mx-responsive {
-  @apply mx-2 sm:mx-3 lg:mx-4;
+.status-active {
+  @apply bg-green-500;
 }
 
-.my-responsive {
-  @apply my-2 sm:my-3 lg:my-4;
+.status-inactive {
+  @apply bg-gray-400;
 }
 
-.mt-responsive {
-  @apply mt-2 sm:mt-3 lg:mt-4;
+.status-pending {
+  @apply bg-yellow-500;
 }
 
-.mb-responsive {
-  @apply mb-2 sm:mb-3 lg:mb-4;
+.status-error {
+  @apply bg-red-500;
 }
 
-.ml-responsive {
-  @apply ml-2 sm:ml-3 lg:ml-4;
+/* Badge variants */
+.badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
 }
 
-.mr-responsive {
-  @apply mr-2 sm:mr-3 lg:mr-4;
+.badge-primary {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
 }
 
-/* Padding Responsive Utilities */
-.p-responsive {
-  @apply p-2 sm:p-3 lg:p-4;
+.badge-success {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
 }
 
-.px-responsive {
-  @apply px-2 sm:px-3 lg:px-4;
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
 }
 
-.py-responsive {
-  @apply py-2 sm:py-3 lg:py-4;
+.badge-danger {
+  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
 }
 
-.pt-responsive {
-  @apply pt-2 sm:pt-3 lg:pt-4;
+.badge-info {
+  @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300;
 }
 
-.pb-responsive {
-  @apply pb-2 sm:pb-3 lg:pb-4;
+/* Loading skeleton */
+.skeleton {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
 }
 
-.pl-responsive {
-  @apply pl-2 sm:pl-3 lg:pl-4;
+.skeleton-text {
+  @apply h-4 bg-gray-200 dark:bg-gray-700 rounded;
 }
 
-.pr-responsive {
-  @apply pr-2 sm:pr-3 lg:pr-4;
+.skeleton-card {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg h-32;
 }
 
-/* Width Responsive Utilities */
+/* Focus styles for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
+}
+
+/* Custom transitions */
+.transition-fast {
+  transition: all 150ms ease;
+}
+
+.transition-medium {
+  transition: all 250ms ease;
+}
+
+.transition-slow {
+  transition: all 350ms ease;
+}
+
+/* Custom borders */
+.border-subtle {
+  @apply border-gray-200 dark:border-gray-700;
+}
+
+.border-emphasis {
+  @apply border-gray-300 dark:border-gray-600;
+}
+
+/* Custom opacity */
+.opacity-hover:hover {
+  opacity: 0.9;
+}
+
+.opacity-disabled {
+  opacity: 0.5;
+}
+
+/* Custom cursor */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* Custom line clamp */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Custom width utilities */
 .w-responsive {
   @apply w-full sm:w-auto;
 }
 
-.min-w-responsive {
-  @apply min-w-0 sm:min-w-[200px] lg:min-w-[250px];
-}
-
-.max-w-responsive {
-  @apply max-w-full sm:max-w-md lg:max-w-lg;
-}
-
-/* Height Responsive Utilities */
+/* Custom height utilities */
 .h-responsive {
-  @apply h-auto sm:h-[300px] lg:h-[400px];
+  @apply h-auto sm:h-64 lg:h-96;
 }
 
+/* Custom min-height utilities */
 .min-h-responsive {
-  @apply min-h-[200px] sm:min-h-[300px] lg:min-h-[400px];
+  @apply min-h-[150px] sm:min-h-[200px] lg:min-h-[300px];
 }
 
-.max-h-responsive {
-  @apply max-h-[300px] sm:max-h-[400px] lg:max-h-[500px];
+/* Custom gap utilities */
+.gap-responsive {
+  @apply gap-2 sm:gap-3 lg:gap-4;
 }
 
-/* Border Radius Responsive Utilities */
-.rounded-responsive {
-  @apply rounded-lg sm:rounded-xl lg:rounded-2xl;
+/* Custom margin utilities */
+.margin-responsive {
+  @apply my-3 sm:my-4 lg:my-6;
 }
 
-/* Shadow Responsive Utilities */
-.shadow-responsive {
-  @apply shadow-sm sm:shadow-md lg:shadow-lg;
-}
-
-/* Opacity Responsive Utilities */
-.opacity-responsive {
-  @apply opacity-75 sm:opacity-90 lg:opacity-100;
-}
-
-/* Transition Duration Responsive Utilities */
-.duration-responsive {
-  @apply duration-200 sm:duration-300 lg:duration-500;
-}
-
-/* Z-index Responsive Utilities */
-.z-responsive {
-  @apply z-10 sm:z-20 lg:z-30;
-}
-
-/* Invoice Form Steps Responsive */
-.invoice-step-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.invoice-step-number-responsive {
-  @apply h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-xs sm:text-sm;
-}
-
-/* Carton Controls Responsive */
-.carton-controls-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-.carton-button-responsive {
-  @apply w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-xs sm:text-sm;
-}
-
-/* Invoice Summary Responsive */
-.invoice-summary-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-.invoice-total-responsive {
-  @apply text-base sm:text-lg lg:text-xl;
-}
-
-/* Action Buttons Responsive */
-.action-buttons-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.action-icon-responsive {
-  @apply w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5;
-}
-
-/* Pagination Responsive */
-.pagination-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.pagination-button-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Filters Responsive */
-.filters-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-.filter-input-responsive {
-  @apply px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 text-xs sm:text-sm;
-}
-
-/* Table Responsive */
-.table-header-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.table-cell-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Badge Responsive */
-.badge-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Loading Spinner Responsive */
-.spinner-responsive {
-  @apply h-4 w-4 sm:h-6 sm:w-6 lg:h-8 lg:w-8;
-}
-
-/* Notification Responsive */
-.notification-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Modal Responsive */
-.modal-responsive {
+/* Custom padding utilities */
+.padding-responsive {
   @apply p-3 sm:p-4 lg:p-6;
 }
 
-.modal-title-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-.modal-content-responsive {
+/* Custom text utilities */
+.text-responsive {
   @apply text-xs sm:text-sm lg:text-base;
 }
 
-/* Form Label Responsive */
-.form-label-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.form-input-responsive {
-  @apply px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 text-xs sm:text-sm lg:text-base;
-}
-
-/* Button Group Responsive */
-.button-group-responsive {
-  @apply flex flex-col sm:flex-row gap-2;
-}
-
-.button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Stats Card Responsive */
-.stats-card-responsive {
-  @apply p-3 sm:p-4 lg:p-6;
-}
-
-.stats-title-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.stats-value-responsive {
+.text-responsive-heading {
   @apply text-lg sm:text-xl lg:text-2xl;
 }
 
-/* Search Bar Responsive */
-.search-bar-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
+/* Custom grid utilities */
+.grid-responsive {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
 }
 
-.search-icon-responsive {
-  @apply h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5;
+/* Custom flex utilities */
+.flex-responsive {
+  @apply flex flex-col sm:flex-row;
 }
 
-/* Invoice Items Table Responsive */
-.invoice-items-table-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
+/* Custom container utilities */
+.container-constrained {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-.invoice-item-quantity-responsive {
-  @apply w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-xs sm:text-sm;
+/* Custom position utilities */
+.sticky-header {
+  @apply sticky top-0 z-40;
 }
 
-/* Carton Info Responsive */
-.carton-info-responsive {
-  @apply text-xs sm:text-sm;
+.sticky-footer {
+  @apply sticky bottom-0 z-40;
 }
 
-.carton-count-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
+/* Custom overflow utilities */
+.overflow-touch {
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Warehouse Select Responsive */
-.warehouse-select-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Customer Info Responsive */
-.customer-info-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-.customer-input-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Notes Textarea Responsive */
-.notes-textarea-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Print Button Responsive */
-.print-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Export Button Responsive */
-.export-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Save Button Responsive */
-.save-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Cancel Button Responsive */
-.cancel-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* View Button Responsive */
-.view-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Edit Button Responsive */
-.edit-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Delete Button Responsive */
-.delete-button-responsive {
-  @apply px-3 py-2 sm:px-4 sm:py-2.5 lg:px-5 lg:py-3 text-xs sm:text-sm lg:text-base;
-}
-
-/* Invoice Status Responsive */
-.invoice-status-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Invoice Type Responsive */
-.invoice-type-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Payment Method Responsive */
-.payment-method-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Quantity Badge Responsive */
-.quantity-badge-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Value Display Responsive */
-.value-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Date Display Responsive */
-.date-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Time Display Responsive */
-.time-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* User Display Responsive */
-.user-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Notes Display Responsive */
-.notes-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Code Display Responsive */
-.code-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Name Display Responsive */
-.name-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Address Display Responsive */
-.address-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Phone Display Responsive */
-.phone-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Tax ID Display Responsive */
-.taxid-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Item Code Display Responsive */
-.item-code-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Item Name Display Responsive */
-.item-name-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Item Price Display Responsive */
-.item-price-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Item Discount Display Responsive */
-.item-discount-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Item Total Display Responsive */
-.item-total-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Subtotal Display Responsive */
-.subtotal-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Discount Display Responsive */
-.discount-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Tax Display Responsive */
-.tax-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Total Display Responsive */
-.total-display-responsive {
-  @apply text-base sm:text-lg lg:text-xl;
-}
-
-/* Carton Display Responsive */
-.carton-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Singles Display Responsive */
-.singles-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Per Carton Display Responsive */
-.per-carton-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Available Display Responsive */
-.available-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Max Quantity Display Responsive */
-.max-quantity-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Current Quantity Display Responsive */
-.current-quantity-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Unit Price Display Responsive */
-.unit-price-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Discount Percent Display Responsive */
-.discount-percent-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Item Total Price Display Responsive */
-.item-total-price-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Invoice Number Display Responsive */
-.invoice-number-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Invoice Date Display Responsive */
-.invoice-date-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Invoice Status Badge Responsive */
-.invoice-status-badge-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Invoice Type Badge Responsive */
-.invoice-type-badge-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Payment Method Badge Responsive */
-.payment-method-badge-responsive {
-  @apply px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 text-xs sm:text-sm;
-}
-
-/* Customer Name Display Responsive */
-.customer-name-display-responsive {
-  @apply text-sm sm:text-base lg:text-lg;
-}
-
-/* Customer Phone Display Responsive */
-.customer-phone-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Customer Tax ID Display Responsive */
-.customer-taxid-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Customer Address Display Responsive */
-.customer-address-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Invoice Notes Display Responsive */
-.invoice-notes-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Warehouse Name Display Responsive */
-.warehouse-name-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Created By Display Responsive */
-.created-by-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Updated At Display Responsive */
-.updated-at-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Items Count Display Responsive */
-.items-count-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Total Quantity Display Responsive */
-.total-quantity-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Cartons Count Display Responsive */
-.cartons-count-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Singles Count Display Responsive */
-.singles-count-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Search Term Display Responsive */
-.search-term-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Search Results Count Display Responsive */
-.search-results-count-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Search Source Display Responsive */
-.search-source-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Search Tips Display Responsive */
-.search-tips-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Search Stats Display Responsive */
-.search-stats-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Filter Badge Display Responsive */
-.filter-badge-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Active Filter Display Responsive */
-.active-filter-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Pagination Info Display Responsive */
-.pagination-info-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Page Number Display Responsive */
-.page-number-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Total Pages Display Responsive */
-.total-pages-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Showing Display Responsive */
-.showing-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Total Items Display Responsive */
-.total-items-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Start Index Display Responsive */
-.start-index-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* End Index Display Responsive */
-.end-index-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Loading Message Display Responsive */
-.loading-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Error Message Display Responsive */
-.error-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Success Message Display Responsive */
-.success-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Warning Message Display Responsive */
-.warning-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Info Message Display Responsive */
-.info-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Empty State Message Display Responsive */
-.empty-state-message-display-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Form Error Message Display Responsive */
-.form-error-message-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Validation Message Display Responsive */
-.validation-message-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Help Text Display Responsive */
-.help-text-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Tooltip Display Responsive */
-.tooltip-display-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Placeholder Text Responsive */
-.placeholder-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Required Indicator Responsive */
-.required-indicator-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Optional Indicator Responsive */
-.optional-indicator-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Field Label Responsive */
-.field-label-responsive {
-  @apply text-xs sm:text-sm lg:text-base;
-}
-
-/* Field Description Responsive */
-.field-description-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Field Error Responsive */
-.field-error-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Field Success Responsive */
-.field-success-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Field Warning Responsive */
-.field-warning-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Field Info Responsive */
-.field-info-responsive {
-  @apply text-xs sm:text-sm;
-}
-
-/* Form Group Responsive */
-.form-group-responsive {
-  @apply space-y-1 sm:space-y-2 lg:space-y-3;
-}
-
-/* Form Row Responsive */
-.form-row-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Form Column Responsive */
-.form-column-responsive {
-  @apply flex-1 min-w-0;
-}
-
-/* Form Actions Responsive */
-.form-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Form Action Button Responsive */
-.form-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Modal Actions Responsive */
-.modal-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Modal Action Button Responsive */
-.modal-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Dialog Actions Responsive */
-.dialog-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Dialog Action Button Responsive */
-.dialog-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Alert Actions Responsive */
-.alert-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Alert Action Button Responsive */
-.alert-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Notification Actions Responsive */
-.notification-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Notification Action Button Responsive */
-.notification-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Card Actions Responsive */
-.card-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Card Action Button Responsive */
-.card-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Table Actions Responsive */
-.table-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Table Action Button Responsive */
-.table-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* List Actions Responsive */
-.list-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* List Action Button Responsive */
-.list-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Grid Actions Responsive */
-.grid-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Grid Action Button Responsive */
-.grid-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Footer Actions Responsive */
-.footer-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Footer Action Button Responsive */
-.footer-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Header Actions Responsive */
-.header-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Header Action Button Responsive */
-.header-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Sidebar Actions Responsive */
-.sidebar-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Sidebar Action Button Responsive */
-.sidebar-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Navigation Actions Responsive */
-.navigation-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Navigation Action Button Responsive */
-.navigation-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Breadcrumb Actions Responsive */
-.breadcrumb-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Breadcrumb Action Button Responsive */
-.breadcrumb-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Tab Actions Responsive */
-.tab-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Tab Action Button Responsive */
-.tab-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Accordion Actions Responsive */
-.accordion-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Accordion Action Button Responsive */
-.accordion-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Carousel Actions Responsive */
-.carousel-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Carousel Action Button Responsive */
-.carousel-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Slider Actions Responsive */
-.slider-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Slider Action Button Responsive */
-.slider-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Range Actions Responsive */
-.range-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Range Action Button Responsive */
-.range-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Progress Actions Responsive */
-.progress-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Progress Action Button Responsive */
-.progress-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Spinner Actions Responsive */
-.spinner-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Spinner Action Button Responsive */
-.spinner-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Loading Actions Responsive */
-.loading-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Loading Action Button Responsive */
-.loading-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Error Actions Responsive */
-.error-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Error Action Button Responsive */
-.error-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Empty Actions Responsive */
-.empty-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Empty Action Button Responsive */
-.empty-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Success Actions Responsive */
-.success-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Success Action Button Responsive */
-.success-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Warning Actions Responsive */
-.warning-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Warning Action Button Responsive */
-.warning-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Info Actions Responsive */
-.info-actions-responsive {
-  @apply flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4;
-}
-
-/* Info Action Button Responsive */
-.info-action-button-responsive {
-  @apply flex-1 sm:flex-none;
-}
-
-/* Dark Mode Specific Responsive Utilities */
-@media (prefers-color-scheme: dark) {
-  .dark\:text-responsive {
-    @apply text-xs sm:text-sm lg:text-base;
-  }
-  
-  .dark\:bg-responsive {
-    @apply bg-gray-800 sm:bg-gray-900 lg:bg-gray-950;
-  }
-  
-  .dark\:border-responsive {
-    @apply border-gray-700 sm:border-gray-600 lg:border-gray-500;
-  }
-}
-
-/* Print Specific Responsive Utilities */
-@media print {
-  .print\:text-responsive {
-    @apply text-xs sm:text-sm lg:text-base;
-  }
-  
-  .print\:hidden-responsive {
-    @apply hidden sm:block lg:hidden;
-  }
-  
-  .print\:block-responsive {
-    @apply block sm:hidden lg:block;
-  }
-}
-
-/* High Contrast Mode Support */
-@media (prefers-contrast: high) {
-  .high-contrast {
-    border-width: 2px;
-  }
-  
-  .high-contrast-text {
-    font-weight: bold;
-  }
-}
-
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-  .transition-all,
-  .transition-colors,
-  .transition-shadow,
-  .transition-transform {
-    transition: none !important;
-  }
-  
-  .animate-spin,
-  .animate-pulse,
-  .animate-bounce {
-    animation: none !important;
-  }
-}
-
-/* Touch Device Optimizations */
-@media (hover: none) and (pointer: coarse) {
-  .touch\:min-h-12 {
-    min-height: 3rem;
-  }
-  
-  .touch\:min-w-12 {
-    min-width: 3rem;
-  }
-  
-  .touch\:text-lg {
-    font-size: 1.125rem;
-  }
-  
-  .touch\:gap-4 {
-    gap: 1rem;
-  }
-  
-  .touch\:p-4 {
-    padding: 1rem;
-  }
-}
-
-/* Very Small Screens (below 320px) */
-@media (max-width: 319px) {
-  .xxs\:flex-col {
-    flex-direction: column;
-  }
-  
-  .xxs\:text-2xs {
-    font-size: 0.625rem;
-  }
-  
-  .xxs\:p-1 {
-    padding: 0.25rem;
-  }
-  
-  .xxs\:gap-1 {
-    gap: 0.25rem;
-  }
-}
-
-/* Large Screens (above 1920px) */
-@media (min-width: 1921px) {
-  .\32xl\:max-w-8xl {
-    max-width: 90rem;
-  }
-  
-  .\32xl\:text-2xl {
-    font-size: 1.5rem;
-  }
-  
-  .\32xl\:p-12 {
-    padding: 3rem;
-  }
-  
-  .\32xl\:gap-8 {
-    gap: 2rem;
-  }
-}
-
-/* Ultra Wide Screens (above 2560px) */
-@media (min-width: 2561px) {
-  .\33xl\:max-w-9xl {
-    max-width: 100rem;
-  }
-  
-  .\33xl\:text-3xl {
-    font-size: 1.875rem;
-  }
-  
-  .\33xl\:p-16 {
-    padding: 4rem;
-  }
-  
-  .\33xl\:gap-10 {
-    gap: 2.5rem;
-  }
-}
-
-/* Portrait Mode Optimization */
-@media (orientation: portrait) {
-  .portrait\:flex-col {
-    flex-direction: column;
-  }
-  
-  .portrait\:h-auto {
-    height: auto;
-  }
-  
-  .portrait\:w-full {
-    width: 100%;
-  }
-}
-
-/* Landscape Mode Optimization */
-@media (orientation: landscape) {
-  .landscape\:flex-row {
-    flex-direction: row;
-  }
-  
-  .landscape\:h-screen {
-    height: 100vh;
-  }
-  
-  .landscape\:w-auto {
-    width: auto;
-  }
-}
-
-/* Custom Breakpoint for Invoice Form */
-@media (max-width: 480px) {
-  .invoice-form-xs\:grid-cols-1 {
-    grid-template-columns: 1fr !important;
-  }
-  
-  .invoice-form-xs\:text-xs {
-    font-size: 0.75rem !important;
-  }
-  
-  .invoice-form-xs\:p-2 {
-    padding: 0.5rem !important;
-  }
-}
-
-/* Custom Breakpoint for Dispatch Table */
-@media (max-width: 600px) {
-  .dispatch-table-sm\:hidden {
-    display: none !important;
-  }
-  
-  .dispatch-table-sm\:block {
-    display: block !important;
-  }
-  
-  .dispatch-table-sm\:text-xs {
-    font-size: 0.75rem !important;
-  }
-}
-
-/* Custom Breakpoint for Search Results */
-@media (max-width: 420px) {
-  .search-results-xs\:grid-cols-1 {
-    grid-template-columns: 1fr !important;
-  }
-  
-  .search-results-xs\:max-h-40 {
-    max-height: 10rem !important;
-  }
-}
-
-/* Custom Breakpoint for Carton Controls */
-@media (max-width: 380px) {
-  .carton-controls-xs\:flex-col {
-    flex-direction: column !important;
-  }
-  
-  .carton-controls-xs\:items-stretch {
-    align-items: stretch !important;
-  }
-  
-  .carton-controls-xs\:gap-1 {
-    gap: 0.25rem !important;
-  }
-}
-
-/* Final Mobile Optimizations */
-@media (max-width: 640px) {
-  .mobile\:pb-16 {
-    padding-bottom: 4rem !important;
-  }
-  
-  .mobile\:sticky {
-    position: sticky !important;
-  }
-  
-  .mobile\:top-0 {
-    top: 0 !important;
-  }
-  
-  .mobile\:z-50 {
-    z-index: 50 !important;
-  }
-  
-  .mobile\:overflow-x-auto {
-    overflow-x: auto !important;
-  }
-  
-  .mobile\:flex-nowrap {
-    flex-wrap: nowrap !important;
-  }
-  
-  .mobile\:space-x-2 {
-    gap: 0.5rem !important;
-  }
-  
-  .mobile\:text-center {
-    text-align: center !important;
-  }
-  
-  .mobile\:truncate {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-}
-
-/* Performance Optimizations */
-.will-change-transform {
-  will-change: transform;
-}
-
-.will-change-opacity {
-  will-change: opacity;
-}
-
-.backface-hidden {
-  backface-visibility: hidden;
-}
-
+/* Custom transform utilities */
 .transform-gpu {
   transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
-/* Accessibility Improvements */
-.focus\:outline-none:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
+/* Custom filter utilities */
+.filter-blur {
+  backdrop-filter: blur(8px);
 }
 
-.focus\:ring-2:focus {
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+/* Custom background utilities */
+.bg-blur {
+  @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm;
 }
 
-.focus\:ring-blue-500:focus {
-  --tw-ring-color: rgb(59 130 246);
+/* Custom shadow utilities */
+.shadow-inset {
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
 }
 
-/* Final Utility Classes */
-.inset-shadow {
-  box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+/* Custom border radius utilities */
+.rounded-inherit {
+  border-radius: inherit;
 }
 
-.glow {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+/* Custom z-index utilities */
+.z-dropdown {
+  z-index: 1000;
 }
 
-.hover-glow:hover {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+.z-modal {
+  z-index: 2000;
 }
 
-/* Invoice Specific */
-.invoice-border {
-  border: 2px solid #e5e7eb;
+.z-tooltip {
+  z-index: 3000;
 }
 
-.dark .invoice-border {
-  border-color: #4b5563;
+/* Custom visibility utilities */
+.visibility-hidden {
+  visibility: hidden;
 }
 
-.invoice-header-gradient {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.visibility-visible {
+  visibility: visible;
 }
 
-.invoice-total-gradient {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+/* Custom pointer events utilities */
+.pointer-events-none {
+  pointer-events: none;
 }
 
-/* Dispatch Specific */
-.dispatch-warning {
-  border-left: 4px solid #f59e0b;
+.pointer-events-auto {
+  pointer-events: auto;
 }
 
-.dispatch-danger {
-  border-left: 4px solid #ef4444;
+/* Custom user select utilities */
+.user-select-none {
+  user-select: none;
 }
 
-.dispatch-success {
-  border-left: 4px solid #10b981;
+.user-select-text {
+  user-select: text;
 }
 
-/* Animation for Success */
-@keyframes successPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+/* Custom resize utilities */
+.resize-none {
+  resize: none;
 }
 
-.success-pulse {
-  animation: successPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.resize-vertical {
+  resize: vertical;
 }
 
-/* Smooth transitions for all interactive elements */
-button, 
-a, 
-input, 
-select, 
-textarea {
-  @apply transition-all duration-200;
+.resize-horizontal {
+  resize: horizontal;
 }
 
-/* Ensure proper spacing for mobile touch targets */
-button, 
-a {
-  @apply min-h-[44px] min-w-[44px];
+/* Custom whitespace utilities */
+.whitespace-normal {
+  white-space: normal;
 }
 
-/* Improve readability on mobile */
-@media (max-width: 640px) {
-  p, span, div {
-    line-height: 1.5;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    line-height: 1.3;
-  }
+.whitespace-nowrap {
+  white-space: nowrap;
 }
 
-/* Ensure proper contrast in dark mode */
-.dark {
-  color-scheme: dark;
+.whitespace-pre {
+  white-space: pre;
 }
 
-.dark body {
-  background-color: #111827;
-  color: #f9fafb;
+.whitespace-pre-line {
+  white-space: pre-line;
 }
 
-/* Print optimizations */
-@media print {
-  body {
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-  
-  .break-inside-avoid {
-    break-inside: avoid;
-  }
-  
-  .break-before-page {
-    break-before: page;
-  }
-  
-  .break-after-page {
-    break-after: page;
-  }
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+/* Custom word break utilities */
+.break-normal {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.break-words {
+  overflow-wrap: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+/* Custom content utilities */
+.content-empty:empty::before {
+  content: '—';
+  color: #9ca3af;
+}
+
+/* Custom list utilities */
+.list-inside {
+  list-style-position: inside;
+}
+
+.list-outside {
+  list-style-position: outside;
+}
+
+/* Custom table utilities */
+.table-auto {
+  table-layout: auto;
+}
+
+.table-fixed {
+  table-layout: fixed;
+}
+
+/* Custom caption utilities */
+.caption-top {
+  caption-side: top;
+}
+
+.caption-bottom {
+  caption-side: bottom;
+}
+
+/* Custom border collapse utilities */
+.border-collapse {
+  border-collapse: collapse;
+}
+
+.border-separate {
+  border-collapse: separate;
+}
+
+/* Custom border spacing utilities */
+.border-spacing-0 {
+  border-spacing: 0;
+}
+
+.border-spacing-2 {
+  border-spacing: 0.5rem;
+}
+
+/* Custom mix blend mode utilities */
+.mix-blend-normal {
+  mix-blend-mode: normal;
+}
+
+.mix-blend-multiply {
+  mix-blend-mode: multiply;
+}
+
+.mix-blend-screen {
+  mix-blend-mode: screen;
+}
+
+.mix-blend-overlay {
+  mix-blend-mode: overlay;
+}
+
+.mix-blend-darken {
+  mix-blend-mode: darken;
+}
+
+.mix-blend-lighten {
+  mix-blend-mode: lighten;
+}
+
+.mix-blend-color-dodge {
+  mix-blend-mode: color-dodge;
+}
+
+.mix-blend-color-burn {
+  mix-blend-mode: color-burn;
+}
+
+.mix-blend-hard-light {
+  mix-blend-mode: hard-light;
+}
+
+.mix-blend-soft-light {
+  mix-blend-mode: soft-light;
+}
+
+.mix-blend-difference {
+  mix-blend-mode: difference;
+}
+
+.mix-blend-exclusion {
+  mix-blend-mode: exclusion;
+}
+
+.mix-blend-hue {
+  mix-blend-mode: hue;
+}
+
+.mix-blend-saturation {
+  mix-blend-mode: saturation;
+}
+
+.mix-blend-color {
+  mix-blend-mode: color;
+}
+
+.mix-blend-luminosity {
+  mix-blend-mode: luminosity;
+}
+
+/* Custom background blend mode utilities */
+.bg-blend-normal {
+  background-blend-mode: normal;
+}
+
+.bg-blend-multiply {
+  background-blend-mode: multiply;
+}
+
+.bg-blend-screen {
+  background-blend-mode: screen;
+}
+
+.bg-blend-overlay {
+  background-blend-mode: overlay;
+}
+
+.bg-blend-darken {
+  background-blend-mode: darken;
+}
+
+.bg-blend-lighten {
+  background-blend-mode: lighten;
+}
+
+.bg-blend-color-dodge {
+  background-blend-mode: color-dodge;
+}
+
+.bg-blend-color-burn {
+  background-blend-mode: color-burn;
+}
+
+.bg-blend-hard-light {
+  background-blend-mode: hard-light;
+}
+
+.bg-blend-soft-light {
+  background-blend-mode: soft-light;
+}
+
+.bg-blend-difference {
+  background-blend-mode: difference;
+}
+
+.bg-blend-exclusion {
+  background-blend-mode: exclusion;
+}
+
+.bg-blend-hue {
+  background-blend-mode: hue;
+}
+
+.bg-blend-saturation {
+  background-blend-mode: saturation;
+}
+
+.bg-blend-color {
+  background-blend-mode: color;
+}
+
+.bg-blend-luminosity {
+  background-blend-mode: luminosity;
 }
 </style>
