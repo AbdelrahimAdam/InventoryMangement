@@ -174,6 +174,150 @@
         </div>
       </div>
 
+      <!-- NEW: Finished Items Section -->
+      <div v-if="finishedItems.length > 0" class="mb-4 sm:mb-6">
+        <div class="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow-lg p-4 border border-red-300 dark:border-red-700">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01"/>
+              </svg>
+              <h2 class="text-lg font-bold text-white">الأصناف المنتهية</h2>
+              <span class="bg-white text-red-600 text-xs font-bold px-2 py-1 rounded-full">
+                {{ finishedItems.length }} صنف
+              </span>
+            </div>
+            <button 
+              @click="exportFinishedItemsToExcel"
+              :disabled="exporting"
+              class="flex items-center gap-1 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors duration-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span>تصدير</span>
+            </button>
+          </div>
+          
+          <!-- Desktop Finished Items Table -->
+          <div class="hidden lg:block overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-white/10 text-white">
+                  <th class="px-4 py-2 text-right">الصنف</th>
+                  <th class="px-4 py-2 text-right">المخزن</th>
+                  <th class="px-4 py-2 text-right">آخر تحديث</th>
+                  <th class="px-4 py-2 text-right">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in finishedItems.slice(0, 5)" :key="item.id" class="border-b border-white/10 hover:bg-white/5">
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded overflow-hidden border border-white/20">
+                        <img 
+                          :src="item.photo_url || getPlaceholderImage()" 
+                          :alt="item.name"
+                          class="w-full h-full object-cover"
+                          @error="handleImageError"
+                        >
+                      </div>
+                      <div class="text-right">
+                        <div class="font-semibold text-white">{{ item.name }}</div>
+                        <div class="text-xs text-white/80">{{ item.code }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-white">
+                    {{ getWarehouseLabel(item.warehouse_id) }}
+                  </td>
+                  <td class="px-4 py-3 text-white/80 text-xs">
+                    {{ formatRelativeTime(item.updated_at) }}
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex justify-end gap-1">
+                      <button
+                        @click="showItemDetails(item)"
+                        class="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded transition-colors"
+                        title="عرض التفاصيل"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                      </button>
+                      <button
+                        v-if="canEditItem(item)"
+                        @click="handleEdit(item)"
+                        class="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded transition-colors"
+                        title="تعديل"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Finished Items Cards -->
+          <div class="lg:hidden">
+            <div class="space-y-2">
+              <div v-for="item in finishedItems.slice(0, 3)" :key="item.id" 
+                   class="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 rounded overflow-hidden border border-white/30">
+                      <img 
+                        :src="item.photo_url || getPlaceholderImage()" 
+                        :alt="item.name"
+                        class="w-full h-full object-cover"
+                        @error="handleImageError"
+                      >
+                    </div>
+                    <div class="text-right">
+                      <div class="font-semibold text-white">{{ item.name }}</div>
+                      <div class="text-xs text-white/80">{{ item.code }}</div>
+                    </div>
+                  </div>
+                  <span class="bg-red-600 text-white text-xs px-2 py-1 rounded-full">
+                    منتهي
+                  </span>
+                </div>
+                <div class="flex items-center justify-between text-xs text-white/80">
+                  <span>{{ getWarehouseLabel(item.warehouse_id) }}</span>
+                  <span>{{ formatRelativeTime(item.updated_at) }}</span>
+                </div>
+                <div class="flex justify-end gap-1 mt-2">
+                  <button
+                    @click="showItemDetails(item)"
+                    class="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded transition-colors text-xs"
+                  >
+                    عرض التفاصيل
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show More Button if there are more than 5 finished items -->
+          <div v-if="finishedItems.length > 5" class="mt-3 pt-3 border-t border-white/20">
+            <button
+              @click="showAllFinishedItems = !showAllFinishedItems"
+              class="w-full flex items-center justify-center gap-1 text-white hover:text-white/80 text-sm"
+            >
+              <span>{{ showAllFinishedItems ? 'عرض أقل' : `عرض ${finishedItems.length - 5} عنصر إضافي` }}</span>
+              <svg class="w-4 h-4 transition-transform" :class="{'rotate-180': showAllFinishedItems}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats Cards - Mobile Optimized -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 hover:shadow-md transition-shadow duration-200 cursor-default">
@@ -285,8 +429,8 @@
                 >
                   <option value="">الكل</option>
                   <option value="in_stock">متوفر</option>
-                  <option value="low_stock">قليل</option>
-                  <option value="out_of_stock">نفذ</option>
+                  <option value="low_stock">كمية قليلة</option>
+                  <option value="out_of_stock">منتهي</option>
                 </select>
               </div>
 
@@ -1165,6 +1309,7 @@ export default {
     const refreshing = ref(false);
     const exporting = ref(false);
     const deleteLoading = ref(false);
+    const showAllFinishedItems = ref(false);
     
     // Modal States
     const showAddModal = ref(false);
@@ -1239,14 +1384,24 @@ export default {
       if (statusFilter.value) {
         items = items.filter(item => {
           const quantity = item.remaining_quantity || 0;
-          if (statusFilter.value === 'in_stock') return quantity >= 10;
-          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 10;
+          if (statusFilter.value === 'in_stock') return quantity >= 500; // Changed from 10 to 500
+          if (statusFilter.value === 'low_stock') return quantity > 0 && quantity < 500; // Changed from 10 to 500
           if (statusFilter.value === 'out_of_stock') return quantity === 0;
           return true;
         });
       }
       
       return items;
+    });
+    
+    // ============================================
+    // NEW: Finished Items Computation (500 or less is low stock)
+    // ============================================
+    const finishedItems = computed(() => {
+      return filteredInventory.value.filter(item => {
+        const quantity = item.remaining_quantity || 0;
+        return quantity === 0;
+      });
     });
     
     const isSearchMode = computed(() => {
@@ -1307,7 +1462,7 @@ export default {
     };
 
     // ============================================
-    // COMPUTED STATISTICS (Keep existing)
+    // COMPUTED STATISTICS (UPDATED for 500 threshold)
     // ============================================
     const currentUserInfo = computed(() => {
       if (userProfile.value?.name) return userProfile.value.name;
@@ -1324,7 +1479,7 @@ export default {
     const lowStockCount = computed(() => {
       return displayedItems.value.filter(item => {
         const quantity = item.remaining_quantity || 0;
-        return quantity > 0 && quantity < 10;
+        return quantity > 0 && quantity <= 500; // Changed to <= 500
       }).length;
     });
     
@@ -1478,6 +1633,85 @@ export default {
     };
 
     // ============================================
+    // NEW: Export Finished Items to Excel
+    // ============================================
+    const exportFinishedItemsToExcel = async () => {
+      if (finishedItems.value.length === 0) {
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'لا توجد أصناف منتهية للتصدير'
+        });
+        return;
+      }
+      
+      exporting.value = true;
+      exportProgress.value = 'جاري تجهير الأصناف المنتهية...';
+      
+      try {
+        const itemsData = finishedItems.value.map((item, index) => {
+          exportProgress.value = `جاري تجهير العنصر ${index + 1} من ${finishedItems.value.length}`;
+          
+          const createdByName = item.created_by_name || getUserName(item.created_by) || 'غير معروف';
+          const updatedByName = item.updated_by_name || getUserName(item.updated_by) || createdByName || 'غير معروف';
+          
+          return {
+            'الكود': item.code || '',
+            'اسم الصنف': item.name || '',
+            'اللون': item.color || '',
+            'المخزن': getWarehouseLabel(item.warehouse_id),
+            'مكان التخزين': item.item_location || '',
+            'المورد': item.supplier || '',
+            'عدد الكراتين': item.cartons_count || 0,
+            'عدد في الكرتونة': item.per_carton_count || 0,
+            'عدد القطع الفردية': item.single_bottles_count || 0,
+            'الكمية الإجمالية المضافة': item.total_added || 0,
+            'الكمية المتبقية': item.remaining_quantity || 0,
+            'الحالة': 'منتهي',
+            'أنشئ بواسطة': createdByName,
+            'تم التحديث بواسطة': updatedByName,
+            'تاريخ الإنشاء': formatDate(item.created_at),
+            'آخر تحديث': formatDate(item.updated_at)
+          };
+        });
+        
+        exportProgress.value = 'جاري إنشاء ملف Excel...';
+        
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(itemsData);
+        
+        const colWidths = [
+          { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
+          { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
+          { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 },
+          { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }
+        ];
+        ws['!cols'] = colWidths;
+        
+        XLSX.utils.book_append_sheet(wb, ws, 'الأصناف المنتهية');
+        
+        const timestamp = new Date().toISOString().split('T')[0];
+        const fileName = `الأصناف-المنتهية-${timestamp}.xlsx`;
+        
+        XLSX.writeFile(wb, fileName);
+        
+        store.dispatch('showNotification', {
+          type: 'success',
+          message: `تم تصدير ${finishedItems.value.length} صنف منتهي إلى Excel بنجاح`
+        });
+        
+      } catch (error) {
+        console.error('❌ Error exporting finished items to Excel:', error);
+        store.dispatch('showNotification', {
+          type: 'error',
+          message: 'خطأ في تصدير الأصناف المنتهية'
+        });
+      } finally {
+        exporting.value = false;
+        exportProgress.value = '';
+      }
+    };
+
+    // ============================================
     // DATA LOADING METHODS (Keep existing with optimization)
     // ============================================
     const loadInitialData = async () => {
@@ -1597,6 +1831,36 @@ export default {
       } finally {
         refreshing.value = false;
       }
+    };
+
+    // ============================================
+    // UPDATED: Stock Status Functions for 500 threshold
+    // ============================================
+    const getStockStatus = (quantity) => {
+      if (quantity === 0) return 'منتهي';
+      if (quantity <= 500) return 'كمية قليلة'; // Changed from < 10 to <= 500
+      return 'متوفر';
+    };
+    
+    const getStockStatusClass = (quantity) => {
+      if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm';
+      if (quantity <= 500) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800 shadow-sm'; // Changed from < 10 to <= 500
+      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm';
+    };
+    
+    const getQuantityClass = (quantity) => {
+      if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
+      if (quantity <= 500) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10'; // Changed from < 10 to <= 500
+      return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
+    };
+    
+    const getStatusLabel = (status) => {
+      const labels = {
+        'in_stock': 'متوفر',
+        'low_stock': 'كمية قليلة',
+        'out_of_stock': 'منتهي'
+      };
+      return labels[status] || status;
     };
 
     // ============================================
@@ -1976,33 +2240,6 @@ export default {
     };
     
     const getLastActionUser = (item) => getUserName(item.updated_by || item.created_by);
-    
-    const getStatusLabel = (status) => {
-      const labels = {
-        'in_stock': 'متوفر',
-        'low_stock': 'كمية قليلة',
-        'out_of_stock': 'غير متوفر'
-      };
-      return labels[status] || status;
-    };
-    
-    const getStockStatus = (quantity) => {
-      if (quantity === 0) return 'نفذ';
-      if (quantity < 10) return 'قليل';
-      return 'متوفر';
-    };
-    
-    const getStockStatusClass = (quantity) => {
-      if (quantity === 0) return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm';
-      if (quantity < 10) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800 shadow-sm';
-      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm';
-    };
-    
-    const getQuantityClass = (quantity) => {
-      if (quantity === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10';
-      if (quantity < 10) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10';
-      return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10';
-    };
     
     const colorMap = {
       'أحمر': '#ef4444', 'أزرق': '#3b82f6', 'أخضر': '#10b981',
@@ -2457,6 +2694,7 @@ export default {
       refreshing,
       exportProgress,
       error,
+      showAllFinishedItems,
       
       // Local filters
       searchTerm,
@@ -2497,6 +2735,7 @@ export default {
       activeFilterCount,
       visibleItems,
       mobileVisibleItems,
+      finishedItems,
       
       // Methods
       formatNumber,
@@ -2529,6 +2768,7 @@ export default {
       
       // Excel export
       exportToExcel,
+      exportFinishedItemsToExcel,
       
       // UI actions
       toggleActionMenu,
