@@ -1,6 +1,6 @@
 <template>
   <div id="app" dir="rtl" class="min-h-screen relative isolate">
-    <!-- Deep far background layer - creates atmospheric depth -->
+    <!-- Deep far background layer - creates atmospheric depth (UNCHANGED - THIS IS GOOD) -->
     <div class="fixed inset-0 -z-30 overflow-hidden">
       <!-- Base gradient - ultra smooth professional base -->
       <div class="absolute inset-0 bg-gradient-to-b from-gray-50 via-gray-100/30 to-gray-50 dark:from-gray-950 dark:via-gray-900/50 dark:to-gray-950"></div>
@@ -45,10 +45,10 @@
       </transition-group>
     </div>
 
-    <!-- Minimal Initial Loading - with depth and elevation -->
+    <!-- Minimal Initial Loading - with depth and elevation (FIXED: removed competing gradient) -->
     <div v-if="initializing && !isPublicRoute && !isMobileRoute" class="fixed inset-0 z-50">
-      <!-- Background with depth -->
-      <div class="absolute inset-0 bg-gradient-to-b from-gray-50/95 via-gray-100/90 to-white/95 dark:from-gray-900/95 dark:via-gray-800/95 dark:to-gray-700/95 backdrop-blur-sm"></div>
+      <!-- Background with depth - REPLACED gradient with solid color to let far background show through -->
+      <div class="absolute inset-0 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm"></div>
       
       <!-- Subtle radial glows -->
       <div class="absolute inset-0 overflow-hidden">
@@ -111,10 +111,11 @@
     <div v-else class="h-screen flex flex-col relative z-10">
       <!-- Check if current route is public (login, unauthorized, notfound) -->
       <template v-if="isPublicRoute || isMobileRoute">
-        <!-- Public pages - with depth background -->
+        <!-- Public pages - with depth background (FIXED: removed competing gradient) -->
         <div class="flex-1 overflow-y-auto relative">
           <div class="absolute inset-0 -z-10">
-            <div class="absolute inset-0 bg-gradient-to-b from-gray-50/90 via-gray-100/50 to-gray-50/90 dark:from-gray-950/90 dark:via-gray-900/50 dark:to-gray-950/90 backdrop-blur-[2px]"></div>
+            <!-- REPLACED gradient with solid color to let far background show through -->
+            <div class="absolute inset-0 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-[2px]"></div>
             <div class="absolute top-20 left-[5%] w-[30rem] h-[30rem] bg-blue-50/20 dark:bg-blue-900/5 rounded-full blur-[100px]"></div>
             <div class="absolute bottom-20 right-[5%] w-[30rem] h-[30rem] bg-purple-50/15 dark:bg-purple-900/4 rounded-full blur-[100px]"></div>
           </div>
@@ -147,11 +148,12 @@
               <MobileSidebar v-if="mobileMenuOpen" @close="mobileMenuOpen = false" />
             </transition>
 
-            <!-- Mobile Main Content - with depth -->
+            <!-- Mobile Main Content - with depth (FIXED: removed competing gradient) -->
             <main class="flex-1 overflow-y-auto relative">
               <!-- Background depth layers -->
               <div class="fixed inset-0 -z-10">
-                <div class="absolute inset-0 bg-gradient-to-b from-gray-50 to-white/95 dark:from-gray-900 dark:to-gray-800/95"></div>
+                <!-- REPLACED gradient with solid color -->
+                <div class="absolute inset-0 bg-gray-50 dark:bg-gray-900"></div>
                 <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50/20 to-transparent dark:from-blue-900/5"></div>
               </div>
               
@@ -171,7 +173,7 @@
             <MobileBottomNav />
           </div>
 
-          <!-- Desktop Layout - with enhanced depth system -->
+          <!-- Desktop Layout - with enhanced depth system (FIXED: this section was already good) -->
           <div v-else class="hidden lg:flex h-full relative">
             <!-- Desktop Sidebar - with elevation -->
             <DesktopSidebar 
@@ -180,7 +182,7 @@
               class="relative z-20 shadow-[4px_0_25px_-8px_rgba(0,0,0,0.03)] dark:shadow-[4px_0_25px_-8px_rgba(0,0,0,0.2)]"
             />
 
-            <!-- Main Content Area -->
+            <!-- Main Content Area - ALREADY FIXED with bg-transparent -->
             <div class="flex-1 flex flex-col overflow-hidden relative z-10 bg-transparent">
               <!-- Desktop Header -->
               <DesktopHeader @toggle-sidebar="toggleSidebar" />
@@ -237,12 +239,13 @@
           </div>
         </template>
 
-        <!-- No Dashboard Access Message - with depth and elevation -->
+        <!-- No Dashboard Access Message - with depth and elevation (FIXED: removed competing gradient) -->
         <template v-else>
           <div class="h-full flex items-center justify-center relative">
             <!-- Background depth -->
             <div class="fixed inset-0 -z-10">
-              <div class="absolute inset-0 bg-gradient-to-b from-gray-50/90 via-gray-100/50 to-gray-50/90 dark:from-gray-950/90 dark:via-gray-900/50 dark:to-gray-950/90"></div>
+              <!-- REPLACED gradient with solid color -->
+              <div class="absolute inset-0 bg-gray-50/90 dark:bg-gray-950/90"></div>
               <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-yellow-50/20 dark:bg-yellow-900/5 rounded-full blur-[120px]"></div>
             </div>
             
@@ -278,7 +281,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
