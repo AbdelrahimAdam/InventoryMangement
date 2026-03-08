@@ -5297,47 +5297,108 @@ async loadMoreTransactions({ commit, state, dispatch }) {
 },
 
 // ============================================
-// LOAD ALL ITEMS FOR A SPECIFIC WAREHOUSE (UNPAGINATED)
+// LOAD ITEMS FROM A SPECIFIC WAREHOUSE (PAGINATED)
 // ============================================
-async loadAllItemsForWarehouse({ commit, state, dispatch }, warehouseId) {
-  commit('SET_OPERATION_LOADING', true);
-  const allItems = [];
-  let lastDoc = null;
-  let hasMore = true;
-  const pageSize = PERFORMANCE_CONFIG.INITIAL_LOAD * 2; // 100 items per batch
-
+async loadWarehouseItems({ commit, state, dispatch }, { warehouseId, limit = 50, lastDoc = null } = {}) {
   try {
-    console.log(`🔄 Loading ALL items for warehouse: ${warehouseId}`);
-
-    while (hasMore) {
-      const result = await dispatch('loadWarehouseItems', {
-        warehouseId,
-        limit: pageSize,
-        lastDoc
-      });
-
-      allItems.push(...result.items);
-      lastDoc = result.lastDoc;
-      hasMore = result.hasMore;
-
-      console.log(`📦 Loaded batch: ${result.items.length} items (total so far: ${allItems.length})`);
+    if (!warehouseId) {
+      throw new Error('معرف المخزن مطلوب');
     }
 
-    console.log(`✅ Finished loading all items for warehouse ${warehouseId}: ${allItems.length} items`);
-    return allItems;
- 
+    console.log(`🔄 Loading warehouse items (${warehouseId})...`);
+
+    // 🔴 CRITICAL: Ensure Firebase is ready (optional, but keep for safety)
+    await ensureFirebaseReady();
+
+    if (!db) {
+      throw new Error('Firestore database not available');
+    }
+
+    // Check user permissions
+    if (state.user && state.userProfile?.role === 'warehouse_manager') {
+      const allowedWarehouses = state.userProfile.allowed_warehouses || [];
+      if (allowedWarehouses.length > 0 && !allowedWarehouses.includes('all')) {
+        if (!allowedWarehouses.includes(warehouseId)) {
+          throw new Error('ليس لديك صلاحية للوصول إلى هذا المخزن');
+        }
+      }
+    }
+
+    const itemsRef = collection(db, 'items');
+    let itemsQuery;
+
+    if (lastDoc) {
+      // Ensure lastDoc is a valid DocumentSnapshot
+      let lastSnapshot = lastDoc;
+      if (typeof lastDoc === 'string') {
+        // If it's a string ID, get the document snapshot
+        lastSnapshot = await getDoc(doc(db, 'items', lastDoc));
+      }
+
+      itemsQuery = query(
+        itemsRef,
+        where('warehouse_id', '==', warehouseId),
+        orderBy('name'), // Use a consistent field for ordering
+        startAfter(lastSnapshot),
+        limit(limit)
+      );
+    } else {
+      itemsQuery = query(
+        itemsRef,
+        where('warehouse_id', '==', warehouseId),
+        orderBy('name'),
+        limit(limit)
+      );
+    }
+
+    const snapshot = await getDocs(itemsQuery);
+    console.log(`✅ Loaded ${snapshot.size} items from warehouse ${warehouseId}`);
+
+    const items = snapshot.docs.map(doc => {
+      const itemData = doc.data();
+      // Use InventoryService to ensure all fields are present
+      return InventoryService.convertForDisplay({
+        id: doc.id,
+        ...itemData
+      });
+    });
+
+    const newLastDoc = snapshot.docs[snapshot.docs.length - 1];
+    const hasMore = snapshot.size === limit;
+
+    return {
+      items,
+      lastDoc: newLastDoc,
+      hasMore
+    };
+
   } catch (error) {
-    console.error(`❌ Error loading all items for warehouse ${warehouseId}:`, error);
+    console.error('❌ Error loading warehouse items:', error);
+    
+    // Handle serialization errors
+    if (error.name === 'DataCloneError' || error.message.includes('could not be cloned')) {
+      console.warn('🔄 IndexedDB serialization error in warehouse items');
+      return {
+        items: [],
+        lastDoc: null,
+        hasMore: false
+      };
+    }
+    
     dispatch('showNotification', {
       type: 'error',
-      message: `فشل تحميل جميع الأصناف من المخزن: ${error.message || 'خطأ غير معروف'}`
+      message: error.message || 'خطأ في تحميل الأصناف من المخزن'
     });
-    return [];
 
-  } finally {
-    commit('SET_OPERATION_LOADING', false);
+    // Fallback to local inventory if available
+    const localItems = state.inventory.filter(item => item.warehouse_id === warehouseId);
+    return {
+      items: localItems.slice(0, limit),
+      lastDoc: null,
+      hasMore: false
+    };
   }
-},
+}
 // ============================================
 // SETUP REAL-TIME TRANSACTIONS
 // ============================================
