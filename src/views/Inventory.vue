@@ -573,8 +573,14 @@
         </div>
       </div>
 
+      <!-- Warehouse Loading Indicator -->
+      <div v-if="warehouseLoading" class="text-center py-8">
+        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-600 mb-3"></div>
+        <p class="text-sm text-gray-600 dark:text-gray-400">جاري تحميل جميع أصناف المخزن...</p>
+      </div>
+
       <!-- Loading State -->
-      <div v-if="loading && !displayedItems.length" class="text-center py-8 sm:py-12">
+      <div v-else-if="loading && !displayedItems.length" class="text-center py-8 sm:py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
         <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
         <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
@@ -1337,6 +1343,10 @@ export default {
     const statusFilter = ref('');
     const selectedWarehouse = ref('');
     
+    // ===== NEW REFS FOR WAREHOUSE‑SPECIFIC LOADING =====
+    const warehouseItems = ref([]);
+    const warehouseLoading = ref(false);
+    
     // Virtual Scrolling
     const scrollContainer = ref(null);
     const mobileScrollContainer = ref(null);
@@ -1408,16 +1418,45 @@ export default {
       return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
     });
     
+    // ========== UPDATED displayedItems COMPUTED ==========
     const displayedItems = computed(() => {
+      // If a specific warehouse is selected AND we have loaded its items,
+      // show those items (optionally filtered further by search/status)
+      if (selectedWarehouse.value && warehouseItems.value.length > 0) {
+        let items = warehouseItems.value;
+
+        // Apply status filter locally
+        if (statusFilter.value) {
+          items = items.filter(item => {
+            const qty = item.remaining_quantity || 0;
+            if (statusFilter.value === 'in_stock') return qty >= 500;
+            if (statusFilter.value === 'low_stock') return qty > 0 && qty < 500;
+            if (statusFilter.value === 'out_of_stock') return qty === 0;
+            return true;
+          });
+        }
+
+        // Apply search locally (if you want to support search inside warehouse view)
+        if (searchTerm.value && searchTerm.value.length >= 2) {
+          items = fuzzyLocalSearch(items, searchTerm.value, selectedWarehouse.value, 50);
+        }
+
+        return items;
+      }
+
+      // If search mode is active, use search results
       if (isSearchMode.value) {
         return searchResults.value;
       }
-      
+
+      // Otherwise fall back to the regular filtered inventory (cached + paginated)
+      let items = filteredInventory.value;
+
       if (searchTerm.value && searchTerm.value.length >= 2) {
-        return fuzzyLocalSearch(filteredInventory.value, searchTerm.value, selectedWarehouse.value, 50);
+        items = fuzzyLocalSearch(items, searchTerm.value, selectedWarehouse.value, 50);
       }
-      
-      return filteredInventory.value;
+
+      return items;
     });
     
     const accessibleWarehouses = computed(() => store.getters.accessibleWarehouses || []);
@@ -1582,11 +1621,29 @@ export default {
     }, 500);
 
     // ============================================
-    // FILTER HANDLERS (Keep existing)
+    // FILTER HANDLERS (UPDATED handleWarehouseChange)
     // ============================================
     const handleWarehouseChange = async () => {
       resetScrollPositions();
-      
+
+      if (selectedWarehouse.value) {
+        warehouseLoading.value = true;
+        warehouseItems.value = []; // clear previous items
+        try {
+          // Fetch ALL items for this warehouse from the server
+          warehouseItems.value = await store.dispatch('loadAllItemsForWarehouse', selectedWarehouse.value);
+        } catch (error) {
+          console.error('Error loading warehouse items:', error);
+          warehouseItems.value = [];
+        } finally {
+          warehouseLoading.value = false;
+        }
+      } else {
+        // "All warehouses" – clear warehouse-specific items
+        warehouseItems.value = [];
+      }
+
+      // If a search term is active, re‑run the search (optional)
       if (searchTerm.value.trim() && searchTerm.value.trim().length >= 2) {
         await handleLiveSearch();
       }
@@ -2701,6 +2758,9 @@ export default {
       statusFilter,
       selectedWarehouse,
       
+      // NEW REFS
+      warehouseLoading,
+      
       // Mobile UI
       showFilters,
       showActionMenu,
@@ -2753,7 +2813,7 @@ export default {
       getPlaceholderImage,
       handleImageError,
       
-      // Filter handlers
+      // Filter handlers (updated)
       handleLiveSearch,
       handleWarehouseChange,
       handleFilterChange,
@@ -2803,7 +2863,7 @@ export default {
   }
 };
 </script>
-           
+                      
 <style scoped>
 /* Enhanced Custom Scrollbar */
 ::-webkit-scrollbar {
