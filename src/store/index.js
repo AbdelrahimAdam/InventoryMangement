@@ -5304,7 +5304,7 @@ async loadAllItemsForWarehouse({ commit, state, dispatch }, warehouseId) {
   const allItems = [];
   let lastDoc = null;
   let hasMore = true;
-  const pageSize = 100; // You can adjust this or use PERFORMANCE_CONFIG.INITIAL_LOAD * 2
+  const pageSize = PERFORMANCE_CONFIG.INITIAL_LOAD * 2; // 100 items per batch
 
   try {
     console.log(`🔄 Loading ALL items for warehouse: ${warehouseId}`);
@@ -5337,7 +5337,7 @@ async loadAllItemsForWarehouse({ commit, state, dispatch }, warehouseId) {
   } finally {
     commit('SET_OPERATION_LOADING', false);
   }
-}
+},
 // ============================================
 // SETUP REAL-TIME TRANSACTIONS
 // ============================================
