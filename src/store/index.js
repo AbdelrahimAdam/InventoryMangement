@@ -5307,7 +5307,7 @@ async loadWarehouseItems({ commit, state, dispatch }, { warehouseId, limit = 50,
 
     console.log(`🔄 Loading warehouse items (${warehouseId})...`);
 
-    // 🔴 CRITICAL: Ensure Firebase is ready (optional, but keep for safety)
+    // 🔴 CRITICAL: Ensure Firebase is ready (optional, but keeps consistency)
     await ensureFirebaseReady();
 
     if (!db) {
@@ -5398,7 +5398,7 @@ async loadWarehouseItems({ commit, state, dispatch }, { warehouseId, limit = 50,
       hasMore: false
     };
   }
-}
+},
 // ============================================
 // SETUP REAL-TIME TRANSACTIONS
 // ============================================
