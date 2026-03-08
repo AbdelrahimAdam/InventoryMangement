@@ -5325,7 +5325,7 @@ async loadAllItemsForWarehouse({ commit, state, dispatch }, warehouseId) {
 
     console.log(`✅ Finished loading all items for warehouse ${warehouseId}: ${allItems.length} items`);
     return allItems;
-
+ 
   } catch (error) {
     console.error(`❌ Error loading all items for warehouse ${warehouseId}:`, error);
     dispatch('showNotification', {
