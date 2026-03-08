@@ -5295,6 +5295,49 @@ async loadMoreTransactions({ commit, state, dispatch }) {
     return [];
   }
 },
+
+// ============================================
+// LOAD ALL ITEMS FOR A SPECIFIC WAREHOUSE (UNPAGINATED)
+// ============================================
+async loadAllItemsForWarehouse({ commit, state, dispatch }, warehouseId) {
+  commit('SET_OPERATION_LOADING', true);
+  const allItems = [];
+  let lastDoc = null;
+  let hasMore = true;
+  const pageSize = 100; // You can adjust this or use PERFORMANCE_CONFIG.INITIAL_LOAD * 2
+
+  try {
+    console.log(`🔄 Loading ALL items for warehouse: ${warehouseId}`);
+
+    while (hasMore) {
+      const result = await dispatch('loadWarehouseItems', {
+        warehouseId,
+        limit: pageSize,
+        lastDoc
+      });
+
+      allItems.push(...result.items);
+      lastDoc = result.lastDoc;
+      hasMore = result.hasMore;
+
+      console.log(`📦 Loaded batch: ${result.items.length} items (total so far: ${allItems.length})`);
+    }
+
+    console.log(`✅ Finished loading all items for warehouse ${warehouseId}: ${allItems.length} items`);
+    return allItems;
+
+  } catch (error) {
+    console.error(`❌ Error loading all items for warehouse ${warehouseId}:`, error);
+    dispatch('showNotification', {
+      type: 'error',
+      message: `فشل تحميل جميع الأصناف من المخزن: ${error.message || 'خطأ غير معروف'}`
+    });
+    return [];
+
+  } finally {
+    commit('SET_OPERATION_LOADING', false);
+  }
+}
 // ============================================
 // SETUP REAL-TIME TRANSACTIONS
 // ============================================
