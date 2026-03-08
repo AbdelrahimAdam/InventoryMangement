@@ -10,11 +10,11 @@
             </svg>
             <span class="text-sm">جاري البحث...</span>
           </div>
-          <div v-else-if="searchResults.length > 0" class="flex items-center gap-2 text-green-600 dark:text-green-400">
+          <div v-else-if="searchResults?.length > 0" class="flex items-center gap-2 text-green-600 dark:text-green-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="text-sm">تم العثور على {{ searchResults.length }} نتيجة</span>
+            <span class="text-sm">تم العثور على {{ searchResults?.length || 0 }} نتيجة</span>
           </div>
           <div v-else class="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,10 +82,10 @@
               <!-- Search Debug Info -->
               <span v-if="searchTerm && searchTerm.length >= 2" class="flex items-center gap-1 text-xs">
                 <span :class="{
-                  'text-green-600 dark:text-green-400': searchResults.length > 0,
-                  'text-yellow-600 dark:text-yellow-400': searchResults.length === 0
+                  'text-green-600 dark:text-green-400': searchResults?.length > 0,
+                  'text-yellow-600 dark:text-yellow-400': (searchResults?.length || 0) === 0
                 }">
-                  {{ searchResults.length }} نتيجة بحث
+                  {{ searchResults?.length || 0 }} نتيجة بحث
                 </span>
               </span>
             </div>
@@ -175,7 +175,7 @@
       </div>
 
       <!-- NEW: Finished Items Section -->
-      <div v-if="finishedItems.length > 0" class="mb-4 sm:mb-6">
+      <div v-if="finishedItems?.length > 0" class="mb-4 sm:mb-6">
         <div class="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow-lg p-4 border border-red-300 dark:border-red-700">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
@@ -184,7 +184,7 @@
               </svg>
               <h2 class="text-lg font-bold text-white">الأصناف المنتهية</h2>
               <span class="bg-white text-red-600 text-xs font-bold px-2 py-1 rounded-full">
-                {{ finishedItems.length }} صنف
+                {{ finishedItems?.length || 0 }} صنف
               </span>
             </div>
             <button 
@@ -304,12 +304,12 @@
           </div>
 
           <!-- Show More Button if there are more than 5 finished items -->
-          <div v-if="finishedItems.length > 5" class="mt-3 pt-3 border-t border-white/20">
+          <div v-if="finishedItems?.length > 5" class="mt-3 pt-3 border-t border-white/20">
             <button
               @click="showAllFinishedItems = !showAllFinishedItems"
               class="w-full flex items-center justify-center gap-1 text-white hover:text-white/80 text-sm"
             >
-              <span>{{ showAllFinishedItems ? 'عرض أقل' : `عرض ${finishedItems.length - 5} عنصر إضافي` }}</span>
+              <span>{{ showAllFinishedItems ? 'عرض أقل' : `عرض ${(finishedItems?.length || 0) - 5} عنصر إضافي` }}</span>
               <svg class="w-4 h-4 transition-transform" :class="{'rotate-180': showAllFinishedItems}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
               </svg>
@@ -470,8 +470,8 @@
                   <div v-else-if="searchTerm.length > 0 && searchTerm.length < 2" class="absolute left-0 right-0 -bottom-6 text-xs text-yellow-600 dark:text-yellow-400">
                     ⓘ اكتب حرفين على الأقل للبحث
                   </div>
-                  <div v-else-if="searchTerm.length >= 2 && searchResults.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
-                    ✓ تم العثور على {{ searchResults.length }} نتيجة
+                  <div v-else-if="searchTerm.length >= 2 && searchResults?.length > 0" class="absolute left-0 right-0 -bottom-6 text-xs text-green-600 dark:text-green-400">
+                    ✓ تم العثور على {{ searchResults?.length || 0 }} نتيجة
                   </div>
                 </div>
               </div>
@@ -541,13 +541,13 @@
           </div>
 
           <!-- Search Mode Indicator -->
-          <div v-if="searchTerm && searchTerm.length >= 2 && searchResults.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
+          <div v-if="searchTerm && searchTerm.length >= 2 && searchResults?.length > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 p-3 sm:p-4 rounded-lg">
             <div class="flex items-center justify-between">
               <div class="flex items-center">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <span class="text-sm">نتائج البحث: {{ searchResults.length }} عنصر</span>
+                <span class="text-sm">نتائج البحث: {{ searchResults?.length || 0 }} عنصر</span>
               </div>
               <button
                 @click="clearSearch"
@@ -580,7 +580,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-else-if="loading && !displayedItems.length" class="text-center py-8 sm:py-12">
+      <div v-else-if="loading && !displayedItems?.length" class="text-center py-8 sm:py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-yellow-600 mb-3 sm:mb-4"></div>
         <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">جاري تحميل المخزون...</p>
         <p v-if="totalLoaded > 0" class="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">تم تحميل {{ totalLoaded }} عنصر</p>
@@ -869,7 +869,7 @@
                 </tr>
 
                 <!-- Empty State -->
-                <tr v-if="visibleItems.length === 0 && !loading">
+                <tr v-if="visibleItems?.length === 0 && !loading">
                   <td :colspan="showActions && !readonly && userRole !== 'viewer' ? 9 : 8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div class="flex flex-col items-center">
                       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -904,7 +904,7 @@
             @scroll="onMobileScroll"
             ref="mobileScrollContainer"
           >
-            <div v-if="mobileVisibleItems.length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
+            <div v-if="mobileVisibleItems?.length === 0 && !loading" class="p-6 text-center text-gray-500 dark:text-gray-400">
               <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1M9 7h6"/>
               </svg>
@@ -1072,7 +1072,7 @@
             </div>
 
             <!-- Load More Button for Mobile -->
-            <div v-if="hasMore && !loadingMore && !isSearchMode && mobileVisibleItems.length > 0" class="p-4 text-center">
+            <div v-if="hasMore && !loadingMore && !isSearchMode && mobileVisibleItems?.length > 0" class="p-4 text-center">
               <button
                 @click="loadMoreItems"
                 :disabled="loading || loadingMore"
@@ -1089,7 +1089,7 @@
             </div>
 
             <!-- End of List for Mobile -->
-            <div v-if="!hasMore && (displayedItems || []).length > 0 && !isSearchMode && mobileVisibleItems.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="!hasMore && (displayedItems || []).length > 0 && !isSearchMode && mobileVisibleItems?.length > 0" class="p-4 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
               <p class="text-sm">تم عرض جميع العناصر</p>
             </div>
           </div>
@@ -1408,21 +1408,21 @@ export default {
     // NEW: Finished Items Computation (500 or less is low stock)
     // ============================================
     const finishedItems = computed(() => {
-      return filteredInventory.value.filter(item => {
+      return (filteredInventory.value || []).filter(item => {
         const quantity = item.remaining_quantity || 0;
         return quantity === 0;
       });
     });
     
     const isSearchMode = computed(() => {
-      return searchTerm.value && searchTerm.value.length >= 2 && searchResults.value.length > 0;
+      return searchTerm.value && searchTerm.value.length >= 2 && (searchResults.value?.length || 0) > 0;
     });
     
     // ========== UPDATED displayedItems COMPUTED ==========
     const displayedItems = computed(() => {
       // If a specific warehouse is selected AND we have loaded its items,
       // show those items (optionally filtered further by search/status)
-      if (selectedWarehouse.value && warehouseItems.value.length > 0) {
+      if (selectedWarehouse.value && warehouseItems.value?.length > 0) {
         let items = warehouseItems.value;
 
         // Apply status filter locally
@@ -1446,14 +1446,14 @@ export default {
 
       // If search mode is active, use search results
       if (isSearchMode.value) {
-        return searchResults.value;
+        return searchResults.value || [];
       }
 
       // Otherwise fall back to the regular filtered inventory (cached + paginated)
-      let items = filteredInventory.value;
+      let items = filteredInventory.value || [];
 
       if (searchTerm.value && searchTerm.value.length >= 2) {
-        items = fuzzyLocalSearch(items, searchTerm.value, selectedWarehouse.value, 50);
+        items = fuzzyLocalSearch(items, searchTerm.value, selectedWarehouse.value, 50) || [];
       }
 
       return items;
@@ -1552,15 +1552,17 @@ export default {
     // VIRTUAL SCROLLING COMPUTED PROPERTIES (Keep existing)
     // ============================================
     const visibleItems = computed(() => {
+      const items = displayedItems.value || [];
       const start = Math.max(0, visibleStartIndex.value - scrollBuffer);
-      const end = Math.min(displayedItems.value.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
-      return displayedItems.value.slice(start, end);
+      const end = Math.min(items.length, visibleStartIndex.value + visibleItemCount + scrollBuffer);
+      return items.slice(start, end);
     });
     
     const mobileVisibleItems = computed(() => {
+      const items = displayedItems.value || [];
       const start = Math.max(0, mobileVisibleStartIndex.value - scrollBuffer);
-      const end = Math.min(displayedItems.value.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
-      return displayedItems.value.slice(start, end);
+      const end = Math.min(items.length, mobileVisibleStartIndex.value + mobileVisibleItemCount + scrollBuffer);
+      return items.slice(start, end);
     });
 
     // ============================================
@@ -1693,7 +1695,7 @@ export default {
     // NEW: Export Finished Items to Excel
     // ============================================
     const exportFinishedItemsToExcel = async () => {
-      if (finishedItems.value.length === 0) {
+      if (!finishedItems.value?.length) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد أصناف منتهية للتصدير'
@@ -2379,7 +2381,7 @@ export default {
     // EXCEL EXPORT (Keep existing)
     // ============================================
     const exportToExcel = async () => {
-      if (displayedItems.value.length === 0) {
+      if (!displayedItems.value?.length) {
         store.dispatch('showNotification', {
           type: 'error',
           message: 'لا توجد بيانات للتصدير'
