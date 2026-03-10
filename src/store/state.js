@@ -55,33 +55,6 @@ export default () => ({
   },
   warehouseFilter: '',
 
-  // Invoice System State
-  invoices: [],
-  invoicesLoaded: false,
-  invoicesLoading: false,
-  invoicesError: null,
-  invoiceFilters: {
-    search: '',
-    status: '',
-    type: '',
-    dateFrom: '',
-    dateTo: ''
-  },
-  invoicePagination: {
-    lastDoc: null,
-    hasMore: true,
-    currentPage: 0,
-    totalLoaded: 0,
-    isFetching: false
-  },
-  invoiceStats: {
-    totalInvoices: 0,
-    totalSales: 0,
-    totalTax: 0,
-    uniqueCustomers: 0,
-    lastUpdated: null
-  },
-
   // SPARK Performance Monitoring
   searchPerformance: {
     searches: 0,

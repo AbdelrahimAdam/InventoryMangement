@@ -562,14 +562,8 @@ import { debounce } from 'lodash'
 export default {
   name: 'DispatchModal',
   props: {
-    isOpen: {
-      type: Boolean,
-      default: false
-    },
-    item: {
-      type: Object,
-      default: null
-    }
+    isOpen: { type: Boolean, default: false },
+    item: { type: Object, default: null }
   },
   emits: ['close', 'success'],
   setup(props, { emit }) {
@@ -846,41 +840,52 @@ export default {
       }
     }
 
-    // Calculate detailed dispatch breakdown (for display only – not sent to store)
+    // ============================================================
+    //  FIXED calculateDetailedDispatch – returns dispatched amounts and new remaining
+    // ============================================================
     const calculateDetailedDispatch = (currentItem, dispatchQuantity) => {
       const perCarton = currentItem.per_carton_count || 12
       const currentCartons = currentItem.cartons_count || 0
       const currentSingles = currentItem.single_bottles_count || 0
-      
-      let dispatchCartons = 0
-      let dispatchSingles = 0
-      
-      // Use single bottles first
-      if (currentSingles > 0) {
-        dispatchSingles = Math.min(currentSingles, dispatchQuantity)
+
+      // 1. Take as many whole cartons as possible without exceeding quantity
+      const wholeCartonsTaken = Math.min(
+        Math.floor(dispatchQuantity / perCarton),
+        currentCartons
+      )
+      let remainingAfterWholeCartons = dispatchQuantity - wholeCartonsTaken * perCarton
+
+      // 2. Take from existing singles first
+      const singlesFromExisting = Math.min(remainingAfterWholeCartons, currentSingles)
+      remainingAfterWholeCartons -= singlesFromExisting
+
+      // 3. If still needed, break a carton
+      let singlesFromBrokenCarton = 0
+      let cartonsBroken = 0
+      if (remainingAfterWholeCartons > 0 && currentCartons - wholeCartonsTaken > 0) {
+        // We break one additional carton to cover the remaining quantity
+        singlesFromBrokenCarton = remainingAfterWholeCartons
+        cartonsBroken = 1
+        remainingAfterWholeCartons = 0
       }
-      
-      // Calculate remaining after using singles
-      let remaining = dispatchQuantity - dispatchSingles
-      
-      // Use whole cartons
-      if (remaining > 0) {
-        const cartonsNeeded = Math.floor(remaining / perCarton)
-        dispatchCartons = Math.min(cartonsNeeded, currentCartons)
-        remaining -= (dispatchCartons * perCarton)
-      }
-      
-      // If still remaining, break a carton
-      if (remaining > 0 && currentCartons > dispatchCartons) {
-        dispatchCartons += 1
-        dispatchSingles += remaining
-      }
-      
+
+      // Totals dispatched
+      const dispatchedCartons = wholeCartonsTaken  // whole cartons removed
+      const dispatchedSingles = singlesFromExisting + singlesFromBrokenCarton
+
+      // New remaining stock
+      const newCartons = currentCartons - wholeCartonsTaken - cartonsBroken
+      const newSingles = currentSingles - singlesFromExisting + (cartonsBroken > 0 ? perCarton - singlesFromBrokenCarton : 0)
+
+      // Validate no negative values
       return {
-        cartons: dispatchCartons,
-        singles: dispatchSingles,
-        perCarton: perCarton,
-        totalQuantity: dispatchQuantity
+        dispatchedCartons,
+        dispatchedSingles,
+        perCarton,
+        totalQuantity: dispatchQuantity,
+        newCartons,
+        newSingles,
+        newTotal: newCartons * perCarton + newSingles
       }
     }
 
@@ -1156,8 +1161,7 @@ export default {
     }
 
     // ============================================================
-    //  UPDATED handleSubmit – sends only quantity & stays open
-    //  AND includes item_name, item_code for transaction display
+    //  UPDATED handleSubmit – uses fixed breakdown and updates UI
     // ============================================================
     const handleSubmit = async () => {
       error.value = ''
@@ -1187,20 +1191,24 @@ export default {
       loading.value = true
 
       try {
-        // ✅ ONLY total quantity is sent – no breakdown fields!
-        // ✅ Also include item_name and item_code for transaction records
+        // ✅ Calculate breakdown based on current stock using FIXED function
+        const breakdown = calculateDetailedDispatch(currentItem, totalToDispatch)
+
         const dispatchData = {
           item_id: currentItem.id,
           from_warehouse_id: form.sourceWarehouse,
           destination: 'dispatch',
           destination_id: form.destinationBranch,
           quantity: totalToDispatch,
+          cartons_count: breakdown.dispatchedCartons,
+          single_bottles_count: breakdown.dispatchedSingles,
+          per_carton_count: breakdown.perCarton,
           notes: form.notes || `صرف إلى ${getDestinationName(form.destinationBranch)}`,
           priority: form.priority,
           // Add item details for transaction display
           item_name: currentItem.name || currentItem.item_name || 'غير محدد',
           item_code: currentItem.code || currentItem.item_code || '',
-          color: currentItem.color || '' // optional, helps with display
+          color: currentItem.color || ''
         }
 
         console.log('📤 Sending to store dispatchItem with payload:', dispatchData)
@@ -1208,19 +1216,27 @@ export default {
         const result = await store.dispatch('dispatchItem', dispatchData)
 
         if (result?.success) {
-          // ✅ Update local UI to reflect new stock
-          const newQuantity = availableQuantity - totalToDispatch
-
-          // Update search results
+          // ✅ Update local UI to reflect new stock using the computed new values
           const updatedSearchResults = [...searchResults.value]
           const itemIndex = updatedSearchResults.findIndex(item => item.id === currentItem.id)
           if (itemIndex !== -1) {
             updatedSearchResults[itemIndex] = {
               ...updatedSearchResults[itemIndex],
-              remaining_quantity: newQuantity
-              // cartons_count and single_bottles_count will be recalculated by store
+              remaining_quantity: breakdown.newTotal, // use new total
+              cartons_count: breakdown.newCartons,
+              single_bottles_count: breakdown.newSingles
             }
             searchResults.value = updatedSearchResults
+          }
+
+          // Also update selectedItem to reflect new state (optional)
+          if (selectedItem.value?.id === currentItem.id) {
+            selectedItem.value = {
+              ...selectedItem.value,
+              remaining_quantity: breakdown.newTotal,
+              cartons_count: breakdown.newCartons,
+              single_bottles_count: breakdown.newSingles
+            }
           }
 
           // ✅ Clear selected item and destination for next dispatch

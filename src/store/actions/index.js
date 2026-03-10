@@ -4,7 +4,6 @@ import inventoryActions from './inventory';
 import searchActions from './search';
 import transactionsActions from './transactions';
 import warehousesActions from './warehouses';
-import invoicesActions from './invoices';
 import notificationsActions from './notifications';
 
 export default {
@@ -14,6 +13,5 @@ export default {
   ...searchActions,
   ...transactionsActions,
   ...warehousesActions,
-  ...invoicesActions,
   ...notificationsActions,
 };

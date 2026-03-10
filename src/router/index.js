@@ -79,25 +79,25 @@ const inventoryRoutes = {
   }
 };
 
-// نظام الفواتير المتكامل
+// ✅ UPDATED: نظام الفواتير المتكامل (الجديد)
 const invoiceSystemRoutes = {
   path: '/invoice-system',
   name: 'InvoiceSystem',
-  component: lazyLoad('Dispatch'),
+  component: lazyLoad('InvoiceSystem'), // now points to InvoiceSystem.vue
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
     requiredPermissions: ['manage_invoices', 'dispatch_items'],
-    title: 'نظام الفواتير والصرف',
+    title: 'نظام الفواتير',
     isInvoiceSystem: true
   }
 };
 
-// مسارات الفواتير
+// ✅ UPDATED: مسارات الفواتير (الآن تستخدم InvoiceSystem كأساس)
 const invoicesRoutes = {
   path: '/invoices',
   name: 'Invoices',
-  component: lazyLoad('Dispatch'),
+  component: lazyLoad('InvoiceSystem'), // changed from 'Dispatch' to 'InvoiceSystem'
   meta: { 
     requiresAuth: true,
     allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
@@ -108,7 +108,7 @@ const invoicesRoutes = {
     {
       path: 'create',
       name: 'CreateInvoice',
-      component: lazyLoad('CreateInvoice'),
+      component: lazyLoad('CreateInvoice'), // keep as is (placeholder)
       meta: { 
         requiresAuth: true,
         allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
@@ -118,7 +118,7 @@ const invoicesRoutes = {
     {
       path: ':id',
       name: 'InvoiceDetails',
-      component: lazyLoad('InvoiceDetails'),
+      component: lazyLoad('InvoiceDetails'), // keep as is (placeholder)
       meta: { 
         requiresAuth: true,
         allowedRoles: ['superadmin', 'company_manager', 'warehouse_manager'],
@@ -219,7 +219,7 @@ const routes = [
   {
     path: '/dispatch',
     name: 'Dispatch',
-    component: lazyLoad('Dispatch'),
+    component: lazyLoad('Dispatch'), // pure dispatch view (separate file)
     meta: { 
       requiresAuth: true,
       allowedRoles: ['superadmin', 'warehouse_manager'],
@@ -525,28 +525,28 @@ router.onError((error, to) => {
     console.log('🔄 فشل في تحميل المكون ديناميكياً');
 
     if (to.path.includes('/inventory')) {
-      next({
+      router.push({
         path: '/inventory-fallback',
         query: { originalPath: to.path }
       });
     } else if (to.path.includes('/invoices')) {
-      next({
+      router.push({
         path: '/invoices-fallback',
         query: { originalPath: to.path }
       });
     } else if (to.path.includes('/invoice-system')) {
-      next({
+      router.push({
         path: '/invoice-system-fallback',
         query: { originalPath: to.path }
       });
     } else {
-      next('/');
+      router.push('/');
     }
   } else if (error.message.includes('redirected')) {
     window.location.href = '/login';
   } else {
     console.log('📦 إعادة التوجيه إلى الصفحة الرئيسية');
-    next('/');
+    router.push('/');
   }
 });
 
@@ -670,7 +670,7 @@ router.afterEach((to) => {
     '/transactions': 'الحركات',
     '/transfers': 'النقل بين المخازن',
     '/dispatch': 'الصرف الخارجي',
-    '/invoice-system': 'نظام الفواتير والصرف',
+    '/invoice-system': 'نظام الفواتير',
     '/invoices': 'الفواتير',
     '/invoices/create': 'إنشاء فاتورة',
     '/reports': 'التقارير',
