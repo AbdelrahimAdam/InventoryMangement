@@ -47,10 +47,9 @@
       </div>
     </div>
 
-    <!-- Scrollable Table (remove max-height temporarily if rows hidden) -->
-    <div class="overflow-x-auto">
+    <!-- ===== FIXED: Table hidden on mobile, visible on sm and up ===== -->
+    <div class="hidden sm:block overflow-x-auto">
       <div class="inline-block min-w-full align-middle">
-        <!-- If rows are hidden, try removing the style="max-height:400px" below -->
         <div class="overflow-y-auto" style="max-height: 400px;">
           <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
@@ -132,7 +131,7 @@
       </div>
     </div>
 
-    <!-- Mobile Cards (scrollable) -->
+    <!-- Mobile Cards (scrollable) – unchanged, already hidden on sm+ -->
     <div class="sm:hidden p-3 max-h-96 overflow-y-auto">
       <div class="space-y-3">
         <div
@@ -292,7 +291,6 @@ const onFilterChange = () => {
 
 const getWarehouseLabel = (warehouseId) => warehouseId || 'غير محدد';
 </script>
-
 <style scoped>
 /* ===== Fixed layout styles (copied from original DispatchPageWithInvoices.vue) ===== */
 
